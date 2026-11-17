@@ -59,14 +59,14 @@ module.exports = (L) => {
     const s = L.content('人の承認の証拠：エージェントに判断させない', {
       lead: '承認したかどうかは、認可サーバーが本人に確かめる。承認の内容をトークンに載せて照合する',
       stages: [1, 4],
-      notes: '送金や削除のような機微な操作では、人の承認が要ります。このとき、承認があったかどうかを、エージェント自身に判断させてはいけません。Auth0 も、承認の有無をエージェントではなく、ID を認識する認可のフローから得ることを強調しています。標準の手段は CIBA と RAR の組み合わせです。エージェントは CIBA で、金額や相手先などの承認してほしい内容を authorization_details に入れて要求します。利用者は自分の別の端末で承認し、認可サーバーが本人であることを確かめます。発行されたトークンには、承認された内容が、受け手ごとに必要な分だけに絞って入ります。これは RAR の推奨です。受け手のリソースサーバーは、実際の要求と承認された内容が一致するかを確かめます。承認の ID を独自クレームとして載せておくと、監査ログで利用者、エージェント、承認を結びつけられます。',
-      refs: { spec: 'OpenID CIBA Core／RFC 9396 §9.1（宛先ごとに絞る）', inst: 'OIDF Agentic AI §2.6（最小権限）／CoSAI §1.2', book: '' },
+      notes: '送金や削除のような機微な操作では、人の承認が要ります。このとき、承認があったかどうかを、エージェント自身に判断させてはいけません。Auth0 も、承認の有無をエージェントではなく、ID を認識する認可のフローから得ることを強調しています。標準の手段は CIBA と RAR の組み合わせです。エージェントは CIBA で、金額や相手先などの承認してほしい内容を authorization_details に入れて要求します。利用者は自分の別の端末で承認し、認可サーバーが本人であることを確かめます。発行されたトークンには、承認された内容が、受け手ごとに必要な分だけに絞って入ります。これは RAR の推奨です。受け手のリソースサーバーは、実際の要求と承認された内容が一致するかを確かめます。承認の ID を独自クレームとして載せておくと、監査ログで利用者、エージェント、承認を結びつけられます。例の要素名は、対になるケーススタディの実験（cs/scen_c.py）に揃えました。ただし個別の請求書は、RFC 9396 §2.2 に従って identifier に入れています。locations はリソースサーバーの場所を表す要素です。ケーススタディの実験は請求書の ID を locations に入れ、承認 ID はトークンに載せていません。また実験では CIBA を使わず、交換のときにトークン発行サービスが承認の記録を引くことで、本人の承認を代用しました。',
+      refs: { spec: 'OpenID CIBA Core／RFC 9396 §2.2（identifier・locations）・§9.1（宛先ごとに絞る）／ケーススタディ cs/scen_c.py', inst: 'OIDF Agentic AI §2.6（最小権限）／CoSAI §1.2', book: '' },
     });
     L.flow(s, [{ t: 'エージェントが要求', d: 'CIBA。内容を authorization_details に', fill: C.accent5 },
       { t: '利用者が承認', d: '別の端末で。AS が本人を確かめる', fill: C.accent2 },
       { t: 'トークン発行', d: '承認内容を宛先ごとに絞って載せる', fill: C.accent1 },
       { t: '受け手が照合', d: '要求と承認の内容が一致するか', fill: C.accent4 }], { x: 0.6, y: 1.95, w: 12.1, h: 1.3, tSize: 15, dSize: 12, gap: 0.36 });
-    L.code(s, '"authorization_details": [{\n  "type": "https://claims.example.com/payment",\n  "actions": ["initiate"],\n  "amount": { "currency": "JPY", "value": "120000" },\n  "creditor": "B-019"\n}],\n"https://claims.example.com/approval_id": "ap-311"', { x: 0.6, y: 3.5, w: 6.9, h: 2.4, fontSize: 11 });
+    L.code(s, '"authorization_details": [{\n  "type": "https://claims.example.com/rar/payment",\n  "actions": ["pay"],\n  "identifier": "inv-1",\n  "instructedAmount": { "currency": "JPY", "amount": "120000" },\n  "creditorAccount": "B-019"\n}],\n"https://claims.example.com/approval_id": "ap-311"', { x: 0.6, y: 3.5, w: 6.9, h: 2.4, fontSize: 10.5 });
     L.card(s, { x: 7.8, y: 3.5, w: 4.9, h: 2.4, color: C.accent3, icon: 'MdHowToReg', title: '承認の扱いの規則', titleSize: 15, body: ['承認の有無をエージェントに任せない', '承認内容は宛先ごとに絞る', '受け手が要求と承認を照合する', '承認 ID を監査ログと相関させる'], bodySize: 12.5 });
     L.note(s, 'tip', '承認は「エージェントが言った」ではなく「認可サーバーが本人に確かめた」ものだけを信じる', { x: 0.6, y: 6.0, w: 12.1, h: 0.5, size: 12.5, label: '' });
   }
@@ -87,6 +87,28 @@ module.exports = (L) => {
       ['PKCE', 'S256 を使う', 'MUST']],
     { x: 0.6, y: 1.95, w: 12.1, colW: [2.6, 7.4, 2.1], fontSize: 12.5, rowH: 0.5 });
     L.note(s, 'add', 'Enterprise-Managed Authorization 拡張（2026-06-18 Stable）：IdP の ID-JAG を MCP サーバーの AS でトークンに交換し、利用者ごとの同意画面なしに組織が許可を管理する', { x: 0.6, y: 5.6, w: 12.1, h: 0.88, size: 12.5, label: '' });
+  }
+
+  {
+    const s = L.content('トークン交換は絞るとは限らない：Keycloak 26.8 の実測', {
+      lead: '交換で得られる宛先と範囲はクライアントの設定で決まる。交換の方針はクライアントごとに絞る',
+      stages: [1, 2, 4],
+      notes: 'トークン交換を、範囲を狭める仕組みだと思い込まないでください。ケーススタディで、Keycloak 26.8 の標準トークン交換を実際に試しました。元のトークンは、利用者がポータルで得た mcp-tools 宛てのもので、aud は mcp-tools と account です。これを、ツールのクライアント mcp-tools が交換しました。audience に invoices、scope に aud-invoices を指定すると、invoices 宛てに絞ったトークンが出ました。audience だけを指定すると、Requested audience not available というエラーで、設定していない宛先を指定すると Audience not found で拒否されました。ここまでは期待どおりです。ところが、scope に aud-orders だけを指定すると、元のトークンには無かった orders 宛てのトークンが、200 で発行されました。宛先が mcp-tools から orders に付け替わり、範囲は元より広がっています。交換で得られる範囲を決めているのは、元のトークンではなく、交換するクライアントに割り当てたスコープだからです。ここで使った aud-orders は、mcp-tools に optional scope として割り当てたものです。この挙動は Keycloak の文書にも書かれていて、既定では交換で元に無いスコープと宛先を要求できます。audience パラメータは宛先を絞るだけで足さず、宛先を足すのは scope です。絞り込みだけを許すには、client policy の executor（downscope-assertion-grant-enforcer）をクライアントに適用します。何も指定しなければ、aud は account だけでした。また、出たトークンには act がありませんでした。交換の所要時間は 200 回で p50 9.7 ミリ秒、p95 31.3 ミリ秒です。したがって、交換を許すクライアントと、そのクライアントに割り当てる宛先とスコープを、クライアントごとに最小にし、交換のサービスか受け手で、下流が上流を超えていないかを確かめます。',
+      refs: { spec: 'RFC 8693 §5（縮小を求めない）／Keycloak Token exchange・Server Admin Guide（downscope-assertion-grant-enforcer）／ケーススタディ results/summary.md（題材 C）', inst: 'NIST IR 8587 §5.3.1.3／OWASP Identity Propagation CS（aud を広げない）', book: '' },
+    });
+    L.T(s, '元のトークン：利用者がポータルで得た mcp-tools 宛て（aud＝mcp-tools・account）。クライアント mcp-tools が交換する', { x: 0.6, y: 1.9, w: 12.1, h: 0.35, fontSize: 12.5, color: L.MUTED, margin: 0, valign: 'middle' });
+    const ok = (t) => ({ text: t, options: { color: HEX.accent4, bold: true } });
+    const ng = (t) => ({ text: t, options: { color: HEX.accent3, bold: true } });
+    L.table(s, [['交換の要求', '結果', '得た aud', '得た scope'],
+      ['audience＝invoices、scope＝aud-invoices', ok('200（絞り込み）'), 'invoices', 'aud-invoices email profile'],
+      ['audience＝invoices だけ', ng('400'), '—', 'Requested audience not available: invoices'],
+      ['audience＝設定していない宛先', ng('400'), '—', 'Audience not found'],
+      [{ text: 'scope＝aud-orders だけ（optional scope。元のトークンに無い宛先）', options: { bold: true, color: HEX.accent3 } }, ng('200（付け替え・拡大）'), { text: 'orders・account', options: { bold: true, color: HEX.accent3 } }, 'aud-orders email profile'],
+      ['どちらも指定しない', ok('200'), 'account', 'email profile']],
+    { x: 0.6, y: 2.3, w: 12.1, colW: [4.3, 2.3, 1.9, 3.6], fontSize: 12, rowH: 0.46, firstBold: false });
+    L.stat(s, { x: 0.6, y: 5.25, w: 3.0, value: 'act なし', label: '標準の交換で出たトークン', size: 26, vh: 0.55, lh: 0.5, lsize: 12, color: C.accent5 });
+    L.stat(s, { x: 3.6, y: 5.25, w: 3.0, value: '9.7 ms', label: 'p50（p95 31.3 ms、200 回）', size: 26, vh: 0.55, lh: 0.5, lsize: 12, color: C.accent1 });
+    L.note(s, 'leader', '交換は絞るとは限らない。交換を許すクライアントと宛先・スコープを最小にし、downscope-assertion-grant-enforcer で絞り込みだけに限る。「下流は上流を超えない」を確かめる（Part 6）', { x: 6.8, y: 5.2, w: 5.9, h: 1.3, size: 12.5 });
   }
 
   {
@@ -154,14 +176,14 @@ module.exports = (L) => {
     const s = L.content('設計チェックリスト：エージェントのアクセス', {
       lead: 'エージェントを組織のサービスにつなぐ前に、9 つを確かめる',
       stages: [0, 4, 5],
-      notes: 'この Part のチェックリストです。まず、エージェントを独立した ID として登録し、共有のアカウントを使っていないかを確かめます。代理で動くときは、sub が利用者、act や client_id がエージェントと分かれているか。宛先は resource で要求し、aud を 1 つに絞っているか。受け取ったトークンをそのまま渡さず、ホップごとに交換しているか。スコープはツールごとの最小限で、昇格を記録しているか。トークンはタスク単位の短命で、リフレッシュトークンを出していないか。短命で狭いトークンは IR 8587 が、リフレッシュトークンを出さないことは ID-JAG と Transaction Tokens の草案が求めています。機微な操作では、CIBA と RAR による承認を受け手が照合しているか。委任の深さの上限と、根元の承認からの一括失効を決めているか。そして監査で、利用者、すべてのアクター、txn、承認 ID を相関できるか、です。深さの上限と一括失効は標準にまだないので、組織の規則として Part 11 の台帳に書きます。',
+      notes: 'この Part のチェックリストです。まず、エージェントを独立した ID として登録し、共有のアカウントを使っていないかを確かめます。代理で動くときは、sub が利用者、act や client_id がエージェントと分かれているか。宛先は resource で要求し、aud を 1 つに絞っているか。受け取ったトークンをそのまま渡していないか。MCP の仕様が求めるのはこのパススルーの禁止までで、ホップごとに交換するかは組織の選択です。交換するなら、交換は範囲を広げることもあるので、交換を許すクライアントと、割り当てる宛先とスコープを絞っているか。Keycloak 26.8 では、optional scope を求めると元のトークンに無い宛先のトークンが出ました。スコープはツールごとの最小限で、昇格を記録しているか。トークンはタスク単位の短命で、リフレッシュトークンを出していないか。短命で狭いトークンは IR 8587 が、リフレッシュトークンを出さないことは ID-JAG と Transaction Tokens の草案が求めています。機微な操作では、CIBA と RAR による承認を受け手が照合しているか。委任の深さの上限と、根元の承認からの一括失効を決めているか。そして監査で、利用者、すべてのアクター、txn、承認 ID を相関できるか、です。深さの上限と一括失効は標準にまだないので、組織の規則として Part 11 の台帳に書きます。',
       refs: { spec: 'RFC 8693／8707／9396／MCP 認可／ID-JAG 06 §4.4.4／Txn-Token 11 §11.4', inst: 'CoSAI §1.2・§4.4／NIST IR 8587 §5.3.1.6（短命・狭い範囲）', book: '『デジタルアイデンティティのすべて』（考え方）18.6.1 節 p.326' },
     });
     L.table(s, [['観点', '確かめること', '根拠'],
       ['主体', 'エージェントを独立した ID として登録したか', 'CoSAI §1.2'],
       ['委任', 'sub＝利用者、act・client_id＝エージェントで分けたか', 'RFC 8693 §4.1'],
       ['宛先', 'resource で要求し、aud を 1 つに絞ったか', 'RFC 8707、MCP'],
-      ['転送', '受け取ったトークンを渡さず、ホップごとに交換するか', 'MCP 仕様'],
+      ['転送', '受け取ったトークンを渡さないか。ホップごとの交換と、交換の宛先・範囲の絞り込みは組織で決めたか', 'MCP 仕様（パススルー禁止）／組織の規則'],
       ['範囲', 'ツールごとの最小スコープで、昇格を記録するか', 'MCP ベストプラクティス'],
       ['寿命', 'タスク単位の短命トークンで、RT を出さないか', 'IR 8587 §5.3.1.6／ID-JAG §4.4.4'],
       ['承認', '機微な操作は CIBA・RAR の承認を照合するか', 'RFC 9396'],

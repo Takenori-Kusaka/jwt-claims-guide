@@ -85,4 +85,4 @@ def build(pptx_name, docs_rel, title, lead, og_desc, other):
 build('JWT_クレーム設計ガイド.pptx', '', 'JWT クレーム設計ガイド ― 組織のあらゆるサービスで共用する独自クレームを、どう設計し、どう流し、どう治めるか',
       '認証認可とマイクロサービスの設計を任された新任のテックリーダーに向けて、JWT の独自クレームの設計・伝搬・検証・ガバナンスを、標準クレームと 4 つの IdP（Entra ID・Keycloak・Auth0/Okta・Cognito）の実際を前提に解説する資料です',
       'クレームはサービス間の契約。既存のクレームの地図、4 つの IdP の実際、独自クレームの設計原則、マイクロサービスの流れ、データ層、期限、機微情報、AI エージェント、ガバナンスを、RFC・NIST・OWASP・デジタル庁の指針と日本語の専門書を根拠に解説',
-      '<a href="https://takenori-kusaka.github.io/agentops-reliability-guide/">関連：AgentOps と Agent Reliability 実践ガイド</a>')
+      '<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy">ケーススタディ（実測）</a>／<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy/blob/main/catalog/jwt-claims-catalog.xlsx">付録：JWT クレーム一覧（xlsx）</a>／<a href="https://takenori-kusaka.github.io/agentops-reliability-guide/">関連：AgentOps と Agent Reliability 実践ガイド</a>')

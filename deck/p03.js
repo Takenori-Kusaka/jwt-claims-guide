@@ -76,14 +76,14 @@ module.exports = (L) => {
     const s = L.content('Keycloak：aud・軽量トークン・組織・トークン交換', {
       lead: 'API を aud に入れるには設定が要る。トークン交換は V2 が正式、委任はまだ preview',
       stages: [1, 2, 3],
-      notes: 'Keycloak の 4 つの論点です。1 つ目は aud です。Keycloak は自動では API を aud に入れません。Audience マッパーをクライアントスコープに設定するか、クライアントロールを持つクライアントを aud に足す Audience Resolve の仕組みを使います。既定で aud に入る account は、API 固有の値ではありません。『OpenID Connect入門』のサンプルも、本来は API 固有の値にすべきと断ったうえで、既定のままにしています。2 つ目は軽量アクセストークンです。クレームを絞ったアクセストークンで、全クレームが必要な場面ではトークン交換で通常のトークンに変えます。3 つ目は組織の機能で、organization スコープを要求すると organization クレームが出ます。ただし 2025 年に、メールのドメインが一致するだけで組織の所属を付けてしまう脆弱性が報告されました。4 つ目はトークン交換です。内部のトークン同士を交換する Standard Token Exchange V2 は正式サポートで既定で有効、旧 V1 は非推奨です。act を入れる委任は 26.8 で preview になりました。',
-      refs: { spec: 'Keycloak：Server Admin Guide／Token exchange／26.8.0 告知', inst: 'NVD CVE-2025-1391・CVE-2025-14559', book: '『OpenID Connect入門』9.4 節 p.130／『実践 Keycloak』5.5.1 節 pp.76–77' },
+      notes: 'Keycloak の 4 つの論点です。1 つ目は aud です。Keycloak は自動では API を aud に入れません。Audience マッパーをクライアントスコープに設定するか、クライアントロールを持つクライアントを aud に足す Audience Resolve の仕組みを使います。既定で aud に入る account は、API 固有の値ではありません。『OpenID Connect入門』のサンプルも、本来は API 固有の値にすべきと断ったうえで、既定のままにしています。2 つ目は軽量アクセストークンです。クレームを絞ったアクセストークンで、Keycloak の文書では、軽量アクセストークンで消したクレームは、受け手がイントロスペクションで取得します。3 つ目は組織の機能で、organization スコープを要求すると organization クレームが出ます。ただし 2025 年に、メールのドメインが一致するだけで組織の所属を付けてしまう脆弱性が報告されました。4 つ目はトークン交換です。内部のトークン同士を交換する Standard Token Exchange V2 は正式サポートで既定で有効、旧 V1 は非推奨です。act を入れる委任は 26.8 で preview になりました。ケーススタディで Keycloak 26.8.0 を実際に動かすと、3 つのことが確かめられました。軽量アクセストークンでは、sub、aud、realm_access、組織の名前空間を含む 12 個のクレームが落ちました。標準のトークン交換では、交換するクライアント mcp-tools に optional scope として割り当てた aud-orders を要求すると、元のトークンに無い orders 宛て（aud は orders と account）のトークンが 200 で出ました。交換は範囲を絞るとは限りません。Keycloak の文書も、既定では交換で元に無いスコープと宛先を要求できると書いています。これは Part 10 で扱います。また、リフレッシュでは、変えた利用者属性と足したロールが新しいトークンに反映され、Revoke Refresh Token を有効にしたこのレルムでは、リフレッシュトークンも新しいものに替わりました。これは Part 8 で扱います。',
+      refs: { spec: 'Keycloak：Server Admin Guide／Token exchange／軽量 AT／26.8.0 告知／ケーススタディ summary.md', inst: 'NVD CVE-2025-1391・CVE-2025-14559', book: '『OpenID Connect入門』9.4 節 p.130／『実践 Keycloak』5.5.1 節 pp.76–77' },
     });
     const cs = [
       ['MdDns', C.accent1, 'aud', ['自動では API を含まない', 'Audience マッパーをスコープに設定', '既定の account は API 固有の値ではない']],
-      ['MdDataObject', C.accent5, '軽量アクセストークン', ['クレームを絞ったアクセストークン', '全クレームが要るならトークン交換で変換', 'マッパーごとに載せるかを選ぶ']],
+      ['MdDataObject', C.accent5, '軽量アクセストークン', ['クレームを絞ったアクセストークン', '実測（26.8）：sub・aud・組織の名前空間など 12 個が落ちる', '消したクレームは受け手がイントロスペクションで得る（Keycloak の文書）']],
       ['MdApartment', C.accent3, '組織（Organizations）', ['organization スコープで organization クレーム', 'CVE-2025-1391：ドメイン一致だけで所属を付与', '所属は確かな情報源から付ける']],
-      ['MdSwapHoriz', C.accent4, 'トークン交換', ['Standard V2：正式・既定で有効（内部同士）', '旧 V1：非推奨', '委任（act）：26.8 で preview', 'CVE-2025-14559：無効な利用者にも発行']],
+      ['MdSwapHoriz', C.accent4, 'トークン交換', ['Standard V2：正式・既定で有効、旧 V1 は非推奨', '委任（act）：26.8 で preview', '実測：optional scope の aud-orders を求めると、元に無い orders 宛てが 200 で出た', 'CVE-2025-14559：無効な利用者にも発行']],
     ];
     cs.forEach((c, i) => {
       const col = i % 2, row = Math.floor(i / 2);
@@ -228,8 +228,8 @@ module.exports = (L) => {
     const s = L.content('IdP の差は入口で吸収する', {
       lead: 'IdP ごとの検証と対応づけは入口で 1 回だけ行い、内側のサービスには組織の形で渡す',
       stages: [2, 3, 5],
-      notes: 'Part 3 のまとめです。4 つの IdP は、利用者のキー、テナント、aud、ロールの位置、独自クレームの入れ方がすべて違います。各サービスがこの違いを個別に扱うと、IdP を足したり、IdP の挙動が変わったりするたびに、全サービスを直すことになります。そこで、IdP ごとの検証と対応づけを入口で 1 回だけ行い、内側のサービスには組織が決めた形で渡します。入口では、IdP ごとに iss、aud、トークンの種類を検証し、Entra ID なら oid と tid、Okta なら uid というように、IdP ごとのキーを組織のキーに対応づけます。scope の形やロールの名前も、組織の語彙にそろえます。具体的な方法は、入口でのトークン交換や内部トークンの発行で、これは Part 6 で扱います。また、対応づけの表と、組織のクレームの台帳、共通の検証部品は、Part 11 のガバナンスで扱います。どちらの場合も、内側のサービスが読むのは組織の名前空間のクレームだけ、という状態を目指します。',
-      refs: { spec: 'RFC 8693（トークン交換）／RFC 9068 §2.2.2', inst: 'CSRB 勧告 6（共通の認証ライブラリ）／NIST SP 800-162 §3.2.3.2', book: '『デジタルアイデンティティのすべて』（考え方）4.2.5・13.4.2 節 pp.35–36, 207–209' },
+      notes: 'Part 3 のまとめです。4 つの IdP は、利用者のキー、テナント、aud、ロールの位置、独自クレームの入れ方がすべて違います。各サービスがこの違いを個別に扱うと、IdP を足したり、IdP の挙動が変わったりするたびに、全サービスを直すことになります。そこで、IdP ごとの検証と対応づけを入口で 1 回だけ行い、内側のサービスには組織が決めた形で渡します。入口では、IdP ごとに iss、aud、トークンの種類を検証し、Entra ID なら oid と tid、Okta なら uid というように、IdP ごとのキーを組織のキーに対応づけます。scope の形やロールの名前も、組織の語彙にそろえます。具体的な方法は、入口でのトークン交換や内部トークンの発行で、これは Part 6 で扱います。また、対応づけの表と、組織のクレームの台帳、共通の検証部品は、Part 11 のガバナンスで扱います。どちらの場合も、内側のサービスが読むのは組織の名前空間のクレームだけ、という状態を目指します。ケーススタディの社内業務システムでは、IdP を区別せずに必須のクレームを確かめる厳格な基準が、正規の要求を 2 件拒否しました。groups が超過で消えた Entra ID の管理者と、リソースバインディングを使わない既定の形で aud が無く、client_id で宛先を表す Cognito のアクセストークンです。入口の正規化で Cognito だけは client_id を照合し、groups の超過はディレクトリを引いて解決すると、どちらも正しく受理されました。なお、ケーススタディで実機を使ったのは Keycloak だけで、Entra ID・Okta・Cognito・Auth0 は 2026 年 11 月時点の公式文書の形を再現した模擬です。詳しくは Part 4 で扱います。',
+      refs: { spec: 'RFC 8693（トークン交換）／RFC 9068 §2.2.2／ケーススタディ results/summary.md', inst: 'CSRB 勧告 6（共通の認証ライブラリ）／NIST SP 800-162 §3.2.3.2', book: '『デジタルアイデンティティのすべて』（考え方）4.2.5・13.4.2 節 pp.35–36, 207–209' },
     });
     const idps = [['Entra ID', 'oid＋tid'], ['Keycloak', 'sub・organization'], ['Auth0／Okta', 'sub・org_id／uid'], ['Cognito', 'sub（token_use を確認）']];
     idps.forEach((d, i) => {
@@ -239,6 +239,6 @@ module.exports = (L) => {
     L.card(s, { x: 3.9, y: 1.95, w: 3.7, h: 3.65, color: C.accent1, icon: 'MdHub', title: '入口（1 回だけ）', titleSize: 15, body: ['IdP ごとに iss・aud・種類を検証', 'IdP のキーを組織のキーへ', 'scope・ロールを組織の語彙へ', '無いクレームは拒否'], bodySize: 12.5, fill: C.background2 });
     L.arrow(s, 7.65, 3.75, 0.5, 'r', L.MUTED, 1.75);
     L.code(s, ['{', '  "iss": "https://sts.internal.example.com",', '  "sub": "u-7f3a…",', '  "aud": "https://orders.internal.example.com",', '  "https://claims.example.com/tenant": "t-042",', '  "https://claims.example.com/roles":', '    ["approver"]', '}'].join('\n'), { x: 8.25, y: 1.95, w: 4.45, h: 3.65, fontSize: 10 });
-    L.note(s, 'leader', '内側のサービスが読むのは組織の名前空間のクレームだけにする。方法は Part 6（入口での交換）、対応表と台帳は Part 11', { x: 0.6, y: 5.8, w: 12.1, h: 0.7, size: 13 });
+    L.note(s, 'leader', '内側のサービスが読むのは組織の名前空間のクレームだけにする。実測では、IdP を区別せず必須を確かめると正規の要求を 2 件誤拒否し、入口の正規化（Cognito の client_id）と groups 超過の解決（ディレクトリ参照）で 0 件になった（Part 4。Keycloak 以外は模擬）', { x: 0.6, y: 5.8, w: 12.1, h: 0.7, size: 12.5, label: '' });
   }
 };
