@@ -4,9 +4,4 @@ deck/qa/
 *.tmp
 research/deck_text.md
 deck/*.pptx
-research/notes/10_book-*.md
-research/notes/11_book-*.md
-research/notes/12_book-*.md
-research/notes/13_book-*.md
-research/outline.md
 deck/make.sh
