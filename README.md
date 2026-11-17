@@ -4,6 +4,7 @@
 
 - Web スライド: https://takenori-kusaka.github.io/jwt-claims-guide/
 - PDF / PPTX: [slides/](slides/)
+- Docswell: https://www.docswell.com/s/takenori_kusaka/ZWR7NJ-jwt-claims-guide
 
 ## 中心の主張
 
