@@ -6,7 +6,7 @@
 - PDF / PPTX: [slides/](slides/)
 - Docswell: https://www.docswell.com/s/takenori_kusaka/ZWR7NJ-jwt-claims-guide
 - ケーススタディ（実測、67 ケースの攻撃・正規の要求と除去実験）: https://github.com/Takenori-Kusaka/jwt-claims-casestudy
-- ケーススタディのスライド（49 枚、Web 版）: https://takenori-kusaka.github.io/jwt-claims-casestudy/
+- ケーススタディのスライド（49 枚、Web 版）: https://takenori-kusaka.github.io/jwt-claims-casestudy/（Docswell: https://www.docswell.com/s/takenori_kusaka/KJWMVQ-jwt-claims-casestudy）
 - 付録：JWT クレーム一覧（xlsx、805 行、3 ケースの採否つき）: https://github.com/Takenori-Kusaka/jwt-claims-casestudy/blob/main/catalog/jwt-claims-catalog.xlsx
 
 ## 中心の主張
