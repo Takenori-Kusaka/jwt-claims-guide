@@ -92,7 +92,7 @@ class Registry(unittest.TestCase):
 
     def test_rename_is_detected(self):
         ids = self.ids()
-        ids[46]['id'] = 'p04-carry-or-ask'
+        ids[[x['id'] for x in ids].index('p04-carry-or-query')]['id'] = 'p04-carry-or-ask'
         e = C.check_registry(ids, REG)
         self.assertTrue(any('p04-carry-or-ask is not in' in x for x in e), e)
         self.assertTrue(any('id p04-carry-or-query' in x and 'on no slide' in x for x in e), e)
@@ -204,7 +204,8 @@ class Build(unittest.TestCase):
         self.assertEqual([x['id'] for x in ids if x['id'] in KNOWN], [x['id'] for x in IDS])
         for x in IDS:
             self.assertEqual(new[x['id']]['title'], x['title'])
-        self.assertEqual([x['id'] for x in ids[45:49]], ['p04-token-is-snapshot', 'p04-carry-or-query', 'p04-dummy-inserted', 'p04-claim-names'])
+        k = [x['id'] for x in ids].index('p04-token-is-snapshot')
+        self.assertEqual([x['id'] for x in ids[k:k + 4]], ['p04-token-is-snapshot', 'p04-carry-or-query', 'p04-dummy-inserted', 'p04-claim-names'])
         reg = json.loads(_read(os.path.join(self.deck, 'slide_ids_registry.json')))
         self.assertEqual(reg['p04-dummy-inserted'], {'issued': '2026-12-01', 'title': 'ダミーのスライド（挿入テスト）'})
         self.assertEqual(self.check(), 0)
