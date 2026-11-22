@@ -147,7 +147,7 @@ sequenceDiagram
   BFF->>API: Authorization: Bearer AT [U01]
   API->>KC: 未知の kid なら JWKS を取り直す（iss ごとに最短 300 秒に 1 回） [U09]
   API->>API: alg・typ・iss・aud・exp・exp−iat・必須クレーム。iss からテナントを引き、tenant_id・パスと照合。roles の語彙と件数、user_id = sub
-  API->>DB: BEGIN; SELECT set_config('app.tenant', $1, true); tenants.status を確認; SELECT … WHERE tenant_id = $1（RLS） [U02]
+  API->>DB: BEGIN、set_config('app.tenant', $1, true)、tenants.status を確認、SELECT … WHERE tenant_id = $1（RLS） [U02]
   DB->>API: 自テナントの行だけ
   API->>BFF: 結果
   BFF->>KC: 期限の前に RT で取り直す [U04][I02]
