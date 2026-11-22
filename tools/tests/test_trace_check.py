@@ -333,10 +333,29 @@ def test_implemented_registry_marker_in_property(tmp_path, capsys):
 
 
 def test_implemented_unbuilt_kind_fails(tmp_path, capsys):
+    items = copy.deepcopy(ITEMS)
+    items['items'].append({'ref': 'calib:size-budget', 'issue': '#19', 'origin': 'proposed', 'title': 'calibration'})
+
     def change(r):
-        r.update(status='実装済み', owner_issue='#19', planned_items=['render:payload-schema'])
-    code, out = run(build(tmp_path, reqs=with_req(change)), capsys)
-    assert code == 1 and 'kind render has no artifact to resolve yet' in out
+        r.update(status='実装済み', owner_issue='#19', planned_items=['calib:size-budget'])
+    code, out = run(build(tmp_path, items=items, reqs=with_req(change)), capsys)
+    assert code == 1 and 'kind calib has no artifact to resolve yet' in out
+
+
+def _render_done(r):
+    r.update(status='実装済み', owner_issue='#19', planned_items=['render:payload-schema'])
+
+
+def test_implemented_render_resolves_to_render_md(tmp_path, capsys):
+    # render:<table> -> the <a id="<table>"></a> part of tools/claim_lint/RENDER.md (#19)
+    code, out = run(build(tmp_path, reqs=with_req(_render_done)), capsys)
+    assert code == 1 and 'RENDER.md does not exist' in out
+    files = {'tools/claim_lint/RENDER.md': '## 4. Schema <a id="payload-schema"></a>\nreq:p01-validate.R1\n'}
+    code, out = run(build(tmp_path, reqs=with_req(_render_done), files=files), capsys)
+    assert code == 0, out
+    files = {'tools/claim_lint/RENDER.md': '## 4. Schema <a id="payload-schema"></a>\nx\n## 5 <a id="next"></a>\nreq:p01-validate.R1\n'}
+    code, out = run(build(tmp_path, reqs=with_req(_render_done), files=files), capsys)
+    assert code == 1 and 'render:payload-schema does not contain the reverse reference req:p01-validate.R1' in out
 
 
 # ------------------------------------------------------------------ (e) tier filter, summary, generated list

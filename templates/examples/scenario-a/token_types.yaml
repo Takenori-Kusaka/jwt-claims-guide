@@ -103,7 +103,7 @@ token_types:
         serializer_extra_basis: 'Keycloak 26.8.0 の JOSE ヘッダーは `"typ" : "at+jwt"` と `"kid" : "…"` のように、コロンの前後に空白を入れる（2 か所 × 2 バイト）。2026-11-22 の見本トークンの実測（research/template-design/gate1.md）'
       path: [nginx-large-client-header-buffers, nodejs-max-http-header-size]
       other_headers_bytes: 2048
-    note: other_headers_bytes の 2048 は、要求行と Authorization 以外のヘッダーの見積もり（筆者の提案。tracking #16）。API は exp − iat ≤ max_lifetime（300 秒）を検査する（C-exp。ずれは足さない）。寿命はテナントの管理者がレルムで変えられるため。R8 の最悪 1258 バイトも、テナントの管理者がマッパーを足せば超えられる（影響はそのテナントだけで、nginx が 400 を返す）
+    note: "other_headers_bytes の 2048 は、要求行と Authorization 以外のヘッダーの見積もり（筆者の提案。tracking #16）。API は exp − iat ≤ max_lifetime（300 秒）を検査する（C-exp。ずれは足さない）。寿命はテナントの管理者がレルムで変えられるため。R8 の最悪 1258 バイトも、テナントの管理者がマッパーを足せば超えられる（影響はそのテナントだけで、nginx が 400 を返す）"
 
   - id: IDT
     kind: id_token

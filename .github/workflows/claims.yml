@@ -40,6 +40,12 @@ jobs:
         run: python -m pytest -q -rs tools/tests/test_claim_lint_coverage.py
       - name: claim_lint on scenario A with --profile lite
         run: python tools/claim_lint templates/examples/scenario-a --profile lite
+      - name: render --check (generated regions of design.md and payload schemas match the registry, #19)
+        run: python tools/claim_lint render templates/examples/scenario-a --check
+      - name: Keycloak-issued golden AT conforms to the issuer-conformance payload schema (additionalProperties false)
+        run: python tools/claim_lint render templates/examples/scenario-a --validate tools/tests/fixtures/claim_lint/golden/token.json --token-type AT --schema-kind issuer
+      - name: render tests (one-line change, drift detection, schema generation, an unknown claim fails the issuer schema)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_render.py
       - name: Registry v1 tests (schemas, questions wording, issuance effects, README columns, REF, casestudy_check)
         run: python -m pytest -q -rs tools/tests/test_registry_v1.py
       - name: Casestudy check (ORG names and types, carry decisions vs templates/casestudy-deviations.yaml; pinned commit and sha256)

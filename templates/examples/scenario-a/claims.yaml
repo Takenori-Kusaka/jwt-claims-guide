@@ -328,7 +328,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
-    note: consumers が空でも既定どおりの行として残す（R5 の「読まれないクレーム」の候補。R5 は #17）
+    note: "consumers が空でも既定どおりの行として残す（R5 の「読まれないクレーム」の候補。R5 は #17）"
 
   - id: C-typ-claim
     name: typ
@@ -773,7 +773,7 @@ claims:
     volatility: 330
     propagation_delay: 330
     recompute_trigger: [login, refresh]
-    on_revoke: ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6）
+    on_revoke: "ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6）"
     carried_in: [AT]
     consumers: [saas-api]
     on_missing: 既定値
