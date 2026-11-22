@@ -144,7 +144,18 @@ python tools/trace_check.py --update-hash <スライド ID> [...] --reviewed-on 
 - アンチパターン（スライド 146・147）の 3 件（`p12-antipatterns-2.R6`〜`R8`。`p12-antipatterns-1.R7`・`R8` は L31・L27 で上げた）と、レビューの観点（スライド 148）の 4 件（`p12-review-viewpoints.R3`・`R8`・`R10`・`R17`。`R15` は L31 で上げた）。どちらも観点書の骨格になるため、全件を core にした
 - 設計のチェックリスト（スライド 61）の 6 件（`p04-design-checklist.R3`〜`R8`）。追加前の 25 問の core の問い（問 4・5・7・9・10）と中身が重なるため（PR #31 の点検）
 
-確定したときの core の集合は、`tier_confirmed` の `core_count`・`core_sha`（要件 ID を並べた sha256 の先頭 12 桁）に記録してあります（`python tools/trace_check.py --snapshot-tiers` で書く）。確定の後に tier を変えるときは、`tier_changes` に 1 件ずつ `id`・`from`・`to`・`on`・`reason`（20 字以上）を書きます。記録の無い変更は `trace_check.py` が失敗させます。tier を確定し直すときだけ、`--snapshot-tiers` で記録を取り直します（`tier_changes` は空になる）。
+確定したときの core の集合は、`tier_confirmed` の `core_count`・`core_sha`（要件 ID を並べた sha256 の先頭 12 桁）に記録してあります（`python tools/trace_check.py --snapshot-tiers --confirmed-on YYYY-MM-DD --by <判定者>` で書く）。確定の後に tier を変えるときは、`tier_changes` に 1 件ずつ次を書きます。記録の無い変更は `trace_check.py` が失敗させます。
+
+```yaml
+tier_changes:
+  - {id: p01-validate.R1, from: core, to: full, changed_on: "2026-12-01", reason: "関門 2（#9）で Full の欄に移したため、MVP の範囲から外す"}
+```
+
+- `changed_on` は `tier_confirmed` の `confirmed_on` 以降の日付。キーを `on` にしないのは、YAML 1.1（PyYAML）が `on`・`off`・`yes`・`no`・`y`・`n` のキーを真偽値として読むためです（`confirmed_on` も同じ理由）
+- `from` は、その時点の tier（確定の後に初めて変えるなら確定時の tier）。`to` は変えた後の tier
+- `reason` は 20 字以上で、同じ文字の繰り返しでなく、決めた issue・PR・関門（`#NN`・`PR`・`関門`）を書く
+- tier を確定し直すときは、`--snapshot-tiers --reconfirm --confirmed-on <日付> --by <判定者>` を使います。日付は前の確定と全ての `tier_changes` の日付以降でなければ拒否します。前の確定の記録は `previous` に残り、`tier_changes` は空になります
+- `core_sha` を手で書き換えることは機械では防げません。`core_count`・`core_sha` の差分は、確定のし直しとしてレビューで扱います
 
 提案の lint（L24〜L61）だけに頼る要件は既定で full、という下の目安の例外として、L27・L31 に結びつく要件を core にしました。
 

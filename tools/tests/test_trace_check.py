@@ -419,27 +419,101 @@ def test_tier_confirmed_needs_snapshot(tmp_path, capsys):
     assert code == 1 and 'tier_confirmed needs core_count and core_sha' in out
 
 
+REASON = '関門 2（#9）で Full の欄に移したため、MVP の範囲から外す'
+
+
+def downgrade(changed_on='2026-12-01', reason=REASON, frm='core', to='full'):
+    return [{'id': 'p01-validate.R1', 'from': frm, 'to': to, 'changed_on': changed_on, 'reason': reason}]
+
+
 def test_tier_change_after_confirmation_needs_a_record(tmp_path, capsys):
     reqs = copy.deepcopy(REQS)
     reqs['tier_confirmed'] = confirmed_block()
     reqs['requirements'][0]['tier'] = 'full'      # downgrade after confirmation, no record
     code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
     assert code == 1 and 'tiers changed since they were confirmed' in out
-    reqs['tier_changes'] = [{'id': 'p01-validate.R1', 'from': 'core', 'to': 'full', 'on': '2026-12-01',
-                             'reason': '関門 2 で Full の欄に移したため、MVP の範囲から外す'}]
+    reqs['tier_changes'] = downgrade()
     code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
     assert code == 0, out
     assert 'tier changes since confirmation: 1' in out
-    reqs['tier_changes'][0]['reason'] = '短い'
+
+
+@pytest.mark.parametrize('change, message', [
+    (dict(reason='短い'), 'reason needs at least'),
+    (dict(reason='あ' * 25), 'reason needs at least'),                       # repeated character
+    (dict(reason='Full の欄に移したため、MVP の範囲から外すことにした'), 'reason needs at least'),   # no #NN / PR / 関門
+    (dict(changed_on='2020-01-01'), 'changed_on must be a date on or after confirmed_on'),
+    (dict(frm='full', to='core'), 'is full at this point, not core'),        # direction does not match the data
+])
+def test_tier_change_rows_are_validated(tmp_path, capsys, change, message):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = confirmed_block()
+    reqs['requirements'][0]['tier'] = 'full'
+    reqs['tier_changes'] = downgrade(**change)
     code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
-    assert code == 1 and 'reason at least' in out
+    assert code == 1 and message in out, out
+
+
+def test_tier_changes_survive_the_tools_own_writer(tmp_path, capsys):
+    """B1 (PR #31): the tool writes tier_changes; YAML 1.1 must not turn a key into a boolean on the way back."""
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = confirmed_block()
+    reqs['requirements'][0]['tier'] = 'full'
+    reqs['tier_changes'] = downgrade()
+    root = build(tmp_path, reqs=reqs, files={'gate1.md': 'x'})
+    with open(os.path.join(root, tc.REQ_FILE), 'w', encoding='utf-8') as f:      # written by the tool's own writer
+        f.write(tc.dump_requirements(finish(reqs), [x['id'] for x in SLIDES]))
+    code, out = run(root, capsys)
+    assert code == 0, out
+    assert tc.main(['--root', root, '--update-hash', 'p01-validate', '--reviewed-on', '2026-12-02']) == 0
+    code, out = run(root, capsys)
+    assert code == 0, out
+    back = tc.yaml_load(open(os.path.join(root, tc.REQ_FILE), encoding='utf-8').read())
+    assert back['tier_changes'] == downgrade()
+
+
+def _no_boolean_keys(node, where):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            assert not isinstance(k, bool), f'{where}: a key was read as a boolean (YAML 1.1 on/off/yes/no/y/n)'
+            _no_boolean_keys(v, where)
+    elif isinstance(node, list):
+        for v in node:
+            _no_boolean_keys(v, where)
+
+
+def test_templates_yaml_have_no_yaml11_boolean_keys():
+    for d, _, names in os.walk(os.path.join(tc.DEFAULT_ROOT, 'templates')):
+        for name in names:
+            if name.endswith(('.yaml', '.yml')):
+                path = os.path.join(d, name)
+                _no_boolean_keys(tc.yaml_load(open(path, encoding='utf-8').read()), path)
 
 
 def test_snapshot_tiers_writes_block(tmp_path, capsys):
     reqs = copy.deepcopy(REQS)
     reqs['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
     root = build(tmp_path, reqs=reqs, files={'gate1.md': 'x'})
-    assert tc.main(['--root', root, '--snapshot-tiers']) == 0
+    with pytest.raises(SystemExit):                                              # date and author are required
+        tc.main(['--root', root, '--snapshot-tiers'])
+    assert tc.main(['--root', root, '--snapshot-tiers', '--confirmed-on', '2026-11-22', '--by', 'author']) == 0
+    code, out = run(root, capsys)
+    assert code == 0, out
+
+
+def test_snapshot_tiers_refuses_without_reconfirm(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = confirmed_block()
+    reqs['requirements'][0]['tier'] = 'full'
+    reqs['tier_changes'] = downgrade()
+    root = build(tmp_path, reqs=reqs, files={'gate1.md': 'x'})
+    args = ['--root', root, '--snapshot-tiers', '--by', 'author']
+    assert tc.main(args + ['--confirmed-on', '2026-12-05']) == 1                  # changes exist, no --reconfirm
+    assert tc.main(args + ['--confirmed-on', '2026-11-30', '--reconfirm']) == 1   # before the last change
+    assert tc.main(args + ['--confirmed-on', '2026-12-05', '--reconfirm']) == 0
+    data = tc.yaml_load(open(os.path.join(root, tc.REQ_FILE), encoding='utf-8').read())
+    assert 'tier_changes' not in data and data['tier_confirmed']['confirmed_on'] == '2026-12-05'
+    assert data['tier_confirmed']['previous'].startswith('2026-11-22 by author: core 1')
     code, out = run(root, capsys)
     assert code == 0, out
 

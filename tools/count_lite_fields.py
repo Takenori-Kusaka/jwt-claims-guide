@@ -26,16 +26,19 @@ UNREAD_KEEP = {'name', 'namespace', 'type', 'shape', 'decision', 'rationale', 'r
                'carried_in'}
 # rejected token types: kind, decision, rationale
 REJECTED_TT_KEEP = {'kind', 'decision', 'rationale'}
-# catalogue events the IdP module would mark 「起きない（構造上）」 for this issuance profile: their 対象外 answer is
-# inherited. Every other 対象外 (the event can occur in the chosen profile) is hand-written with assumption and
-# breaks_when -- this is where review findings A03 (I09, U07), A15 (U05) and the lint finding U10 came from.
+# Split of the 対象外 answers (re-check of PR #31, N3). Inherited from the IdP module: only events that one named
+# client switch turns off, with no review or lint finding on the row. The author still writes one field per inherited
+# row ("the setting was checked"), so INHERITED_FIELD counts it. Hand-written with assumption and breaks_when: rows
+# where a finding occurred (A03: I09, U07; A15: U05; the lint finding U10 and its pair I06), rows that depend on a
+# realm or client default the issuance profile cannot show (I08: Keycloak's default offline_access), and use events
+# (U05, U08), which no client switch removes.
 STRUCTURAL = {
-    'I03': 'the use-lightweight-access-token client policy executor is not applied to the client',
-    'I04': 'Direct Access Grants is OFF on the client',
-    'I05': 'Service accounts is OFF on the client',
-    'I07': 'the device authorization grant is not enabled on the client',
-    'I08': 'the offline_access scope is not assigned to the client',
+    'I03': 'client policy: the use-lightweight-access-token executor is not applied to the client',
+    'I04': 'client setting: Direct access grants OFF',
+    'I05': 'client setting: Service accounts roles OFF',
+    'I07': 'client setting: OAuth 2.0 Device Authorization Grant OFF',
 }
+INHERITED_FIELD = 1
 # design.md sections: example numbering -> handling in the reduced Lite; LITE_4 = the Lite sections of #4 (00_core
 # 2, 3, 4, 6, 7, 12), mapped to the example's numbering (2, 3, 6, 8, 9, 12)
 DESIGN = {1: 'generated', 2: 'hand', 3: 'hand', 4: 'generated', 5: 'generated', 6: 'hand', 7: 'full-only',
@@ -72,8 +75,9 @@ def count(example):
     tta = sum(len(fields(t)) if t['decision'] != '却下' else len([k for k in fields(t) if k in REJECTED_TT_KEEP]) for t in tts['token_types'])
     rows.append(('トークン目録', ttb, tta))
     ab = sum(len(fields(a, ())) for a in answers)
-    aa = sum(len(fields(a, ())) for a in answers if not (a['answer'] == '対象外' and a['event'] in STRUCTURAL))
     inherited = sorted(a['event'] for a in answers if a['answer'] == '対象外' and a['event'] in STRUCTURAL)
+    aa = sum(len(fields(a, ())) for a in answers if not (a['answer'] == '対象外' and a['event'] in STRUCTURAL)) \
+        + INHERITED_FIELD * len(inherited)
     hand_oos = sorted(a['event'] for a in answers if a['answer'] == '対象外' and a['event'] not in STRUCTURAL)
     rows.append((f"カタログへの回答（対象外のうち引き継ぐ {len(inherited)} 件：{'・'.join(inherited)}）", ab, aa))
     cr = open(os.path.join(example, 'claim_request_tenant_id.md'), encoding='utf-8').read()
@@ -95,7 +99,7 @@ def main(argv=None):
     out.append(f'| 設計書の手で書く節（記入例が書いた 12 節に対して） | 12 | {len(hand)} | {len(hand) - 12:+d} |')
     out.append(f'| 設計書の手で書く節（#4 の Lite の定義の 6 節に対して） | {len(LITE_4)} | {len(LITE_4 & set(hand))} | {len(LITE_4 & set(hand)) - len(LITE_4):+d} |')
     out.append('')
-    out.append(f"手で書く対象外の回答：{'・'.join(hand_oos)}（その構成で起こりうるイベント）")
+    out.append(f"手で書く対象外の回答：{'・'.join(hand_oos)}（指摘が出た行、レルム・クライアントの既定に依存する行、利用イベント）")
     text = '\n'.join(out)
     sys.stdout.buffer.write((text + '\n').encode('utf-8'))
     return 0
