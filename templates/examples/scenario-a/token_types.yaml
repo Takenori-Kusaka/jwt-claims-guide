@@ -25,7 +25,7 @@ issuance_profile:
       - {kind: author-proposal, id: "BFF の構成ではシナリオ A の AT に送信者制約を付けない", tracking: "#16"}
   at_format:
     value: jwt
-    rationale: API がローカルで検証する（RFC 9068 の at+jwt）。剥奪の反映は寿命 300 秒までを許す
+    rationale: API がローカルで検証する（RFC 9068 の at+jwt）。剥奪の反映は、受け入れの上限 330 秒（寿命 300 秒＋受け手の時計のずれ 30 秒）までを許す
     refs:
       - {kind: spec, id: "RFC 9068 §2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.1"}
   rt_strategy:
@@ -63,10 +63,10 @@ token_types:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
       - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
     refresh: BFF が期限の前に RT で取り直す（I02）
-    revocation: ローカル検証なので exp まで残る（最大 300 秒）。テナントの停止は、API がすべての要求で DB の tenants.status を引いて拒否する（C-tenant-id）。利用者の無効化と IdP 側のセッションの終了は、BFF の次のリフレッシュの失敗で検知し、BFF は自分のセッションを終える（最大 300 秒）
+    revocation: ローカル検証なので exp まで残る（受け入れは発行から最大 330 秒）。テナントの停止は、API がすべての要求で DB の tenants.status を引いて拒否する（C-tenant-id）。利用者の無効化と IdP 側のセッションの終了は、BFF の次のリフレッシュの失敗で検知し、BFF は自分のセッションを終える（最大 330 秒）
     stored_at: bff_server
     transport: authorization_bearer
-    key_rotation: Keycloak のレルムの鍵。API は iss ごとに JWKS をキャッシュする。未知の kid を見たら、その iss の JWKS を取り直すのは最短 300 秒に 1 回まで（要求ごとではない）。取り直しても無い kid は 300 秒のあいだ負のキャッシュに入れ、取り直さずに拒否する（U09。間隔は筆者の提案）
+    key_rotation: Keycloak のレルムの鍵。API は iss ごとに JWKS をキャッシュする。未知の kid を見たら、その iss の JWKS を取り直すのは最短 300 秒に 1 回まで（要求ごとではない）。取り直しても無い kid は 300 秒のあいだ負のキャッシュに入れ、取り直さずに拒否する。未知の kid が無くても、JWKS のキャッシュは 3600 秒（TTL）で取り直す（レルムから消した鍵を信頼し続けないため）。鍵の入れ替えは、新しい鍵を署名に使う前に、TTL と取り直しの間隔の和（3900 秒）より長く JWKS に公開しておく（Keycloak では新しい鍵を先に passive で足し、2 時間後に active にする。古い鍵は、最後にその鍵で署名した AT の受け入れの上限 330 秒が過ぎてから消す）。こうすると、でたらめな kid で取り直しの枠を使われても、正規の新しい鍵はすでにキャッシュにあるので拒否されない（U09。間隔と TTL は筆者の提案。Keycloak が passive の鍵を JWKS に載せるかは確かめていない）
     size:
       signing: {alg: RS256, key_bits: 2048}
       header:
@@ -78,7 +78,7 @@ token_types:
         serializer_extra_basis: 'Keycloak 26.8.0 の JOSE ヘッダーは `"typ" : "at+jwt"` と `"kid" : "…"` のように、コロンの前後に空白を入れる（2 か所 × 2 バイト）。2026-11-22 の見本トークンの実測（research/template-design/gate1.md）'
       path: [nginx-large-client-header-buffers, nodejs-max-http-header-size]
       other_headers_bytes: 2048
-    note: other_headers_bytes の 2048 は、要求行と Authorization 以外のヘッダーの見積もり（筆者の提案。tracking #16）。API は exp − iat ≤ max_lifetime（300 秒）を検査する（C-exp）。寿命はテナントの管理者がレルムで変えられるため
+    note: other_headers_bytes の 2048 は、要求行と Authorization 以外のヘッダーの見積もり（筆者の提案。tracking #16）。API は exp − iat ≤ max_lifetime（300 秒）を検査する（C-exp。ずれは足さない）。寿命はテナントの管理者がレルムで変えられるため。R8 の最悪 1258 バイトも、テナントの管理者がマッパーを足せば超えられる（影響はそのテナントだけで、nginx が 400 を返す）
 
   - id: IDT
     kind: id_token
@@ -159,8 +159,8 @@ token_types:
 
   - id: SSO
     kind: session
-    decision: 既定どおり
-    rationale: Keycloak の SSO セッション（レルムの設定）
+    decision: 採用
+    rationale: Keycloak の SSO セッション（レルムの設定）。SSO Session Max を 36000 秒に設定するので、既定どおりではない（design.md の 3.）
     purpose: IdP での再認証までの期間
     issuer: テナントのレルム（Keycloak）
     holder: Keycloak（ブラウザには Keycloak の Cookie）
@@ -177,9 +177,9 @@ token_types:
   - id: LOGOUT
     kind: logout_token
     decision: 却下
-    rationale: IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 300 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない
+    rationale: IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 330 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない
     format: jwt
-    note: IdP 側のセッションの終了を 300 秒より早く BFF のセッションに反映する必要が出たら採用する
+    note: IdP 側のセッションの終了を 330 秒より早く BFF のセッションに反映する必要が出たら採用する
 
   - id: DPOP
     kind: dpop_proof

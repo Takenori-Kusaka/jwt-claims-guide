@@ -2,7 +2,7 @@
 
 `templates/CONTRIBUTING.md` の 2.（完了の定義）と 3.（点検者の取り決め）による記録です。
 
-> 人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/scenario-a-2026-11-22.md`）。
+> 人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（点検の原文：PR #28 の #issuecomment-7074910571（1 回目）と #issuecomment-7075075798（再点検））。
 
 ## 点検の方法
 
@@ -67,10 +67,61 @@
 
 レビューだけ 17 件、claim_lint だけ 5 件（すべて info）、両方 0 件。分析（17 件を、計画している lint・実行テスト・観点書のどれが後で拾えるか）は `research/template-design/gate1.md` の 5.。
 
+## 再点検（2 回目）と直し方
+
+| 項目 | 内容 |
+| --- | --- |
+| 点検 | 2026-11-22、記入例の作成者とも 1 回目のレビュアーとも別の Claude のセッション。PR #28 のコメント https://github.com/Takenori-Kusaka/jwt-claims-guide/pull/28#issuecomment-7075075798 |
+| 対象 | コミット `115bb62`（1 回目の反映の後） |
+| 読んだもの | 1 回目のレビューと反映の対応表、記入例の 4 ファイル、`gate1.md`、この記録、`templates/trace/planned_items.yaml`、#6・#17・#18・#8・#5 の本文 |
+| 結果 | 17 件中、直った 15 件、直し残し 1 件（A10）、修正で新しく生じた問題 1 件（A09）。新しい Major は 0 件。ほかに Minor 6 件。gate1.md への指摘 5 件 |
+
+| 指摘 | 区分 | 直し方 |
+| --- | --- | --- |
+| A10 の直し残し：C-scope の `refs` に、理由で挙げた公式文書がない | 不一致 | C-scope の `refs` に Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」を足した |
+| A09 の新しい問題：取り直しを最短 300 秒に 1 回にしたので、でたらめな kid で枠を使われた直後の正規の鍵の入れ替えで、新しい kid が最大 300 秒拒否されうる。JWKS のキャッシュの TTL が無く、消した鍵を信頼し続けうる | 誤り | キャッシュの TTL を 3600 秒にした。鍵の入れ替えの手順を書いた：新しい鍵は署名に使う前に、TTL と取り直しの間隔の和（3900 秒）より長く JWKS に公開する（Keycloak では passive で先に足す）。古い鍵は、最後にその鍵で署名した AT の受け入れの上限（330 秒）が過ぎてから消す。新しい鍵はすでにキャッシュにあるので、取り直しの枠を使われても拒否されない。Keycloak が passive の鍵を JWKS に載せるかは未確認と明記した（AT `key_rotation`、U09、design.md 6.・12.） |
+| 受け手の時計のずれ 30 秒を許すので、遅れの上限は 330 秒になる（A03・A15・C-roles の volatility） | 曖昧 | 「受け入れの最大は発行から 330 秒（寿命 300＋ずれ 30）」を design.md 2. で定義し、記入例の「最大 300 秒」「300 秒より早く」をすべて 330 秒に揃えた。C-roles の volatility・propagation_delay を 330 にした |
+| design.md 2. の「exp − iat ≤ 300（＋ずれ 30 秒）」と C-exp の「300 秒を超えたら拒否」が食い違う | 不一致 | exp と iat はどちらも発行者が書く値なので、ずれは足さない、に揃えた（design.md 2.、C-exp、AT の note） |
+| A04 の残り：所有者の `SECURITY DEFINER` の関数も RLS をすり抜ける | 誤り | 「作らない（作るなら所有者を RLS の対象のロールにする）」を足した（C-tenant-id、design.md 2.） |
+| A14 の残り：token_types の SSO は「既定どおり」なのに、design.md 3. では既定から外れた点にしている | 不一致 | SSO を「採用」（Session Max を設定）にし、design.md 5. も揃えた |
+| A01 の残り：R8 の最悪 1258 バイトも、テナントの管理者がマッパーを足せば超えられる | 曖昧 | AT の note に書いた（影響はそのテナントだけで、nginx が 400 を返す） |
+| A11 の補足：Keycloak が Java の文字数（UTF-16 の単位）で数えるなら厳密な上限は 1533 バイト | 曖昧 | 2044 は安全側として残し、1533 の見方と、数え方を確かめていないことを note に書いた |
+| mix-up（BFF が 2 つのレルムのクライアント） | 曖昧 | design.md 12. に、レルムごとに redirect_uri を分けると書いた（RFC 9207 の `iss` の照合は、Keycloak の対応を確かめていない） |
+| この記録の冒頭の注記の「記録：」が、このファイル自身を指している | 曖昧 | 注記の参照先を、2 つの点検のコメントに直した |
+| gate1.md 8.「続ける」：ヘッダーの 5 文字の差を claim_lint の手柄にしている | 過大 | 見本トークンとの照合のテスト（実行での照合）が見つけた、と直した |
+| gate1.md 5.：17 件は 1 つのセッションのレビューで、正解の母数ではない | 過大 | 注記を足した |
+| gate1.md 5.：3 つへの分類は点の値でなく幅で示す | 過大 | 作成者と再点検の分類を並べ、不一致 8 件を示し、幅（静的 6〜8・実行 3〜5・レビューだけ 4〜7）にした |
+| gate1.md 5.：A01・A09・A17 の宣言はすでに計画にある | 不一致 | 「計画済み」と書いた（#3 の modifiers・unknown_kid・jwks_cache_ttl、#4 の lite-criteria） |
+| gate1.md 5.：A04・A12 は実行テストの候補 | 曖昧 | #8 に渡す候補として書き、#8 にコメントで渡した。規則の拡張は #6 にコメントで渡した |
+| `.gitleaks.toml` の絞り込みを、別の JWT を入れて検出されることを実行で確かめていない | 曖昧 | 下の「secret scan の除外の確認」で実行した |
+
+### secret scan の除外の確認
+
+見本のファイルと `.gitleaks.toml` を scratchpad の空のディレクトリに同じ相対パスで写し、gitleaks 8.30.1（CI と同じ版）で走査した。2 回目は、写したファイルに別の JWT（HS256 の試験用の値）を足した。リポジトリのファイルは変えていない。
+
+```
+$ gitleaks version
+8.30.1
+== 1. copy as committed
+$ gitleaks dir --no-banner --redact --config=.gitleaks.toml .
+INF no leaks found
+== 2. second JWT added to the fixture
+$ gitleaks dir --no-banner --redact --verbose --config=.gitleaks.toml .
+Secret:      REDACTED
+RuleID:      jwt
+File:        tools/tests/fixtures/claim_lint/golden/token.json
+Line:        2
+WRN leaks found: 1
+```
+
+足した JWT だけが検出され、見本のトークン（5 行目）は除外されたままだった。除外が「そのファイル」ではなく「そのトークン」に絞られていることを確かめた。
+
+反映した後の claim_lint：`error 0, warn 0, info 5`。
+
 ## 点検していないもの
 
 - 根拠の中身の抜き取り（10%、最低 10 件）
 - 「対象外」の行の抜き取り（5 件）。カタログへの回答の対象外は 11 件
 - 作成者の 1 日以上空けた見直し
-- 直した後の記入例を、別のセッションでもう一度点検すること
+- 再点検の後の修正（この記録の「再点検（2 回目）と直し方」）を、別のセッションでもう一度点検すること
 - 人による点検（#20）

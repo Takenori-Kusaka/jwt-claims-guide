@@ -158,8 +158,8 @@ claims:
     consumers: [saas-api, saas-web]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 必須。exp を過ぎたら拒否（ずれは 30 秒まで）}
-      - {service: saas-api, check: "exp − iat が max_lifetime（300 秒）を超えたら拒否。寿命はテナントの管理者がレルムで変えられるので、上限は API が強制する"}
+      - {service: saas-api, check: 必須。exp を過ぎたら拒否（受け手の時計のずれは 30 秒まで。受け入れの最大は発行から 330 秒）}
+      - {service: saas-api, check: "exp − iat が max_lifetime（300 秒）を超えたら拒否（exp と iat はどちらも発行者が書く値なので、時計のずれは足さない）。寿命はテナントの管理者がレルムで変えられるので、上限は API が強制する"}
     max_bytes: 10
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -409,6 +409,10 @@ claims:
     decision: 既定どおり
     rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない
     refs:
+      - kind: spec
+        id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
+        url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token"
+        verified_on: 2026-11-22
       - {kind: guide-slide, id: p05-scope-vs-role}
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -506,7 +510,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
-    note: Full name マッパーは「firstName 空白 lastName」を出す。属性の上限を各 255 文字と仮定すると 511 文字で、UTF-8 では 1 文字最大 4 バイトなので 2044 バイト。属性の長さの上限（文字数）の既定値は確かめていない。ID トークンは R8 の対象外
+    note: Full name マッパーは「firstName 空白 lastName」を出す。属性の上限を各 255 文字と仮定すると 511 文字で、UTF-8 では 1 文字最大 4 バイトなので 2044 バイト（安全側。Keycloak が Java の文字数（UTF-16 の単位）で数えるなら、1 単位あたり最大 3 バイトで 1533 バイト。数え方は確かめていない）。属性の長さの上限（文字数）の既定値は確かめていない。ID トークンは R8 の対象外
 
   - id: C-email
     name: email
@@ -614,7 +618,7 @@ claims:
       - {service: saas-api, check: iss のレルム名と一致するか}
       - {service: saas-api, check: パスのテナントと一致するか}
       - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する"}
-      - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る"}
+      - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）"}
       - {service: postgres, check: "app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止）"}
     integrity_until: ["Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02）。ここから先は JWS で守られず、トランザクションの境界と、RLS をすり抜けないアプリのロールで守る"]
     max_bytes: 32
@@ -683,10 +687,10 @@ claims:
     authoritative_writer: {stage: "②", writer: Keycloak（User Realm Role マッパー。スコープで 2 つに限る）}
     issue_events: [I01, I02]
     source_system: Keycloak のレルムロールの割り当て（テナントの管理者が付ける）
-    volatility: 300
-    propagation_delay: 300
+    volatility: 330
+    propagation_delay: 330
     recompute_trigger: [login, refresh]
-    on_revoke: ロールを外しても AT の寿命（300 秒）の間は残る。volatility を 300 秒とし、AT の寿命と同じにした（L5 の検査は #6）
+    on_revoke: ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6）
     carried_in: [AT]
     consumers: [saas-api]
     on_missing: 既定値
