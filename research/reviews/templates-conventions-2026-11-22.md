@@ -6,7 +6,7 @@
 - 点検：2026-11-22。Claude Opus 5.5、作成とは別のセッション（作成の会話の履歴は引き継いでいない）
 - 点検の原文：https://github.com/Takenori-Kusaka/jwt-claims-guide/pull/23#issuecomment-7074027256
 - 渡した資料：PR #23 のコミット `c28e830`、issue #2・#3・#11・#13・#16・#22 の本文と #1〜#22 の本文、ケーススタディ `jwt-claims-casestudy@080b8da`（`catalog/catalog.json`・`catalog/decisions/part*.json`・`SCHEMA.md`・`DECISION_POLICY.md`・`results/matrix.json`・`results/measurements.json`・`README.md`）、CC0 1.0 の legalcode.txt、`draft-ietf-oauth-transaction-tokens-11`、OWASP ASVS v5.0.0
-- 渡した指示の全文：点検の原文に記載がないため、コーディネーターに確認して追記する（未記録）
+- 渡した指示の要旨（英語の原文から要約）：作成者ではない独立した点検者として、次を確かめる。(1) #13 の完了基準ごとの充足と証拠。(2) 事実（CC0 の条文が公式のまま、LICENSE-CONTENT.md の記述、版付き ID の書式の例、ケーススタディのファイル名・シナリオ A/B/C の名前・IdP・件数・一覧表の行数・コミット 080b8da の実在）。(3) 計画（#11・#3・#22）との整合と内部の矛盾、後の issue を形だけで閉じられる抜け道。(4) 文体と用語。指摘は既存の区分（誤り・過大・不一致・曖昧）で、file:line と直し方を付ける。PR へのコメントは 1 件にまとめ、push はしない。作成者の結論や意図は渡していない
 - 作成者の 1 日以上空けた見直し：未実施（2026-11-23 以降に行い、日付をここに書く）
 
 ## 点検した件数
