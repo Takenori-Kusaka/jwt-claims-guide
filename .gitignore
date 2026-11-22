@@ -7,3 +7,4 @@ deck/*.pptx
 deck/make.sh
 deck/package-lock.json
 __pycache__/
+.pytest_cache/
