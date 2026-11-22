@@ -1,0 +1,11 @@
+# url	evidence (checked 2026-11-22)
+https://nhimg.org/articles/token-claims-and-authorization-control-in-apis/	403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+https://nhimg.org/secure-code-review-checklist	403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+https://www.pwc.com/jp/ja/knowledge/column/awareness-cyber-security/digital-identity/new-identity-verification-guideline-ds511-1.html	403 to scripts; page (DS-511 column) retrieved with Tavily extract
+https://cambridge.org/core/services/aop-cambridge-core/content/view/BC91F6968115F74046BD4A7DD1E89445/S0890060408000206a.pdf/special-issue-design-rationale.pdf	timeout from this network; PDF text (AI EDAM guest editorial) retrieved with Tavily extract
+https://webstore.ansi.org/standards/ieee/ieeestd10282008	403 to scripts; opened in a browser, title "IEEE Std 1028-2008 - IEEE Standard for Software Reviews and Audits"
+https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
+https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
+https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
+https://swehb.nasa.gov/spaces/7150/pages/16450586/SWE-088+-+Software+Peer+Reviews+and+Inspections+-+Checklist+Criteria+and+Tracking	whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/GgT7 (Confluence tiny link of page 16450586)
+https://handbook.gitlab.com/handbook/security/product-security/security-platforms-architecture/application-security/appsec-reviews/	page content retrieved with Tavily extract (new location after the handbook move)
