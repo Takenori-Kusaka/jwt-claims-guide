@@ -1,0 +1,5 @@
+# url<TAB>evidence  (sites that refuse automated clients from this network; checked by another means on 2026-11-22)
+https://npmjs.com/package/@baloise/spectral-rules	403 to scripts; package exists: registry.npmjs.org/@baloise/spectral-rules returns 200
+https://office365itpros.com/2023/08/24/entraexporter-tool/	403 to scripts; page content (EntraExporter, Export-Entra -Path ... -All) retrieved with a web extraction service (Tavily extract)
+https://www.businesswire.com/news/home/20251008162423/en	403 to scripts and to the extraction service; the same Business Wire release (2025-10-08, "83.2% of respondents adopting some level of an API-first approach") is syndicated on finance.yahoo.com (found with Tavily search)
+https://www.w3.org/TR/vc-json-schema/	403 to scripts; page retrieved with a web extraction service (Tavily extract): W3C Candidate Recommendation Draft 04 February 2025

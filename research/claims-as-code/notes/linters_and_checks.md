@@ -6,7 +6,7 @@
 前提（スライド 114 の 6 分類。リポジトリ内の docs/slides.json n=114 から転記）:
 1. 認証の秘密（パスワード、API キー）: アサーションに含めてはならない
 2. 機微な属性（氏名・住所・生年月日）: identity API・UserInfo で取得する
-3. 平文の個人情報を含む ID（メールや社員番号を sub に）: FAL2 以上では禁止（スライドの主張。根拠は NIST SP 800-63C-4。本調査では原文を再確認していない）
+3. 平文の個人情報を含む ID（メールや社員番号を sub に）: FAL2 以上では禁止（スライドの主張。根拠は NIST SP 800-63C-4。2026-11-22 の点検で原文を確かめた：FAL2 の節に "At FAL2, federated identifiers SHALL NOT contain plaintext personal information, such as usernames, email addresses, employee numbers, etc."、FAL1 では SHOULD NOT — [NIST SP 800-63C-4](https://pages.nist.gov/800-63-4/sp800-63c.html)）
 4. 変わりうる識別子（email、upn）: oid＋tid、または iss＋sub を使う
 5. 細かい権限の一覧（エンドポイントごとの許可）: PDP に問い合わせる
 6. 接続元の詳細（IP、端末の識別子）: PEP でその都度取得する
@@ -20,8 +20,8 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 
 ### Cited Findings
 **SAST（コード上の JWT 生成箇所）**
-- Semgrep Registry の `python.jwt.security.audit.jwt-exposed-data`（WARNING）は、`jwt.encode(...)` に渡されたリテラル以外のオブジェクトをすべて拾い、機微データが入っていないかの確認を求める監査ルール。Ruby 版（`ruby-jwt-exposed-data`）と njsscan 由来の JS 版（`jwt_exposed_data`）も同じ考え方 — [Semgrep python jwt-exposed-data](https://registry.semgrep.dev/rule/python.jwt.security.audit.jwt-exposed-data.jwt-python-exposed-data), [Ruby](https://registry.semgrep.dev/rule/ruby.jwt.security.audit.jwt-exposed-data.ruby-jwt-exposed-data), [njsscan](https://registry.semgrep.dev/rule/ajinabraham.njsscan.jwt.jwt_exposed_data.jwt_exposed_data)
-- Semgrep の `python.jwt.security.jwt-exposed-credentials`（ERROR）は、`jwt.encode` に渡す dict に `password` キーがあると検出する（検索結果の要約による。個別ページを取得したところ HTTP 404 で、現在も公開中かは未確認） — [Semgrep registry（404）](https://registry.semgrep.dev/rule/python.jwt.security.jwt-exposed-credentials.jwt-python-exposed-credentials)
+- Semgrep Registry の `python.jwt.security.audit.jwt-exposed-data`（WARNING、confidence LOW）は、囲んでいる関数の引数をそのまま `jwt.encode(...)` に渡す箇所（`pattern-inside: def $FUNC(...,$INPUT,...)` と `jwt.encode($INPUT,...)` の組み合わせ）を拾い、機微データが入っていないかの確認を求める監査ルール。取り込んだ版の「リテラル以外のオブジェクトをすべて拾う」は誤り（2026-11-22 の点検で訂正）。Ruby 版（`ruby-jwt-exposed-data`）と njsscan 由来の JS 版（`jwt_exposed_data`）もある（中身は点検していない） — [Semgrep python jwt-exposed-data](https://semgrep.dev/r/python.jwt.security.audit.jwt-exposed-data.jwt-python-exposed-data)、[規則の YAML](https://github.com/semgrep/semgrep-rules/blob/develop/python/jwt/security/audit/jwt-exposed-data.yaml), [Ruby](https://semgrep.dev/r/ruby.jwt.security.audit.jwt-exposed-data.ruby-jwt-exposed-data), [njsscan](https://semgrep.dev/r/ajinabraham.njsscan.jwt.jwt_exposed_data.jwt_exposed_data)（`registry.semgrep.dev/rule/…` の URL はいま 404 なので、`semgrep.dev/r/…` に替えた）
+- Semgrep の `python.jwt.security.jwt-exposed-credentials`（ERROR、subcategory は audit）は、`jwt.encode` に渡す dict に `"password"` というキーのリテラルがあると検出する。規則は semgrep-rules に残っている（2026-11-22 の点検で確認。取り込んだ版は registry の個別ページが 404 なので未確認としていた） — [Semgrep](https://semgrep.dev/r/python.jwt.security.jwt-exposed-credentials.jwt-python-exposed-credentials)、[規則の YAML](https://github.com/semgrep/semgrep-rules/blob/develop/python/jwt/security/jwt-exposed-credentials.yaml)
 - Semgrep 公式ブログ（2020）: オブジェクトを要素に分けずにそのまま JWT にすると、中身を管理できなくなりやすいと指摘している — [Semgrep blog](https://semgrep.dev/blog/2020/hardcoded-secrets-unverified-tokens-and-other-common-jwt-mistakes)
 - Bearer CLI の `javascript_lang_jwt` は JWT に入れた機微データを検出する。CWE-312、OWASP A04:2021。危険な例は `jwt.sign({ user: { email: 'john@gmail.com' }})`、安全な例は `jwt.sign({ user: user.uuid })`。PHP・Ruby 版もある — [Bearer javascript_lang_jwt](https://docs.bearer.com/reference/rules/javascript_lang_jwt), [php_lang_jwt](https://docs.bearer.com/reference/rules/php_lang_jwt), [ruby_lang_jwt](https://docs.bearer.com/reference/rules/ruby_lang_jwt/)
 - Bearer の検出は独自のデータ種別分類（122 種。PD、Sensitive PD、PII、PHI）に依存する（検索結果の要約。一覧ページは未取得） — [Bearer Supported Data Types](https://docs.bearer.com/reference/datatypes)
@@ -34,8 +34,8 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 - Burp: JWT Scanner（BApp）は署名の欠落・不正、期限切れや期限なしの JWT、CVE-2022-21449、JWK 注入を調べる。JWT Editor は手作業でトークンを書き換え・署名する道具で、自動スキャナではない — [PortSwigger JWT Scanner](https://github.com/PortSwigger/jwt-scanner), [JWT Editor](https://github.com/portswigger/jwt-editor)
 
 **OpenAPI lint・監査**
-- Spectral OWASP ruleset v2 の `owasp:api2:2023-jwt-best-practices` は、type が oauth2 または bearerFormat が JWT の securityScheme を対象にし、その description が RFC 8725 に言及していることを要求する。v1（2019）は RFC 7519 への言及を要求していた。同じ系統のルールに `no-api-keys-in-url`、`no-credentials-in-url`、`auth-insecure-schemes` がある — [ruleset.ts（unpkg）](https://app.unpkg.com/@stoplight/spectral-owasp-ruleset@2.0.1/files/src/ruleset.ts), [CHANGELOG](https://app.unpkg.com/@stoplight/spectral-owasp-ruleset@2.0.1/files/CHANGELOG.md), [SwaggerHub docs](https://app.swaggerhub.com/help/en/manage-resource-access/custom-rules-for-api-standardization/owasp-top-10.html)
-- 42Crunch: OpenAPI の拡張を使って JWT 攻撃を防ぐ、200 以上のベストプラクティス検査を行う、と説明している。JWT 固有の検査項目の一覧は見つからなかった — [42Crunch webinar](https://42crunch.com/webinar-json-web-tokens-api-security/), [スライド PDF](https://info.42crunch.com/hubfs/slidedeck/webinar-how-to-best-leverage-jwt-for-api-security.pdf), [7 ways to avoid JWT pitfalls](https://42crunch.com/7-ways-to-avoid-jwt-pitfalls/)
+- Spectral OWASP ruleset v2 の `owasp:api2:2023-jwt-best-practices` は、type が oauth2 または bearerFormat が JWT の securityScheme を対象にし、その description が RFC 8725 に言及していることを要求する。v1（2019）は RFC 7519 への言及を要求していた。同じ系統のルールに `no-api-keys-in-url`、`no-credentials-in-url`、`auth-insecure-schemes` がある — [ruleset.ts（unpkg）](https://app.unpkg.com/@stoplight/spectral-owasp-ruleset@2.0.1/files/src/ruleset.ts), [CHANGELOG](https://app.unpkg.com/@stoplight/spectral-owasp-ruleset@2.0.1/files/CHANGELOG.md), [SwaggerHub docs](https://support.smartbear.com/swagger/docs/studio/api-governance/owasp-top-10/)（取り込んだ版の app.swaggerhub.com の URL は 404 なので、SmartBear の現行の文書に替えた。中身は点検していない）
+- 42Crunch: OpenAPI の拡張を使って JWT 攻撃を防ぐ、200 以上のベストプラクティス検査を行う、と説明している。JWT 固有の検査項目の一覧は見つからなかった — [スライド PDF](https://info.42crunch.com/hubfs/slidedeck/webinar-how-to-best-leverage-jwt-for-api-security.pdf)（取り込んだ版が併記した webinar のページと「7 ways to avoid JWT pitfalls」は 404。2026-11-22 のリンクの点検）
 
 **IdP 設定スキャナ**
 - kcwarden（iteratec、Keycloak 監査）のクライアント監査は 30 種。例: `ClientShouldDisableImplicitGrantFlow`、`PublicClientsMustEnforcePKCE`、`ClientAccessTokenLifespanTooLong`、`ClientWithFullScopeAllowed`（全ロールがトークンに入る）、`UsingNonDefaultUserAttributesInClientsWithoutUserProfilesFeatureIsDangerous`（利用者が自分で書き換えられる属性をクレームに使う危険）。protocol mapper ごとに機微な属性を検査する監査は記載されていない — [kcwarden client auditors](https://iteratec.github.io/kcwarden/auditors/clients), [realm auditors](https://iteratec.github.io/kcwarden/auditors/realm)
@@ -56,8 +56,8 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 - 42Crunch Audit の JWT・OAuth 検査の具体的な ID（「JWT を使っているのに RFC 8725 に従っていない」など）は、公開ドキュメントを見つけられなかった。
 - Checkov、tfsec（Trivy）、KICS に、Keycloak・Auth0・Okta・Entra の Terraform リソース（token lifetime、implicit grant、optional claims）向けの組み込みルールがあるかは、検索では確認できなかった。各カタログの直接確認が要る。
 - IdP の CIS Benchmark（Okta、Entra）は今回調べられなかった。Entra のアプリ登録で optional claims や groups クレームを評価する公式の評価ツール（Secure Score など）の有無も未確認。
-- kcwarden のライセンスと入力形式（realm export JSON か API か）は取得したページに記載がなかった。
-- Semgrep Registry のルールのライセンス（Semgrep Rules License）と、Bearer CLI のライセンス（Elastic License 2.0 と記憶している）は、いずれも学習知識で未検証。
+- kcwarden の入力形式（realm export JSON か API か）は取得したページに記載がなかった。ライセンスは Apache-2.0（2026-11-22 の点検で確認 — [iteratec/kcwarden](https://github.com/iteratec/kcwarden)）。
+- Semgrep Registry のルールのライセンス（Semgrep Rules License）は学習知識で未検証。Bearer CLI のライセンスは Elastic License 2.0（LICENSE ファイルの冒頭。GitHub の判定は NOASSERTION。2026-11-22 の点検で確認 — [Bearer/bearer](https://github.com/Bearer/bearer)）。
 - jwt_tool と ZAP JWT add-on の現在の保守状況は未確認（ZAP のページ自体に「内容が古い可能性がある」と注記がある）。
 
 ---
@@ -68,7 +68,7 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 **claims.yaml にそのまま流用できる最有力候補は fideslang の data category 分類体系**。階層構造のキー（`user.contact.email`、`user.device.ip_address`、`user.authorization.credentials` など）をクレームの必須タグにすれば、スライド 114 の分類 1・2・6 を宣言だけで判定できる。Presidio と Google DLP は**値のサンプル**を走査する仕組みで、トークンの例やテスト用フィクスチャの検査に向く。
 
 ### Cited Findings
-- fideslang の data category は階層構造で、上位の `user.contact` でも詳細な `user.contact.email` でも分類できる。GDPR、CCPA、LGPD、ISO 19944 への対応を想定して設計されている。IAB Tech Lab に寄贈された — [fideslang taxonomy overview](https://ethyca.github.io/fideslang/taxonomy/overview), [Ethyca 寄贈の告知](https://ethyca.com/blog/ethyca-donates-fideslang-privacy-taxonomy-to-the-iab-tech-lab), [IAB Tech Lab 版](https://iabtechlab.github.io/fideslang)
+- fideslang の data category は階層構造で、上位の `user.contact` でも詳細な `user.contact.email` でも分類できる。GDPR、CCPA、LGPD、ISO 19944 への対応を想定して設計されている。IAB Tech Lab に寄贈された — [fideslang taxonomy overview](https://ethyca.github.io/fideslang/taxonomy/overview), [IAB Tech Lab の寄贈の告知（2024-01-09）](https://iabtechlab.com/iab-tech-lab-accelerates-privacy-taxonomy-project-with-fides-language-product-donation)（取り込んだ版が引いた Ethyca のブログは 404）, [IAB Tech Lab 版](https://iabtechlab.github.io/fideslang)
 - fideslang でスライド 114 に関係するキー（公式 taxonomy ページから取得）:
   - 認証の秘密: `user.authorization.credentials`、`user.authorization.password`
   - 機微な属性: `user.name`（`.first`、`.last`）、`user.contact.address.*`、`user.demographic.date_of_birth`、`user.contact.phone_number`、`user.government_id.*`、`user.demographic.race_ethnicity`、`user.demographic.religious_belief`、`user.health_and_medical.*`、`user.biometric.*`
@@ -76,10 +76,10 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
   - 接続元: `user.device.ip_address`、`user.device.device_id`、`user.device.cookie_id`、`user.location.precise`、`user.location.imprecise`
   - 識別子: `user.unique_id.pseudonymous`、`user.account.username`
   - 該当なし: API キー専用、社員番号専用、アカウント ID 専用のキーはない（近いのは `user.workplace`、`user.job_title`）。既存の親の下に子カテゴリを足して拡張することが推奨されている — [fideslang data categories](https://ethyca.github.io/fideslang/taxonomy/data_categories/)
-- Fides は Dataset の YAML でフィールドごとに `data_categories` を付ける（例: `collections: - name: customer fields: - name: email data_categories: [user.contact.email]`） — [Fides data mapping annotations](https://ethyca.com/docs/data-mapping/guides/data-mapping-annotations), [Annotating data categories](https://ethyca.com/docs/dev-docs/datasets/annotate-datasets/annotate-categories)
+- Fides は Dataset の YAML でフィールドごとに `data_categories` を付ける（例: `collections: - name: customer fields: - name: email data_categories: [user.contact.email]`） — [Fides data mapping annotations](https://ethyca.com/docs/data-mapping/guides/data-mapping-annotations)（取り込んだ版が併記した「Annotating data categories」のページは 404）
 - Privado: 静的なコード解析で、収集点からシンク（出口）までのデータフローを描き、110 種以上の個人データ要素を検出する。結果は `.privado/privado.json` に出力される。v1 のリポジトリ（privado-datasafety）はアーカイブ済みで、v2 のエンジンは Privado Core として公開されている — [Privado GitHub](https://github.com/privado-inc/privado), [privado-datasafety（アーカイブ）](https://www.github.com/Privado-Inc/privado-datasafety), [Privado docs](https://docs.privado.ai/getting-started-with-privado/understanding-the-results)
-- Presidio Analyzer: 組み込みの認識器は 50 以上。主な汎用エンティティと検出方式は、EMAIL_ADDRESS（パターン＋文脈＋RFC-822 検証）、IP_ADDRESS（パターン＋文脈）、MAC_ADDRESS、PERSON と LOCATION（独自ロジック＋文脈。NER を使う）、PHONE_NUMBER、DATE_TIME、URL、UUID（バージョンと variant を検証）、CREDIT_CARD（チェックサム）。日本固有のエンティティの節はない。ドキュメントは microsoft.github.io から presidio.dataprivacystack.org（Data Privacy Stack）に移っている — [Presidio supported entities](https://presidio.dataprivacystack.org/supported_entities/), [tessl の要約](https://tessl.io/registry/tessl/pypi-presidio-analyzer/2.2.0/files/docs/predefined-recognizers.md)
-- Google Sensitive Data Protection（DLP）には infoType `AUTH_TOKEN` がある。OAuth や Bearer 認証の形式に従うトークンを検出する。`JSON_WEB_TOKEN` という infoType は確認できなかった — [infoTypes reference（high sensitivity）](https://docs.cloud.google.com/sensitive-data-protection/docs/high-sensitivity-infotypes-reference)
+- Presidio Analyzer: 組み込みの認識器は 50 以上。主な汎用エンティティと検出方式は、EMAIL_ADDRESS（パターン＋文脈＋RFC-822 検証）、IP_ADDRESS（パターン＋文脈）、MAC_ADDRESS、PERSON と LOCATION（独自ロジック＋文脈。NER を使う）、PHONE_NUMBER、DATE_TIME、URL、UUID（バージョンと variant を検証）、CREDIT_CARD（チェックサム）。日本固有のエンティティの節はない。ドキュメントは microsoft.github.io から presidio.dataprivacystack.org（Data Privacy Stack）に移っている — [Presidio supported entities](https://presidio.dataprivacystack.org/supported_entities/), [tessl の要約](https://tessl.io/registry/tessl/pypi-presidio-analyzer/2.2.0/files/docs/predefined-recognizers.md)（非公式）
+- Google Sensitive Data Protection（DLP）には infoType `AUTH_TOKEN` がある。OAuth や Bearer 認証の形式に従うトークンを検出する。あわせて、Secrets の節に `JSON_WEB_TOKEN`（"JSON Web Token in compact form"、SENSITIVITY_HIGH）がある。取り込んだ版の「`JSON_WEB_TOKEN` という infoType は確認できなかった」は誤り（2026-11-22 の点検で訂正）。スライド 118 向けの検査（ログに JWT が出ていないか）の候補になる — [infoTypes reference（high sensitivity）](https://docs.cloud.google.com/sensitive-data-protection/docs/high-sensitivity-infotypes-reference)
 - Data Contract Specification には、フィールドが個人データかを示す属性と、分類（sensitive、restricted、internal、public など）の属性がある。datacontract-cli の `lint` は書式の検証として説明されており、PII の検査をするかは確認できなかった — [datacontract-cli（PyPI）](https://pypi.org/project/datacontract-cli), [Data Contract Specification](https://docsearch.algolia.com/mcp/docs/repo/datacontract/datacontract-specification)
 - 参考（別プロジェクト）: obs-types は分類の enum に基づく lint を持つ。L002「PII は LABEL に置かない」、L003「SECRET は LOG・AUDIT 層に置かない」。claim-lint の L65（機密度と可視性）と同じ「分類 × 出る場所」の型の先例 — [obs-types classification.rs](https://docs.rs/obs-types/0.1.0/src/obs_types/classification.rs.html)
 
@@ -90,10 +90,10 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 - Presidio は日本語の氏名・住所の NER について保証がない（日本固有のエンティティの節がない）。日本語の値を走査するなら独自の認識器（社員番号の書式、郵便番号、都道府県名の辞書など）が必要と見込まれる。
 
 ### Gaps
-- fideslang のライセンス（Apache-2.0 と記憶）と、IAB Tech Lab への寄贈後の保守体制・リリースの頻度は未確認。
+- fideslang のライセンスは CC BY 4.0（ethyca/fideslang と IABTechLab/fideslang の両方。GitHub のライセンスの判定と README のバッジ。Python のパッケージを別のライセンスにする LICENSE ファイルはない）。取り込んだ版の「Apache-2.0 と記憶」は誤り（2026-11-22 の点検で訂正）。語彙を CC0 の `templates/` に写すと表示の義務が生じるので、写さずに版を固定して参照する。IAB Tech Lab への寄贈後の保守体制・リリースの頻度は未確認。
 - 「fides の CI 検査」（`fides evaluate` で Policy に照らして Dataset を評価する仕組み）の現在の仕様は今回取得できなかった（学習知識では、data category × data use × data subject の組み合わせを拒否するポリシーを CI で評価できる）。
 - Bearer の 122 データ種別の一覧と、名前から推定するロジックの詳細は未取得。
-- Presidio のライセンス（MIT と記憶）と、Data Privacy Stack への移管の経緯（「Project transition update」ページ）は未確認。
+- Presidio のライセンスは MIT。`microsoft/presidio` は `data-privacy-stack/presidio` に移っている（2026-11-22 の点検で確認 — [data-privacy-stack/presidio](https://github.com/data-privacy-stack/presidio)）。移管の経緯（「Project transition update」ページ）は未確認。
 - dbt meta タグや data catalog（DataHub、OpenMetadata）の PII 自動タグ付けは今回調べられなかった。
 
 ---
@@ -101,7 +101,7 @@ JWT 専用ツールの大半は**署名と検証の実装の欠陥**（alg=none�
 ## Q3. シークレットスキャン（gitleaks、trufflehog）はトークンのサンプルや設定にどう効くか。ログに出たトークンの検出
 
 ### Takeaway
-gitleaks の既定ルールには `jwt`（`ey…​.ey…`）と `jwt-base64`（JWT 全体をさらに Base64 にしたもの）がある。リポジトリ内の**トークン実物の混入**は検出できるが、ペイロードを復号して中身を判定する仕組みはない。ドキュメントやテスト用フィクスチャに置くサンプル JWT は確実に引っかかるので、許可リスト（allowlist）の運用設計が要る。
+gitleaks の既定ルールには `jwt`（ヘッダーとペイロードがそれぞれ `ey` で始まる 17 文字以上、entropy 3 以上）と `jwt-base64`（JWT 全体をさらに Base64 にしたもの）がある。リポジトリ内の**トークン実物の混入**は検出できるが、ペイロードを復号して中身を判定する仕組みはない。ドキュメントやテスト用フィクスチャに置く完全な形のサンプル JWT は引っかかる（`eyJhbGciOi...` のような省略形は当たらない）ので、許可リスト（allowlist）の運用設計が要る。
 
 ### Cited Findings
 - gitleaks 既定設定のルール `jwt`: 説明は「Uncovered a JSON Web Token…」、正規表現は `\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.` で始まり署名部は省略可、keywords は `["ey"]`、entropy は 3 — [gitleaks config/gitleaks.toml](https://raw.githubusercontent.com/gitleaks/gitleaks/master/config/gitleaks.toml)
@@ -113,10 +113,10 @@ gitleaks の既定ルールには `jwt`（`ey…​.ey…`）と `jwt-base64`（
 ### Inferences
 - claim-lint の補助として使える方法: gitleaks の `jwt` ルールで見つかった文字列を後段のスクリプトで Base64URL 復号し、ペイロードのキーを claims.yaml と突き合わせる（未登録のクレーム、`password`、`api_key`、`email` を sub に使うなど）。gitleaks にはこの機能がないので自作になる（推論）。
 - スライド 118（ログにトークン全文を残さない）に対しては、gitleaks の `jwt` 正規表現か DLP の `AUTH_TOKEN` をログのサンプルや OpenTelemetry の span 属性に当てる検査が、そのまま流用できる。
-- 誤検知: このガイド自体のスライドや docs にある例示用 JWT（`eyJhbGciOiJSUzI1NiIs…`）は確実に検出される。`.gitleaksignore` か、例示トークンの署名部を明らかなダミーにする規約が必要。entropy 3 という閾値から見て、短い切れ端（「…」で省略したもの）は検出されにくいと見込まれる（推論）。
+- 誤検知: このガイド自体のスライドや docs にある例示用 JWT のうち、完全な形のものは検出される。`.gitleaksignore` か、例示トークンの署名部を明らかなダミーにする規約が必要。`eyJhbGciOiJSUzI1NiIs…` のように「…」で省略したものは、ヘッダーとペイロードの両方を求める正規表現に当たらない（2026-11-22 の点検で、取り込んだ版の「確実に検出される」を弱めた）。
 
 ### Gaps
-- trufflehog の JWT 検出器の有無と、検証（生きているトークンかの確認）の挙動は今回確認できなかった（trufflehog のライセンスが AGPL-3.0 であることも学習知識で未検証）。
+- trufflehog の JWT 検出器の有無と、検証（生きているトークンかの確認）の挙動は今回確認できなかった（trufflehog のライセンスは AGPL-3.0、gitleaks は MIT。2026-11-22 の点検で GitHub のライセンスの判定を確かめた）。
 - gitleaks のライセンス（MIT と記憶）は未検証。
 - ログ中のトークン検出の専用ツール（Datadog Sensitive Data Scanner、Splunk など）の具体的なルールは調べていない。
 
@@ -129,10 +129,10 @@ gitleaks の既定ルールには `jwt`（`ey…​.ey…`）と `jwt-base64`（
 
 ### Cited Findings
 - OPA の組み込み関数 `io.jwt.decode` は Base64 の復号だけで署名を検証しない。検証には `io.jwt.verify_*` か `io.jwt.decode_verify()` を使う — [OPA Token builtins](https://openpolicyagent.org/docs/policy-reference/builtins/tokens)
-- OPA のテストは `test_` で始まる規則を `opa test` で走らせ、`with` キーワードで `io.jwt.decode_verify` をモックにできる。`opa test` は JSON 出力を持つ — [tessl: OPA policy testing](https://tessl.io/registry/nicholasjackson/golang-opa-rego-language/files/docs/policy-testing.md)
-- conftest は CI の関門として使え、`--output json` で結果を出せる。通る入力と落ちる入力の両方で方針を試すことが推奨されている — [oneuptime: OPA conftest policy testing](https://oneuptime.com/blog/post/2026-01-28-opa-conftest-policy-testing/view)
+- OPA のテストは `test_` で始まる規則を `opa test` で走らせ、`with` キーワードで `io.jwt.decode_verify` をモックにできる。`opa test` は JSON 出力を持つ — [OPA: Policy Testing](https://www.openpolicyagent.org/docs/policy-testing)（取り込んだ版が引いた tessl の要約は 404 なので、公式の文書に替えた）
+- conftest は CI の関門として使え、`--output json` で結果を出せる。通る入力と落ちる入力の両方で方針を試すことが推奨されている — [oneuptime: OPA conftest policy testing](https://oneuptime.com/blog/post/2026-01-28-opa-conftest-policy-testing/view)（非公式）
 - 実例（Diamond Light Source）: `io.jwt.decode` でヘッダーの kid を読み、JWKS から鍵を引き、`decode_verify` で iss と aud を検証してからクレームを取り出す — [DLS authz how-to](https://diamondlightsource.github.io/authz/how-tos/verify-cas-access-token)
-- Envoy＋OPA で JWS を検証する手順の解説がある — [helpfulbadger blog](https://helpfulbadger.github.io/blog/envoy_opa_5_opa_jws)
+- Envoy＋OPA で JWS を検証する手順の解説がある — [helpfulbadger blog](https://helpfulbadger.github.io/blog/envoy_opa_5_opa_jws)（非公式）
 
 ### Inferences
 - 構成案: (1) CI で IdP（Keycloak の realm export を読み込んだコンテナ）を起動する → (2) テスト用の利用者でトークンを取得する → (3) ペイロードを JSON にして conftest に渡す → (4) Rego で「claims.yaml に無いクレームがある」「`sensitivity: secret` のクレームがある」「`sub` が email の形をしている」「`visibility: browser` のトークンに `pii: true` のクレームがある」を deny にする。claims.yaml を `data.json` として conftest に渡せば、ルールをハードコードせずに済む。
@@ -163,7 +163,7 @@ claims.yaml に**直接**向けられるのは、(1) fideslang の分類語彙�
 | fideslang | 分類語彙 | YAML | 1、2、6（宣言） | 語彙を流用できる | IAB Tech Lab に寄贈 |
 | Privado | データフローと 110 種以上の要素 | ソースコード | 2、6 | 不可 | v1 はアーカイブ、v2 は Core |
 | Presidio | 値のパターン、NER | テキスト、値 | 2、3、6（値） | サンプル値の走査に使える | Data Privacy Stack に移管 |
-| Google DLP | infoType（AUTH_TOKEN など） | テキスト、ログ | 1、2、6 | サンプル値の走査に使える | 商用（GCP） |
+| Google DLP | infoType（AUTH_TOKEN・JSON_WEB_TOKEN など） | テキスト、ログ | 1、2、6 | サンプル値の走査に使える | 商用（GCP） |
 | gitleaks | JWT 文字列そのもの | リポジトリ、ログ | 118（全文を残す）、1 | 例示値の走査に使える | 未検証 |
 | OPA/conftest | 任意の Rego 方針 | JSON/YAML、デコード後のトークン | すべて | 可（最有力） | CNCF。OSS |
 
@@ -184,13 +184,13 @@ claims.yaml に**直接**向けられるのは、(1) fideslang の分類語彙�
 - 型: `format: email` の JSON Schema 宣言を sub に付けることを禁止する。
 
 **分類 4: 変わりうる識別子（email、upn）を鍵に使う**（L3）
-- 宣言: 各クレームに `stability: immutable|mutable|reassignable` を必須にする。`usage` に `key|authz|join` を含むクレームが `mutable` なら error。既知の一覧（`email`、`upn`、`preferred_username`、`unique_name`、`phone_number`、`name`）は、宣言が `immutable` でも warning（Entra の文書が「認可に使わない」と明言しているため。Q1 参照）。
+- 宣言: 各クレームに `stability: immutable|mutable|reassignable` を必須にする。`usage` に `key|authz|join` を含むクレームが `mutable` なら error。既知の一覧（`email`、`upn`、`preferred_username`、`unique_name`）は、宣言が `immutable` でも warning（Entra の文書が「認可に使わない」「変わりうる」「表示用」と明言しているため。Q1 参照）。`phone_number` と `name` は Entra の文書には出てこないので、入れるなら OIDC Core の標準クレームで利用者が変えうる値、という別の根拠で書く（2026-11-22 の点検で訂正）。
 - 推奨の代わり: `oid+tid` または `iss+sub` の複合キー。キー宣言（`key: [iss, sub]`）が `iss` を含まないなら warning にする。
 - 誤検知: 自社 IdP で email を変更不可に運用している場合。理由を書いた除外（`waiver: {reason, expires}`）を許す。
 
 **分類 5: 細かい権限の一覧**
 - 宣言: `data_category: authorization.permissions`（独自に拡張）や `type: array` で `max_items` の宣言がないクレームを warning。`max_items` の上限（例: 20）や、トークン全体の推定サイズ（ヘッダー上限の 8KB を目安）を超えるなら error。
-- 名前: `permissions|perms|entitlements|acl|roles|groups` かつ配列型。誤検知: 粗い `roles`（数個）は正当。件数と粒度（`resource:action` 形式の要素が多いか）で判定する。Entra の groups 超過（200 件で `_claim_names` に切り替わる、という学習知識・未検証）に似た上限ルールを設ける。
+- 名前: `permissions|perms|entitlements|acl|roles|groups` かつ配列型。誤検知: 粗い `roles`（数個）は正当。件数と粒度（`resource:action` 形式の要素が多いか）で判定する。Entra の groups 超過（JWT では 200 件、SAML では 150 件で超過の扱いに切り替わる。2026-11-22 の点検で確認 — [Entra: access token claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)）に似た上限ルールを設ける。
 - IdP の設定: kcwarden の `ClientWithFullScopeAllowed` に相当する検査を、realm export の照合で行う。
 
 **分類 6: 接続元の詳細（IP、端末の識別子）**
@@ -207,5 +207,5 @@ claims.yaml に**直接**向けられるのは、(1) fideslang の分類語彙�
 
 ### Gaps
 - 上の誤検知の見込みは推論で、実データで計測した値はない。
-- NIST SP 800-63C-4 の FAL2 に関する記述（sub に平文の PII を入れることの禁止）は、本調査では原文の該当節を再確認していない（スライドの主張に依拠）。
-- Entra の groups 超過の閾値（200）、Keycloak の protocol mapper の監査ツールは未検証。
+- NIST SP 800-63C-4 の FAL2 に関する記述（sub に平文の PII を入れることの禁止）は、2026-11-22 の点検で原文を確かめた（分類 3 の項を参照）。
+- Entra の groups 超過の閾値は JWT で 200、SAML で 150（2026-11-22 の点検で確認）。Keycloak の protocol mapper の監査ツールは未検証。

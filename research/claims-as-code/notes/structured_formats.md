@@ -33,9 +33,9 @@
   - `display`（`name`, `locale`）
 - OpenID4VCI の形式別必須パラメータ: `dc+sd-jwt` は `vct`、`mso_mdoc` は `doctype`、`jwt_vc_json` は `credential_definition.type`、`ldp_vc` は `@context` と `type`。仕様は「Authorization Server MUST be able to determine from the Issuer metadata what claims are disclosed」と定めるため、メタデータが開示クレームの正本になる — [同上 Appendix A/B](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html)
 - EUDI ARF の namespace と rulebook:
-  - namespace は「属性の識別子・構文・意味」をエコシステム全体で一意に定める単位 — [ARF Annex 1](https://eu-digital-identity-wallet.github.io/eudi-doc-architecture-and-reference-framework/1.3.0/annexes/annex-1/annex-1-definitions)
-  - PID の attestation type と namespace は `eu.europa.ec.eudi.pid.1`。国別属性は domestic namespace に置く（独の例は `eu.europa.ec.eudi.pid.de.1`） — [ARF PID Rulebook 1.4.0](https://eu-digital-identity-wallet.github.io/eudi-doc-architecture-and-reference-framework/1.4.0/annexes/annex-3/annex-3.01-pid-rulebook), [German PID rulebook](https://bmi.usercontent.opencode.de/eudi-wallet/eidas-2.0-architekturkonzept/content/ecosystem-architecture/PID/german-pid-rulebook)
-- Rulebook は人が読む文書（Markdown/PDF）で、属性定義と形式別エンコーディングの章を分ける。APTITUDE のテンプレートは ISO 18013-5、SD-JWT VC、W3C VCDM 2.0 のエンコーディングを別章に置く。同じ属性でも形式によって名前が異なり、生年月日は mdoc で `birth_date`、SD-JWT VC で `birthdate` — [APTITUDE attestation rulebook template](https://aptitude-consortium.github.io/aptitude-eudi-wallet-rfcs/rulebook/attestation-rulebook-1), [ETSI TS 119 472-2](https://etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf)
+  - namespace は「属性の識別子・構文・意味」をエコシステム全体で一意に定める単位 — [ARF Annex 1（v3.0.0）](https://eudi.dev/3.0.0/annexes/annex-1/annex-1-definitions/)（取り込んだ版は 1.3.0 の URL を引いていたが、いまは 404。定義の文は現行の v3.0.0 でも同じ）
+  - PID の attestation type と namespace は `eu.europa.ec.eudi.pid.1`。国別属性は domestic namespace に置く（独の例は `eu.europa.ec.eudi.pid.de.1`） — [ARF PID Rulebook 1.4.0](https://eu-digital-identity-wallet.github.io/eudi-doc-architecture-and-reference-framework/1.4.0/annexes/annex-3/annex-3.01-pid-rulebook)、German PID rulebook（OpenCoDE の個別ページの URL は 404。2026-11-22 のリンクの点検。設計文書の入口は [eIDAS 2.0 Architekturkonzept](https://bmi.usercontent.opencode.de/eudi-wallet/eidas-2.0-architekturkonzept/)）
+- Rulebook は人が読む文書（Markdown/PDF）で、属性定義と形式別エンコーディングの章を分ける。APTITUDE のテンプレートは ISO 18013-5、SD-JWT VC、W3C VCDM 2.0 のエンコーディングを別章に置く。同じ属性でも形式によって名前が異なり、生年月日は mdoc で `birth_date`、SD-JWT VC で `birthdate` — APTITUDE attestation rulebook template（`aptitude-consortium.github.io` の URL は 404。2026-11-22 のリンクの点検。代わりの URL は見つけていない）, [ETSI TS 119 472-2](https://etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf)
 - mDL は ISO 18013-5 だけで実装し、SD-JWT VC にしてはならない — [ARF mDL Rulebook](https://eu-digital-identity-wallet.github.io/eudi-doc-architecture-and-reference-framework/latest/annexes/annex-3/annex-3.02-mDL-rulebook)
 
 ### Inferences
@@ -49,7 +49,7 @@
 - ARF の「namespace = 識別子・構文・意味」は、claims.yaml の namespace 列と meaning 列の組み合わせに概念上近い。ただし機械可読のスキーマとしては公開されておらず、文書ベースである。
 
 ### Gaps
-- W3C「Verifiable Credentials JSON Schema」仕様の現在の成熟度（Recommendation か CR か）は本調査で取得していない。確認先: https://www.w3.org/TR/vc-json-schema/
+- W3C「Verifiable Credentials JSON Schema」仕様の現在の成熟度：取り込みの際（2026-11-22）に確認先のページを取得し、W3C Candidate Recommendation Draft（2025-02-04）であることを確かめた。Recommendation ではない — https://www.w3.org/TR/vc-json-schema/
 - ISO 18013-5 と 23220 の namespace/data element 定義は有償規格のため本文を確認していない。
 - ARF の rulebook に機械可読版（JSON/YAML）や CI 検査があるかは確認できなかった。見つかったのは文書形式だけ。
 
@@ -62,8 +62,8 @@ OAuth/OIDC 系のメタデータがクレームについて表せるのは、名
 - IANA「JSON Web Token Claims」レジストリの列は Claim Name、Claim Description、Change Controller、Reference の 4 つで、約 160 件が登録されている（最終更新 2026-10-28）。形式は XML（`/assignments/jwt/jwt.xml`）、TXT、HTML があり、claims 表だけの CSV（`/assignments/jwt/claims.csv`）も取得できる — [IANA JWT registry](https://www.iana.org/assignments/jwt/jwt.xhtml)
 - OpenID Federation 1.0 は Final:
   - パブリックレビュー 2025-12-04〜2026-02-02、投票 2026-02-03〜02-17 — [OIDF](https://openid.net/public-review-period-for-proposed-openid-federation-1-final-specification/)
-  - 投票数 105（定足数 24.7%）、2026 年 2 月に公開 — [OIDF 承認告知](https://openid.net/openid-federation-1-0-final-specification-approved/), [self-issued.info](https://self-issued.info/?p=2813)
-  - 1.1 は protocol 非依存部と依存部に分割され、1.0 と相互に使えるとされる — [self-issued.info](https://self-issued.info/?m=202602)
+  - 投票数 105（定足数 24.7%）、2026 年 2 月に公開 — [OIDF 承認告知](https://openid.net/openid-federation-1-0-final-specification-approved/), [self-issued.info](https://self-issued.info/?p=2813)（非公式）
+  - 1.1 は protocol 非依存部と依存部に分割され、1.0 と相互に使えるとされる — [self-issued.info](https://self-issued.info/?m=202602)（非公式）
 
 ### Inferences
 - linter に「IANA 登録済みのクレーム名を独自の意味で再定義していないか」「private claim が登録名と衝突しないか」という検査を入れるなら、`claims.csv` を CI で取り込むのが最も確実な方法である。
@@ -81,8 +81,8 @@ OAuth/OIDC 系のメタデータがクレームについて表せるのは、名
 OpenAPI 本体に JWT クレームを記述する標準の仕組みはなく、`x-jwt-claims` のような共通拡張も見つからなかった。必須クレームを機械可読に宣言する手段は、ゲートウェイ製品ごとの拡張や設定（Azure APIM の `required-claims`、Tetrate の `x-tsb-authorization.claims`、Yandex の `x-yc-apigateway-authorizer:jwt`、Envoy の `claim_to_headers` など）に分かれている。
 
 ### Cited Findings
-- `x-jwt-claims` という標準や共通の OpenAPI 拡張は検索で見つからなかった。近いものはベンダー拡張だけだった — [検索結果: Yandex](https://yandex.cloud/en/docs/api-gateway/concepts/extensions/jwt-authorizer), [Tetrate](https://docs.tetrate.io/service-bridge/1.5.x/refs/tsb/application/v2/openapi_extensions), [Google API Gateway](https://docs.cloud.google.com/api-gateway/docs/oasv3-extensions)
-- Tetrate Service Bridge の OpenAPI 拡張 `x-tsb-authorization` は、要求するクレームを `claims` リスト（型 `tetrateio.api.tsb.gateway.v2.Subject.JWTClaims`）で書ける — [Tetrate](https://docs.tetrate.io/service-bridge/1.5.x/refs/tsb/application/v2/openapi_extensions)
+- `x-jwt-claims` という標準や共通の OpenAPI 拡張は検索で見つからなかった。近いものはベンダー拡張だけだった — [検索結果: Yandex](https://yandex.cloud/en/docs/api-gateway/concepts/extensions/jwt-authorizer), [Tetrate](https://docs.tetrate.io/service-bridge/refs/tsb/application/v2/openapi_extensions), [Google API Gateway](https://docs.cloud.google.com/api-gateway/docs/oasv3-extensions)
+- Tetrate Service Bridge の OpenAPI 拡張 `x-tsb-authorization` は、要求するクレームを `claims` リスト（型 `tetrateio.api.tsb.gateway.v2.Subject.JWTClaims`）で書ける — [Tetrate](https://docs.tetrate.io/service-bridge/refs/tsb/application/v2/openapi_extensions)（2026-11-22 に確認。取り込んだ版の 1.5.x の URL は 404 なので、版のない URL に替えた）
 - Yandex Cloud の `x-yc-apigateway-authorizer:jwt` は securityScheme の中に置き、署名・iss・aud を検証し、失敗時は 403 を返す — [Yandex Cloud](https://yandex.cloud/en/docs/api-gateway/concepts/extensions/jwt-authorizer)
 - Azure APIM の `validate-jwt` は必須クレームを XML で宣言する。`<required-claims><claim name="..." match="all|any" separator=","><value>...</value></claim></required-claims>` の形で書き、`match` の既定は `all`。スコープは global / workspace / product / API / operation、`exp` は既定で必須（ドキュメント更新 2026-08-18） — [Microsoft Learn](https://learn.microsoft.com/en-us/azure/api-management/validate-jwt-policy)
 - Envoy `jwt_authn` が自前で検査するのは `issuer`（iss）、`audiences`、`subjects`（sub に対する StringMatcher）、`require_expiration`、`max_lifetime`、`allowed_algorithms` まで。任意のクレーム値の条件は持たない。検証済みの payload は `payload_in_metadata` で DynamicMetadata に、`claim_to_headers` でヘッダに渡し、RBAC や ext_authz が消費する — [Envoy jwt_authn proto](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/jwt_authn/v3/config.proto)
@@ -108,8 +108,8 @@ OpenAPI 本体に JWT クレームを記述する標準の仕組みはなく、`
   - アクセストークンのクレームは `context.token.<attr>` として参照する
   - groups 以外のクレームは、JSON モードで schema（commonTypes）に手で追加する必要がある
 
-  — [AWS: Mapping OIDC tokens to schema](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/oidc-map-token-to-schema.html), [AWS: Mapping identity provider tokens to schema](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources_map-token-to-schema.html)
-- policy store に schema がある場合は、principal 型と、ポリシーで使う属性を schema に追加しなければならない。`cognito:username` のように `:` や `.` を含むクレーム名には特殊な記法が必要になる — [同上](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources_map-token-to-schema.html), [Cognito 版](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/cognito-map-token-to-schema.html)
+  — [AWS: Mapping OIDC tokens to schema](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/oidc-map-token-to-schema.html)（`context.token.<属性>` の記述はこのページにある。取り込んだ版が併記した `identity-sources_map-token-to-schema.html` は、いま概要のページに転送されるので外した）
+- policy store に schema がある場合は、principal 型と、ポリシーで使う属性を schema に追加しなければならない。`cognito:username` のように `:` や `.` を含むクレーム名には特殊な記法が必要になる — [同上](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/oidc-map-token-to-schema.html), [Cognito 版](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/cognito-map-token-to-schema.html)
 - OpenID AuthZEN Authorization API 1.0 は 2026-01-12 に Final として承認された。Subject は必須の識別子と任意の properties オブジェクトを持つ — [OIDF 承認告知](https://openid.net/authorization-api-1-0-final-specification-approved/), [仕様](https://openid.net/specs/authorization-api-1_0.html)
 - AuthZEN の draft-03 には「Many authorization systems are stateless, and expect the client (PEP) to pass in any properties」とある（Final でも同じ文言かは未確認） — [draft-03](https://openid.net/specs/authorization-api-1_0-03.html)
 
@@ -127,7 +127,7 @@ OpenAPI 本体に JWT クレームを記述する標準の仕組みはなく、`
 
 ### Cited Findings
 - ODCS（Open Data Contract Standard）の現行版は v3.2.0、ライセンスは Apache 2.0、組織は LF AI & Data Foundation / Bitol。JSON Schema は `schema/odcs-json-schema-latest.json` にあり、IDE で YAML を検証できる。JSON Schema と標準本文が矛盾した場合は標準が優先する — [GitHub bitol-io/open-data-contract-standard](https://github.com/bitol-io/open-data-contract-standard), [ODCS docs](https://bitol-io.github.io/open-data-contract-standard/latest/)
-- Fideslang のデータカテゴリは階層ラベルで、`user.contact` → `user.contact.email` のように細分化する。YAML でフィールドに `data_categories` を付ける例がある。ライセンスは CC BY 4.0、管理は IAB Tech Lab（Ethyca から寄贈）— [Ethyca data mapping annotations](https://ethyca.com/docs/data-mapping/guides/data-mapping-annotations), [IAB Tech Lab fideslang](https://iabtechlab.github.io/fideslang), [Ethyca 寄贈告知](https://ethyca.com/blog/ethyca-donates-fideslang-privacy-taxonomy-to-the-iab-tech-lab)
+- Fideslang のデータカテゴリは階層ラベルで、`user.contact` → `user.contact.email` のように細分化する。YAML でフィールドに `data_categories` を付ける例がある。ライセンスは CC BY 4.0、管理は IAB Tech Lab（Ethyca から寄贈）— [Ethyca data mapping annotations](https://ethyca.com/docs/data-mapping/guides/data-mapping-annotations), [IAB Tech Lab fideslang](https://iabtechlab.github.io/fideslang), [IAB Tech Lab の寄贈の告知（2024-01-09）](https://iabtechlab.com/iab-tech-lab-accelerates-privacy-taxonomy-project-with-fides-language-product-donation)（取り込んだ版が引いた Ethyca のブログは 404）
 - 古い資料には `user.provided.identifiable.contact.email` という旧体系のパスも見られ、版によってラベルが変わっている — [Ethyca blog](https://ethyca.com/blog/fideslang-a-taxonomy-for-privacy-engineering)
 
 ### Inferences
@@ -144,10 +144,10 @@ OpenAPI 本体に JWT クレームを記述する標準の仕組みはなく、`
 Keycloak では keycloak-config-cli（adorsys）による YAML/JSON の宣言的管理と GitOps 運用が一般的で、protocolMappers（クレームマッパー）もクライアント設定として管理できる。ただし、そこに書けるのは「どの属性をどのクレームに入れるか」という実装の配線だけで、意味、寿命、消費者といった設計情報は持たない。
 
 ### Cited Findings
-- keycloak-config-cli は realm、client、user、role を JSON か YAML で宣言的に管理するツールで、GitOps 対応を掲げ、Keycloak を再起動せずに適用できる — [keycloak-config-cli docs](https://adorsys.github.io/keycloak-config-cli/docs/intro), [GitHub](https://github.com/adorsys/keycloak-config-cli)
+- keycloak-config-cli は realm、client、user、role を JSON か YAML で宣言的に管理するツールで、GitOps 対応を掲げ、Keycloak を再起動せずに適用できる — [keycloak-config-cli docs](https://adorsys.github.io/keycloak-config-cli/), [GitHub](https://github.com/adorsys/keycloak-config-cli)
 - client 設定（protocolMappers を含む）の作成と更新に対応している。YAML anchors や、1 ファイルに複数の realm を書く形式もサポートする — [GitHub](https://github.com/adorsys/keycloak-config-cli), [CHANGELOG v5.1.0](https://github.com/adorsys/keycloak-config-cli/blob/v5.1.0/CHANGELOG.md)
-- 実運用の例として、ID を除いた partial export から YAML を作り、protocolMappers を jq で名前順に並べて diff を安定させる、という報告がある — [Keycloak forum](https://forum.keycloak.org/t/how-do-you-manage-your-realm-configuration/18099)
-- Go 製の keycloak-provisioner は `--dry-run` を持ち、realm export 形式をそのまま使う。Kubernetes 用の keycloak-controller は keycloak-config-cli をラップしている — [keycloak-provisioner](https://awesome.ecosyste.ms/projects/github.com%2Fdatarocks-ag%2Fkeycloak-provisioner), [keycloak-controller](https://www.github.com/DoodleScheduling/keycloak-controller)
+- 実運用の例として、ID を除いた partial export から YAML を作り、protocolMappers を jq で名前順に並べて diff を安定させる、という報告がある — [Keycloak forum](https://forum.keycloak.org/t/how-do-you-manage-your-realm-configuration/18099)（非公式）
+- Go 製の keycloak-provisioner は `--dry-run` を持ち、realm export 形式をそのまま使う。Kubernetes 用の keycloak-controller は keycloak-config-cli をラップしている — [keycloak-provisioner](https://github.com/datarocks-ag/keycloak-provisioner), [keycloak-controller](https://www.github.com/DoodleScheduling/keycloak-controller)
 
 ### Inferences
 - IdP の設定は「発行側の実装」の正本、claims.yaml は「設計」の正本という二層に分けるのが自然である。CI で claims.yaml の `writer/issuer`・`data source`・`carried_in` と IdP 設定の mapper 一覧を突き合わせれば、設計にないクレームの発行や、設計にあるのに発行されていないクレームを検出できる。
