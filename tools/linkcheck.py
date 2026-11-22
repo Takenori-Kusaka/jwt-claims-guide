@@ -3,7 +3,7 @@
 Usage: python linkcheck.py <dir> <out.txt> [manual.tsv]
 - Collects Markdown links and bare URLs (inline code is skipped: identifiers, not links).
 - External: HEAD, then GET on failure. Generic browser-like User-Agent, timeout 30s.
-- 429/timeouts: sequential retries with back-off.
+- 429/5xx/timeouts: sequential retries with back-off.
 - doi.org: when the publisher blocks automated access (403), the DOI is checked with the
   doi.org handle API (responseCode 1 = registered).
 - manual.tsv (url<TAB>evidence): URLs that refuse automated clients from this network,
@@ -65,12 +65,12 @@ with concurrent.futures.ThreadPoolExecutor(10) as ex:
 # second pass: sequential retries for rate limits and timeouts
 for u in ext:
     st, m = res[u]
-    if st == "429" or st.startswith("ERR"):
+    if st == "429" or st.startswith("5") or st.startswith("ERR"):
         for attempt in range(3):
             time.sleep(10 * (attempt + 1))
             st2, m2 = check(u)
             res[u] = (st2, m2)
-            if st2 != "429" and not st2.startswith("ERR"):
+            if st2 != "429" and not st2.startswith("5") and not st2.startswith("ERR"):
                 break
 
 rows = []
@@ -99,7 +99,7 @@ for r in rows:
     count[r[0]] = count.get(r[0], 0) + 1
 with out.open("w", encoding="utf-8", newline="\n") as fh:
     fh.write("# Link check: research/template-design/\n")
-    fh.write(f"# date: {datetime.date.today().isoformat()}  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/timeouts)\n")
+    fh.write(f"# date: {datetime.date.today().isoformat()}  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/5xx/timeouts)\n")
     fh.write(f"# links (file x url): {len(rows)}  unique external URLs: {len(ext)}  relative links: {sum(1 for r in rows if not r[3].startswith('http'))}\n")
     for k in ("OK", "OK-DOI", "OK-MANUAL", "BROKEN"):
         fh.write(f"# {k}: {count.get(k, 0)}\n")

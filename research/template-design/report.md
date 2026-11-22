@@ -2,10 +2,26 @@
 
 - 調査基準日：2026-11-22
 - 作成方法：生成 AI（Claude）を使って調査・執筆し、筆者が確認した。
-- 点検の状況：人による点検は未実施。#13 の手順（作成とは別の LLM のセッションでの点検と、1 日以上空けた見直し）で点検する予定。
+- 点検の状況：人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/template-design-report-2026-11-22.md`）。
 - 根拠の調査ノート：[notes/](notes/)。未検証の点は [unverified.md](unverified.md) に表でまとめた。
 - 凡例：（非公式）= フォーラム・メーリングリスト・個人ブログ・他プロジェクトの Wiki など、第三者の非公式な情報源。
 - 取り込みの際の修正：ID-JAG 草案の最新版を -05 から -06（2026-10-31）に直した（「未決事項と未検証点」を参照）。応答しないリンク（researchr.org、NASA SWEHB の短縮 URL）を DOI と正式な URL に差し替えた。Ciolkowski（2009）の DOI は調査ノートの値が誤っていたので、10.1109/ESEM.2009.5316026 に直した。リンクの点検の結果は [linkcheck-2026-11-22.txt](linkcheck-2026-11-22.txt) にある。
+
+## 訂正（2026-11-22）
+
+取り込んだ版（コミット 9876fe1・f0d2ef9）を、作成とは別の LLM のセッションで点検し、次を直した（記録：`research/reviews/template-design-report-2026-11-22.md`）。結論（「漏れゼロ」は約束できず、定義した軸の内側で判断の漏れを機械で見つける）は変えていない。根拠の一部を弱め、言い方を出典に合わせた。
+
+- Q1：NaPiRE の 48% の出典を、正しい論文（Méndez Fernández et al., EMSE 2016）に直した。「主因は領域知識の不足」を「資格や経験の不足など」に直した。EWD288 の日付（1970 年 7 月）を足した。Shostack の引用を、原文に合わせて弱めた。オンタリオの「約 100% の遵守」は、出典で確かめられず外した
+- Q2：チェックリストとアドホックの比較の出典を Porter ら（1995）だけにした。Braz らと Gonçalves らの書き方を原文に合わせた
+- Q3：「実システムの大半はハイブリッド」を「標準と主要な製品はハイブリッドを前提にしている」に改めた。SP 800-162 の「関係」の意味の違いを書いた
+- Q4：RFC 8628 のリンク、IANA の登録簿の名前、RFC 9700 の強さ（ROPC は §2.4 で MUST NOT、implicit は §2.1.2 で SHOULD NOT）を直した
+- Q6：KMi-95-13 を出典にした QOC の対比を外した
+- Q8：ADR の約 50% の一次の出典を Buchgeher et al. にした
+- Q11：Li et al. の版を v1 に固定し、「150 時間超」を外した
+- 価値評価：Tang の「約 50%」を外した
+- R6：NIST ACTS の「96%」を、出典が示す幅（10 種類のアプリで 2 因子までにおよそ 47〜97%）に直した。R6 を warn にとどめる理由に使った
+- サイズチェッカー：RSA の署名長の出典に RFC 8017 §8.2.1 を足した
+- 未決事項：Okta の 100 件の上限は公式の文書で確かめられたので、未検証点から外した
 
 この構想には価値がある。ただし価値の源泉は、構想が掲げる「レビューは採否理由の妥当性評価だけで済み、網羅性不足や発行/利用ケースの想定漏れが一切生じない」という約束ではない。この約束は原理的に証明できず、実証研究とも矛盾する。列挙されなかった候補はテンプレートでは検出できない。またレビューで最も見逃されやすいのは、データ真正性の検証不足（CWE-345、13/13 件見逃し）とアクセス制御の不備（CWE-284、約 88% 見逃し）で、どちらも JWT クレーム設計の中核にあたる（[Paul et al.](https://ar5iv.labs.arxiv.org/html/2102.06909)）。価値の源泉は三つある。第一に、ASVS 5.0 が要求しながら様式を定めていない「認可ドキュメント」（V8.1.1〜8.1.4）を具体化できる（[OWASP ASVS 5.0 V8](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x17-V8-Authorization.md)）。第二に、「発行・利用のタイミング × 情報 × クレーム × データ源」の時系列対応表と採否根拠の一覧は、公開された先行事例が調査範囲で見つからなかった空白地帯にあたる。第三に、定義した列挙軸の内側では未記入を機械的に検出できる。修正すべき点は三つある。ファイルの分割軸を認可方式から「主体 × フロー」に移し、認可方式はモジュールに格下げする。発行イベントのマスターカタログを外部の一覧（IANA、IdP フックの契機値）から作る。トークンサイズのチェッカーは入れるべきで、宣言値から最悪ケースを静的に合算し、経路上で最も厳しい上限を超えたら error にする。約束の文言は「定義した軸の内側では判断漏れを機械的に検出し、軸そのものは外部の一覧と運用の実測で更新し続ける」に改めるのが、根拠に沿った表現である。
 
@@ -13,15 +29,15 @@
 
 ### Q1. 「全候補に採否と理由が付いていれば、網羅漏れは起こり得ない」と言えるか
 
-言えない。テンプレートが保証できるのは「列挙された候補には判断が記録されている」ことまでで、列挙されなかった候補（unknown unknowns）には何も言えない。Dijkstra が 1969 年に述べた「テストはバグの存在を示せるが、不在は示せない」は、チェックリストにもそのまま当てはまる（[EWD288](https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html)、[出典の整理](https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the)（非公式））。脅威モデリングの第一人者 Shostack も、図のすべての要素に STRIDE を当てても「かなり良い」と言えるだけで、それは「すべてのドアと窓に鍵があることを確かめた」程度の意味しかないと書いている（[Shostack, MSDN 2008](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process)）。要求工学の大規模調査 NaPiRE では、最も多く挙がった問題が「不完全な要求・隠れた要求」（ある分析では回答者の **48%**）で、主因は担当者の領域知識の不足だった（[arXiv 1612.00163](https://arxiv.org/pdf/1612.00163)）。領域知識の不足は様式では埋まらない。
+言えない。テンプレートが保証できるのは「列挙された候補には判断が記録されている」ことまでで、列挙されなかった候補（unknown unknowns）には何も言えない。Dijkstra が 1969 年の NATO ソフトウェア工学会議で述べ、EWD288（1970 年 7 月）にも書いた「テストはバグの存在を示せるが、不在は示せない」は、チェックリストにもそのまま当てはまる（[EWD288](https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html)、[出典の整理](https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the)（非公式））。脅威モデリングの第一人者 Shostack も、図のすべての要素に STRIDE を当てれば「かなり良い」としつつ、それはすべてのドアと窓に鍵があるのを確かめて終わりにするようなもので、それで足りる場合もある、と書いている（[Shostack, MSDN 2008](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process)）。要求工学の大規模調査 NaPiRE（10 か国 228 組織）では、最も多く挙がった問題が「不完全な要求・隠れた要求」（回答者の **48%**）だった。原因として多く挙がったのは、要求工学の担当者の資格や経験の不足、時間の圧力などである（[Méndez Fernández et al., EMSE 2016（arXiv 1611.10288）](https://arxiv.org/pdf/1611.10288) Table 9・Fig. 4）。担当者の力量の不足は、様式だけでは埋まらない。
 
-医療のチェックリストの経験は、「全欄記入」が品質の指標にならないことを示している。WHO の手術安全チェックリストは 8 施設で死亡率を 1.5% から 0.8% に下げた（[Haynes et al., NEJM 2009](https://doi.org/10.1056/NEJMsa0810119)）。一方、オンタリオ州の 101 病院で義務化した際は、ほぼ全病院が約 100% の遵守を報告したにもかかわらず、死亡率の改善は有意でなかった（0.71% → 0.65%、OR 0.91）（[Urbach et al., NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)、[PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)）。したがって、「漏れゼロ」という約束は撤回し、次の文言に置き換えるべきである。
+医療のチェックリストの経験は、「全欄記入」が品質の指標にならないことを示している。WHO の手術安全チェックリストは 8 施設で死亡率を 1.5% から 0.8% に下げた（[Haynes et al., NEJM 2009](https://doi.org/10.1056/NEJMsa0810119)）。一方、オンタリオ州の 101 病院で義務化した際は、死亡率の改善は有意でなかった（0.71% → 0.65%、OR 0.91）（[Urbach et al., NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)、[PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)）。したがって、「漏れゼロ」という約束は撤回し、次の文言に置き換えるべきである。
 
 > **修正後の約束（案）**：本テンプレートは、定義した列挙軸（発行イベントカタログ × 段階 × 受け手 × トークン種別）の内側で、判断の未記入・根拠の欠落・データ源の不明を機械的に検出する。列挙軸の外にある漏れは、観点別の問い、カタログ外を問う必須質問、流出欠陥のふりかえりで見つけ、見つけた漏れはカタログに還流する。レビューの主眼は採否理由の妥当性評価に置くが、それだけでは終わらない。
 
 ### Q2. レビューを「採否理由の妥当性評価だけ」に絞ってよいか
 
-主眼を置くのはよいが、「だけ」にするのは危険である。焦点を示す効果は大きい。150 名の実験では、「セキュリティに注目せよ」と明示するだけで脆弱性の検出確率が **8 倍**になった。同じ実験で、セキュリティチェックリストは検出を増やさなかった（[Braz et al., ICSE 2022](https://arxiv.org/abs/2202.04586)）。インスペクション研究全体でも、チェックリスト型がアドホック型より頑健に優れるという証拠はない（[Porter, Votta, Basili 1995](https://www.cs.umd.edu/~aporter/html/scenarios.html)、[Ciolkowski 2009](https://doi.org/10.1109/ESEM.2009.5316026)）。70 名のコードレビュー実験では、成績を最も左右したのは対象の理解だった（[Gonçalves et al., EMSE 2022](https://link.springer.com/10.1007/s10664-022-10123-8)）。
+主眼を置くのはよいが、「だけ」にするのは危険である。焦点を示す効果は大きい。150 名の実験では、「セキュリティに注目せよ」と明示するだけで脆弱性の検出確率が **8 倍**になった。同じ実験で、セキュリティチェックリストを足しても、それ以上は有意に改善しなかった（[Braz et al., ICSE 2022](https://arxiv.org/abs/2202.04586)）。要求仕様のインスペクション実験でも、チェックリストで読んだ人はアドホックで読んだ人より有効ではなかった（[Porter, Votta, Basili 1995](https://www.cs.umd.edu/~aporter/html/scenarios.html)）。70 名のコードレビュー実験は、ガイダンスと成績の強い関係を示さず、対象の理解が欠かせないと論じている（[Gonçalves et al., EMSE 2022](https://link.springer.com/10.1007/s10664-022-10123-8)）。
 
 ここから導ける位置づけは次のとおりである。テンプレートの価値は「チェック項目の網羅」ではなく、候補・採否・理由・前提という構造化された情報をレビュアーに渡し、理解を助けることにある。「理由だけを見よ」と注意を狭めると、焦点の外にある鍵管理、受け渡し経路、キャッシュを見なくなる。さらに、もっともらしく書かれた理由を追認するだけで、実装や設定が本当にそうなっているかを確かめない（rubber-stamping）おそれもある。対策は二つある。記述と実装の一致の確認は、スキーマ検証と契約テストで機械に任せる。人間には、却下理由から無作為に 2〜3 件を選んで実装まで追う深掘りと、カタログ外を問う質問を課す。
 
@@ -29,7 +45,7 @@
 
 主軸としては勧めない。理由は三つある。
 
-第一に、実システムの大半はハイブリッドである。NIST は純粋な RBAC では動的属性を扱えずロール爆発が起きると指摘している（[Kuhn, Coyne, Weil 2010](https://www.nist.gov/publications/adding-attributes-role-based-access-control)）。SP 800-162 の ABAC の定義自体にも「関係」が含まれている（[NIST SP 800-162](https://csrc.nist.gov/pubs/sp/800/162/upd2/final)）。製品も同様で、OpenFGA は ReBAC を RBAC の上位集合とし、Conditions で ABAC を併用する（[OpenFGA](https://openfga.dev/docs/authorization-concepts)）。AWS Verified Permissions は、同じポリシーストアで `groups` による RBAC と属性による ABAC を共存させる（[AWS](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html)）。認可方式別にファイルを分けると、1 システムで 2〜3 本を同時に埋めることになり、共通部分を各ファイルに複製することになる。
+第一に、標準と主要な製品は、ハイブリッドを前提にしている（実システムでの割合を示す統計は見つけていない。[unverified.md](unverified.md) の V20）。NIST は純粋な RBAC では動的属性を扱えずロール爆発が起きると指摘している（[Kuhn, Coyne, Weil 2010](https://www.nist.gov/publications/adding-attributes-role-based-access-control)）。SP 800-162 の本文の説明も、属性をポリシー・規則・関係（relationships）と照合するとしている。ただし、この「関係」は許される操作を記したもので、ReBAC の主体と対象の関係とは意味が違う（[NIST SP 800-162](https://csrc.nist.gov/pubs/sp/800/162/upd2/final)）。製品も同様で、OpenFGA は ReBAC を RBAC の上位集合とし、Conditions で ABAC を併用する（[OpenFGA](https://openfga.dev/docs/authorization-concepts)）。AWS Verified Permissions は、同じポリシーストアで `groups` による RBAC と属性による ABAC を共存させる（[AWS](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html)、例は [OIDC の ID ソース](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources-oidc.html)）。認可方式別にファイルを分けると、1 システムで 2〜3 本を同時に埋めることになり、共通部分を各ファイルに複製することになる。
 
 第二に、認可方式はトークンの中身をあまり変えない。RFC 9068 が認可クレームとして挙げるのは `groups`・`roles`・`entitlements` と `scope` に限られる（[RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html)）。関係や変わりやすい属性はトークンに入れず、PDP に問い合わせるのが各社に共通する指針である。トークン内のグループ情報は「取得時点でのみ最新」とされる（[Microsoft Learn](https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles)）。Zanzibar の設計目標である因果順序の保証は、関係をトークンに焼き込む方式とは両立しない（[Google Research](https://research.google/pubs/pub48190/)）。認可方式によって変わるのは、主に「載せないクレームの一覧」と「PDP 呼び出しのシーケンス」である。
 
@@ -39,7 +55,7 @@
 
 ### Q4. シーケンス図とタイミング毎の対応表で、発行・利用のケースは閉じるか
 
-ケースの母集団を外部の一覧から作れば、少なくとも製品と標準の範囲では閉じた列挙に近づく。作らなければ閉じない。列挙の種として最も機械的に使えるのは、IdP のフックが受け取る契機の値の一覧である。Auth0 の post-login Action の `event.transaction.protocol` は **16 値**ある（[Auth0](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger/post-login-event-object)）。M2M は別のトリガー `credentials-exchange` が扱うので、post-login でのクレーム付与は M2M に効かない（[Auth0 M2M trigger](https://auth0.com/docs/customize/actions/explore-triggers/machine-to-machine-trigger)）。Cognito の `triggerSource` は **6 値**で、client credentials はフックのバージョンが V3_0 のときだけ送られる。また `sub`・`acr`・`amr`・`auth_time` などはフックで変えられない（[AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html)）。標準側では、IANA の grant type・token type・response type の登録（[IANA OAuth Parameters](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml)）と、OIDC の各ログアウト仕様が種になる。
+ケースの母集団を外部の一覧から作れば、少なくとも製品と標準の範囲では閉じた列挙に近づく。作らなければ閉じない。列挙の種として最も機械的に使えるのは、IdP のフックが受け取る契機の値の一覧である。Auth0 の post-login Action の `event.transaction.protocol` は **16 値**ある（[Auth0](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger/post-login-event-object)）。M2M は別のトリガー `credentials-exchange` が扱うので、post-login でのクレーム付与は M2M に効かない（[Auth0 M2M trigger](https://auth0.com/docs/customize/actions/explore-triggers/machine-to-machine-trigger)）。Cognito の `triggerSource` は **6 値**で、client credentials はフックのバージョンが V3_0 のときだけ送られる。また `sub`・`acr`・`amr`・`auth_time` などはフックで変えられない（[AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html)）。標準側では、IANA の OAuth Parameters のうち「OAuth URI」（grant type の URN）・「OAuth Access Token Types」・「OAuth Authorization Endpoint Response Types」の登録簿（[IANA OAuth Parameters](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml)）と、OIDC の各ログアウト仕様が種になる。
 
 これらから作ったカタログ（発行約 30、利用約 20）を本ガイド（`docs/slides.json`、152 枚）と突き合わせると、扱いの薄いイベントがある。
 
@@ -49,14 +65,14 @@
 | 発行 | テナント・組織の切り替えによる再発行 | 切り替え後も古い tid が残る |
 | 発行 | サインアップ・招待・初回ログイン | 所属が未確定のまま発行される、email_verified=false |
 | 発行 | パスワード変更・MFA 登録の後の発行 | amr とセッションの扱いが曖昧になる |
-| 発行 | device flow（[RFC 8628](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml)） | 入力した端末と承認した端末が別 |
+| 発行 | device flow（[RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)） | 入力した端末と承認した端末が別 |
 | 発行 | Back-Channel Logout の Logout Token | `events` が必須、`nonce` は禁止（[OIDC Back-Channel Logout 1.0](https://openid.net/specs/openid-connect-backchannel-1_0.html)） |
 | 発行 | client credentials のフックが別系統であること（△） | 利用者向けフックのクレームが M2M に付かない |
 | 利用 | RP-Initiated・Front-Channel・Back-Channel ログアウト（△） | ログアウト後もトークンが有効なまま |
 | 利用 | 長時間接続（WebSocket・gRPC ストリーム・SSE） | 接続の途中で期限が切れる |
 | 利用 | 分析基盤へのクレームの複製 | 機微なクレームが下流に残る |
 
-表の上の四つは、いずれも「スライド 76 の段階②（発行時フック）が動くか、動いたときにクレームが変わるか」で事故になる。ガイドの主題である独自クレームの鮮度と書き手に直結するので、テンプレートより先にガイドの側を補うべき優先度が高い。カタログには、禁止しているフロー（implicit、ROPC）も「対象外：RFC 9700 で非推奨」という行として残す。暗黙の対象外をなくすためである。
+表の上の四つは、いずれも「スライド 76 の段階②（発行時フック）が動くか、動いたときにクレームが変わるか」で事故になる。ガイドの主題である独自クレームの鮮度と書き手に直結するので、テンプレートより先にガイドの側を補うべき優先度が高い。カタログには、禁止しているフロー（implicit、ROPC）も「対象外：ROPC は RFC 9700 §2.4 で使用禁止（MUST NOT）、implicit は §2.1.2 で SHOULD NOT」という行として残す。暗黙の対象外をなくすためである。
 
 ### Q5. 「データ源」の列には何を書けば、鮮度の問題に答えたことになるか
 
@@ -64,7 +80,7 @@
 
 ### Q6. 採否チェックリストに却下候補と理由の例を事前に載せると、形骸化しないか
 
-形骸化のリスクは高い。OSS の ADR 約 5,800 件のうち約 **63%** が最初から "accepted" の状態で作られており、本来記録すべき熟議を経ていない（[ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou)）。Parnas と Clements は、設計文書は本質的に事後の再構成であると認めたうえで、合理的に導かれたかのように書くべきだと主張した（[IEEE TSE 1986](https://doi.org/10.1109/TSE.1986.6312940)）。例示した理由はアンカーになり、そのまま転記される（[Tversky & Kahneman 1974](https://doi.org/10.1126/science.185.4157.1124)）。QOC の研究は、設計根拠の記録が未知の設計空間では有効で、制約の強い定型の空間ではむしろ邪魔になると報告している（[KMi](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)）。
+形骸化のリスクは高い。OSS の ADR 約 5,800 件のうち約 **63%** が最初から "accepted" の状態で作られており、本来記録すべき熟議を経ていない（[ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou)）。Parnas と Clements は、設計文書は本質的に事後の再構成であると認めたうえで、合理的に導かれたかのように書くべきだと主張した（[IEEE TSE 1986](https://doi.org/10.1109/TSE.1986.6312940)）。例示した理由はアンカーになり、そのまま転記される（[Tversky & Kahneman 1974](https://doi.org/10.1126/science.185.4157.1124)）。
 
 緩和策は四つある。カタログには候補と検討の問いだけを載せ、模範の理由文は載せない。既定どおりの項目（`aud` の必須検証など）は一括で宣言させ、理由は逸脱と却下にだけ求める（[Falessi et al. の価値ベース原則](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)と整合する）。理由には「脅威・要件 ID への参照」「前提条件」「前提が崩れたときの再検討トリガー」のうち最低 2 つを含めさせる。理由文の重複率を lint で測る。ただし、これらの緩和策の効果を直接測った研究は見つかっておらず、いずれも設計上の提案にとどまる。
 
@@ -76,7 +92,7 @@
 
 ### Q8. 重すぎて誰も使わないのではないか
 
-その懸念には根拠がある。ADR を始めたリポジトリの約 **50%** は 5 件未満で止まっている（[arXiv 2604.03826](https://arxiv.org/html/2604.03826)）。設計根拠の記録が普及しない理由としては、「便益が遅れて来る」ことと「記録する人と受益する人が別」であることが挙がっている（[Falessi et al.](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)）。対策は二段のテーラリングである。Lite は、既存パターンを踏襲する単一リソースサーバーの内部 API 向けで、逸脱だけを記録し、カタログ外の質問を 3 つ課す。Full は、新規発行者、外部 RP、マルチテナント、委任・トークン交換、規制対象のいずれかに当てはまる場合で、全候補の列挙、観点別レビュー、サンプリング深掘りを行う。どちらにするかの判定基準はテンプレートの冒頭に置く。機械で確かめられる部分（必須欄、証拠リンク、契機値との差集合、サイズ）は CI に移し、人の記入量を減らす。
+その懸念には根拠がある。ADR を始めたリポジトリの約 **50%** は 5 件未満で止まっている（[Buchgeher et al., IEEE Access 2023](https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612)。[arXiv 2604.03826](https://arxiv.org/html/2604.03826) が引用）。設計根拠の記録が普及しない理由としては、「便益が遅れて来る」ことと「記録する人と受益する人が別」であることが挙がっている（[Falessi et al.](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)）。対策は二段のテーラリングである。Lite は、既存パターンを踏襲する単一リソースサーバーの内部 API 向けで、逸脱だけを記録し、カタログ外の質問を 3 つ課す。Full は、新規発行者、外部 RP、マルチテナント、委任・トークン交換、規制対象のいずれかに当てはまる場合で、全候補の列挙、観点別レビュー、サンプリング深掘りを行う。どちらにするかの判定基準はテンプレートの冒頭に置く。機械で確かめられる部分（必須欄、証拠リンク、契機値との差集合、サイズ）は CI に移し、人の記入量を減らす。
 
 ### Q9. 採用クレームが多すぎる、または値域が大きすぎてトークン容量の制限を超える場合に、エラーにするチェッカーを設けるべきか
 
@@ -104,11 +120,11 @@ error のメッセージからは `M_authz_pdp` モジュールの「載せる�
 
 ### Q11. LLM や自動化でレビューそのものを置き換えられないか
 
-一次スクリーニングには使えるが、置き換えはできない。セキュリティコードレビューで LLM が静的解析を上回ったという報告がある（[Yu et al.](https://arxiv.org/html/2401.16310v5)）。一方、プロジェクト規模の検証では誤検出が多く、385 件の報告の人手確認に 150 時間超を要した（[Li et al.](https://arxiv.org/html/2601.19239v1)）。設計文書を対象にした LLM レビューの評価は見つからなかった。LLM には「理由が前提と矛盾していないか」「カタログ外の候補はないか」の下読みをさせ、その指摘もレビューレポートの起点欄で「LLM」と区別して記録し、有効率を測るのが妥当である。
+一次スクリーニングには使えるが、置き換えはできない。セキュリティコードレビューで LLM が静的解析を上回ったという報告がある（[Yu et al.](https://arxiv.org/html/2401.16310v5)）。一方、プロジェクト規模の検証では誤検出が多く、385 件の報告を人手で確かめる必要があった（[Li et al., arXiv 2601.19239v1](https://arxiv.org/html/2601.19239v1)。v2 の要旨では 355 件）。設計文書を対象にした LLM レビューの評価は見つからなかった。LLM には「理由が前提と矛盾していないか」「カタログ外の候補はないか」の下読みをさせ、その指摘もレビューレポートの起点欄で「LLM」と区別して記録し、有効率を測るのが妥当である。
 
 ## 価値評価：境界を越える契約では高く、定型の内部 API では儀式になる
 
-構想全体の価値は、適用条件によって大きく変わる。設計根拠の記録が効くのは、後から「なぜ」を問われる場面である。保守課題では、設計者の質問の約 50% が意思決定の理由に関するものだった（[Tang 博士論文](https://researchbank.swinburne.edu.au/file/198ab8bf-fbaa-422b-bd24-2ecf7d23aa0c/1/Antony%20Tang%20Thesis.pdf)）。JWT のクレームは外部の RP や RS との契約で、変更は破壊的になりうる（[Curity](https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/)）ので、この便益は通常の内部設計より大きい。逆に、定型の設計に全列挙を課すと、理由はコピペになり、記入率が KPI になればオンタリオ型の形式的遵守に陥る。
+構想全体の価値は、適用条件によって大きく変わる。設計根拠の記録が効くのは、後から「なぜ」を問われる場面である。JWT のクレームは外部の RP や RS との契約で、変更は破壊的になりうる（[Curity](https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/)）ので、この便益は通常の内部設計より大きい。逆に、定型の設計に全列挙を課すと、理由はコピペになり、記入率が KPI になれば、形だけの遵守に陥るおそれがある（オンタリオの結果に添えた Leape の論説の指摘）。
 
 | 観点 | 高価値になる条件 | 低価値・逆効果になる条件 |
 |---|---|---|
@@ -183,11 +199,11 @@ templates/
 | R8 | サイズチェッカー（下記） | error / warn / info |
 | R9 | 「この列挙の外にある発行・利用の契機はないか」に領域の専門家が回答している | error（未回答） |
 
-R6 は、NIST の組み合わせテストの知見による。障害の大半は単一因子か 2 因子の組み合わせで起きる（ある発表では 96%、1 種類のアプリケーションのデータ）（[NIST ACTS](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)）。R9 は、Threat Modeling Manifesto の 4 つ目の問い「十分にうまくやれたか」（[Manifesto](https://www.threatmodelingmanifesto.org/)）を、空欄にできない欄として固定したものである。
+R6 は、NIST の組み合わせテストの知見による。NIST が示す 10 種類のアプリケーションのデータでは、2 因子までの組み合わせで起きた障害の割合は、おおよそ 47%〜97% と幅がある（グラフからの読み取り。[NIST ACTS](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)）。2 因子の網羅で多くの障害は拾えるが、すべてではない。そのため R6 は error ではなく warn にとどめる。R9 は、Threat Modeling Manifesto の 4 つ目の問い「十分にうまくやれたか」（[Manifesto](https://www.threatmodelingmanifesto.org/)）を、空欄にできない欄として固定したものである。
 
 ### サイズチェッカーの仕様
 
-トークン種別ごとのプロファイルに、署名アルゴリズム、ヘッダーの最大長、運搬経路（Authorization ヘッダー・Cookie・URL・キュー）を宣言させる。署名長は ES256 なら 64 octets、RS256（2048 bit）なら 256 octets である（[RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html)）。経路上の最小の上限を予算とし、payload = Σ（キー名 + 値の max_bytes × max_items + JSON の区切り）から、`ceil(4/3·header) + ceil(4/3·payload) + ceil(4/3·sig) + 2`（Bearer で運ぶなら +7）を最悪ケースとして計算する。計測の定義は、Auth0 と同じ「エンコード済み JWT 全体の UTF-8 バイト数」とする（[Auth0](https://support.auth0.com/center/s/article/auth0-id-token-size-calculation)）。判定は Q9 の三段で行い、発行された実トークンの計測による動的チェックと組み合わせる。
+トークン種別ごとのプロファイルに、署名アルゴリズム、ヘッダーの最大長、運搬経路（Authorization ヘッダー・Cookie・URL・キュー）を宣言させる。署名長は ES256 なら 64 octets（[RFC 7518 §3.4](https://www.rfc-editor.org/rfc/rfc7518.html#section-3.4)）、RS256（2048 bit）なら 256 octets である（RSA の署名の長さが鍵の長さに等しいことは [RFC 8017 §8.2.1](https://www.rfc-editor.org/rfc/rfc8017.html#section-8.2.1)）。経路上の最小の上限を予算とし、payload = Σ（キー名 + 値の max_bytes × max_items + JSON の区切り）から、`ceil(4/3·header) + ceil(4/3·payload) + ceil(4/3·sig) + 2`（Bearer で運ぶなら +7）を最悪ケースとして計算する。計測の定義は、Auth0 と同じ「エンコード済み JWT 全体の UTF-8 バイト数」とする（[Auth0](https://support.auth0.com/center/s/article/auth0-id-token-size-calculation)）。判定は Q9 の三段で行い、発行された実トークンの計測による動的チェックと組み合わせる。
 
 ### レビューレポートの欄
 
@@ -195,9 +211,9 @@ R6 は、NIST の組み合わせテストの知見による。障害の大半は
 
 ## 未決事項と未検証点
 
-先行事例の不在は、検索範囲内での結論にすぎない。Okta、Keycloak、Ping、Microsoft SDL、OWASP Threat Dragon にクレーム設計の様式がないことを一次資料で直接確かめたわけではなく、非公開の社内テンプレートは調べられない。ガイドとの突合はキーワード検索によるので、言い換えで扱っているスライドを「なし」と誤判定した可能性がある。特にサインアップ・招待と資格情報の変更後の発行は、ノート本文まで目視していない。IdP の挙動では、Okta の token inline hook がリフレッシュや client credentials でも動くか、Entra の custom claims provider がリフレッシュ時に呼ばれるか、OpenID Native SSO の現在の状態が未確認である。Okta の groups 100 件の上限は、サポート記事にはあるが公式の開発者ドキュメントでは確認できず、矛盾する報告（Okta の開発者フォーラム、非公式）もある。サイズ上限では、Tomcat、IIS/HTTP.sys、Node.js、Google Cloud LB、Azure Front Door の既定値が未確認である。HTTP/2・HTTP/3 のヘッダー圧縮下での実効上限、Auth0・Okta・Keycloak のトークン全体の上限（公表されていない可能性がある）も分かっていない。ガイドのスライド 110 が引く「ID-JAG 草案 06」は正しい。最新版は -06（2026-10-31）である（[datatracker](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/)）。調査の時点では検索で見た -05 を最新としていたが、古い情報だった。
+先行事例の不在は、検索範囲内での結論にすぎない。Okta、Keycloak、Ping、Microsoft SDL、OWASP Threat Dragon にクレーム設計の様式がないことを一次資料で直接確かめたわけではなく、非公開の社内テンプレートは調べられない。ガイドとの突合はキーワード検索によるので、言い換えで扱っているスライドを「なし」と誤判定した可能性がある。特にサインアップ・招待と資格情報の変更後の発行は、ノート本文まで目視していない。IdP の挙動では、Okta の token inline hook がリフレッシュや client credentials でも動くか、Entra の custom claims provider がリフレッシュ時に呼ばれるか、OpenID Native SSO の現在の状態が未確認である。Okta の groups の 100 件の上限は、公式の開発者ドキュメントで確かめた（[Okta Developer](https://developer.okta.com/docs/guides/customize-tokens-dynamic/add-groups-claim-dynamic/)。Authorization Code と PKCE のフローでは件数を指定しなくてよい、という例外がある）。サイズ上限では、Tomcat、IIS/HTTP.sys、Node.js、Google Cloud LB、Azure Front Door の既定値が未確認である。HTTP/2・HTTP/3 のヘッダー圧縮下での実効上限、Auth0・Okta・Keycloak のトークン全体の上限（公表されていない可能性がある）も分かっていない。ガイドのスライド 110 が引く「ID-JAG 草案 06」は正しい。最新版は -06（2026-10-31）である（[datatracker](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/)）。調査の時点では検索で見た -05 を最新としていたが、古い情報だった。
 
-効果の面では、次の四つがいずれも見つからなかった。「採否根拠を記録するとレビューの欠陥検出率が上がる」ことを直接測った対照実験。設計文書に限ったセキュリティレビューの実験。却下候補を事前記入したテンプレートがアンカリングに与える影響の測定。理由のルーブリックとサンプリング深掘りの効果測定。本報告の高価値・低価値の条件と緩和策は、隣接領域（ADR、インスペクション、医療チェックリスト）の証拠からの推論である。P1〜P5 をどこまで別ファイルにするか（モバイルを P1 に統合するか、など）は、想定読者に依存し、根拠となる資料はない。
+論文の数値では、Tang の博士論文の「設計者の質問の約 50% が理由について」、Li et al. の「150 時間超」、Urbach の「ほぼ全病院が約 100% の遵守を報告」の出典の箇所を確かめられず、本文から外した。「QOC は未知の設計空間で有効、定型の空間では邪魔」も、引いた KMi-95-13 に該当する記述がなく、外した（[unverified.md](unverified.md) の V26〜V29）。効果の面では、次の四つがいずれも見つからなかった。「採否根拠を記録するとレビューの欠陥検出率が上がる」ことを直接測った対照実験。設計文書に限ったセキュリティレビューの実験。却下候補を事前記入したテンプレートがアンカリングに与える影響の測定。理由のルーブリックとサンプリング深掘りの効果測定。本報告の高価値・低価値の条件と緩和策は、隣接領域（ADR、インスペクション、医療チェックリスト）の証拠からの推論である。P1〜P5 をどこまで別ファイルにするか（モバイルを P1 に統合するか、など）は、想定読者に依存し、根拠となる資料はない。
 
 ## 結論
 

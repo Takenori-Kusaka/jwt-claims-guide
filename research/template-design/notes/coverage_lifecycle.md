@@ -116,33 +116,33 @@ NIST には、属性の「出どころと確かさ」をメタデータとして
 ## Q3. 網羅性の技法と、チェックリストで「漏れがない」ことを示すことの限界
 
 ### 要点
-「漏れゼロ」は原理的に証明できない。テストは欠陥の存在を示せても不在は示せないし、脅威モデリングの第一人者も「要素ごとに STRIDE を当てたら『かなり良い』」と述べるにとどまる。到達できるのは「定義した列挙の軸に対する網羅（閉じた世界での完全性）」と、「軸の外の漏れを見つけやすくする仕組み」である。組み合わせテストの実証研究からは、2〜3 因子の組み合わせで大半の欠陥が見つかり、4〜6 因子で既知の欠陥はすべて見つかったと報告されている。したがって「主体 × フロー × 段階」の 2 因子（pairwise）網羅は、費用対効果の良い目標になる。
+「漏れゼロ」は原理的に証明できない。テストは欠陥の存在を示せても不在は示せないし、脅威モデリングの第一人者も「要素ごとに STRIDE を当てたら『かなり良い』」と述べるにとどまる。到達できるのは「定義した列挙の軸に対する網羅（閉じた世界での完全性）」と、「軸の外の漏れを見つけやすくする仕組み」である。組み合わせテストの実証研究からは、2 因子までの組み合わせで多くの欠陥が見つかり（アプリによって幅がある）、4〜6 因子で既知の欠陥はすべて見つかったと報告されている。したがって「主体 × フロー × 段階」の 2 因子（pairwise）網羅は、費用対効果の良い目標になりうる。ただし全部を拾う保証ではない。
 
 ### 出典のある所見
-- Dijkstra は 1969 年の NATO ソフトウェア工学会議（ローマ）で「Testing shows the presence, not the absence of bugs」と述べた。1968 年の EWD288 にも同じ趣旨の記述がある — [EWD288 transcription](https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html)、[Hillel Wayne による出典の整理](https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the)（非公式）
-- Shostack（「Knowing When You're Finished」）の要旨：図がシステムの関連する部分をすべて示し、図のすべての要素で STRIDE を一通り確かめたなら「かなり良い」。ただしそれは「すべてのドアと窓に鍵があることを確かめた」程度の意味しかない。どこまで深くやるかは、リスク許容度・規制・予算と時間の兼ね合いで決まる。また、人に構造とフィードバックを与え、作業を小さな部分に分けて各部分に規則と自己点検を置くと、まずまずの結果が得られる。ただし規則が多すぎたり間違っていたりすると、作業が苦役になる — [Shostack, MSDN Security Briefs 2008-07](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process)
+- Dijkstra は 1969 年の NATO ソフトウェア工学会議（ローマ）で「Testing shows the presence, not the absence of bugs」と述べた。EWD288（1970 年 7 月）にも同じ趣旨の記述がある（【訂正 2026-11-22】調査時は「1968 年」と書いていた） — [EWD288 transcription](https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html)、[Hillel Wayne による出典の整理](https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the)（非公式）
+- Shostack（「Knowing When You're Finished」）の要旨：図がシステムの関連する部分をすべて示し、図のすべての要素で STRIDE を一通り確かめたなら「かなり良い」。ただしそれは、すべてのドアと窓に鍵があるのを確かめて終わりにするようなもので、それで足りる場合もある、と添えている（【訂正 2026-11-22】調査時は「その程度の意味しかない」と強めに要約していた）。どこまで深くやるかは、リスク許容度・規制・予算と時間の兼ね合いで決まる。また、人に構造とフィードバックを与え、作業を小さな部分に分けて各部分に規則と自己点検を置くと、まずまずの結果が得られる。ただし規則が多すぎたり間違っていたりすると、作業が苦役になる — [Shostack, MSDN Security Briefs 2008-07](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process)
 - STRIDE-per-element は、DFD の要素の種類（外部エンティティ・プロセス・データストア・データフロー）ごとに当てはまる脅威の区分を決め、要素を順に確かめる方法である — [Larry Osterman, STRIDE per Element](https://learn.microsoft.com/de-de/archive/blogs/larryosterman/threat-modeling-again-stride-per-element)、[MSDN 2006 Uncover Security Design Flaws Using STRIDE](https://msdn.microsoft.com/en-us/magazine/cc163519.aspx)
 - Shostack の旧版の書籍の抜粋には、DFD は脅威を探すうちに変わり、見つかる脅威の数は図の要素の数に比例する、という記述がある。目安は要素あたり約 5 件の STRIDE の脅威。この抜粋は後に削られた（検索結果の要約による。原文 PDF は未読） — [Shostack 第 1 版の章 PDF](https://shostack.org/files/tmbookchapters/threat-modeling-first-edition-Starting-the-Threat-Modeling-Project.pdf)
 - Shostack は 2007 年のエッセイで、図を描かせるときに「どこで止めてよいか」「どの詳細は要らないか」を示していなかったことを問題として挙げている — [The Trouble with Threat Modeling (2007)](https://threatmodelingbook.com/files/essays/The%20Trouble%20With%20Threat%20Modeling.docx)
 - Threat Modeling Manifesto は「チェックボックスの順守より、設計の問題を見つけて直す文化」と「スナップショットより理解の旅」を価値に掲げ、4 つ目の問いとして「十分にうまくやれたか？」を置く。網羅を一度きりの証明ではなく、繰り返し確かめるものとして扱っている — [Threat Modeling Manifesto](https://www.threatmodelingmanifesto.org/)
-- NIST の組み合わせテストの研究（Kuhn ら）は「interaction rule」を示す。多くの障害は単一の因子か 2 因子の組み合わせで起きる。ある 2019 年の発表では、65% が単一因子、96% が単一因子か 2 因子によるものだった（1 種類のアプリケーションのデータという注記つき）。NIST は 6 因子を超える障害を観測しておらず、いくつかの研究では 4〜6 因子の網羅で、全数テストで見つかった欠陥をすべて検出できた。ただし因子数ごとの分布は、NIST 自身が研究課題として未解決にしている — [NIST ACTS: Interactions involved in software failures](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)、[Kuhn 2019 slides](https://csrc.nist.gov/CSRC/media/Projects/cyber-supply-chain-risk-management/documents/SSCA/Fall_2019/WedAM2.2_kuhn.pdf)、[NIST ACTS Research Program](https://csrc.nist.gov/Projects/automated-combinatorial-testing-for-software/Our-Research-Program)
-- 要求工学の大規模調査 NaPiRE では、「不完全な要求・隠れた要求」が最も多く挙がった問題だった（ある分析では回答者の 48%）。その原因として最も多く挙がったのは、要求工学の担当者の資格不足、経験不足、領域知識の不足、業務のニーズの不明確さである。ただしプロジェクトの失敗率との関連だけで見ると、最上位は「動く標的（要求の変化）」になる。回答は自己申告である — [arXiv 1612.00163](https://arxiv.org/pdf/1612.00163)、[arXiv 1611.10288](https://www.arxiv.org/pdf/1611.10288)、[arXiv 1707.00144](https://arxiv.org/pdf/1707.00144)
+- NIST の組み合わせテストの研究（Kuhn ら）は「interaction rule」を示す。多くの障害は単一の因子か 2 因子の組み合わせで起きる。ある 2019 年の発表では、65% が単一因子、96% が単一因子か 2 因子によるものだった（1 種類のアプリケーションのデータという注記つき）。【訂正 2026-11-22】NIST ACTS のページ自体に 96% はない。ページの 10 種類のアプリのグラフでは、2 因子までの累積はおよそ 47%（Apache2）〜97%（FDA の医療機器）と幅がある。NIST は 6 因子を超える障害を観測しておらず、いくつかの研究では 4〜6 因子の網羅で、全数テストで見つかった欠陥をすべて検出できた。ただし因子数ごとの分布は、NIST 自身が研究課題として未解決にしている — [NIST ACTS: Interactions involved in software failures](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)、[Kuhn 2019 slides](https://csrc.nist.gov/CSRC/media/Projects/cyber-supply-chain-risk-management/documents/SSCA/Fall_2019/WedAM2.2_kuhn.pdf)、[NIST ACTS Research Program](https://csrc.nist.gov/Projects/automated-combinatorial-testing-for-software/Our-Research-Program)
+- 要求工学の大規模調査 NaPiRE では、「不完全な要求・隠れた要求」が最も多く挙がった問題だった（回答者の 48%。【訂正 2026-11-22】この値は arXiv 1611.10288 の Table 9 にある。1612.00163 にはない）。その原因として最も多く挙がったのは、要求工学の担当者の資格不足と経験不足（各 9%）、時間の圧力などである（1611.10288 の Fig. 4）。ただしプロジェクトの失敗率との関連だけで見ると、最上位は「動く標的（要求の変化）」になる。回答は自己申告である — [arXiv 1612.00163](https://arxiv.org/pdf/1612.00163)、[arXiv 1611.10288](https://www.arxiv.org/pdf/1611.10288)、[arXiv 1707.00144](https://arxiv.org/pdf/1707.00144)
 
 ### 推論
-- 「レビュー担当者がもう漏れを見つけられない」という主張は、上の根拠からは支持できない。言えるのは「テンプレートが定義する軸（発行イベントのカタログ × 段階 × 受け手）の内側では、未記入のセルが機械的に見つかる」までである。軸の外にある漏れ（新しい grant、製品の新しい契機、組織固有の業務イベント）は残る。NaPiRE によれば、その主因は領域知識の不足であり、テンプレートでは埋まらない。
+- 「レビュー担当者がもう漏れを見つけられない」という主張は、上の根拠からは支持できない。言えるのは「テンプレートが定義する軸（発行イベントのカタログ × 段階 × 受け手）の内側では、未記入のセルが機械的に見つかる」までである。軸の外にある漏れ（新しい grant、製品の新しい契機、組織固有の業務イベント）は残る。NaPiRE では、その原因として担当者の資格や経験の不足などが挙がっており、テンプレートだけでは埋まらない。
 - 網羅を高める仕組みの候補は次のとおり。
   1. **閉じた列挙の種**：IANA の grant type と token type、OIDC のログアウトの 3 仕様、採用している IdP のフックの契機の値の一覧を行の母集団にし、外部の一覧の改訂（新しい RFC・製品のリリースノート）をテンプレートの更新の契機にする。
   2. **DFD と要素ごとの点検**：シーケンス図の各メッセージをデータフローとみなし、各フローに「載るトークンの種類 × 確かめるクレーム」を書く。各フローに「書き手」「宛先（aud）」「寿命」の 3 つの問いを必ず当てる（STRIDE-per-element をクレームに当てはめたもの）。
   3. **状態遷移と CRUD の行列**：主体の状態（招待・有効・停止・削除・テナントの切り替え・権限の変更・資格情報の変更）を行、トークンの種類（AT・RT・ID・Txn・Logout）を列にし、各セルに「発行・再計算・失効・影響なし」のどれかを必ず書く。I24〜I26 はこの行列で初めて現れる種類の漏れである。
-  4. **pairwise の網羅**：主体の種類（利用者・ワークロード・エージェント・運用者）× 発行イベント × 段階（①〜⑥）の 3 因子について、少なくとも 2 因子のすべての組を一度は検討する。NIST の実証研究に照らすと、費用対効果の良い目標である。
+  4. **pairwise の網羅**：主体の種類（利用者・ワークロード・エージェント・運用者）× 発行イベント × 段階（①〜⑥）の 3 因子について、少なくとも 2 因子のすべての組を一度は検討する。NIST の実証研究に照らすと、費用対効果の良い目標になりうる（ただし拾える割合はアプリによって幅がある）。
   5. **双方向の追跡行列**：「クレーム → 発行イベント → 元のシステム」と「受け手 → 読むクレーム」を両方向に結ぶ。どの受け手も読まないクレーム（削除の候補）と、元のシステムのないクレーム（出どころが不明）を自動で検出する。
   6. **自己点検の規則**（テンプレートに埋め込む。台帳のスキーマで機械的に確かめられる）：
      - クレームの行は、少なくとも 1 つの発行イベント ID、段階（①〜⑥）、書き手、元のシステム、確認の方法、再計算の契機を必ず持つ。空欄は不可。
-     - カタログの全発行イベントと全段階に、「該当」か「対象外＋理由」のどちらかを必ず書く（暗黙の対象外を禁止する）。I02・I03 のような禁止のフローも「対象外：RFC 9700 で非推奨」と明記する。
+     - カタログの全発行イベントと全段階に、「該当」か「対象外＋理由」のどちらかを必ず書く（暗黙の対象外を禁止する）。I02・I03 のような禁止のフローも「対象外：ROPC は RFC 9700 §2.4 で使用禁止（MUST NOT）、implicit は §2.1.2 で SHOULD NOT」と明記する（【訂正 2026-11-22】調査時は「非推奨」と弱く書いていた）。
      - 受け手の行は、読むクレームと「欠けたときの挙動（拒否）」を必ず持つ（スライド 57・58・77 の規則を列にしたもの）。
      - 製品の契機の値の一覧と台帳の発行イベントの差集合を、CI で計算する（スライド 136 の契約テストの延長）。
      - 運用で出たトークンのクレームの実測と台帳との差を測る（スライド 144 の指標を、イベントの種類ごとに分ける）。
-  7. **「十分か」の問いを残す**：Manifesto の 4 つ目の問い。チェックリストの末尾に「この列挙の外にある発行・利用の契機はないか」を自由記述で置き、領域の専門家が回答する。漏れの主因が領域知識の不足であることへの対策である。
+  7. **「十分か」の問いを残す**：Manifesto の 4 つ目の問い。チェックリストの末尾に「この列挙の外にある発行・利用の契機はないか」を自由記述で置き、領域の専門家が回答する。漏れの原因に担当者の資格や経験の不足が挙がっていることへの対策である。
 - 打ち出し方の提案：「漏れゼロ」ではなく、「定義した軸の内側で未記入を機械的に検出し、軸そのものは外部の一覧と運用の実測で更新し続ける」と表現するのが根拠に沿う。
 
 ### 未確認の点

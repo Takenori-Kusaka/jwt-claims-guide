@@ -7,11 +7,11 @@
 ## Q1. 実際のシステムは純粋な RBAC または ABAC か。ハイブリッドはどの程度一般的か
 
 ### 要点
-純粋な単一モデルは少ない。標準化団体、主要 PDP 製品、IdP のいずれも「複数モデルの併用」を前提にしている。トークンにはロールやグループを粗い粒度で載せ、細かい判定は PDP（ポリシーエンジン）で属性や関係を使って行う。この 2 層構成が事実上の標準になっている。認可モデルは「1 システムに 1 つ選ぶもの」ではなく、組み合わせて使う部品と見るべきである。
+純粋な単一モデルを前提にした標準や製品は少ない（実システムでの割合の統計はない）。標準化団体、主要 PDP 製品、IdP のいずれも「複数モデルの併用」を前提にしている。トークンにはロールやグループを粗い粒度で載せ、細かい判定は PDP（ポリシーエンジン）で属性や関係を使って行う。この 2 層構成が事実上の標準になっている。認可モデルは「1 システムに 1 つ選ぶもの」ではなく、組み合わせて使う部品と見るべきである。
 
 ### 出典のある所見
 - NIST の Kuhn・Coyne・Weil（IEEE Computer, 2010）は、純粋な RBAC では時刻などの動的属性を十分に扱えず、扱おうとするとロール爆発が起きると指摘した。そのうえで、属性とルールで RBAC を「置き換える、またはより単純で柔軟にする」方向を示した。RBAC の利点としては、権限レビュー、つまり誰が何を持つかを確認できることを挙げている — [NIST publication record](https://www.nist.gov/publications/adding-attributes-role-based-access-control) / [CSRC](https://csrc.nist.gov/pubs/journal/2010/06/adding-attributes-to-rolebased-access-control/final)
-- NIST SP 800-162 は ABAC を「logical access control methodology」と定義する。主体・客体・操作・環境条件の属性を、ポリシー・ルール・関係（relationships）と照合して判定する方式である。定義自体に「関係」が含まれており、モデル同士の境界は曖昧になっている — [NIST SP 800-162](https://csrc.nist.gov/pubs/sp/800/162/upd2/final)
+- NIST SP 800-162 は ABAC を「logical access control methodology」と定義する。本文の説明では、主体・客体・操作・環境条件の属性を、ポリシー・ルール・関係（relationships）と照合して判定するとしている（【訂正 2026-11-22】用語集の定義そのものには relationships はない。また、この「関係」は許される操作を記したもので、ReBAC の主体と対象の関係とは意味が違う） — [NIST SP 800-162](https://csrc.nist.gov/pubs/sp/800/162/upd2/final)
 - NIST SP 800-178 は XACML と NGAC という 2 つの ABAC 標準を比較している。前提として「要求者の identity・group・role という修飾子だけでは、現実のアクセス制御ポリシーを表現しきれないことが多い」と述べている — [NIST SP 800-178 PDF](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-178.pdf)
 - OpenFGA は「ReBAC は RBAC の上位集合であり、属性を関係として表せば ABAC のシナリオもネイティブに扱える」と説明する。関係で表せない属性ベースのケースには Conditions と Contextual Tuples で拡張して対応する。つまり 1 製品の中で RBAC・ReBAC・ABAC を併用する — [OpenFGA Authorization Concepts](https://openfga.dev/docs/authorization-concepts)
 - AWS Verified Permissions（Cedar）は IdP の JWT を受け取り、トークンの主体を principal ID に対応づける。ID トークンのクレームは principal の属性に、アクセストークンのクレームは context に入る。どちらのトークンでも `groups` のようなクレームを principal のグループに対応づけて RBAC のポリシーを書ける。この形なら、同じポリシーストアで RBAC（グループ）と ABAC（属性）が自然に共存する — [AWS Verified Permissions: identity sources](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html)
@@ -63,7 +63,7 @@
 - Entra でも、`roles` クレームはアプリ向けには ID トークン、API 向けにはアクセストークンに入る。グループの上限はフローによって 200 / 150 / 6 と変わる（implicit では 6）。フローの違いがクレームの設計に直接効く — [Microsoft Learn](https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles)
 - RFC 8693 Token Exchange は、委任を表す `act` クレーム（入れ子で委任の連鎖を表す）と `may_act` を定めている。エージェントやサービスが代理で呼び出すときに発行のタイミングが 1 段増える — [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html)
 - OAuth Transaction Tokens（draft-ietf-oauth-transaction-tokens）の最新版は -11（2026-07-30）である。WG の状態は「WG Consensus: Waiting for Write-Up」で、IESG への提出は 2026 年 12 月のマイルストーンになっている。外部から届いたアクセストークンを、信頼境界の内側で短命のトークンに交換して、呼び出し全体に伝搬させる。アーキテクチャという軸で発行のタイミングが追加される例である — [Datatracker](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) / [draft -10 HTML](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-10.html)
-- エージェント向けの拡張 draft-oauth-transaction-tokens-for-agents もある。調査時は -05 を見たが、取り込みの際に datatracker で確かめると最新は -06（2026-04-11）だった — [draft-oauth-transaction-tokens-for-agents-05](https://www.ietf.org/archive/id/draft-oauth-transaction-tokens-for-agents-05.html)、[datatracker](https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/)
+- エージェント向けの拡張 draft-oauth-transaction-tokens-for-agents もあった。調査時は -05 を見た。【訂正 2026-11-22】この名前の草案は -06（2026-04-11）で失効し、個人の草案 draft-araut-oauth-transaction-tokens-for-agents に置き換わった。置き換わった先の最新は -03（2026-10-31、2027-05-04 に失効）で、WG の草案ではない — [draft-oauth-transaction-tokens-for-agents-05](https://www.ietf.org/archive/id/draft-oauth-transaction-tokens-for-agents-05.html)、[datatracker（旧名）](https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/)、[datatracker（置き換え先）](https://datatracker.ietf.org/doc/draft-araut-oauth-transaction-tokens-for-agents/)
 - FAPI 2.0 Security Profile は、要件を役割（認可サーバー、クライアント、リソースサーバー）ごとに整理している。送信者制約は MTLS か DPoP のどちらかを選ぶ方式、OIDC は条件付きで必須である。DPoP（RFC 9449）や PAR（RFC 9126）など、フローやアーキテクチャ側の部品が要件の大部分を占めている — [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html)
 - AuthZEN の Subject は「user or machine principal」を表し、PEP と PDP の間の API は主体の種類や認可モデルによらず共通である。PDP 呼び出しのシーケンスは 1 つの共通モジュールにまとめられる — [AuthZEN 1.0](https://openid.net/specs/authorization-api-1_0.html)
 
@@ -78,7 +78,7 @@
 
 ### 未確認の点
 - CIBA、Device Grant（RFC 8628）、phantom token パターンの一次資料は、今回の調査では取得していない（一般的に知られた仕様だが、本ノートでの引用は RFC 8693 と Txn-Tokens に限った）。
-- エージェント向け Txn-Tokens の最新版の番号は、取り込みの際に datatracker で -06（2026-04-11）と確かめた。-06 の本文の変更点は読んでいない。
+- エージェント向け Txn-Tokens は、draft-araut-oauth-transaction-tokens-for-agents-03（2026-10-31）が最新と datatracker で確かめた。本文の変更点は読んでいない。
 
 ## Q4. 認可モデル別に分けると重複や乖離が生じるか。「コア + モジュール / プロファイル」の方がよいか。先例は
 
@@ -136,7 +136,7 @@
 IdP 側
 - Entra ID の `groups` クレームの上限は、JWT で 200、SAML で 150、implicit フローで 6 である。超えると `groups` は出ず、overage（`hasgroups` または `_claim_names` / `_claim_sources`）に切り替わる。overage の値そのものには依存せず、存在するかどうかだけを見て Graph に問い合わせるよう明記している — [Microsoft Learn](https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles)
 - Entra の custom claims provider（TokenIssuanceStart）が返せるクレームは、全キーと全値の合計で 3 KB までである。超えるとエラー 1003025 CustomExtensionResponseClaimsSizeExceeded になる — [Custom claims provider reference](https://learn.microsoft.com/en-au/Entra/identity-platform/custom-claims-provider-reference) / [Troubleshoot custom claims provider](https://learn.microsoft.com/en-gb/entra/identity-platform/custom-extension-troubleshoot)
-- Okta の Groups 関数（`Groups.startsWith` など）の limit 引数は最大 100 で、超えるとエラーになる。クレーム式の値は 1,024 文字までである。ただし、200 件返ったという報告もあり、公式の開発者ドキュメントで 100 という上限は確認できなかった — [Okta Support: 100 groups limitation](https://support.okta.com/help/s/article/how-to-exceed-the-100-groups-limitation-on-a-claim) / [Okta Support: too many groups](https://support.okta.com/help/s/article/error-the-groups-claim-matched-too-many-groups-and-must-be-configured-to-match-fewer-groups) / [Okta Support: field is too long](https://support.okta.com/help/s/article/error-the-field-is-too-long-when-saving-a-custom-claim-expression) / [Okta devforum（矛盾する報告）](https://devforum.okta.com/t/okta-100-groups-truncation/35236)（非公式）
+- Okta の Groups 関数（`Groups.startsWith` など）の limit 引数は最大 100 で、超えるとエラーになる。クレーム式の値は 1,024 文字までである。ただし、200 件返ったという報告もある。【訂正 2026-11-22】100 件の上限は公式の開発者ドキュメントにある（「evaluate to a value between 1-100」）。Authorization Code と Authorization Code with PKCE のフローでは、件数の上限を指定しなくてよい、という例外も書いてある — [Okta Developer: Add a Groups claim with a dynamic allowlist](https://developer.okta.com/docs/guides/customize-tokens-dynamic/add-groups-claim-dynamic/) / [Okta Support: 100 groups limitation](https://support.okta.com/help/s/article/how-to-exceed-the-100-groups-limitation-on-a-claim) / [Okta Support: too many groups](https://support.okta.com/help/s/article/error-the-groups-claim-matched-too-many-groups-and-must-be-configured-to-match-fewer-groups) / [Okta Support: field is too long](https://support.okta.com/help/s/article/error-the-field-is-too-long-when-saving-a-custom-claim-expression) / [Okta devforum（矛盾する報告）](https://devforum.okta.com/t/okta-100-groups-truncation/35236)（非公式）
 - Amazon Cognito の上限は次のとおり。所属できるグループは 1 ユーザーあたり 100、1 属性は 2,048 bytes、カスタム属性はユーザープールあたり 50。pre token generation では、既存と追加のクレームとスコープの合計数に 5,000 という quota があり、抑制したものは数えない。トークン全体のバイト数の上限は記載がない — [Cognito quotas](https://docs.aws.amazon.com/cognito/latest/developerguide/quotas.html)
 - Auth0 はトークンのサイズ上限を公表していない。サイズは「ヘッダー・ペイロード・署名を含む、エンコード済み JWT 全体の UTF-8 バイト数」で計測すると説明している — [Auth0: ID Token Size Calculation](https://support.auth0.com/center/s/article/auth0-id-token-size-calculation)
 - Keycloak にもトークンのサイズ上限は見当たらない。グループのマッパーでトークンが肥大化して失敗した報告がある。対策として lightweight access token（`use.lightweight.access.token`。マッパーごとに「Add to lightweight access token」を選ぶ）がある。ただしここでの説明は公式文書ではなく第三者の Confluence ページによる — [Keycloak forum](https://forum.keycloak.org/t/big-jwt-token-browsers-cut-part-of-token-and-auth-end-with-failure/20300)（非公式） / [FOLIO EUREKA-755](https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1154678786/EUREKA-755+PoC+-+Are+lightweight+access+tokens+a+viable+solution+to+the+too+many+roles+problem)（非公式） / [Keycloak javadoc UseLightweightAccessTokenExecutor 26.8.2](https://www.keycloak.org/docs-api/26.8.2/javadocs/org/keycloak/services/clientpolicy/executor/UseLightweightAccessTokenExecutor.html)
@@ -182,7 +182,7 @@ Cookie
   - 計算方法: worst = Σ(キー名 + 値の最大長 × 最大件数 + JSON の区切り文字) をペイロードとし、`ceil(4/3 × payload) + ceil(4/3 × header) + ceil(4/3 × sig) + 2` で求める。Authorization ヘッダーなら `Bearer ` の 7 bytes を足す。
   - しきい値（案）
     - error: 最悪ケースが経路上の最も厳しい上限の 100% を超える。Cookie なら 4096 bytes から名前と属性を引いた値、Authorization ヘッダーなら nginx の既定値 8 KB を基準にする。
-    - error: `max_items` が IdP の上限（Entra 200、Okta 100、Cognito 100）を超えているのに `overflow_strategy` が未宣言。
+    - error: `max_items` が IdP の上限（Entra 200、Okta 100〔Authorization Code・PKCE のフローは除く〕、Cognito 100）を超えているのに `overflow_strategy` が未宣言。
     - error: `max_items` を宣言していない配列クレームがある（値の範囲が上限なしのまま）。
     - warn: 最悪ケースが予算の 50〜75% を超える。将来の追加（DPoP の `cnf`、`act` の入れ子など）の余地を残すため。
     - warn: 典型ケースのサイズが一定の値（例: 2 KB）を超える。性能やログ量への影響、URL 経由で運ぶ場合のため。

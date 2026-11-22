@@ -82,7 +82,7 @@ MADR は「Decision Drivers（判断要因）→ Considered Options（検討し�
 
 ### 出典のある所見
 - 【一次】MADR は「Markdown Any Decision Records」の略で、3.0.0 から Architectural が Any に置き換わった。Decision Drivers には求める品質・制約・懸念を書き、Considered Options はその Drivers を参照して評価する。各案の Pros and Cons は任意の拡張 — [MADR 公式](https://adr.github.io/madr), [Olaf Zimmermann: MADR Template Primer (2022-11-22)](https://ozimmer.ch/practices/2022/11/22/MADRTemplatePrimer.html)（非公式）, [ADR templates 一覧](https://adr.github.io/adr-templates)
-- 【意見・元Googleエンジニア】Malte Ubl によると、Google の design doc はトレードオフの記録が中心で、Alternatives Considered は「同じ目的を達成できた他の案を考えさせる」ための固定の節。公式の Google 文書ではない — [Industrial Empathy: Design Docs at Google](https://www.industrialempathy.com/posts/design-docs-at-google/), [Design docs - A design doc](https://www.industrialempathy.com/posts/design-doc-a-design-doc/)（非公式）
+- 【意見・元Googleエンジニア】Malte Ubl によると、Google の design doc はトレードオフの記録が中心で、Alternatives Considered は「同じ目的を達成できた他の案を考えさせる」ための固定の節。公式の Google 文書ではない — [Industrial Empathy: Design Docs at Google](https://www.industrialempathy.com/posts/design-docs-at-google/)（非公式）, [Design docs - A design doc](https://www.industrialempathy.com/posts/design-doc-a-design-doc/)（非公式）
 - 【一次・未取得】arc42 は第9節 "Architecture Decisions" で ADR 形式の記録を推奨し、第8節 "Crosscutting Concepts" で認証・認可などの横断関心事を記述する。C4 モデルは構造図の表記法で、決定記録や認可の表現は持たない (本セッションでは未取得) — [arc42 template](https://arc42.org/overview), [C4 model](https://c4model.com/)
 
 ### 推論

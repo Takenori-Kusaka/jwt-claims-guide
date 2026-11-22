@@ -12,8 +12,8 @@
 
 ### 出典のある所見
 - 【実証/二次】Buckingham Shum と Hammond（1994）のレビュー: 議論型の設計根拠（IBIS・QOC 系）の二つの基本の主張（「議論として表すことが有用」「設計者がその記法を使える」）は、設計以外の半形式的な議論の研究からは説得的に裏付けられていない。ただし、表す手間を設計者の利点に変えられる種類の推論では、支援の効果の兆候がある。後で見直すときにも価値がある — [IJHCS 40(4):603-652, 1994 (dblp)](https://dblp1.uni-trier.de/rec/journals/ijmms/ShumH94.html) / [Scribd 全文コピー](https://www.scribd.com/document/65622348/Argumentation-Based-Design-Rationale)（非公式）
-- 【実証/二次】QOC は、理解の浅い設計空間を広げるときに最も役立つ。制約が強く、すでに定まった設計空間を評価するときには、むしろ邪魔になる — [KMi Tech Report (Buckingham Shum)](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)
-- 【実証/二次】設計根拠を与えられた設計者は、保守の課題でより速く、より多くの必要な変更を特定した、という実験結果がある。また、設計者の質問の約 50% が意思決定の理由に関するものだった — [Antony Tang 博士論文 (Swinburne)](https://researchbank.swinburne.edu.au/file/198ab8bf-fbaa-422b-bd24-2ecf7d23aa0c/1/Antony%20Tang%20Thesis.pdf)
+- 【実証/二次】QOC は、理解の浅い設計空間を広げるときに最も役立つ。制約が強く、すでに定まった設計空間を評価するときには、むしろ邪魔になる — [KMi Tech Report (Buckingham Shum)](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)。【訂正 2026-11-22】KMi-95-13 は「Analysing the Usability of a Design Rationale Notation」（1995）で、書いてある限界は「深さ優先・進化的な作業の仕方には合わない」。この対比は見当たらないので、根拠として使わない（unverified.md の V27）
+- 【実証/二次】設計根拠を与えられた設計者は、保守の課題でより速く、より多くの必要な変更を特定した、という実験結果がある。また、設計者の質問の約 50% が意思決定の理由に関するものだった（【訂正 2026-11-22】論文の全文でこの数値を確かめられなかった。根拠として使わない。unverified.md の V26） — [Antony Tang 博士論文 (Swinburne)](https://researchbank.swinburne.edu.au/file/198ab8bf-fbaa-422b-bd24-2ecf7d23aa0c/1/Antony%20Tang%20Thesis.pdf)
 - 【実証】Tang・Babar・Gorton・Han（2006）の実務家への調査（有効回答 81）: 実務家は根拠の記録に価値を認め、推論に使っている。しかし記録と利用には障壁があり、体系的に記録する手法は実務に存在しない — [JSS 79(12):1792-1804, doi:10.1016/j.jss.2006.04.029 (figshare)](https://figshare.swinburne.edu.au/articles/report/A_survey_of_architecture_design_rationale/26269849)
 - 【実証/意見】Falessi ら: 設計根拠の文書化が普及しない要因として、「時機が悪く、便益が遅れて来る」「記録・維持する人と、直接に受益する人が別」を挙げる。価値にもとづいて記録の対象を絞る原則を提案している — [WICSA 2008 Value-Based DDRD](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)
 - 【意見】設計根拠の研究の多くには実証の評価がほとんどなく、「根拠の価値が収集の手間に見合うか」は未解決である — [AI EDAM 特集号 "Design rationale: researching under uncertainty"](https://cambridge.org/core/services/aop-cambridge-core/content/view/BC91F6968115F74046BD4A7DD1E89445/S0890060408000206a.pdf/special-issue-design-rationale.pdf)
@@ -21,13 +21,13 @@
 - 【実証】ADR を導入したアクションリサーチ（ECSA 2024）: 文書化の文化、知識の移転、何を記録するかの優先付けという課題には、ADR が有効だった。しかし、共有・分散したコンポーネントの決定の記録は未解決だった。何を中央に置き、何を各リポジトリに置くかを慎重に設計すべきだとしている — [Ahmeti et al., ECSA 2024](https://rebekkaa.github.io/files/2024_ECSA.pdf) / [Chalmers](https://research.chalmers.se/en/publication/538920)
 - 【実証】GitHub のマイニング: ADR の採用は少ないが、年々増えている — [Buchgeher et al., IEEE Access 2023](https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612)
 - 【実証/二次】OSS の ADR 5,800 件のうち約 3,674 件（約 63%）が、最初から "accepted" などの状態で作られている。ADR が本来とらえるべき熟議の過程を飛ばしている — [Garcia de Santana Junior et al., ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou)
-- 【実証/二次】ADR を始めたリポジトリの約 50% は 5 件未満で止まっている。試した後に放棄される「採用の溝」がある — [arXiv 2604.03826](https://arxiv.org/html/2604.03826)
+- 【実証/二次】ADR を始めたリポジトリの約 50% は 5 件未満で止まっている。試した後に放棄される「採用の溝」がある — [arXiv 2604.03826](https://arxiv.org/html/2604.03826)（【訂正 2026-11-22】この値は Buchgeher et al.（IEEE Access 2023）からの引用） 
 - 【実証/二次】ADR のテンプレートどうしで、理解しやすさ・使いやすさ・採用しやすさを比べた研究は少ない。2026 年に比較実験が出始めた段階である — [arXiv 2604.27333](https://arxiv.org/pdf/2604.27333)
 
 ### 推論
-- 「採否と理由の記録」は、保守する人や後任のレビュアーが「なぜこのクレームが無いのか」を問う場面で価値が高い（質問の半数が理由に関する、という知見と合う）。JWT のクレームは外部の RP・RS との契約で、後から変えにくい。そのため、この便益は通常の内部設計より大きい可能性がある。
+- 「採否と理由の記録」は、保守する人や後任のレビュアーが「なぜこのクレームが無いのか」を問う場面で価値が高い。JWT のクレームは外部の RP・RS との契約で、後から変えにくい。そのため、この便益は通常の内部設計より大きい可能性がある。
 - 一方、ICSA 2026 の「63% が最初から accepted」は、テンプレートが求めても記録が事後の正当化（post-hoc rationalization）になりやすいことの直接の兆候である。本テンプレートでも、「却下の理由」が実際の検討ではなく、後付けの定型文になるリスクは高い。
-- QOC の知見からは、使い分けが示唆される。設計空間が未知の領域（新しい認可方式、マルチテナント、委任）では全候補の列挙が有効で、定型の領域（標準のクレームの iss・aud・exp）では列挙が邪魔になりやすい。
+- 【訂正 2026-11-22】次の項目は、出典で確かめられなかった QOC の対比にもとづくので、根拠として使わない。QOC の知見からは、使い分けが示唆される。設計空間が未知の領域（新しい認可方式、マルチテナント、委任）では全候補の列挙が有効で、定型の領域（標準のクレームの iss・aud・exp）では列挙が邪魔になりやすい。
 - 記録する人（設計者）と受益する人（レビュアー・保守する人・監査）が別、という要因に対しては、記録の量を最小にし、負担の一部を受益する側（レビュアー）に移す設計が合理的である（例：既定値は記録不要とし、逸脱したときだけ理由を必須にする）。
 
 ### 未確認の点
@@ -40,27 +40,27 @@
 ## Q2. ソフトウェアインスペクションの研究: チェックリスト・観点ベース（PBR）・アドホックの比較と、セキュリティレビューの実効性
 
 ### 要点
-チェックリスト型の読み方がアドホックより優れるという頑健な証拠はない。効果は、レビュアーの理解度、観点の明示、変更の規模に強く依存する。セキュリティレビューでは「セキュリティに注目せよ」と明示するだけで、検出の確率が大きく上がる。一方、セキュリティのチェックリストそのものは検出を増やさなかった。認証・認可・データの真正性に関わる欠陥は、レビューで最も見逃されやすい区分である。
+チェックリスト型の読み方がアドホックより優れるという頑健な証拠はない。効果は、レビュアーの理解度、観点の明示、変更の規模に強く依存する。セキュリティレビューでは「セキュリティに注目せよ」と明示するだけで、検出の確率が大きく上がる。一方、セキュリティのチェックリストを足しても、それ以上は有意に改善しなかった。認証・認可・データの真正性に関わる欠陥は、レビューで最も見逃されやすい区分である。
 
 ### 出典のある所見
 - 【実証】Porter・Votta・Basili（1995）の要求仕様のインスペクション実験: シナリオ（欠陥の区分に特化）で読んだ人は、アドホックやチェックリストで読んだ人より約 35% 成績が良かった。チェックリストで読んだ人は、アドホックで読んだ人より有効ではなかった。集まって行う会議は、検出率を正味では増やさない（会議での発見と損失が相殺する） — [IEEE TSE 21(6):563-575, doi:10.1109/32.391380](https://www.cs.umd.edu/~aporter/html/scenarios.html) / [UMD 講義資料 (35% の出典)](https://www.cs.umd.edu/~mvz/handouts/emp_pbr.pdf)（非公式）
 - 【実証】独立した追試では、シナリオ法が優れることを示す証拠は得られなかった — [Empirical Software Engineering, doi:10.1023/A:1009742216007](https://doi.org/10.1023/A:1009742216007)
 - 【実証】Ciolkowski（2009）の PBR のメタ分析: PBR のチームはアドホックより有効だが、チェックリスト型より有効ではなく、明確な正の効果は見られない。研究者のバイアス（手法の開発者自身による実験）の強い兆候がある — [ESEM 2009, doi:10.1109/ESEM.2009.5316026](https://doi.org/10.1109/ESEM.2009.5316026) / [データセット (reproducer)](https://rdrr.io/cran/reproducer/man/Ciolkowski09ESEM.MetaAnalysis.PBRvsCBRorAR.html)。Madeyski と Kitchenham がこのデータを訂正し、再分析している（同じデータセットのページ）
-- 【実証】Gonçalves ら（2022）の 70 名のコードレビュー実験（アドホック／チェックリスト／ガイド付きチェックリスト）: ガイド付きは単純な課題で、チェックリストは複雑な課題で、効率と有効性を補った。しかし、ガイダンスとレビューの成績の強い関係は確認されず、最大の要因はコードの理解だった — [EMSE 27:99, doi:10.1007/s10664-022-10123-8](https://link.springer.com/10.1007/s10664-022-10123-8) / [登録報告 MSR 2020](https://doi.org/10.1145/3379597.3387509)（取り込みの際に、リンク切れの著者ページから DOI に差し替え）
-- 【実証】Braz・Aeberhard・Çalikli・Bacchelli（ICSE 2022）の 150 名のオンライン実験: レビューのときに「セキュリティに注目する」よう明示するだけで、脆弱性の検出確率が 8 倍になった。一方、セキュリティのチェックリストは、セキュリティを重視したレビューでの検出を増やさなかった — [arXiv 2202.04586, doi:10.1145/3510003.3511560](https://arxiv.org/abs/2202.04586)
+- 【実証】Gonçalves ら（2022）の 70 名のコードレビュー実験（アドホック／チェックリスト／ガイド付きチェックリスト）: ガイド付きは単純な課題で、チェックリストは複雑な課題で、効率と有効性を補った。しかし、ガイダンスとレビューの成績の強い関係は確認されず、コードの理解が欠かせないと論じている（【訂正 2026-11-22】有意な予測因子だったのは認知負荷で、理解が「最大の要因」と測られたわけではない） — [EMSE 27:99, doi:10.1007/s10664-022-10123-8](https://link.springer.com/10.1007/s10664-022-10123-8) / [登録報告 MSR 2020](https://doi.org/10.1145/3379597.3387509)（取り込みの際に、リンク切れの著者ページから DOI に差し替え）
+- 【実証】Braz・Aeberhard・Çalikli・Bacchelli（ICSE 2022）の 150 名のオンライン実験: レビューのときに「セキュリティに注目する」よう明示するだけで、脆弱性の検出確率が 8 倍になった。一方、セキュリティのチェックリストを足しても、それ以上は有意に改善しなかった（does not significantly improve the outcome further） — [arXiv 2202.04586, doi:10.1145/3510003.3511560](https://arxiv.org/abs/2202.04586)
 - 【実証】Edmundson ら（ESSoS 2013）が 30 名の開発者に Web アプリを手作業でセキュリティレビューさせた: 経験や学歴はレビューの有効性と相関しなかった。全体の有効性は低く、レビュアーの間のばらつきが大きかった — [ESSoS 2013 pp.197-212 (dblp)](https://dblp.uni-trier.de/rec/conf/essos/EdmundsonHRFMW13.html) / [Berkeley Tech Report EECS-2013-49](https://www2.eecs.berkeley.edu/Pubs/TechRpts/2013/EECS-2013-49.html)
 - 【実証】Paul らの Chromium OS の事例対照研究（検出 516 件、見逃し 374 件、AUC 0.91）: 見逃しを最も強く予測したのは、レビュー対象のディレクトリの数だった（OR 0.76）。バグ修正のレビューは 4.55 倍検出しやすく、そのファイルのレビュー経験（OR 1.83）が効いた。**データの真正性の検証不足（CWE-345）は 13 件中 13 件すべてが見逃され、不適切なアクセス制御（CWE-284）は約 88%、入力の検証（CWE-20）は約 89% が見逃された**。一方、「危険な関数の使用（CWE-676）」は 53 件中 53 件すべてが検出された。実行時や広い文脈の理解を要する欠陥ほど漏れる — [arXiv 2102.06909](https://ar5iv.labs.arxiv.org/html/2102.06909)
 - 【実証/二次】チューリッヒ大学の面接 10 名と調査 182 名: 開発者はセキュリティの訓練や知識が足りず、レビューのときにセキュリティの問題を扱えない。組織もセキュリティを見たレビューを評価しない — [The Daily Swig 記事](https://portswigger.net/daily-swig/developers-still-struggling-with-security-issues-during-code-reviews-study-finds)（非公式） / [arXiv 2208.04261](https://arxiv.org/pdf/2208.04261)
 - 【実証/二次】GitHub の 37 の OSS プロジェクトの開発者 5,697 名への調査から、レビューでセキュリティの欠陥を見逃す主な理由を 5 つ特定した — [Paul 博士論文 (Wayne State)](https://digitalcommons.wayne.edu/oa_dissertations/3842)
 - 【実証】医療の外部の証拠: WHO の手術安全チェックリストを導入した 8 施設で、死亡率が 1.5% から 0.8% に、合併症が 11.0% から 7.0% に下がった — [Haynes et al., NEJM 2009, doi:10.1056/NEJMsa0810119](https://doi.org/10.1056/NEJMsa0810119)
-- 【実証】しかし、オンタリオ州の 101 病院で義務化したときは、ほぼ全病院が約 100% の遵守を報告したにもかかわらず、死亡率は 0.71% から 0.65%（OR 0.91、有意でない）で、合併症なども改善しなかった。Leape の論説は、チェックリストが形だけの作業（perfunctory）になっていた可能性を挙げ、現場に合わせること、訓練、チームの作業の流れに組み込むことが必要だと指摘した — [Urbach et al., NEJM 2014 (PubMed 24620866)](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet 解説](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)。Gawande は方法論（導入後 3 か月での測定など）を批判した — [Author reply (PubMed 24918385)](https://pubmed.ncbi.nlm.nih.gov/24918385/)
+- 【実証】しかし、オンタリオ州の 101 病院で義務化したときは、死亡率は 0.71% から 0.65%（OR 0.91、有意でない）で、合併症なども改善しなかった。Leape の論説は、チェックリストが形だけの作業（perfunctory）になっていた可能性を挙げ、現場に合わせること、訓練、チームの作業の流れに組み込むことが必要だと指摘した — [Urbach et al., NEJM 2014 (PubMed 24620866)](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet 解説](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)。Gawande は方法論（導入後 3 か月での測定など）を批判した — [Author reply (PubMed 24918385)](https://pubmed.ncbi.nlm.nih.gov/24918385/)
 - 【意見/実務報告】SmartBear と Cisco の事例にもとづく実務の指針: 一度に 200〜400 行、60〜90 分以内。速すぎるレビュー（1 時間に約 500 行を超える）では検出の力が落ちる — [SmartBear: Best Practices for Peer Code Review](https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/)（ベンダーの資料で、査読を経た研究ではない）
 
 ### 推論
 - **「採否と理由が全部あれば網羅の漏れは起きない」は成り立たない。** テンプレートが保証できるのは「列挙された候補について、判断が記録されていること」だけで、「列挙されなかった候補」（unknown unknowns）は検出できない。Chromium の結果では、JWT の設計に最も関係する CWE-345（データの真正性）と CWE-284（アクセス制御）が、まさに最も見逃される区分である。これは記述の有無ではなく、実行時の文脈の理解の不足から来る。
 - 「理由の妥当性だけを評価する」とレビュアーの注意を狭めると、Braz らの「注目点を明示すると検出が上がる」効果は得られる。その半面、指示された焦点の外（例：クレーム以外の鍵管理、トークンの受け渡しの経路、キャッシュ）を見なくなるおそれがある。焦点の明示は有効だが、「だけ」は危険である。
 - チェックリスト型の効果はアドホックと同じ程度、という知見からは、テンプレートの価値は「チェック項目の網羅」よりも、「レビュアーに理解のための構造化した情報（候補・採否・理由・前提）を渡すこと」にあると考えるのが筋が通る（Gonçalves の「理解が最大の要因」）。
-- オンタリオの結果は、遵守率 100% の報告と実効性が無関係になりうること（形だけの遵守）の強い外部の証拠である。テンプレートの「全欄記入済み」は品質の指標にならない。
+- オンタリオの結果は、義務化して導入しても成果が変わらないことがある、という外部の証拠である（【訂正 2026-11-22】「遵守率 100% の報告」は出典の箇所を確かめられず外した。unverified.md の V28）。テンプレートの「全欄記入済み」は品質の指標にならない。
 - PBR（観点ベース）は、JWT では「発行者（IdP）の視点／検証者（RS）の視点／攻撃者の視点／運用・監査の視点」などに分ける形で使える。ただし、メタ分析ではチェックリストに勝る保証はない。観点の分割は、レビュアーの間の重複を減らす手段と位置づけるのが妥当である。
 
 ### 未確認の点
@@ -79,10 +79,10 @@
 ### 出典のある所見
 - 【実証】アンカリング: 示された初期値に判断が引き寄せられる — [Tversky & Kahneman, Science 1974, doi:10.1126/science.185.4157.1124](https://doi.org/10.1126/science.185.4157.1124)
 - 【実証/二次】ADR の約 63% が最初から accepted で作られ、熟議を飛ばしている（形だけの記録） — [ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou)
-- 【実証】遵守の報告がほぼ 100% でも成果は改善せず、形だけの実施が疑われる — [Urbach et al. 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)
-- 【実証】セキュリティのチェックリストは検出を増やさなかったが、「セキュリティに注目」の指示は 8 倍効いた — [Braz et al. ICSE 2022](https://arxiv.org/abs/2202.04586)
+- 【実証】義務化して導入しても成果は改善せず、論説は形だけの実施を疑っている — [Urbach et al. 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)
+- 【実証】セキュリティのチェックリストを足しても、それ以上は有意に改善しなかったが、「セキュリティに注目」の指示は 8 倍効いた — [Braz et al. ICSE 2022](https://arxiv.org/abs/2202.04586)
 - 【意見】価値にもとづいて記録の対象を絞れば、記録の手間と形骸化を抑えられる — [Falessi et al. WICSA 2008](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)
-- 【実証】QOC は制約の強い設計空間では邪魔になる（つまり、定型の項目に毎回理由を書かせるのは逆効果になりうる） — [KMi Tech Report](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)
+- 【実証】QOC は制約の強い設計空間では邪魔になる（つまり、定型の項目に毎回理由を書かせるのは逆効果になりうる） — [KMi Tech Report](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)。【訂正 2026-11-22】出典にこの記述がない。根拠として使わない
 
 ### 推論
 - カタログにすることの主なリスク:
@@ -145,7 +145,7 @@
 - 【実証】ADR は導入したチームに有用と評価されるが、文化・暗黙知・プロセスと道具が課題になる — [Chalmers 2023](https://research.chalmers.se/en/publication/538920)
 - 【実証】Chromium: 見逃しへの対策として、レビューだけでなく静的解析やファジングで補い、絡み合った変更を避け、レビュアーの負荷を管理すべきだとしている — [arXiv 2102.06909](https://ar5iv.labs.arxiv.org/html/2102.06909)
 - 【実証/二次】LLM によるセキュリティのコードレビュー（534 ファイル）: LLM は最先端の静的解析を有意に上回り、推論に最適化したモデルは汎用のモデルより良かった。ただし初期の版では「能力は限られる」とも書いており、GPT-4 は簡潔でない応答や指示に従わない応答が多かった — [Yu et al., arXiv 2401.16310](https://arxiv.org/html/2401.16310v5)
-- 【実証/二次】プロジェクト規模での LLM による脆弱性の検出: LLM も従来の手法も誤検出の率（false discovery rate）が高く、385 件の報告を人手で確かめるのに 150 時間を超えた。LLM は再現率は低いが、従来の道具より固有の脆弱性を多く見つけた — [Li et al., arXiv 2601.19239](https://arxiv.org/html/2601.19239v1)
+- 【実証/二次】プロジェクト規模での LLM による脆弱性の検出: LLM も従来の手法も誤検出の率（false discovery rate）が高く、385 件の報告を人手で確かめた（【訂正 2026-11-22】385 件は v1 の要旨の値で、v2 では 355 件。「150 時間超」は要旨に見当たらず、本文で確かめるまで使わない。unverified.md の V29）。LLM は再現率は低いが、従来の道具より固有の脆弱性を多く見つけた — [Li et al., arXiv 2601.19239](https://arxiv.org/html/2601.19239v1)
 - 【実証/二次】静的解析と LLM を組み合わせ、誤った警告の 94〜98% を取り除きながら高い再現率を保った（Tencent の産業研究。セキュリティに限らない） — [Du et al., arXiv 2601.18844](https://arxiv.org/pdf/2601.18844)
 - 【意見】Microsoft SDL は、設計段階の脅威モデリングを必須の実践と位置づけている — [Microsoft SDL Practices](https://www.microsoft.com/en-us/securityengineering/sdl/practices)
 - 【意見】OWASP ASVS は、トークン・セッション・アクセス制御の検証要件をレベル別に示しており、テーラリングの土台になる — [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/)
@@ -174,11 +174,11 @@
 この活動は「網羅の漏れを無くす仕組み」としてではなく、「判断を見えるようにして見直せるようにし、レビュアーに理解の足場を与え、流出欠陥からカタログを学ばせる仕組み」として設計すれば価値が高い。前提の「理由だけ見ればよく、漏れは起きない」は実証と矛盾するので、テンプレートと観点の文書の文言から外すべきである。
 
 ### 出典のある所見
-- 【実証】チェックリストは、アドホックより一貫して優れるとは言えない — [Porter et al. 1995](https://www.cs.umd.edu/~aporter/html/scenarios.html); [Ciolkowski 2009](https://doi.org/10.1109/ESEM.2009.5316026); [Gonçalves et al. 2022](https://link.springer.com/10.1007/s10664-022-10123-8)
-- 【実証】焦点の明示は効くが、セキュリティのチェックリストは効かなかった — [Braz et al. 2022](https://arxiv.org/abs/2202.04586)
+- 【実証】チェックリストは、アドホックより一貫して優れるとは言えない — [Porter et al. 1995](https://www.cs.umd.edu/~aporter/html/scenarios.html)（チェックリストとアドホックの比較）; [Ciolkowski 2009](https://doi.org/10.1109/ESEM.2009.5316026)（PBR とアドホック・チェックリストの比較）; [Gonçalves et al. 2022](https://link.springer.com/10.1007/s10664-022-10123-8)
+- 【実証】焦点の明示は効くが、セキュリティのチェックリストを足しても、それ以上は有意に改善しなかった — [Braz et al. 2022](https://arxiv.org/abs/2202.04586)
 - 【実証】データの真正性とアクセス制御の欠陥は、レビューで最も漏れる — [Paul et al.](https://ar5iv.labs.arxiv.org/html/2102.06909)
 - 【実証】チェックリストは、適切に導入すれば大きな効果がある（Haynes 2009）。形だけの導入では効果がない（Urbach 2014） — [NEJM 2009](https://doi.org/10.1056/NEJMsa0810119); [NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)
-- 【実証】設計根拠は理解の浅い設計空間で有効で、定型の空間では邪魔になる — [KMi](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)
+- 【実証】設計根拠は理解の浅い設計空間で有効で、定型の空間では邪魔になる — [KMi](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)（【訂正 2026-11-22】出典にこの記述がない。根拠として使わない）
 - 【実証/二次】記録は形骸化し、放棄されやすい — [ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou); [arXiv 2604.03826](https://arxiv.org/html/2604.03826)
 
 ### 推論
@@ -190,7 +190,7 @@
   - 流出欠陥のふりかえりでカタログと観点を更新する運用がある（Haynes 型の「現場に合わせ、訓練し、作業の流れに組み込む」）。
 - **価値が低くなる（または逆効果になる）条件**
   - 定型の、単一のサービスの内部 API で、カタログの既定どおりの設計。全列挙は儀式になり、理由はコピーになる。
-  - 記入率や遵守率を KPI にしている（オンタリオ型の形だけの遵守）。
+  - 記入率や遵守率を KPI にしている（形だけの遵守になるおそれ。オンタリオの論説の指摘）。
   - レビュアーに「理由の妥当性だけ」を見る役割を課し、枠の外の質問や実装の確認を求めない。
   - 記入する人に見返りがなく、レビューの結果がカタログの改善に戻らない。
 - **前提の文言の修正案**: 「全候補に採否と理由があれば、網羅の漏れは起こらない」を、「採否と理由の記録は、*列挙された*候補の判断の漏れと、判断の不透明さを減らす。列挙されなかった候補は、観点別の問い・カタログ外の質問・流出欠陥のふりかえりで補う」に改める。
