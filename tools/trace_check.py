@@ -29,7 +29,10 @@ an error) and checks:
 (f) gate 1 (#16): a classification row may carry `review_required: true` (checklist, anti-pattern, review-viewpoint and
     pre-add-question slides); every requirement on such a slide needs at least one `review:` planned item. The
     optional top-level `tier_confirmed` block (confirmed_on, by, record, note) records that the tiers were decided;
-    its record file must exist. The report prints the number of requirements with a review: item by tier.
+    its record file must exist, and its core_count / core_sha (taken with --snapshot-tiers) must match the current
+    core set after undoing the listed tier_changes (id, from, to, on, reason), so a later change needs a row there.
+    The slides flagged review_required must equal the list in templates/trace/review_required.yaml.
+    The report prints the number of requirements with a review: item by tier.
 
 --tier restricts the counts to one tier; --require-done also fails when a requirement of that tier (or of
 any tier) is still 未着手 (the "未着手 0 件" condition of #11).
@@ -63,7 +66,9 @@ CLS_FIELDS = {'slide', 'kind', 'sha', 'reviewed_on', 'review_required'}
 # review_required: true on checklist / anti-pattern / review-viewpoint / pre-add-question slides (#16): every
 # requirement on such a slide needs at least one review: planned item
 TEACH_FIELDS = {'slide', 'use', 'note'}
-TIER_CONFIRMED_FIELDS = {'confirmed_on', 'by', 'record', 'note'}  # not 'on': YAML 1.1 reads the key on as true
+TIER_CONFIRMED_FIELDS = {'confirmed_on', 'by', 'record', 'note', 'core_count', 'core_sha'}
+TIER_CHANGE_FIELDS = {'id', 'from', 'to', 'on', 'reason'}
+REVIEW_REQUIRED_FILE = os.path.join(TRACE_DIR, 'review_required.yaml')  # not 'on': YAML 1.1 reads the key on as true
 ITEM_FIELDS = {'ref', 'issue', 'origin', 'title', 'note'}
 ORIGINS = ('issue', 'proposed')
 
@@ -403,6 +408,27 @@ def check(root, tier_filter=None, require_done=False):
         if sid not in known:
             errors.append(f'{REQ_FILE}: classification has unknown slide:{sid} (not in deck/slide_ids.json)')
 
+    # the review_required flags must equal the fixed list in review_required.yaml (removing a flag fails)
+    rr_data = load_yaml(root, REVIEW_REQUIRED_FILE, errors)
+    fixed = set()
+    if rr_data is not None:
+        rows = rr_data.get('slides') if isinstance(rr_data, dict) else None
+        if not isinstance(rows, list):
+            errors.append(f'{REVIEW_REQUIRED_FILE}: want a mapping with a slides: list')
+            rows = []
+        for row in rows:
+            m = SLIDE_REF_RE.match(str((row or {}).get('slide', ''))) if isinstance(row, dict) else None
+            if not m or not str(row.get('reason') or '').strip():
+                errors.append(f'{REVIEW_REQUIRED_FILE}: each row needs slide: slide:<id> and a reason'); continue
+            fixed.add(m.group(1))
+        flagged = {k for k, v in review_required.items() if v}
+        for sid in sorted(fixed - flagged):
+            errors.append(f'{REQ_FILE}: slide:{sid} is listed in {REVIEW_REQUIRED_FILE} but its classification row has no review_required: true')
+        for sid in sorted(flagged - fixed):
+            errors.append(f'{REQ_FILE}: slide:{sid} has review_required: true but is not listed in {REVIEW_REQUIRED_FILE}')
+        for sid in sorted(fixed - set(kind_of)):
+            errors.append(f'{REVIEW_REQUIRED_FILE}: slide:{sid} is not classified')
+
     # (c) requirements
     reqs = req_data.get('requirements') or []
     seen, per_slide, used = set(), Counter(), Counter()
@@ -583,6 +609,29 @@ def check(root, tier_filter=None, require_done=False):
         if not os.path.isfile(os.path.join(root, rec)):
             errors.append(f'{REQ_FILE}: tier_confirmed.record {rec!r} does not exist')
         report.append(f'tiers: confirmed on {tc_block.get("confirmed_on")} by {tc_block.get("by")} (record: {rec})')
+        changes = req_data.get('tier_changes') or []
+        core_now = {str(r.get('id')) for r in reqs if isinstance(r, dict) and r.get('tier') == 'core'}
+        tiers_now = {str(r.get('id')): r.get('tier') for r in reqs if isinstance(r, dict)}
+        confirmed = set(core_now)
+        if not isinstance(changes, list):
+            errors.append(f'{REQ_FILE}: tier_changes must be a list'); changes = []
+        for k, ch in reversed(list(enumerate(changes, 1))):
+            where = f'{REQ_FILE}: tier_changes row {k}'
+            if not isinstance(ch, dict) or set(ch) - TIER_CHANGE_FIELDS or not TIER_CHANGE_FIELDS <= set(ch):
+                errors.append(f'{where}: needs id, from, to, on, reason'); continue
+            if ch['id'] not in tiers_now or ch['from'] not in TIERS or ch['to'] not in TIERS or ch['from'] == ch['to']:
+                errors.append(f'{where}: unknown requirement or invalid from/to'); continue
+            if not _valid_date(ch['on']) or len(str(ch['reason']).strip()) < MIN_REASON:
+                errors.append(f'{where}: on must be a date and reason at least {MIN_REASON} characters'); continue
+            (confirmed.discard if ch['to'] == 'core' else confirmed.add)(ch['id'])
+        if 'core_count' not in tc_block or 'core_sha' not in tc_block:
+            errors.append(f'{REQ_FILE}: tier_confirmed needs core_count and core_sha (run --snapshot-tiers when confirming)')
+        elif int(tc_block['core_count']) != len(confirmed) or str(tc_block['core_sha']) != core_sha(confirmed):
+            errors.append(f'{REQ_FILE}: tiers changed since they were confirmed on {tc_block.get("confirmed_on")} '
+                          f'(core {len(confirmed)} vs confirmed {tc_block["core_count"]}); record each change in tier_changes '
+                          f'with id, from, to, on, reason')
+        if changes:
+            report.append(f'tier changes since confirmation: {len(changes)}')
 
     want = summary_of(kind_of.values(), reqs)
     summary = req_data.get('summary')
@@ -591,6 +640,11 @@ def check(root, tier_filter=None, require_done=False):
 
     ctx = {'items': items, 'reqs': reqs, 'teaching': req_data.get('teaching') or [], 'slide_ids': slide_ids, 'data': req_data}
     return errors, report, ctx
+
+
+def core_sha(ids):
+    """First 12 hex digits of sha256 over the sorted requirement IDs (the confirmed core set)."""
+    return hashlib.sha256('\n'.join(sorted(ids)).encode('utf-8')).hexdigest()[:12]
 
 
 def summary_of(kinds, reqs):
@@ -625,7 +679,14 @@ def dump_requirements(data, slide_ids):
     tcb = data.get('tier_confirmed')
     if isinstance(tcb, dict):
         out += ['', '# tier（core／full）を確定した記録（関門 1、#16）。無ければ tier は提案のまま', 'tier_confirmed:']
-        out += [f'  {k}: {_q(tcb[k])}' for k in ('confirmed_on', 'by', 'record', 'note') if tcb.get(k)]
+        out += [f'  {k}: {_q(tcb[k])}' for k in ('confirmed_on', 'by', 'record', 'note', 'core_sha') if tcb.get(k)]
+        if tcb.get('core_count') is not None:
+            out.append(f'  core_count: {int(tcb["core_count"])}')
+    chs = data.get('tier_changes')
+    if chs:
+        out += ['', '# 確定の後に tier を変えた記録（1 件ずつ理由つき）', 'tier_changes:']
+        for ch in chs:
+            out.append('  - {' + ', '.join(f'{k}: {_q(ch.get(k, ""))}' for k in ('id', 'from', 'to', 'on', 'reason')) + '}')
     out += ['', '# 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁',
             'classification:']
     for c in cls:
@@ -675,6 +736,22 @@ def update_hashes(root, slide_ids_to_update, reviewed_on):
     return 0
 
 
+def snapshot_tiers(root):
+    data = yaml_load(_read(os.path.join(root, REQ_FILE)))
+    deck = [x.get('id') for x in json.loads(_read(os.path.join(root, 'deck', 'slide_ids.json')))]
+    tcb = data.get('tier_confirmed')
+    if not isinstance(tcb, dict):
+        print('ERROR no tier_confirmed block to snapshot')
+        return 1
+    core = {str(r['id']) for r in data.get('requirements') or [] if r.get('tier') == 'core'}
+    tcb['core_count'], tcb['core_sha'] = len(core), core_sha(core)
+    data.pop('tier_changes', None)
+    with open(os.path.join(root, REQ_FILE), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(dump_requirements(data, deck))
+    print(f'snapshot: core {len(core)}, sha {tcb["core_sha"]}')
+    return 0
+
+
 def render_new_items(ctx):
     """Markdown list of the proposed planned items, grouped by issue."""
     slides_of = {}
@@ -718,7 +795,12 @@ def main(argv=None):
     ap.add_argument('--write-new-items', action='store_true', help=f'regenerate {NEW_ITEMS_FILE}')
     ap.add_argument('--update-hash', nargs='+', metavar='SLIDE_ID', help='record the current content hash of these slides after re-reading their requirements')
     ap.add_argument('--reviewed-on', help='date of the re-reading, YYYY-MM-DD (with --update-hash)')
+    ap.add_argument('--snapshot-tiers', action='store_true',
+                    help='record the current core set in tier_confirmed (core_count, core_sha) and clear tier_changes; '
+                         'only when the tiers are (re)confirmed')
     a = ap.parse_args(argv)
+    if a.snapshot_tiers:
+        return snapshot_tiers(a.root)
     if a.update_hash:
         if not a.reviewed_on or not _valid_date(a.reviewed_on):
             ap.error('--update-hash needs --reviewed-on YYYY-MM-DD')

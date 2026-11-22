@@ -12,11 +12,11 @@ summary:
   実装済み: 1
   後回し: 42
   扱わない: 1
-  core_未着手: 476
+  core_未着手: 482
   core_実装済み: 1
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 198
+  full_未着手: 192
   full_実装済み: 0
   full_後回し: 42
   full_扱わない: 1
@@ -26,7 +26,9 @@ tier_confirmed:
   confirmed_on: "2026-11-22"
   by: "作成者（関門 1、#16）"
   record: "research/template-design/gate1.md"
-  note: "関門 1 の判定（絞る）とあわせて、gate1.md の 7. の案と、レビューの 17 件から導いた規則の拡張に結びつく要件を core にして確定した"
+  note: "関門 1 の判定（絞る）とあわせて確定した。gate1.md の 7. の案 5 件に加え、33 件を core にした（L27・L31・L23 の拡張に結びつく 13 件、作成者の追加の指示による 14 件（追加前の 25 問 7・アンチパターン 3・レビューの観点 4）、PR #31 の点検による 6 件（設計のチェックリストの R3〜R8。追加前の 25 問の core の問いと中身が重なる））"
+  core_sha: "b604ad219a15"
+  core_count: 483
 
 # 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
 classification:
@@ -1955,42 +1957,42 @@ requirements:
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#namespace, lint:L34, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R4
     slide: slide:p04-design-checklist
     text: "「ツール」：受け手の全ツールで参照できるかを答える"
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#consumer_access_path, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R5
     slide: slide:p04-design-checklist
     text: "「型」：型は 1 つか、ID は文字列かを答える"
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#type, lint:L24, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R6
     slide: slide:p04-design-checklist
     text: "「形」：複数値は配列か、連結・文字列化していないかを答える"
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#shape, lint:L36, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R7
     slide: slide:p04-design-checklist
     text: "「欠落」：無い・null・false・空配列の意味を決めたかを答える"
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#absent_semantics, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R8
     slide: slide:p04-design-checklist
     text: "「比較」：大小の扱いを決め、完全一致で比べるかを答える"
     owner_issue: "#3"
     planned_items: [registry:README#slide-61-map, registry:claims#value_normalization, review:perspectives#design-checklist]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-design-checklist.R9
     slide: slide:p04-design-checklist
     text: "「識別子」：名前ではなく変わらない ID かを答える"

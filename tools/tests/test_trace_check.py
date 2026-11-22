@@ -78,6 +78,9 @@ def build(root, slides=None, web=None, items=None, reqs=None, fix=True, write_ne
         yaml.safe_dump(items, f, allow_unicode=True, sort_keys=False)
     with open(os.path.join(root, tc.REQ_FILE), 'w', encoding='utf-8') as f:
         f.write(raw if raw is not None else yaml.safe_dump(reqs, allow_unicode=True, sort_keys=False))
+    flagged = [c['slide'] for c in reqs.get('classification', []) if isinstance(c, dict) and c.get('review_required')]
+    with open(os.path.join(root, tc.REVIEW_REQUIRED_FILE), 'w', encoding='utf-8') as f:
+        yaml.safe_dump({'slides': [{'slide': s, 'reason': 'test'} for s in flagged]}, f, allow_unicode=True)
     for rel, text in (files or {}).items():
         os.makedirs(os.path.dirname(os.path.join(root, rel)), exist_ok=True)
         with open(os.path.join(root, rel), 'w', encoding='utf-8') as f:
@@ -380,11 +383,14 @@ def test_yaml_template_version_is_first_line_comment():
     data = finish(REQS)
     first = tc.dump_requirements(data, [s['id'] for s in SLIDES]).splitlines()[0]
     assert first.startswith('# template_version: ')
-    trace_dir = os.path.join(tc.DEFAULT_ROOT, 'templates', 'trace')
-    for name in sorted(os.listdir(trace_dir)):
-        if name.endswith('.yaml'):
-            with open(os.path.join(trace_dir, name), encoding='utf-8') as f:
-                assert f.readline().startswith('# template_version: '), name
+    found = 0
+    for d, _, names in os.walk(os.path.join(tc.DEFAULT_ROOT, 'templates')):   # every YAML under templates/ (#16, PR #31)
+        for name in sorted(names):
+            if name.endswith(('.yaml', '.yml')):
+                found += 1
+                with open(os.path.join(d, name), encoding='utf-8') as f:
+                    assert f.readline().startswith('# template_version: '), os.path.join(d, name)
+    assert found >= 9   # trace 3, catalog 2, examples 3, casestudy-deviations 1
 
 
 # ------------------------------------------------------------------ gate 1 (#16): tier_confirmed, review_required
@@ -396,10 +402,77 @@ def test_tiers_are_a_proposal_without_block(tmp_path, capsys):
 
 def test_tier_confirmed_block(tmp_path, capsys):
     reqs = copy.deepcopy(REQS)
-    reqs['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
+    reqs['tier_confirmed'] = confirmed_block()
     code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
     assert code == 0, out
     assert 'tiers: confirmed on 2026-11-22 by author (record: gate1.md)' in out
+
+
+def confirmed_block(core=('p01-validate.R1',)):
+    return {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md', 'core_count': len(core), 'core_sha': tc.core_sha(core)}
+
+
+def test_tier_confirmed_needs_snapshot(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
+    code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
+    assert code == 1 and 'tier_confirmed needs core_count and core_sha' in out
+
+
+def test_tier_change_after_confirmation_needs_a_record(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = confirmed_block()
+    reqs['requirements'][0]['tier'] = 'full'      # downgrade after confirmation, no record
+    code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
+    assert code == 1 and 'tiers changed since they were confirmed' in out
+    reqs['tier_changes'] = [{'id': 'p01-validate.R1', 'from': 'core', 'to': 'full', 'on': '2026-12-01',
+                             'reason': '関門 2 で Full の欄に移したため、MVP の範囲から外す'}]
+    code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
+    assert code == 0, out
+    assert 'tier changes since confirmation: 1' in out
+    reqs['tier_changes'][0]['reason'] = '短い'
+    code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
+    assert code == 1 and 'reason at least' in out
+
+
+def test_snapshot_tiers_writes_block(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
+    root = build(tmp_path, reqs=reqs, files={'gate1.md': 'x'})
+    assert tc.main(['--root', root, '--snapshot-tiers']) == 0
+    code, out = run(root, capsys)
+    assert code == 0, out
+
+
+def test_review_required_flag_removed_fails(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['classification'][1]['review_required'] = True
+    reqs['requirements'] = [reqs['requirements'][0]]
+    reqs['requirements'][0]['planned_items'] = ['template:00_core#hop-table', 'review:contrasts/signed-vs-enforced']
+    root = build(tmp_path, reqs=reqs)                    # the fixed list now names p01-validate
+    reqs['classification'][1].pop('review_required')     # remove only the flag
+    data = finish(reqs)
+    with open(os.path.join(root, tc.REQ_FILE), 'w', encoding='utf-8') as f:
+        yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
+    code, out = run(root, capsys)
+    assert code == 1 and 'is listed in templates' in out.replace('\\', '/') and 'has no review_required: true' in out
+
+
+def test_review_required_flag_not_in_list_fails(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    root = build(tmp_path, reqs=reqs)                    # empty fixed list
+    reqs['classification'][1]['review_required'] = True
+    with open(os.path.join(root, tc.REQ_FILE), 'w', encoding='utf-8') as f:
+        yaml.safe_dump(finish(reqs), f, allow_unicode=True, sort_keys=False)
+    code, out = run(root, capsys)
+    assert code == 1 and 'has review_required: true but is not listed' in out
+
+
+def test_repository_review_required_list_is_the_ten_slides():
+    data = tc.yaml_load(open(os.path.join(tc.DEFAULT_ROOT, tc.REVIEW_REQUIRED_FILE), encoding='utf-8').read())
+    assert [r['slide'][6:] for r in data['slides']] == [
+        'p04-design-checklist', 'p06-flow-checklist', 'p07-data-layer-checklist', 'p09-checklist', 'p10-agent-checklist',
+        'p11-pre-add-questions-1', 'p11-pre-add-questions-2', 'p12-antipatterns-1', 'p12-antipatterns-2', 'p12-review-viewpoints']
 
 
 def test_tier_confirmed_block_errors(tmp_path, capsys):

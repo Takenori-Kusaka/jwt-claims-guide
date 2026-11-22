@@ -247,7 +247,7 @@ def test_unknown_guide_slide_id(tmp_path):
 def test_duplicate_yaml_key_is_an_error(tmp_path):
     for k in FILES:
         (tmp_path / (k + '.yaml')).write_text(open(os.path.join(EXAMPLE, k + '.yaml'), encoding='utf-8').read(), encoding='utf-8')
-    (tmp_path / 'claims.yaml').write_text('template_version: 0.1.0\nscenario: A\nscenario: B\nclaims: []\n', encoding='utf-8')
+    (tmp_path / 'claims.yaml').write_text('# template_version: 0.1.0\nscenario: A\nscenario: B\nclaims: []\n', encoding='utf-8')
     assert by(core.run(str(tmp_path)), 'LOAD', 'error')
 
 

@@ -621,7 +621,7 @@ claims:
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること（配列は拒否）}
+      - {service: saas-api, check: 文字列であること（配列は拒否）。null・空文字・32 バイトを超える値は拒否}
       - {service: saas-api, check: iss のレルム名と一致するか}
       - {service: saas-api, check: パスのテナントと一致するか}
       - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する"}
