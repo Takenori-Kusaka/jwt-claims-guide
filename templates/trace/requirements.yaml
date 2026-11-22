@@ -53,8 +53,8 @@ classification:
   - {slide: slide:p01-jwt-structure, kind: design-decision, sha: "ddd71e6d7a01", reviewed_on: "2026-11-22"}  # 10
   - {slide: slide:p01-validation-order, kind: design-decision, sha: "1293ec588655", reviewed_on: "2026-11-22"}  # 11
   - {slide: slide:p01-dangerous-header-params, kind: design-decision, sha: "b065805cb1b9", reviewed_on: "2026-11-22"}  # 12
-  - {slide: slide:p01-key-rotation-jwks, kind: design-decision, sha: "296d16318bb4", reviewed_on: "2026-11-22"}  # 13
-  - {slide: slide:p01-client-made-jwts, kind: design-decision, sha: "c32d22e2003e", reviewed_on: "2026-11-22"}  # 14
+  - {slide: slide:p01-key-rotation-jwks, kind: design-decision, sha: "a76589240d57", reviewed_on: "2026-11-22"}  # 13
+  - {slide: slide:p01-client-made-jwts, kind: design-decision, sha: "0ab36c5d0633", reviewed_on: "2026-11-22"}  # 14
   - {slide: slide:p01-id-token-vs-access-token, kind: design-decision, sha: "6545cf376300", reviewed_on: "2026-11-22"}  # 15
   - {slide: slide:p01-self-contained-vs-reference, kind: design-decision, sha: "a4f46e8a7aaa", reviewed_on: "2026-11-22"}  # 16
   - {slide: slide:p01-library-defaults, kind: design-decision, sha: "8c6196c0187a", reviewed_on: "2026-11-22"}  # 17
@@ -119,8 +119,8 @@ classification:
   - {slide: slide:p05-confused-deputy, kind: design-decision, sha: "4b6d2f78f6e6", reviewed_on: "2026-11-22"}  # 76
   - {slide: slide:p06-part, kind: structural, sha: "7de4b57a7b12", reviewed_on: "2026-11-22"}  # 77
   - {slide: slide:p06-stage-map, kind: design-decision, sha: "3cf0b99aa68d", reviewed_on: "2026-11-22"}  # 78
-  - {slide: slide:p06-issuance-hook, kind: design-decision, sha: "c2c708560b88", reviewed_on: "2026-11-22"}  # 79
-  - {slide: slide:p06-grant-types, kind: design-decision, sha: "e3d3f0efb612", reviewed_on: "2026-11-22"}  # 80
+  - {slide: slide:p06-issuance-hook, kind: design-decision, sha: "94e38ad76289", reviewed_on: "2026-11-22"}  # 79
+  - {slide: slide:p06-grant-types, kind: design-decision, sha: "989462b465f7", reviewed_on: "2026-11-22"}  # 80
   - {slide: slide:p06-edge-exchange, kind: design-decision, sha: "803543037b90", reviewed_on: "2026-11-22"}  # 81
   - {slide: slide:p06-transaction-tokens, kind: design-decision, sha: "99dea30d71c5", reviewed_on: "2026-11-22"}  # 82
   - {slide: slide:p06-step-up-approval, kind: design-decision, sha: "fa748f7a13ad", reviewed_on: "2026-11-22"}  # 83
@@ -151,13 +151,13 @@ classification:
   - {slide: slide:p08-choosing-lifetime, kind: design-decision, sha: "25c865bb8613", reviewed_on: "2026-11-22"}  # 108
   - {slide: slide:p08-stale-claims, kind: design-decision, sha: "148f76b9ee79", reviewed_on: "2026-11-22"}  # 109
   - {slide: slide:p08-refresh-reevaluation, kind: design-decision, sha: "ffc3dfecf2d2", reviewed_on: "2026-11-22"}  # 110
-  - {slide: slide:p08-reissue-triggers, kind: design-decision, sha: "b8f5f20a1096", reviewed_on: "2026-11-22"}  # 111
+  - {slide: slide:p08-reissue-triggers, kind: design-decision, sha: "6700360f4453", reviewed_on: "2026-11-22"}  # 111
   - {slide: slide:p08-rotation, kind: design-decision, sha: "defd34a89569", reviewed_on: "2026-11-22"}  # 112
   - {slide: slide:p08-revocation-propagation, kind: design-decision, sha: "32560e0fb0a5", reviewed_on: "2026-11-22"}  # 113
-  - {slide: slide:p08-logout, kind: design-decision, sha: "5e3e18c9c1bd", reviewed_on: "2026-11-22"}  # 114
+  - {slide: slide:p08-logout, kind: design-decision, sha: "787a00bb581f", reviewed_on: "2026-11-22"}  # 114
   - {slide: slide:p08-async-processing, kind: design-decision, sha: "293078cb8344", reviewed_on: "2026-11-22"}  # 115
   - {slide: slide:p08-downstream-after-expiry, kind: design-decision, sha: "d31b7058bcd4", reviewed_on: "2026-11-22"}  # 116
-  - {slide: slide:p08-copies-outlive-token, kind: design-decision, sha: "eef1f1e88368", reviewed_on: "2026-11-22"}  # 117
+  - {slide: slide:p08-copies-outlive-token, kind: design-decision, sha: "bf8a55027889", reviewed_on: "2026-11-22"}  # 117
   - {slide: slide:p08-decision-table, kind: design-decision, sha: "41d1cf4b38bf", reviewed_on: "2026-11-22"}  # 118
   - {slide: slide:p09-part, kind: structural, sha: "9f06e6d87718", reviewed_on: "2026-11-22"}  # 119
   - {slide: slide:p09-jws-is-readable, kind: design-decision, sha: "69c3cdf69df4", reviewed_on: "2026-11-22"}  # 120
@@ -471,7 +471,7 @@ requirements:
   # ---- 13 slide:p01-key-rotation-jwks
   - id: p01-key-rotation-jwks.R1
     slide: slide:p01-key-rotation-jwks
-    text: "検証の鍵は、設定した iss のメタデータの jwks_uri からだけ取り、鍵がその発行者のものかを確かめる（jku・x5u はたどらない）"
+    text: "検証の鍵は、設定した iss のメタデータの jwks_uri から取り、鍵がその発行者のものかを確かめる。jku・x5u はそのままたどらない（許可リストで SSRF を防ぐ）"
     owner_issue: "#3"
     planned_items: [registry:token_types#issuers, registry:token_types#key_source, test:negative_tests#untrusted-key]
     status: 未着手
