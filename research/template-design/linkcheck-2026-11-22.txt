@@ -1,0 +1,289 @@
+# Link check: research/template-design/
+# date: 2026-11-22  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/timeouts)
+# links (file x url): 261  unique external URLs: 182  relative links: 6
+# OK: 246
+# OK-DOI: 5
+# OK-MANUAL: 10
+# BROKEN: 0
+# OK-DOI: publisher refuses automated clients; DOI confirmed registered.
+# OK-MANUAL: site refuses automated clients from this network; existence confirmed by another means (see note).
+
+## Not plain OK
+OK-MANUAL	notes/prior_art.md	22	https://nhimg.org/articles/token-claims-and-authorization-control-in-apis/	403 GET; 403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+OK-MANUAL	notes/prior_art.md	124	https://nhimg.org/secure-code-review-checklist	403 GET; 403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+OK-MANUAL	notes/prior_art.md	121	https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
+OK-MANUAL	notes/prior_art.md	121	https://swehb.nasa.gov/spaces/7150/pages/16450586/SWE-088+-+Software+Peer+Reviews+and+Inspections+-+Checklist+Criteria+and+Tracking	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/GgT7 (Confluence tiny link of page 16450586)
+OK-MANUAL	notes/prior_art.md	119	https://webstore.ansi.org/standards/ieee/ieeestd10282008	403 GET; 403 to scripts; opened in a browser, title "IEEE Std 1028-2008 - IEEE Standard for Software Reviews and Audits"
+OK-MANUAL	notes/prior_art.md	65	https://www.pwc.com/jp/ja/knowledge/column/awareness-cyber-security/digital-identity/new-identity-verification-guideline-ds511-1.html	403 GET; 403 to scripts; page (DS-511 column) retrieved with Tavily extract
+OK-MANUAL	notes/review_effectiveness.md	18,84,143	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
+OK-MANUAL	notes/review_effectiveness.md	22	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
+OK-DOI	notes/review_effectiveness.md	55,180	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
+OK-DOI	notes/review_effectiveness.md	80	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
+OK-DOI	notes/review_effectiveness.md	49	https://doi.org/10.1145/3379597.3387509	403 GET; DOI registered (doi.org handle API)
+OK-MANUAL	report.md	69,79	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
+OK-DOI	report.md	18	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
+OK-DOI	report.md	67	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
+OK-MANUAL	report.md	103	https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
+
+## All links
+OK	notes/authz_model_axis.md	38,61,62	https://auth0.com/blog/five-reasons-permissions-not-in-access-token/	200 HEAD
+OK	notes/authz_model_axis.md	38	https://auth0.com/docs/get-started/apis/enable-role-based-access-control-for-apis	200 HEAD
+OK	notes/authz_model_axis.md	39	https://auth0.com/docs/get-started/architecture-scenarios/business-to-business/authorization	200 HEAD
+OK	notes/authz_model_axis.md	13	https://csrc.nist.gov/pubs/journal/2010/06/adding-attributes-to-rolebased-access-control/final	200 HEAD
+OK	notes/authz_model_axis.md	14	https://csrc.nist.gov/pubs/sp/800/162/upd2/final	200 HEAD
+OK	notes/authz_model_axis.md	65	https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/	200 HEAD
+OK	notes/authz_model_axis.md	66	https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/	200 HEAD
+OK	notes/authz_model_axis.md	139	https://devforum.okta.com/t/okta-100-groups-truncation/35236	200 HEAD
+OK	notes/authz_model_axis.md	152	https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-limits.html	200 HEAD
+OK	notes/authz_model_axis.md	143,151	https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html	200 HEAD
+OK	notes/authz_model_axis.md	140	https://docs.aws.amazon.com/cognito/latest/developerguide/quotas.html	200 HEAD
+OK	notes/authz_model_axis.md	150	https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-limits.html	200 HEAD
+OK	notes/authz_model_axis.md	17,41	https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html	200 HEAD
+OK	notes/authz_model_axis.md	166	https://docs.rs/crate/jwtiny/latest/source/src/limits.rs	200 HEAD
+OK	notes/authz_model_axis.md	40	https://en.wikipedia.org/wiki/Google_Zanzibar	200 HEAD
+OK	notes/authz_model_axis.md	142	https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1154678786/EUREKA-755+PoC+-+Are+lightweight+access+tokens+a+viable+solution+to+the+too+many+roles+problem	200 HEAD
+OK	notes/authz_model_axis.md	149	https://forum.keycloak.org/t/access-token-limit-size-kb/2453	200 HEAD
+OK	notes/authz_model_axis.md	142,155	https://forum.keycloak.org/t/big-jwt-token-browsers-cut-part-of-token-and-auth-end-with-failure/20300	200 HEAD
+OK	notes/authz_model_axis.md	90	https://github.com/OWASP/ASVS	200 HEAD
+OK	notes/authz_model_axis.md	146	https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html	200 HEAD
+OK	notes/authz_model_axis.md	138	https://learn.microsoft.com/en-au/Entra/identity-platform/custom-claims-provider-reference	200 HEAD
+OK	notes/authz_model_axis.md	138	https://learn.microsoft.com/en-gb/entra/identity-platform/custom-extension-troubleshoot	200 HEAD
+OK	notes/authz_model_axis.md	20,37,63,137,163	https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles	200 HEAD
+OK	notes/authz_model_axis.md	155	https://lists.jboss.org/archives/list/keycloak-dev@lists.jboss.org/message/F5L73YWZEEAKVMGKTYKLXHF4OBOAVV6X/attachment/2/attachment.html	200 HEAD
+OK	notes/authz_model_axis.md	149	https://nginx.org/en/docs/http/ngx_http_core_module.html	200 HEAD
+OK	notes/authz_model_axis.md	15	https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-178.pdf	200 GET
+OK	notes/authz_model_axis.md	16	https://openfga.dev/docs/authorization-concepts	200 HEAD
+OK	notes/authz_model_axis.md	18,68,92	https://openid.net/specs/authorization-api-1_0.html	200 HEAD
+OK	notes/authz_model_axis.md	67,89	https://openid.net/specs/fapi-security-profile-2_0-final.html	200 HEAD
+OK	notes/authz_model_axis.md	163	https://openid.net/specs/openid-connect-core-1_0.html#AggregatedDistributedClaims	200 HEAD
+OK	notes/authz_model_axis.md	90	https://owasp.org/www-project-application-security-verification-standard/	200 HEAD
+OK	notes/authz_model_axis.md	167	https://pypi.org/project/jwtlint/	200 HEAD
+OK	notes/authz_model_axis.md	19,40	https://research.google/pubs/pub48190/	200 HEAD
+OK	notes/authz_model_axis.md	154	https://source.dot.net/Microsoft.AspNetCore.Server.Kestrel.Core/KestrelServerLimits.cs.html	200 HEAD
+OK	notes/authz_model_axis.md	141,160	https://support.auth0.com/center/s/article/auth0-id-token-size-calculation	200 HEAD
+OK	notes/authz_model_axis.md	139	https://support.okta.com/help/s/article/error-the-field-is-too-long-when-saving-a-custom-claim-expression	200 HEAD
+OK	notes/authz_model_axis.md	139	https://support.okta.com/help/s/article/error-the-groups-claim-matched-too-many-groups-and-must-be-configured-to-match-fewer-groups	200 HEAD
+OK	notes/authz_model_axis.md	139	https://support.okta.com/help/s/article/how-to-exceed-the-100-groups-limitation-on-a-claim	200 HEAD
+OK	notes/authz_model_axis.md	153	https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto	200 HEAD
+OK	notes/authz_model_axis.md	65	https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-10.html	200 HEAD
+OK	notes/authz_model_axis.md	66	https://www.ietf.org/archive/id/draft-oauth-transaction-tokens-for-agents-05.html	200 HEAD
+OK	notes/authz_model_axis.md	142	https://www.keycloak.org/docs-api/26.8.2/javadocs/org/keycloak/services/clientpolicy/executor/UseLightweightAccessTokenExecutor.html	200 HEAD
+OK	notes/authz_model_axis.md	13	https://www.nist.gov/publications/adding-attributes-role-based-access-control	200 HEAD
+OK	notes/authz_model_axis.md	158	https://www.rfc-editor.org/rfc/rfc4648.html	200 HEAD
+OK	notes/authz_model_axis.md	158	https://www.rfc-editor.org/rfc/rfc7515.html	200 HEAD
+OK	notes/authz_model_axis.md	159	https://www.rfc-editor.org/rfc/rfc7518.html	200 HEAD
+OK	notes/authz_model_axis.md	159	https://www.rfc-editor.org/rfc/rfc8017.html	200 HEAD
+OK	notes/authz_model_axis.md	159	https://www.rfc-editor.org/rfc/rfc8037.html	200 HEAD
+OK	notes/authz_model_axis.md	64	https://www.rfc-editor.org/rfc/rfc8693.html	200 HEAD
+OK	notes/authz_model_axis.md	36,91	https://www.rfc-editor.org/rfc/rfc9068.html	200 HEAD
+OK	notes/authz_model_axis.md	165	https://www.synadia.com/insights/checks/nats-excessive-jwt-size	200 HEAD
+OK	notes/authz_model_axis.md	19	https://www.usenix.net/sites/default/files/conference/protected-files/atc19_slides_pang.pdf	200 HEAD
+OK	notes/authz_model_axis.md	19	https://www.usenix.org/conference/atc19/presentation/pang	200 HEAD
+OK	notes/coverage_lifecycle.md	129	https://arxiv.org/pdf/1612.00163	200 HEAD
+OK	notes/coverage_lifecycle.md	129	https://arxiv.org/pdf/1707.00144	200 HEAD
+OK	notes/coverage_lifecycle.md	15	https://auth0.com/docs/customize/actions/explore-triggers/machine-to-machine-trigger	200 HEAD
+OK	notes/coverage_lifecycle.md	14	https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger/post-login-event-object	200 HEAD
+OK	notes/coverage_lifecycle.md	122	https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the	200 HEAD
+OK	notes/coverage_lifecycle.md	128	https://csrc.nist.gov/CSRC/media/Projects/cyber-supply-chain-risk-management/documents/SSCA/Fall_2019/WedAM2.2_kuhn.pdf	200 HEAD
+OK	notes/coverage_lifecycle.md	128	https://csrc.nist.gov/Projects/automated-combinatorial-testing-for-software/Our-Research-Program	200 HEAD
+OK	notes/coverage_lifecycle.md	128	https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures	200 HEAD
+OK	notes/coverage_lifecycle.md	19	https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/	200 HEAD
+OK	notes/coverage_lifecycle.md	19	https://datatracker.ietf.org/doc/html/draft-ietf-oauth-identity-assertion-authz-grant-03	200 HEAD
+OK	notes/coverage_lifecycle.md	91	https://developer.okta.com/docs/guides/token-inline-hook/main/	200 HEAD
+OK	notes/coverage_lifecycle.md	16,17,105	https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html	200 HEAD
+OK	notes/coverage_lifecycle.md	124	https://learn.microsoft.com/de-de/archive/blogs/larryosterman/threat-modeling-again-stride-per-element	200 HEAD
+OK	notes/coverage_lifecycle.md	104,123	https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process	200 HEAD
+OK	notes/coverage_lifecycle.md	124	https://msdn.microsoft.com/en-us/magazine/cc163519.aspx	200 HEAD
+OK	notes/coverage_lifecycle.md	103	https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-63C-4.pdf	200 GET
+OK	notes/coverage_lifecycle.md	102	https://nvlpubs.nist.gov/nistpubs/ir/2018/nist.ir.8112.pdf	200 GET
+OK	notes/coverage_lifecycle.md	18	https://openid.net/specs/openid-connect-backchannel-1_0.html	200 HEAD
+OK	notes/coverage_lifecycle.md	103	https://pages.nist.gov/800-63-4/sp800-63c/glossary	200 HEAD
+OK	notes/coverage_lifecycle.md	103	https://pages.nist.gov/800-63-4/sp800-63c/privacy	200 HEAD
+OK	notes/coverage_lifecycle.md	102	https://pages.nist.gov/NISTIR-8112/NISTIR-8112.html	200 HEAD
+OK	notes/coverage_lifecycle.md	125	https://shostack.org/files/tmbookchapters/threat-modeling-first-edition-Starting-the-Threat-Modeling-Project.pdf	200 HEAD
+OK	notes/coverage_lifecycle.md	126	https://threatmodelingbook.com/files/essays/The%20Trouble%20With%20Threat%20Modeling.docx	200 HEAD
+OK	notes/coverage_lifecycle.md	129	https://www.arxiv.org/pdf/1611.10288	200 HEAD
+OK	notes/coverage_lifecycle.md	122	https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html	200 HEAD
+OK	notes/coverage_lifecycle.md	13	https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml	200 HEAD
+OK	notes/coverage_lifecycle.md	19	https://www.ietf.org/archive/id/draft-ietf-oauth-identity-assertion-authz-grant-05.txt	200 HEAD
+OK	notes/coverage_lifecycle.md	19	https://www.ietf.org/archive/id/draft-ietf-oauth-identity-assertion-authz-grant-06.txt	200 HEAD
+OK	notes/coverage_lifecycle.md	102	https://www.nist.gov/node/1802806	200 HEAD
+OK	notes/coverage_lifecycle.md	127	https://www.threatmodelingmanifesto.org/	200 HEAD
+OK	notes/prior_art.md	84	https://adr.github.io/adr-templates	200 HEAD
+OK	notes/prior_art.md	84	https://adr.github.io/madr	200 HEAD
+OK	notes/prior_art.md	86	https://arc42.org/overview	200 HEAD
+OK	notes/prior_art.md	146	https://auth0.com/blog/jp-whats-the-right-authorization-model-for-my-application/	200 HEAD
+OK	notes/prior_art.md	21	https://auth0.com/docs/ja-jp/secure/tokens/json-web-tokens/json-web-token-claims	200 HEAD
+OK	notes/prior_art.md	21	https://auth0.com/docs/secure/tokens/token-best-practices.md	200 HEAD
+OK	notes/prior_art.md	102	https://bitol-io.github.io/open-data-contract-standard/latest/	200 HEAD
+OK	notes/prior_art.md	102	https://bitol-io.github.io/open-data-contract-standard/latest/schema/	200 HEAD
+OK	notes/prior_art.md	147	https://blog.logto.io/ja/glance-on-custom-jwt-access-token-claims	200 HEAD
+OK	notes/prior_art.md	86	https://c4model.com/	200 HEAD
+OK	notes/prior_art.md	64	https://csrc.nist.gov/publications/detail/sp/800-162/final	200 HEAD
+OK	notes/prior_art.md	14,104,145	https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/	200 HEAD
+OK	notes/prior_art.md	20	https://curity.io/resources/learn/jwt-best-practices/	200 HEAD
+OK	notes/prior_art.md	101	https://datatracker.ietf.org/doc/rfc7519	200 HEAD
+OK	notes/prior_art.md	63	https://github.com/OWASP/ASVS	200 HEAD
+OK	notes/prior_art.md	102	https://github.com/bitol-io/open-data-contract-standard	200 HEAD
+OK	notes/prior_art.md	62	https://github.com/coky-t/owasp-asvs-ja/blob/master/5.0/ja/0x18-V9-Self-contained-Tokens.md	200 HEAD
+OK	notes/prior_art.md	62	https://github.com/coky-t/owasp-asvs-ja/blob/master/5.0/ja/0x19-V10-OAuth-and-OIDC.md	200 HEAD
+OK	notes/prior_art.md	122	https://handbook.gitlab.com/handbook/security/product-security/security-platforms-architecture/application-security/appsec-reviews/	200 HEAD
+OK	notes/prior_art.md	122	https://handbook.gitlab.com/handbook/security/product-security/security-review-framework	200 HEAD
+OK	notes/prior_art.md	63	https://handouts.secappdev.org/handouts/2026/edenyardeni_what-s-new-in-asvs-v5.pdf	200 HEAD
+OK	notes/prior_art.md	147	https://hasura.io/learn/ja/graphql/hasura/authentication/2-custom-jwt-claims-rule/	200 HEAD
+OK	notes/prior_art.md	119	https://ieeexplore.ieee.org/document/4601584	202 HEAD
+OK	notes/prior_art.md	12	https://learn.microsoft.com/en-us/entra/identity-platform/claims-customization-powershell	200 HEAD
+OK	notes/prior_art.md	12	https://learn.microsoft.com/entra/identity-platform/reference-claims-customization	200 HEAD
+OK	notes/prior_art.md	13	https://learn.microsoft.com/nb-no/Entra/architecture/deployment-plans	200 HEAD
+OK	notes/prior_art.md	13	https://learn.microsoft.com/nb-no/entra/identity/enterprise-apps/migrate-adfs-apps-phases-overview	200 HEAD
+OK	notes/prior_art.md	101	https://mailarchive.ietf.org/arch/msg/jwt-reg-review/FVrUtnR22OpI9PGMRHOfR6Kfj-w/	200 HEAD
+OK	notes/prior_art.md	103	https://martinfowler.com/articles/data-contracts.html	200 HEAD
+OK-MANUAL	notes/prior_art.md	22	https://nhimg.org/articles/token-claims-and-authorization-control-in-apis/	403 GET; 403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+OK-MANUAL	notes/prior_art.md	124	https://nhimg.org/secure-code-review-checklist	403 GET; 403 to scripts; page content retrieved with a web extraction service (Tavily extract)
+OK	notes/prior_art.md	64	https://nvlpubs.nist.gov/nistpubs/specialpublications/NIST.SP.800-162.pdf	200 GET
+OK	notes/prior_art.md	23	https://openid.net/fapi2-0-final-conformance-tests-available/	200 HEAD
+OK	notes/prior_art.md	23	https://openid.net/implementers-guide-fapi-2-final-vs-implementers-draft-2/	200 HEAD
+OK	notes/prior_art.md	23	https://openid.net/specs/fapi-attacker-model-2_0-final.html	200 HEAD
+OK	notes/prior_art.md	84	https://ozimmer.ch/practices/2022/11/22/MADRTemplatePrimer.html	200 HEAD
+OK	notes/prior_art.md	47,144	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x17-V8-Authorization.md	200 HEAD
+OK	notes/prior_art.md	53	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x18-V9-Self-contained-Tokens.md	200 HEAD
+OK	notes/prior_art.md	61	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x19-V10-OAuth-and-OIDC.md	200 HEAD
+OK	notes/prior_art.md	24	https://refeds.org/research-and-scholarship	200 HEAD
+OK	notes/prior_art.md	24	https://safire.ac.za/safire/policy/arp/	200 HEAD
+OK	notes/prior_art.md	120	https://standards.nimonik.com/products/ieee/ieee-1028/	200 HEAD
+OK-MANUAL	notes/prior_art.md	121	https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
+OK-MANUAL	notes/prior_art.md	121	https://swehb.nasa.gov/spaces/7150/pages/16450586/SWE-088+-+Software+Peer+Reviews+and+Inspections+-+Checklist+Criteria+and+Tracking	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/GgT7 (Confluence tiny link of page 16450586)
+OK-MANUAL	notes/prior_art.md	119	https://webstore.ansi.org/standards/ieee/ieeestd10282008	403 GET; 403 to scripts; opened in a browser, title "IEEE Std 1028-2008 - IEEE Standard for Software Reviews and Audits"
+OK	notes/prior_art.md	65	https://www.digital.go.jp/assets/contents/node/basic_page/field_ref_resources/e2a06143-ed29-4f1d-9c31-0f06fca67afc/fc5cbe4a/20260224_resources_standard_guideline_trustidentityoverview_01.pdf	200 HEAD
+OK	notes/prior_art.md	65	https://www.digital.go.jp/resources/standard_guidelines	200 HEAD
+OK	notes/prior_art.md	123	https://www.endorlabs.com/learn/secure-code-review-checklist	200 HEAD
+OK	notes/prior_art.md	101	https://www.iana.org/assignments/jwt/jwt.xhtml	200 HEAD
+OK	notes/prior_art.md	85	https://www.industrialempathy.com/posts/design-doc-a-design-doc/	200 HEAD
+OK	notes/prior_art.md	85	https://www.industrialempathy.com/posts/design-docs-at-google/	200 HEAD
+OK	notes/prior_art.md	66	https://www.ipa.go.jp/archive/digital/iot-en-ci/jyouryuu/hikinou/index.html	200 HEAD
+OK	notes/prior_art.md	66	https://www.meti.go.jp/policy/it_policy/softseibi/hikinou_grade.pdf	200 HEAD
+OK-MANUAL	notes/prior_art.md	65	https://www.pwc.com/jp/ja/knowledge/column/awareness-cyber-security/digital-identity/new-identity-verification-guideline-ds511-1.html	403 GET; 403 to scripts; page (DS-511 column) retrieved with Tavily extract
+OK	notes/prior_art.md	25	https://www.rfc-editor.org/rfc/rfc8725	200 HEAD
+OK	notes/prior_art.md	25	https://www.rfc-editor.org/rfc/rfc9068	200 HEAD
+OK	notes/prior_art.md	25	https://www.rfc-editor.org/rfc/rfc9700	200 HEAD
+OK	notes/prior_art.md	146	https://zenn.dev/nttdata_tech/articles/bb08c5941eae45	200 HEAD
+OK	notes/prior_art.md	146	https://zenn.dev/seiichi1101/articles/permitio-rebac	200 HEAD
+OK	notes/prior_art.md	24	https://zenodo.org/records/4739162/files/ENTCAT-RANDS-v1.2.pdf	200 HEAD
+OK	notes/review_effectiveness.md	52,114,146,179	https://ar5iv.labs.arxiv.org/html/2102.06909	200 HEAD
+OK-MANUAL	notes/review_effectiveness.md	18,84,143	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
+OK	notes/review_effectiveness.md	50,83,178	https://arxiv.org/abs/2202.04586	200 HEAD
+OK	notes/review_effectiveness.md	147	https://arxiv.org/html/2401.16310v5	200 HEAD
+OK	notes/review_effectiveness.md	148	https://arxiv.org/html/2601.19239v1	200 HEAD
+OK	notes/review_effectiveness.md	24,144,182	https://arxiv.org/html/2604.03826	200 HEAD
+OK	notes/review_effectiveness.md	53	https://arxiv.org/pdf/2208.04261	200 HEAD
+OK	notes/review_effectiveness.md	149	https://arxiv.org/pdf/2601.18844	200 HEAD
+OK	notes/review_effectiveness.md	25	https://arxiv.org/pdf/2604.27333	200 HEAD
+OK	notes/review_effectiveness.md	19	https://cambridge.org/core/services/aop-cambridge-core/content/view/BC91F6968115F74046BD4A7DD1E89445/S0890060408000206a.pdf/special-issue-design-rationale.pdf	200 HEAD
+OK	notes/review_effectiveness.md	23,81,182	https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou	200 HEAD
+OK	notes/review_effectiveness.md	51	https://dblp.uni-trier.de/rec/conf/essos/EdmundsonHRFMW13.html	202 GET
+OK	notes/review_effectiveness.md	14	https://dblp1.uni-trier.de/rec/journals/ijmms/ShumH94.html	202 HEAD
+OK	notes/review_effectiveness.md	54	https://digitalcommons.wayne.edu/oa_dissertations/3842	200 HEAD
+OK-MANUAL	notes/review_effectiveness.md	22	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
+OK	notes/review_effectiveness.md	47	https://doi.org/10.1023/A:1009742216007	200 HEAD
+OK-DOI	notes/review_effectiveness.md	55,180	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
+OK	notes/review_effectiveness.md	48,177	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
+OK	notes/review_effectiveness.md	20	https://doi.org/10.1109/TSE.1986.6312940	202 HEAD
+OK-DOI	notes/review_effectiveness.md	80	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
+OK-DOI	notes/review_effectiveness.md	49	https://doi.org/10.1145/3379597.3387509	403 GET; DOI registered (doi.org handle API)
+OK	notes/review_effectiveness.md	113	https://doi.org/10.1147/sj.153.0182	202 HEAD
+OK	notes/review_effectiveness.md	17	https://figshare.swinburne.edu.au/articles/report/A_survey_of_architecture_design_rationale/26269849	202 HEAD
+OK	notes/review_effectiveness.md	15,85,181	https://kmi.open.ac.uk/publications/techreport/kmi-95-13	200 HEAD
+OK	notes/review_effectiveness.md	49,177	https://link.springer.com/10.1007/s10664-022-10123-8	200 HEAD
+OK	notes/review_effectiveness.md	151	https://owasp.org/www-project-application-security-verification-standard/	200 HEAD
+OK	notes/review_effectiveness.md	53	https://portswigger.net/daily-swig/developers-still-struggling-with-security-issues-during-code-reviews-study-finds	200 GET
+OK	notes/review_effectiveness.md	56,82	https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada	200 HEAD
+OK	notes/review_effectiveness.md	56,82,180	https://pubmed.ncbi.nlm.nih.gov/24620866/	203 HEAD
+OK	notes/review_effectiveness.md	56	https://pubmed.ncbi.nlm.nih.gov/24918385/	203 HEAD
+OK	notes/review_effectiveness.md	48	https://rdrr.io/cran/reproducer/man/Ciolkowski09ESEM.MetaAnalysis.PBRvsCBRorAR.html	200 HEAD
+OK	notes/review_effectiveness.md	21	https://rebekkaa.github.io/files/2024_ECSA.pdf	200 HEAD
+OK	notes/review_effectiveness.md	21,145	https://research.chalmers.se/en/publication/538920	200 HEAD
+OK	notes/review_effectiveness.md	16	https://researchbank.swinburne.edu.au/file/198ab8bf-fbaa-422b-bd24-2ecf7d23aa0c/1/Antony%20Tang%20Thesis.pdf	202 HEAD
+OK	notes/review_effectiveness.md	57,116	https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/	200 HEAD
+OK	notes/review_effectiveness.md	46,115,177	https://www.cs.umd.edu/~aporter/html/scenarios.html	200 HEAD
+OK	notes/review_effectiveness.md	46	https://www.cs.umd.edu/~mvz/handouts/emp_pbr.pdf	200 HEAD
+OK	notes/review_effectiveness.md	117	https://www.first.org/cvss/v4-0/	200 HEAD
+OK	notes/review_effectiveness.md	150	https://www.microsoft.com/en-us/securityengineering/sdl/practices	200 HEAD
+OK	notes/review_effectiveness.md	14	https://www.scribd.com/document/65622348/Argumentation-Based-Design-Rationale	200 HEAD
+OK	notes/review_effectiveness.md	51	https://www2.eecs.berkeley.edu/Pubs/TechRpts/2013/EECS-2013-49.html	200 HEAD
+OK	report.md	73	https://adr.github.io/madr	200 HEAD
+OK	report.md	10,103	https://ar5iv.labs.arxiv.org/html/2102.06909	200 HEAD
+OK-MANUAL	report.md	69,79	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
+OK	report.md	24	https://arxiv.org/abs/2202.04586	200 HEAD
+OK	report.md	107	https://arxiv.org/html/2401.16310v5	200 HEAD
+OK	report.md	107	https://arxiv.org/html/2601.19239v1	200 HEAD
+OK	report.md	79	https://arxiv.org/html/2604.03826	200 HEAD
+OK	report.md	16	https://arxiv.org/pdf/1612.00163	200 HEAD
+OK	report.md	36	https://auth0.com/blog/five-reasons-permissions-not-in-access-token/	200 HEAD
+OK	report.md	42	https://auth0.com/docs/customize/actions/explore-triggers/machine-to-machine-trigger	200 HEAD
+OK	report.md	42	https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger/post-login-event-object	200 HEAD
+OK	report.md	73	https://bitol-io.github.io/open-data-contract-standard/latest/	200 HEAD
+OK	report.md	16	https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the	200 HEAD
+OK	report.md	67	https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou	200 HEAD
+OK	report.md	186	https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures	200 HEAD
+OK	report.md	32	https://csrc.nist.gov/pubs/sp/800/162/upd2/final	200 HEAD
+OK	report.md	75,111	https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/	200 HEAD
+OK	report.md	198	https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/	200 HEAD
+OK	report.md	36	https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/	200 HEAD
+OK	report.md	85	https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html	200 HEAD
+OK	report.md	85	https://docs.aws.amazon.com/cognito/latest/developerguide/quotas.html	200 HEAD
+OK	report.md	42	https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html	200 HEAD
+OK	report.md	32	https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html	200 HEAD
+OK-DOI	report.md	18	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
+OK	report.md	24,121	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
+OK	report.md	67	https://doi.org/10.1109/TSE.1986.6312940	202 HEAD
+OK-DOI	report.md	67	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
+OK	report.md	85	https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html	200 HEAD
+OK	report.md	103	https://ieeexplore.ieee.org/document/4601584	202 HEAD
+OK	report.md	67	https://kmi.open.ac.uk/publications/techreport/kmi-95-13	200 HEAD
+OK	report.md	156	https://learn.microsoft.com/de-de/archive/blogs/larryosterman/threat-modeling-again-stride-per-element	200 HEAD
+OK	report.md	85	https://learn.microsoft.com/en-au/Entra/identity-platform/custom-claims-provider-reference	200 HEAD
+OK	report.md	16,63	https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process	200 HEAD
+OK	report.md	34,85	https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles	200 HEAD
+OK	report.md	24	https://link.springer.com/10.1007/s10664-022-10123-8	200 HEAD
+OK	report.md	85	https://nginx.org/en/docs/http/ngx_http_core_module.html	200 HEAD
+OK	report.md	63	https://nvlpubs.nist.gov/nistpubs/ir/2018/nist.ir.8112.pdf	200 GET
+OK	report.md	32	https://openfga.dev/docs/authorization-concepts	200 HEAD
+OK	report.md	36	https://openid.net/specs/authorization-api-1_0.html	200 HEAD
+OK	report.md	73	https://openid.net/specs/fapi-attacker-model-2_0-final.html	200 HEAD
+OK	report.md	38	https://openid.net/specs/fapi-security-profile-2_0-final.html	200 HEAD
+OK	report.md	53	https://openid.net/specs/openid-connect-backchannel-1_0.html	200 HEAD
+OK	report.md	97	https://openid.net/specs/openid-connect-core-1_0.html#AggregatedDistributedClaims	200 HEAD
+OK	report.md	38	https://owasp.org/www-project-application-security-verification-standard/	200 HEAD
+OK	report.md	63	https://pages.nist.gov/800-63-4/sp800-63c/glossary	200 HEAD
+OK	report.md	18	https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada	200 HEAD
+OK	report.md	18	https://pubmed.ncbi.nlm.nih.gov/24620866/	203 HEAD
+OK	report.md	10	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x17-V8-Authorization.md	200 HEAD
+OK	report.md	73	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x18-V9-Self-contained-Tokens.md	200 HEAD
+OK	report.md	73	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x19-V10-OAuth-and-OIDC.md	200 HEAD
+OK	report.md	73	https://refeds.org/research-and-scholarship	200 HEAD
+OK	report.md	34	https://research.google/pubs/pub48190/	200 HEAD
+OK	report.md	111	https://researchbank.swinburne.edu.au/file/198ab8bf-fbaa-422b-bd24-2ecf7d23aa0c/1/Antony%20Tang%20Thesis.pdf	202 HEAD
+OK	report.md	190	https://support.auth0.com/center/s/article/auth0-id-token-size-calculation	200 HEAD
+OK-MANUAL	report.md	103	https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
+OK	report.md	24	https://www.cs.umd.edu/~aporter/html/scenarios.html	200 HEAD
+OK	report.md	16	https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html	200 HEAD
+OK	report.md	85	https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto	200 HEAD
+OK	report.md	73	https://www.iana.org/assignments/jwt/jwt.xhtml	200 HEAD
+OK	report.md	42,52	https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml	200 HEAD
+OK	report.md	32	https://www.nist.gov/publications/adding-attributes-role-based-access-control	200 HEAD
+OK	report.md	89	https://www.rfc-editor.org/rfc/rfc4648.html	200 HEAD
+OK	report.md	89	https://www.rfc-editor.org/rfc/rfc7515.html	200 HEAD
+OK	report.md	190	https://www.rfc-editor.org/rfc/rfc7518.html	200 HEAD
+OK	report.md	36	https://www.rfc-editor.org/rfc/rfc8693.html	200 HEAD
+OK	report.md	34	https://www.rfc-editor.org/rfc/rfc9068.html	200 HEAD
+OK	report.md	99	https://www.synadia.com/insights/checks/nats-excessive-jwt-size	200 HEAD
+OK	report.md	186	https://www.threatmodelingmanifesto.org/	200 HEAD
+OK	report.md	8	linkcheck-2026-11-22.txt	file exists
+OK	report.md	6	notes/	file exists
+OK	report.md	6	unverified.md	file exists
+OK	unverified.md	55	https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/	200 HEAD
+OK	unverified.md	56	https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/	200 HEAD
+OK	unverified.md	57	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
+OK	unverified.md	58	linkcheck-2026-11-22.txt	file exists
+OK	unverified.md	3	notes/	file exists
+OK	unverified.md	3	report.md	file exists
