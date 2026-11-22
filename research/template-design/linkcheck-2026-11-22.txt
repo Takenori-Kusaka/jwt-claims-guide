@@ -1,7 +1,7 @@
 # Link check: research/template-design/
 # date: 2026-11-22  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/timeouts)
-# links (file x url): 261  unique external URLs: 182  relative links: 6
-# OK: 246
+# links (file x url): 262  unique external URLs: 182  relative links: 7
+# OK: 247
 # OK-DOI: 5
 # OK-MANUAL: 10
 # BROKEN: 0
@@ -49,7 +49,7 @@ OK	notes/authz_model_axis.md	146	https://httpwg.org/http-extensions/draft-ietf-h
 OK	notes/authz_model_axis.md	138	https://learn.microsoft.com/en-au/Entra/identity-platform/custom-claims-provider-reference	200 HEAD
 OK	notes/authz_model_axis.md	138	https://learn.microsoft.com/en-gb/entra/identity-platform/custom-extension-troubleshoot	200 HEAD
 OK	notes/authz_model_axis.md	20,37,63,137,163	https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles	200 HEAD
-OK	notes/authz_model_axis.md	155	https://lists.jboss.org/archives/list/keycloak-dev@lists.jboss.org/message/F5L73YWZEEAKVMGKTYKLXHF4OBOAVV6X/attachment/2/attachment.html	200 HEAD
+OK	notes/authz_model_axis.md	155	https://lists.jboss.org/archives/list/keycloak-dev@lists.jboss.org/message/F5L73YWZEEAKVMGKTYKLXHF4OBOAVV6X/attachment/2/attachment.html	200 GET
 OK	notes/authz_model_axis.md	149	https://nginx.org/en/docs/http/ngx_http_core_module.html	200 HEAD
 OK	notes/authz_model_axis.md	15	https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-178.pdf	200 GET
 OK	notes/authz_model_axis.md	16	https://openfga.dev/docs/authorization-concepts	200 HEAD
@@ -180,7 +180,7 @@ OK	notes/review_effectiveness.md	149	https://arxiv.org/pdf/2601.18844	200 HEAD
 OK	notes/review_effectiveness.md	25	https://arxiv.org/pdf/2604.27333	200 HEAD
 OK	notes/review_effectiveness.md	19	https://cambridge.org/core/services/aop-cambridge-core/content/view/BC91F6968115F74046BD4A7DD1E89445/S0890060408000206a.pdf/special-issue-design-rationale.pdf	200 HEAD
 OK	notes/review_effectiveness.md	23,81,182	https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou	200 HEAD
-OK	notes/review_effectiveness.md	51	https://dblp.uni-trier.de/rec/conf/essos/EdmundsonHRFMW13.html	202 GET
+OK	notes/review_effectiveness.md	51	https://dblp.uni-trier.de/rec/conf/essos/EdmundsonHRFMW13.html	202 HEAD
 OK	notes/review_effectiveness.md	14	https://dblp1.uni-trier.de/rec/journals/ijmms/ShumH94.html	202 HEAD
 OK	notes/review_effectiveness.md	54	https://digitalcommons.wayne.edu/oa_dissertations/3842	200 HEAD
 OK-MANUAL	notes/review_effectiveness.md	22	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
@@ -281,9 +281,10 @@ OK	report.md	186	https://www.threatmodelingmanifesto.org/	200 HEAD
 OK	report.md	8	linkcheck-2026-11-22.txt	file exists
 OK	report.md	6	notes/	file exists
 OK	report.md	6	unverified.md	file exists
-OK	unverified.md	55	https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/	200 HEAD
-OK	unverified.md	56	https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/	200 HEAD
-OK	unverified.md	57	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
-OK	unverified.md	58	linkcheck-2026-11-22.txt	file exists
+OK	unverified.md	9	../../templates/CONTRIBUTING.md	file exists
+OK	unverified.md	56	https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/	200 HEAD
+OK	unverified.md	57	https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/	200 HEAD
+OK	unverified.md	58	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
+OK	unverified.md	59	linkcheck-2026-11-22.txt	file exists
 OK	unverified.md	3	notes/	file exists
 OK	unverified.md	3	report.md	file exists
