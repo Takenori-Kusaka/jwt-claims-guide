@@ -98,7 +98,7 @@ count = {}
 for r in rows:
     count[r[0]] = count.get(r[0], 0) + 1
 with out.open("w", encoding="utf-8", newline="\n") as fh:
-    fh.write("# Link check: research/template-design/\n")
+    fh.write(f"# Link check: {root.as_posix().rstrip('/')}/\n")
     fh.write(f"# date: {datetime.date.today().isoformat()}  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/5xx/timeouts)\n")
     fh.write(f"# links (file x url): {len(rows)}  unique external URLs: {len(ext)}  relative links: {sum(1 for r in rows if not r[3].startswith('http'))}\n")
     for k in ("OK", "OK-DOI", "OK-MANUAL", "BROKEN"):

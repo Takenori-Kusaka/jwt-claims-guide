@@ -185,7 +185,7 @@ evidence:
 | 形式 | 書き方 |
 | --- | --- |
 | Markdown | 1 行目に HTML のコメント `<!-- template_version: 0.1.0 -->`。前付け（front matter）は使わない |
-| YAML | 1 行目に `template_version: 0.1.0` |
+| YAML | 1 行目にコメント `# template_version: 0.1.0`。キーにはしない。エディタの検証のために yaml-language-server の modeline（`# yaml-language-server: $schema=./claims.schema.json`）を置く場合は、2 行目以降の先頭のコメントの中、最初のキーより前に置く。yaml-language-server は、最初の YAML の内容より前のコメントからしか modeline を読まないため（コミット 416ede2 以降）。キーにしないのは、1 行目をキーにすると modeline を置けなくなること、データの列にするとスキーマ側で許可が要ること、Markdown（コメント）と書き方が揃うことによる |
 | JSON Schema | `$id` に版を入れ（例：`https://.../claims.schema.json/v0.1.0`）、最上位の `$comment` に `"template_version: 0.1.0"`。独自のキーワードは置かない（Ajv の strict モードがエラーにするため） |
 | JSON（スキーマ以外のデータ） | 最上位に `"template_version": "0.1.0"`。スキーマ側でこのキーを許可する |
 

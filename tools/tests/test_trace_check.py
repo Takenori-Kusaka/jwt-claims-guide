@@ -374,6 +374,19 @@ def test_dump_round_trip(tmp_path):
     assert back['summary'] == dict(data['summary'])
 
 
+def test_yaml_template_version_is_first_line_comment():
+    # templates/CONTRIBUTING.md: YAML line 1 is the comment "# template_version: X.Y.Z" (not a key),
+    # so a yaml-language-server modeline can still follow among the header comments.
+    data = finish(REQS)
+    first = tc.dump_requirements(data, [s['id'] for s in SLIDES]).splitlines()[0]
+    assert first.startswith('# template_version: ')
+    trace_dir = os.path.join(tc.DEFAULT_ROOT, 'templates', 'trace')
+    for name in sorted(os.listdir(trace_dir)):
+        if name.endswith('.yaml'):
+            with open(os.path.join(trace_dir, name), encoding='utf-8') as f:
+                assert f.readline().startswith('# template_version: '), name
+
+
 @pytest.mark.parametrize('ref, ok', [
     ('registry:claims#volatility', True), ('registry:claims', False), ('registry:widgets#x', False),
     ('lint:L1a', True), ('lint:R3b', True), ('lint:L5#x', False), ('lint:NEW-foo', False),
