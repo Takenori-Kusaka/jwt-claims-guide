@@ -38,7 +38,7 @@
 #
 # 文書に書かれていない既定値を、Keycloak 26.8.2 のソース（GitHub のタグ）の要約で補った箇所は「ソースの要約」と書いた。行は直接確かめて
 # いない（research/template-design/unverified.md の V31）。
-# 件数：発行イベント 33 件。「ガイドの空白」10 件、一部だけ扱う 5 件
+# 件数：発行イベント 33 件。「ガイドの空白」0 件（#10 で 10 件を埋めた）、一部だけ扱う 1 件（I20）
 # 対応表（templates/trace/）の要件への逆参照。catalog の部分を満たした要件だけを書く。要件の状態は、ほかの成果物
 # （registry:claims#recompute_trigger は #3）が揃うまで「未着手」のまま
 _trace:
@@ -218,8 +218,7 @@ events:
     seeds: [rfc6749-grant/password, auth0-protocol/oauth2-password, auth0-protocol/oauth2-resource-owner, auth0-grant/password,
             auth0-grant/password-realm, auth0-grant/mfa-oob, auth0-grant/mfa-otp, auth0-grant/mfa-recovery-code, auth0-grant/passwordless-otp,
             keycloak-settings/direct-access-grants, prior-catalogue/I03]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "ROPC を扱うスライドがない（禁止のフローなので、#10 では「扱わない」の候補）",
-            checked: "2026-11-22 に docs/slides.json の本文とノートを implicit・ROPC・Resource Owner・password grant で検索して 0 件"}
+    guide: {status: covered, slides: [p06-grant-types], note: "使ってはならない方式（RFC 9700 §2.4）として、発行の入口の表に載せた（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -256,8 +255,7 @@ events:
       note: AT だけを出す（利用者のセッションを作らない。RT は出さないのが普通）。sub はクライアントになる（slide:p05-system-privileges）
     seeds: [rfc6749-grant/client_credentials, auth0-trigger/credentials-exchange, auth0-grant/client_credentials, keycloak-settings/service-account-roles,
             prior-catalogue/I08]
-    guide: {status: partial, slides: [p05-system-privileges, p03-cognito-pre-token-hook],
-            note: "client credentials での sub の違いと Cognito の V3_0 は扱う。Auth0 では利用者の発行と別のトリガー（credentials-exchange）が動く点は slide:p06-issuance-hook の表にない"}
+    guide: {status: covered, slides: [p06-issuance-hook, p06-grant-types, p05-system-privileges, p03-cognito-pre-token-hook], note: "Auth0 の credentials-exchange と Cognito の V3_0 を slide:p06-issuance-hook の表とノートに足した（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -333,8 +331,7 @@ events:
       note: 別の端末で利用者が承認した後に、I01 と同じ種類のトークンを出す。トークンを受け取る端末と、認証した端末が違う
     seeds: [iana-oauth-uri/grant-type:device_code, auth0-protocol/oauth2-device-code, auth0-grant/device_code, keycloak-settings/device-authorization-grant,
             prior-catalogue/I09]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "device flow を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json の本文とノートを device・デバイス・8628・入力の限られ で検索して 0 件"}
+    guide: {status: covered, slides: [p06-grant-types], note: "device flow の流れ・user_code の試行の制限・遠隔のフィッシング・フックの実行が文書にないこと（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -404,8 +401,7 @@ events:
       revoked: [session_idp, refresh_token]
       note: IdP のセッションの終了を RP に伝える。offline_access のない RT は失効させるべき（SHOULD。§2.7）。発行済みの AT（JWT）は失効しない（exp まで残る）
     seeds: [oidc-logout/back-channel, keycloak-settings/backchannel-logout, prior-catalogue/I21]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "Logout Token の発行・クレーム（events・sid・nonce の禁止）を扱うスライドがない（research/notes/01 には記述あり）",
-            checked: "2026-11-22 に docs/slides.json を Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ"}
+    guide: {status: covered, slides: [p08-logout], note: "Logout Token のクレーム（events・sub か sid・nonce の禁止）、typ、exp の目安、RT の失効（§2.7）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -445,8 +441,7 @@ events:
     seeds: [rfc6749-grant/implicit, iana-response-type/token, iana-response-type/id_token, iana-response-type/id_token-token,
             iana-response-type/code-id_token, iana-response-type/code-token, iana-response-type/code-id_token-token,
             auth0-protocol/oidc-implicit-profile, auth0-protocol/oidc-hybrid-profile, auth0-grant/implicit, keycloak-settings/implicit-flow, prior-catalogue/I02]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "implicit・hybrid を扱うスライドがない（禁止に近いフローなので、#10 では「扱わない」の候補。URL に残さない規則は slide:p09-url-browser）",
-            checked: "2026-11-22 に docs/slides.json を implicit・ROPC・Resource Owner で検索して 0 件。p09-url-browser を目で読み、PAR と form_post の話だけと確かめた"}
+    guide: {status: covered, slides: [p06-grant-types, p09-url-browser], note: "AT を認可応答で返す型は使うべきでない（RFC 9700 §2.1.2）として、発行の入口の表に載せた（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -481,8 +476,7 @@ events:
       revoked: []
       note: 利用者の操作なしに、既存の IdP のセッションから新しいトークンを出す。auth_time と acr は前回の認証の値のまま（iat とは別。slide:p02-auth-strength-session）
     seeds: [prior-catalogue/I04]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "prompt=none を扱うスライドがない。slide:p02-auth-strength-session の「再認証なしの再発行がある」は auth_time と iat の違いを説く一般論で、prompt=none の言い換えではない（PR #32 の独立点検）",
-            checked: "2026-11-22 に docs/slides.json を prompt・サイレント・silent・再認証 で検索し、ヒットした p02-auth-strength-session・p07-lifetime-mismatch・p08-token-types-lifetimes・p08-choosing-lifetime・p08-rotation を目で読んだ"}
+    guide: {status: covered, slides: [p08-reissue-triggers], note: "prompt=none の発行で auth_time が変わらないこと、Auth0 の post-login が動くこと（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: "yes"
@@ -689,7 +683,7 @@ events:
       revoked: []
       note: 上流の IdP の属性を写して、自分の発行者のトークンに載せる。属性の出どころが外部になり、取り込みの方式（初回だけか、毎回か）で鮮度が決まる
     seeds: [keycloak-settings/first-broker-login, prior-catalogue/I13]
-    guide: {status: partial, slides: [p02-saml-attributes], note: "ブローカーでの属性の写し方（IdP マッパーで属性・ロールに取り込む）は扱う。初回ログインでの利用者の作成（JIT）と、取り込みの方式による鮮度は扱わない"}
+    guide: {status: covered, slides: [p08-reissue-triggers, p02-saml-attributes], note: "初回ログインでの利用者の作成（first broker login）と、Sync mode（import・force）による鮮度（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -723,7 +717,7 @@ events:
       revoked: []
       note: リンクの後、同じ sub に別の入口からログインできるようになる。sub が継続するかと、どの ID の属性を使うかがクレームに効く
     seeds: [prior-catalogue/I14]
-    guide: {status: partial, slides: [p05-cross-tenant], note: "テナントをまたいで暗黙の名寄せをしない（idp で名寄せしない）規則だけ。リンクの後の発行とクレームの扱いはない"}
+    guide: {status: covered, slides: [p08-reissue-triggers, p05-cross-tenant], note: "Keycloak の既存アカウントへの結びつけと、リンクの後の発行（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -791,7 +785,7 @@ events:
       revoked: []
       note: ワークロードの基盤が、ワークロード自身の ID の JWT を出す。sub はワークロード（slide:p05-three-principals）。AS に提示すると I15 になる
     seeds: [slide-stage-map/stage4-service, prior-catalogue/I18]
-    guide: {status: partial, slides: [p05-three-principals, p04-namespace, p04-immutable-identifiers], note: "ワークロードの ID の種類と、K8s のトークンの名前空間・変わらない ID は扱う。基盤ごとの発行の契機と寿命はない"}
+    guide: {status: partial, slides: [p05-three-principals, p06-grant-types, p04-namespace, p04-immutable-identifiers], note: "発行者が基盤で IdP のフックが動かないことは slide:p06-grant-types で扱う。基盤ごとの発行の契機と寿命の値は扱わない（#10 の判断。前提：寿命は基盤が決め、組織のクレームの設計の判断にならない。崩れる条件：ワークロードの ID に組織の独自クレームを足せる基盤を使うとき）"}
     idp:
       keycloak: {occurs: "no", hook_name: プロトコルマッパー, hook_invoked: "no", hook_note: "発行者はワークロードの基盤で、IdP のフックは動かない", stop_setting: null, source_refs: []}
       auth0: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はワークロードの基盤で、IdP のフックは動かない", stop_setting: null, source_refs: []}
@@ -893,8 +887,7 @@ events:
       revoked: []
       note: 新しいテナントの値を持つトークンを出す。前のテナントのトークンは exp まで有効のまま残る。BFF のセッションが持つテナントの文脈も置き換える
     seeds: [subject-states/tenant-switch, keycloak-settings/organization-scope, prior-catalogue/I24]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "テナントのクレーム（slide:p02-tenant-org・slide:p05-multitenancy）は扱うが、切り替えたときの再発行と古いトークンの扱いはない",
-            checked: "2026-11-22 に docs/slides.json を 切り替・切替・テナントの切・組織の切・org_id で検索し、ヒットした p02-tenant-org・p05-multitenancy・p05-cross-tenant と、切り替でヒットした 5 枚（DB のロールの切り替えなど）を目で読んだ"}
+    guide: {status: covered, slides: [p08-reissue-triggers, p02-tenant-org, p05-multitenancy], note: "切り替えで新しいトークンを取り直し、前のトークンは exp まで有効、BFF の文脈を置き換える（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -928,8 +921,7 @@ events:
       revoked: []
       note: 利用者ができた直後の発行。所属・ロールが未確定のまま、または email_verified=false のまま出ることがある
     seeds: [subject-states/invited, subject-states/active, auth0-trigger/pre-user-registration, auth0-trigger/post-user-registration, prior-catalogue/I25]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "サインアップ・招待・初回ログインでの発行を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json の本文とノートを 招待・サインアップ・初回・JIT・プロビジョニング・名寄せ で検索し、ヒットした p05-cross-tenant と p08-revocation-propagation（「初回の問い合わせ」）を目で読んだ"}
+    guide: {status: covered, slides: [p08-reissue-triggers], note: "サインアップ・招待・初回ログインの直後の発行（所属・ロールが未確定のことがある）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -963,8 +955,7 @@ events:
       revoked: []
       note: 変更の後のログインで新しいトークンを出す。ほかの端末のセッションと RT を失効させるかは製品と設定による（行列の「資格情報変更」の行）
     seeds: [subject-states/credential-change, auth0-trigger/post-change-password, auth0-trigger/password-reset-post-challenge, prior-catalogue/I26]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "パスワードの変更・MFA の登録の後の発行と、ほかのセッションの扱いを扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json を パスワードの変更・MFA の登録・資格情報 で検索し、ヒットした 19 件（連携 ID 資格情報、入口での資格情報の正規化など）を目で読んだ。amr の値（slide:p02-auth-strength-session）は扱うが、変更の後の発行ではない"}
+    guide: {status: covered, slides: [p08-reissue-triggers], note: "資格情報の変更の後のセッション・RT の扱い（Keycloak の Sign out from other devices、CAEP の credential-change）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -1025,8 +1016,7 @@ events:
       revoked: []
       note: トークンの要求のたびにクライアントが作る。aud は AS の issuer だけ（RFC 10070 §4）
     seeds: [iana-oauth-uri/client-assertion-type:jwt-bearer, guide-token-kinds/client-assertion, keycloak-settings/client-authentication]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "クライアント認証の JWT を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json をクライアント認証・client_assertion・private_key で検索して 0 件。アサーションでヒットした 14 件を目で読み、SAML・NIST のアサーションの意味だけと確かめた"}
+    guide: {status: covered, slides: [p01-client-made-jwts], note: "private_key_jwt のクレームと aud の規則（RFC 10070 §4）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント。IdP は受けて検証する側で、フックは関わらない", stop_setting: null, source_refs: []}
       auth0: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント。Auth0 は private_key_jwt を Enterprise のプランで受ける（文書）", stop_setting: null, source_refs: [*a0_credentials]}
@@ -1087,7 +1077,7 @@ events:
       revoked: []
       note: 要求のたびにクライアントが作る。受け手は jti で再送を拒み、作成から短い間だけ受け入れる（§11.1）
     seeds: [guide-token-kinds/dpop-proof]
-    guide: {status: partial, slides: [p02-keys-events-identity-assurance], note: "cnf.jkt は扱うが、proof そのもの（htm・htu・ath・jti の再送の拒否・nonce）は扱わない"}
+    guide: {status: covered, slides: [p01-client-made-jwts, p02-keys-events-identity-assurance], note: "DPoP の proof のクレーム（jti・htm・htu・iat・ath・nonce）と再送の拒否（§11.1）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント", stop_setting: null, source_refs: []}
       auth0: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント", stop_setting: null, source_refs: []}
@@ -1109,8 +1099,7 @@ events:
       revoked: []
       note: 認可要求のパラメータを JWT にして署名する（PAR で送ることもある）。RFC 9101 に寿命の数値の規範はない
     seeds: [guide-token-kinds/jar]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "JAR を扱うスライドがない（PAR は slide:p09-url-browser で URL から外す手段としてだけ出る）",
-            checked: "2026-11-22 に docs/slides.json を JAR・9101・Pushed・PAR で検索し、ヒットした p09-url-browser を目で読んだ"}
+    guide: {status: covered, slides: [p01-client-made-jwts], note: "Request Object の署名・iss・aud と、中のパラメータだけを使う規則（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント。Keycloak の受け入れの設定名（Request object required など）は文書で確かめていない（ソースの要約だけ。V31）", stop_setting: null, source_refs: []}
       auth0: {occurs: "no", hook_name: なし, hook_invoked: "no", hook_note: "発行者はクライアント。Auth0 は Require JWT-Secured Authorization Requests で受け入れを必須にできる（Enterprise と Highly Regulated Identity。文書）", stop_setting: null, source_refs: [*a0_jar]}

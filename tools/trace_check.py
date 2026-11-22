@@ -699,7 +699,7 @@ def dump_requirements(data, slide_ids):
         out += ['', '# 確定の後に tier を変えた記録（1 件ずつ理由つき）', 'tier_changes:']
         for ch in chs:
             out.append('  - {' + ', '.join(f'{k}: {_q(ch.get(k, ""))}' for k in ('id', 'from', 'to', 'changed_on', 'reason')) + '}')
-    out += ['', '# 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁',
+    out += ['', f'# {len(cls)} 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁',
             'classification:']
     for c in cls:
         sid = str(c['slide'])[6:]

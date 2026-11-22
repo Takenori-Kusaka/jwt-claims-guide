@@ -132,7 +132,11 @@ def test_stop_setting_needs_setting_scope_default(base):
 
 def test_gap_needs_marker_and_slide_ids_must_exist(base):
     docs = copy.deepcopy(base)
-    del event(docs, 'I07')['guide']['marker']
+    # no row is a gap since #10, so make one: a gap row without checked or without the marker fails
+    event(docs, 'I07')['guide'] = {'status': 'gap', 'slides': [], 'note': 'device flow を扱うスライドがない', 'checked': '検索して 0 件'}
+    del event(docs, 'I07')['guide']['checked']
+    assert errors(run(docs), 'GUIDE', 'checked')
+    event(docs, 'I07')['guide'] = {'status': 'gap', 'slides': [], 'note': 'device flow を扱うスライドがない', 'checked': '検索して 0 件'}
     assert errors(run(docs), 'GUIDE', 'marker')
     docs = copy.deepcopy(base)
     event(docs, 'I01')['guide']['slides'].append('p99-no-such-slide')
