@@ -3,11 +3,11 @@
 `research/claims-as-code/` の `report.md` と `notes/`（3 本）を、作成とは別の LLM のセッションで点検した記録。人による点検は未実施（#20）。
 
 - 作成：2026-11-22（取り込み 2d16674。点検の反映は同じ PR の次のコミット）
-- 点検：2026-11-22。Claude（作成とは別のセッション。作成の会話の履歴は引き継いでいない）
+- 点検：2026-11-22。Claude Opus 5.5、作成とは別のセッション（作成の会話の履歴は引き継いでいない）
 - 点検の対象：取り込む前の原稿（`reports/クレーム設計の構造化と機械検査の先行事例.md` と `research_notes/クレーム設計の構造化と機械検査の先行事例/` の 3 本。中身は 2d16674 の `research/claims-as-code/` と同じ）。点検者は読み取りだけで、変更していない
 - 渡した資料：上の報告と調査ノート、本リポジトリの `templates/CONTRIBUTING.md`・`templates/trace/requirements.yaml`・`templates/trace/planned_items.yaml`・`.github/workflows/trace.yml`、issue #3・#6・#13・#19・#21 の本文。一次資料は点検者が各項目で当たった（IETF Datatracker の API と draft-ietf-oauth-sd-jwt-vc の txt、openid.net の OpenID4VCI 1.0、IANA の JWT Claims の CSV と XML、Microsoft Learn の Entra の 3 文書と APIM、AWS Verified Permissions、Envoy、Bearer、Datadog、kcwarden、OPA、buf、NIST SP 800-63C-4、gitleaks の `gitleaks.toml`、semgrep-rules の YAML、redhat-developer/yaml-language-server のソースとコミット、ethyca/fides・ethyca/fideslang・IABTechLab/fideslang ほかの GitHub リポジトリと issue（`gh api`）、PyPI の JSON API）
 - 渡した指示の要旨：報告の中の事実（仕様の名前・版・日付・フィールド名、ツールの規則名と挙動、ライセンス、リポジトリ内の計画の記述）を一次資料で確かめる。【提案】の中身は対象外だが、提案が前提にしている事実は対象にする。報告が【未検証】とした事項も、確かめられるものは確かめる。区分は誤り・過大・不一致・曖昧。作成者の結論や意図は渡していない
-- 点検の原文：作成者のセッションの作業ファイル（非公開）。指摘と決着の内容は、下の表にすべて写した
+- 点検の原文：https://github.com/Takenori-Kusaka/jwt-claims-guide/pull/29#issuecomment-7075015186
 - 作成者の 1 日以上空けた見直し：未実施（2026-11-23 以降に行い、日付をここに書く）
 
 ## 点検した件数
