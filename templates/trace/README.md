@@ -7,14 +7,14 @@
 
 各 issue（#3・#4・#5・#6・#8・#17・#18・#19 など）の完了基準は、「この issue が担当する要件が、すべて実装済みになっている（`trace-check` で確かめる）」です。担当の要件は、下の「件数」の表と `python tools/trace_check.py` の出力で確かめます。
 
-## 件数（2026-11-22 時点。#3 の台帳 v1 の後）
+## 件数（2026-11-23 時点。#6 の意味の規則の後）
 
 <!-- counts:begin -->
 - スライド 159 枚：設計判断 135 枚、知識 7 枚、構造 17 枚。教材の行 10 件（知識のスライドは全件）
-- 要件 749 件：未着手 649、実装済み 57、後回し 42、扱わない 1
-- 段階（2026-11-22 に確定）：core 489 件（未着手 447・実装済み 42）、full 260 件（未着手 202・実装済み 15・後回し 42・扱わない 1）。確定の後の変更 6 件（`tier_changes`。#10 で足した要件を core にした）
-- `review:` の成果物を持つ要件：core 167／489 件、full 72／260 件
-- **扱わない 1 件／全 749 件（0.1%）**
+- 要件 750 件：未着手 617、実装済み 90、後回し 42、扱わない 1
+- 段階（2026-11-22 に確定）：core 490 件（未着手 415・実装済み 75）、full 260 件（未着手 202・実装済み 15・後回し 42・扱わない 1）。確定の後の変更 7 件（`tier_changes`。#10 で足した要件を core にした 6 件と、#6 で L10 を MVP に移したときに足した要件 1 件）
+- `review:` の成果物を持つ要件：core 167／490 件、full 72／260 件
+- **扱わない 1 件／全 750 件（0.1%）**
 - 成果物 513 件：issue の本文にあるもの 254 件、対応表で足した提案 259 件（`new_items.md`）
 
 | 担当 | 要件 | core | full | 未着手 | 後回し | 扱わない | 提案した成果物 |
@@ -23,7 +23,7 @@
 | #3 | 152 | 118 | 34 | 98（実装済み 54） | 0 | 0 | 32 |
 | #4 | 199 | 154 | 45 | 199 | 0 | 0 | 69 |
 | #5 | 120 | 75 | 45 | 120 | 0 | 0 | 86 |
-| #6 | 147 | 77 | 70 | 147 | 0 | 0 | 36 |
+| #6 | 148 | 78 | 70 | 115（実装済み 33） | 0 | 0 | 36 |
 | #8 | 50 | 37 | 13 | 50 | 0 | 0 | 32 |
 | #13 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
 | #16 | 2 | 2 | 0 | 1（実装済み 1） | 0 | 0 | 0 |
@@ -215,7 +215,7 @@ python tools/trace_check.py --tier core --require-done   # core に未着手が�
 | `registry` | `registry:claims#volatility`、`registry:token_types#alg_allowlist`、`registry:hops#aud`、`registry:questions#q-actor`、`registry:README#slide-134-map` | #3 | `templates/registry/<claims\|token_types\|hops>.schema.json` の、その名前のプロパティ。`questions` は `questions.yaml` のその `id` の項目。`README` は `README.md` のそのアンカーの節 |
 | `template` | `template:00_core#hop-table`、`template:modules/M_token_validation#jwks-cache`、`template:claim_request#q01` | #4（`CONTRIBUTING` は #13） | `templates/<パス>.md` の、アンカー `<a id="…"></a>`（または `{#…}`）から次のアンカーまで |
 | `review` | `review:perspectives#q-hop-lifetime`、`review:contrasts/four-lifetimes` | #5 | `templates/review/<パス>.md` のアンカーの節 |
-| `lint` | `lint:L16`、`lint:L1a`、`lint:R3b` | #6・#16・#17・#18（L10 は #21） | `tools/claim_lint/RULES.md` の、その ID の表の行（`\| L16 \|`）か見出しから、次の規則まで |
+| `lint` | `lint:L16`、`lint:L1a`、`lint:R3b` | #6・#16・#17・#18（L10 は #21 から #6 に移した） | `tools/claim_lint/RULES.md` の、その ID の表の行（`\| L16 \|`）か見出しから、次の規則まで |
 | `catalog` | `catalog:issue_events#hook_invoked`、`catalog:token_kinds` | #2 | `templates/catalog/<パス>.yaml` の、そのキーか `id` のノード（`.md` ならアンカーの節） |
 | `test` | `test:negative_tests#alg-none`、`test:consumer_contract#unknown-claim-ignored` | #8 | `templates/runtime/<パス>.md` のアンカーの節 |
 | `ci` | `ci:claims#secret-scan` | #16 | `.github/workflows/<パス>.yml` のそのジョブ |

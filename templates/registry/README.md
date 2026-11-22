@@ -150,7 +150,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `consumer_access_path` | 受け手の読み方 | 受け手がどの部品で読むか（ライブラリ・入口のヘッダー・メッシュ・CEL など） | なし | slide:p04-design-checklist（「ツール」） | Full のみ |
 | `consumers_migration` | 受け手の移行状況 | 新しい形への移行の、受け手ごとの状態 | なし | slide:p11-change-procedure | Full のみ |
 | `on_missing` | 欠落時の挙動 | 拒否・既定値・無視（意味は `absent_semantics`） | なし | slide:p04-reject-missing-required、slide:p04-absent-null-false-empty | 手で書く |
-| `enforced_at` | 照合する場所 | どのサービスが何と何を照合するか | `checks`（一部。ケースの ID は `evidence`） | #3 の本文、#18 の L11 | 手で書く |
+| `enforced_at` | 照合する場所 | どのサービスが何と何を照合するか。任意の `against`（何と照合するか：iss・aud・api_config（受け手の側で固定した値）・data_layer（保存データ）・other_claim（`with` に台帳の ID）・format（型と長さだけ））は #6 で足した。L9・L31 は、テナントの管理者などが書ける値を、その人が書けないもの（iss・API の設定・データ層）と照合しているかをこれで見る | `checks`（一部。ケースの ID は `evidence`） | #3 の本文、#18 の L11、#6 の L9・L31（author-proposal、tracking #6） | 手で書く |
 
 #### サイズ
 

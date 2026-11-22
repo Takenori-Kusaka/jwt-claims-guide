@@ -17,7 +17,7 @@ import sys
 
 import yaml
 
-from . import coverage, r8
+from . import coverage, r8, semantic
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.dirname(HERE)
@@ -45,6 +45,8 @@ TT_ADOPTED = ['purpose', 'issuer', 'holder', 'max_lifetime', 'stored_at', 'trans
 TT_JWT = ['typ', 'alg_allowlist', 'issuers', 'key_rotation', 'jwe']
 HEADER_TRANSPORTS = {'authorization_bearer', 'authorization_dpop', 'cookie'}
 IDLE_KINDS = {'refresh_token', 'session'}  # idle and absolute lifetimes are separate columns (gate1.md 5., A14)
+# R8 info: claims of the ID token (OpenID Connect Core 1.0 §2) or of the JWT access token (RFC 9068 §2.2, §2.2.1)
+IDT_AT_REGISTERED = {'iss', 'sub', 'aud', 'exp', 'iat', 'auth_time', 'nonce', 'acr', 'amr', 'azp', 'client_id', 'jti'}
 
 
 class Finding(dict):
@@ -215,6 +217,8 @@ def rule_ref(claims_doc, token_types, hops_doc, questions):
                 else:
                     need(cid, k, q, active, ' questions.yaml の questions')
         need(cid, 'paired_id', c.get('paired_id'), cids, '台帳')
+        for e in c.get('enforced_at') or []:
+            need(cid, 'enforced_at.with', e.get('with'), cids, '台帳')
         for a in c.get('alt') or []:
             if str(a).startswith('C-'):
                 need(cid, 'alt', a, cids, '台帳')
@@ -327,8 +331,12 @@ def rule_r8(claims, token_types, limits):
                 out.append(Finding('R8', WARN, tid, msg + f'。予算の {r8.WARN_RATIO:.0%} を超える（しきい値は筆者の提案）'))
             else:
                 out.append(Finding('R8', INFO, tid, msg))
-    # info: the same non-protocol claim on more than one carried token type
+    # info: the same non-protocol claim on more than one carried token type. A registered top-level claim that both the
+    # ID token (OpenID Connect Core 1.0 §2) and the JWT access token (RFC 9068 §2.2) define is not a duplicate (#6, from
+    # gate1.md 5.: iss, sub, aud, azp were the 4 false candidates of scenario A)
     for c in claims:
+        if c.get('namespace') is None and c.get('registered_ref') and c.get('name') in IDT_AT_REGISTERED:
+            continue
         if c.get('decision') in ('採用', '既定どおり') and c.get('usage') != 'protocol' and len(c.get('carried_in') or []) > 1:
             out.append(Finding('R8', INFO, c['id'], f"{'・'.join(c['carried_in'])} の両方に載る（重複の候補）"))
     return out, reports
@@ -374,7 +382,7 @@ def rule_slides(docs, files, root):
 
 
 # ------------------------------------------------------------------ driver
-def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=(), today=None):
+def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=(), today=None, caps_path=None):
     catalog_dir = catalog_dir or os.path.join(root, 'templates', 'catalog')
     limits_path = limits_path or os.path.join(HERE, 'path_limits.yaml')
     reg = os.path.join(root, 'templates', 'registry')
@@ -415,11 +423,13 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     r8_findings, reports = rule_r8(claims, tts, load_limits(limits_path))
     findings += r8_findings
     findings += coverage.rule_r10(catalog_dir, limits_path, tts, today)
+    sem_findings, checked = semantic.run(docs, profile, design_dir, root, catalog_dir, today, caps_path)  # #6
+    findings += sem_findings
     files = [p for p in paths.values() if os.path.isfile(p)] + list(extra_files)
     findings += rule_slides({k: docs[k] for k in docs}, files, root)
     counts = {s: sum(1 for f in findings if f['severity'] == s) for s in SEVERITIES}
     return {'design': _rel(design_dir, root), 'profile': profile,
-            'counts': counts, 'findings': findings, 'r8': reports,
+            'counts': counts, 'findings': findings, 'r8': reports, 'checked': checked,
             'catalog_events': len(catalog), 'claims': len(claims), 'token_types': len(tts)}
 
 

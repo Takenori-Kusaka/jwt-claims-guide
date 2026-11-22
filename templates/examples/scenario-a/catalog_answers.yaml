@@ -11,6 +11,15 @@
 idp:
   name: keycloak
   version: "26.8"
+# ---------------------------------------------------------------- Lite の判定の 5 問（#4。claim_lint の L73、#6 で足した）
+# 1 つでも Yes なら Full。この例はマルチテナントなので Full に当たるが、関門 1 の測定のために Lite の欄で書いた（design.md の冒頭）。
+# そのため --profile lite では L73 の warn が出る（正しい指摘。research/template-design/gate1.md の 5. の A17）
+lite_criteria:
+  crosses_boundary: {answer: false, reason: トークンは組織の中（BFF・nginx・saas-api）だけを通り、外部の組織のサービスに渡さない}
+  multitenant: {answer: true, reason: テナントごとにレルムを分けたマルチテナントの SaaS}
+  delegation_or_exchange: {answer: false, reason: 代理・委任もトークン交換も置かない（TXN・INTERNAL は却下）}
+  new_issuer: {answer: false, reason: 発行者は既存の Keycloak のレルムだけで、新しい発行者を作らない}
+  regulated: {answer: false, reason: FAPI などの規制の対象ではない（issuance_profile.conformance_profile は none）}
 # ---------------------------------------------------------------- 主体の状態 × トークン・セッション（R4）
 # 行と列は templates/catalog/subject_state_matrix.md。結果は「発行・再計算・失効・影響なし」。カタログの結果は対策を入れる前の姿で、
 # ここはこの設計での姿。「影響なし」「再計算」には、許す遅れか対策を basis に書く

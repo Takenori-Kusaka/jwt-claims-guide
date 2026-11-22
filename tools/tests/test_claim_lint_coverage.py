@@ -75,8 +75,10 @@ def event_row(doc, eid):
 def test_example_has_no_error_and_known_warnings():
     res = core.run(EXAMPLE, today=TODAY)
     assert res['counts']['error'] == 0, core.format_table(res)
-    # the only warnings: R3b on I25 / I26, where the catalogue has hook_invoked unknown for Keycloak (#2)
-    assert sorted((f['rule'], f['target']) for f in res['findings'] if f['severity'] == 'warn') == [('R3b', 'I25'), ('R3b', 'I26')]
+    # the only warnings of the coverage rules: R3b on I25 / I26, where the catalogue has hook_invoked unknown for Keycloak (#2).
+    # The semantic rules (L*, #6) have their own expected warnings in test_claim_lint_semantic.py
+    assert sorted((f['rule'], f['target']) for f in res['findings']
+                  if f['severity'] == 'warn' and not f['rule'].startswith('L')) == [('R3b', 'I25'), ('R3b', 'I26')]
 
 
 def test_example_lite_has_no_error():

@@ -1,0 +1,170 @@
+# IANA JSON Web Token Claims registry: the registered claim names (L1a / L1b of claim_lint, #6).
+# Source: https://www.iana.org/assignments/jwt/claims.csv (fetched 2026-11-23). Generated from that file; type and shape are
+# added only for the names whose defining spec fixes them (RFC 7519 §4.1, OpenID Connect Core 1.0 §2 / §5.1, RFC 9068 §2.2,
+# RFC 7643 §4.1.2 for roles / groups / entitlements, RFC 8693 §4.1 / §4.4, RFC 7800 §3.1, RFC 9396 §2, RFC 8417 §2.2).
+# A name absent here is unregistered (L1b). Review by the date below (90 days, as sources.md of the catalogue).
+source: {url: "https://www.iana.org/assignments/jwt/claims.csv", verified_on: "2026-11-23", review_by: "2027-02-21"}
+claims:
+  - {"name": "iss", "ref": "[RFC 7519, Section 4.1.1]", "type": "string", "shape": ["single"]}
+  - {"name": "sub", "ref": "[RFC 7519, Section 4.1.2]", "type": "string", "shape": ["single"]}
+  - {"name": "aud", "ref": "[RFC 7519, Section 4.1.3]", "type": "string", "shape": ["single", "array"]}
+  - {"name": "exp", "ref": "[RFC 7519, Section 4.1.4]", "type": "integer", "shape": ["single"]}
+  - {"name": "nbf", "ref": "[RFC 7519, Section 4.1.5]", "type": "integer", "shape": ["single"]}
+  - {"name": "iat", "ref": "[RFC 7519, Section 4.1.6]", "type": "integer", "shape": ["single"]}
+  - {"name": "jti", "ref": "[RFC 7519, Section 4.1.7]", "type": "string", "shape": ["single"]}
+  - {"name": "name", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "given_name", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "family_name", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "middle_name", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "nickname", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "preferred_username", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "profile", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "picture", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "website", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "email", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "email_verified", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "boolean", "shape": ["single"]}
+  - {"name": "gender", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "birthdate", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "zoneinfo", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "locale", "ref": "[OpenID Connect Core 1.0, Section 5.1]"}
+  - {"name": "phone_number", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "string", "shape": ["single"]}
+  - {"name": "phone_number_verified", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "boolean", "shape": ["single"]}
+  - {"name": "address", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "object", "shape": ["single"]}
+  - {"name": "updated_at", "ref": "[OpenID Connect Core 1.0, Section 5.1]", "type": "integer", "shape": ["single"]}
+  - {"name": "azp", "ref": "[OpenID Connect Core 1.0, Section 2]", "type": "string", "shape": ["single"]}
+  - {"name": "nonce", "ref": "[OpenID Connect Core 1.0, Section 2]; [RFC 9449]", "type": "string", "shape": ["single"]}
+  - {"name": "auth_time", "ref": "[OpenID Connect Core 1.0, Section 2]", "type": "integer", "shape": ["single"]}
+  - {"name": "at_hash", "ref": "[OpenID Connect Core 1.0, Section 2]"}
+  - {"name": "c_hash", "ref": "[OpenID Connect Core 1.0, Section 3.3.2.11]"}
+  - {"name": "acr", "ref": "[OpenID Connect Core 1.0, Section 2]", "type": "string", "shape": ["single"]}
+  - {"name": "amr", "ref": "[OpenID Connect Core 1.0, Section 2]", "type": "string", "shape": ["array"]}
+  - {"name": "sub_jwk", "ref": "[OpenID Connect Core 1.0, Section 7.4]"}
+  - {"name": "cnf", "ref": "[RFC 7800, Section 3.1]", "type": "object", "shape": ["single"]}
+  - {"name": "sip_from_tag", "ref": "[RFC 8055]; [RFC 3261]"}
+  - {"name": "sip_date", "ref": "[RFC 8055]; [RFC 3261]"}
+  - {"name": "sip_callid", "ref": "[RFC 8055]; [RFC 3261]"}
+  - {"name": "sip_cseq_num", "ref": "[RFC 8055]; [RFC 3261]"}
+  - {"name": "sip_via_branch", "ref": "[RFC 8055]; [RFC 3261]"}
+  - {"name": "orig", "ref": "[RFC 8225, Section 5.2.1]"}
+  - {"name": "dest", "ref": "[RFC 8225, Section 5.2.1]"}
+  - {"name": "mky", "ref": "[RFC 8225, Section 5.2.2]"}
+  - {"name": "events", "ref": "[RFC 8417, Section 2.2]", "type": "object", "shape": ["single"]}
+  - {"name": "toe", "ref": "[RFC 8417, Section 2.2]"}
+  - {"name": "txn", "ref": "[RFC 8417, Section 2.2]", "type": "string", "shape": ["single"]}
+  - {"name": "rph", "ref": "[RFC 8443, Section 3]"}
+  - {"name": "sid", "ref": "[OpenID Connect Front-Channel Logout 1.0, Section 3]", "type": "string", "shape": ["single"]}
+  - {"name": "vot", "ref": "[RFC 8485]"}
+  - {"name": "vtm", "ref": "[RFC 8485]"}
+  - {"name": "attest", "ref": "[RFC 8588]"}
+  - {"name": "origid", "ref": "[RFC 8588]"}
+  - {"name": "act", "ref": "[RFC 8693, Section 4.1]", "type": "object", "shape": ["single"]}
+  - {"name": "scope", "ref": "[RFC 8693, Section 4.2]", "type": "string", "shape": ["space_delimited"]}
+  - {"name": "client_id", "ref": "[RFC 8693, Section 4.3]", "type": "string", "shape": ["single"]}
+  - {"name": "may_act", "ref": "[RFC 8693, Section 4.4]", "type": "object", "shape": ["single"]}
+  - {"name": "jcard", "ref": "[RFC 8688]; [RFC 7095]"}
+  - {"name": "at_use_nbr", "ref": "[ETSI GS NFV-SEC 022 V2.7.1]"}
+  - {"name": "div", "ref": "[RFC 8946]"}
+  - {"name": "opt", "ref": "[RFC 8946]"}
+  - {"name": "vc", "ref": "[W3C Recommendation Verifiable Credentials Data Model 1.0 - Expressing verifiable information on the Web (19 November 2019), Section 6.3.1]"}
+  - {"name": "vp", "ref": "[W3C Recommendation Verifiable Credentials Data Model 1.0 - Expressing verifiable information on the Web (19 November 2019), Section 6.3.1]"}
+  - {"name": "sph", "ref": "[RFC 9027]"}
+  - {"name": "ace_profile", "ref": "[RFC 9200, Section 5.10]"}
+  - {"name": "cnonce", "ref": "[RFC 9200, Section 5.10]"}
+  - {"name": "exi", "ref": "[RFC 9200, Section 5.10.3]"}
+  - {"name": "roles", "ref": "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]", "type": "string", "shape": ["array"]}
+  - {"name": "groups", "ref": "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]", "type": "string", "shape": ["array"]}
+  - {"name": "entitlements", "ref": "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]", "type": "string", "shape": ["array"]}
+  - {"name": "token_introspection", "ref": "[RFC 9701, Section 5]"}
+  - {"name": "eat_nonce", "ref": "[RFC 9711]"}
+  - {"name": "ueid", "ref": "[RFC 9711]"}
+  - {"name": "sueids", "ref": "[RFC 9711]"}
+  - {"name": "oemid", "ref": "[RFC 9711]"}
+  - {"name": "hwmodel", "ref": "[RFC 9711]"}
+  - {"name": "hwversion", "ref": "[RFC 9711]"}
+  - {"name": "oemboot", "ref": "[RFC 9711]"}
+  - {"name": "dbgstat", "ref": "[RFC 9711]"}
+  - {"name": "location", "ref": "[RFC 9711]"}
+  - {"name": "eat_profile", "ref": "[RFC 9711]"}
+  - {"name": "submods", "ref": "[RFC 9711]"}
+  - {"name": "uptime", "ref": "[RFC 9711]"}
+  - {"name": "bootcount", "ref": "[RFC 9711]"}
+  - {"name": "bootseed", "ref": "[RFC 9711]"}
+  - {"name": "dloas", "ref": "[RFC 9711]"}
+  - {"name": "swname", "ref": "[RFC 9711]"}
+  - {"name": "swversion", "ref": "[RFC 9711]"}
+  - {"name": "manifests", "ref": "[RFC 9711]"}
+  - {"name": "measurements", "ref": "[RFC 9711]"}
+  - {"name": "measres", "ref": "[RFC 9711]"}
+  - {"name": "intuse", "ref": "[RFC 9711]"}
+  - {"name": "cdniv", "ref": "[RFC 9246, Section 2.1.8]"}
+  - {"name": "cdnicrit", "ref": "[RFC 9246, Section 2.1.9]"}
+  - {"name": "cdniip", "ref": "[RFC 9246, Section 2.1.10]"}
+  - {"name": "cdniuc", "ref": "[RFC 9246, Section 2.1.11]"}
+  - {"name": "cdniets", "ref": "[RFC 9246, Section 2.1.12]"}
+  - {"name": "cdnistt", "ref": "[RFC 9246, Section 2.1.13]"}
+  - {"name": "cdnistd", "ref": "[RFC 9246, Section 2.1.14]"}
+  - {"name": "sig_val_claims", "ref": "[RFC 9321, Section 3.2.3]"}
+  - {"name": "authorization_details", "ref": "[RFC 9396, Section 9.1]", "type": "object", "shape": ["array"]}
+  - {"name": "verified_claims", "ref": "[OpenID Identity Assurance Schema Definition 1.0, Section 5]"}
+  - {"name": "place_of_birth", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "nationalities", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "birth_family_name", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "birth_given_name", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "birth_middle_name", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "salutation", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "title", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "msisdn", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "also_known_as", "ref": "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]"}
+  - {"name": "htm", "ref": "[RFC 9449, Section 4.2]"}
+  - {"name": "htu", "ref": "[RFC 9449, Section 4.2]"}
+  - {"name": "ath", "ref": "[RFC 9449, Section 4.2]"}
+  - {"name": "atc", "ref": "[RFC 9447]"}
+  - {"name": "sub_id", "ref": "[RFC 9493, Section 4.1]"}
+  - {"name": "rcd", "ref": "[RFC 9795]"}
+  - {"name": "rcdi", "ref": "[RFC 9795]"}
+  - {"name": "crn", "ref": "[RFC 9795]"}
+  - {"name": "msgi", "ref": "[RFC 9475]"}
+  - {"name": "_claim_names", "ref": "[OpenID Connect Core 1.0, Section 5.6.2]"}
+  - {"name": "_claim_sources", "ref": "[OpenID Connect Core 1.0, Section 5.6.2]"}
+  - {"name": "rdap_allowed_purposes", "ref": "[RFC 9560, Section 3.1.5.1]"}
+  - {"name": "rdap_dnt_allowed", "ref": "[RFC 9560, Section 3.1.5.2]"}
+  - {"name": "geohash", "ref": "[Fast and Readable Geographical Hashing (CTA-5009)]"}
+  - {"name": "_sd", "ref": "[RFC 9901, Section 4.2.4.1]"}
+  - {"name": "...", "ref": "[RFC 9901, Section 4.2.4.2]"}
+  - {"name": "_sd_alg", "ref": "[RFC 9901, Section 4.1.1]"}
+  - {"name": "sd_hash", "ref": "[RFC 9901, Section 4.3]"}
+  - {"name": "consumerPlmnId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "consumerSnpnId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerPlmnId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerSnpnId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerSnssaiList", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerNsiList", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerNfSetId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "producerNfServiceSetId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "sourceNfInstanceId", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "analyticsIdList", "ref": "[3GPP TS 29.510, Clause 6.3.5.2.4]"}
+  - {"name": "resOwnerId", "ref": "[3GPP TS 29.222, Clause 8.5.4.2.8]"}
+  - {"name": "cmw", "ref": "[RFC 9999, Section 3.1, 3.3]"}
+  - {"name": "jwks", "ref": "[OpenID Federation 1.0, Section 13.1]"}
+  - {"name": "metadata", "ref": "[OpenID Federation 1.0, Section 13.2]"}
+  - {"name": "constraints", "ref": "[OpenID Federation 1.0, Section 13.3]"}
+  - {"name": "crit", "ref": "[OpenID Federation 1.0, Section 13.4]"}
+  - {"name": "ref", "ref": "[OpenID Federation 1.0, Section 13.5]"}
+  - {"name": "delegation", "ref": "[OpenID Federation 1.0, Section 13.6]"}
+  - {"name": "logo_uri", "ref": "[OpenID Federation 1.0, Section 13.7]"}
+  - {"name": "authority_hints", "ref": "[OpenID Federation 1.0, Section 3.2]"}
+  - {"name": "trust_anchor_hints", "ref": "[OpenID Federation 1.0, Section 3.2]"}
+  - {"name": "trust_marks", "ref": "[OpenID Federation 1.0, Section 3.2]"}
+  - {"name": "trust_mark_issuers", "ref": "[OpenID Federation 1.0, Section 3.2]"}
+  - {"name": "trust_mark_owners", "ref": "[OpenID Federation 1.0, Section 3.2]"}
+  - {"name": "metadata_policy", "ref": "[OpenID Federation 1.0, Section 3.3]"}
+  - {"name": "metadata_policy_crit", "ref": "[OpenID Federation 1.0, Section 3.3]"}
+  - {"name": "source_endpoint", "ref": "[OpenID Federation 1.0, Section 3.3]"}
+  - {"name": "keys", "ref": "[OpenID Federation 1.0, Section 5.2.1]"}
+  - {"name": "trust_mark_type", "ref": "[OpenID Federation 1.0, Section 7.1]"}
+  - {"name": "trust_chain", "ref": "[OpenID Federation 1.0, Section 8.3.2]"}
+  - {"name": "trust_anchor", "ref": "[OpenID Federation 1.0, Section 12.2.3]"}
+  - {"name": "status", "ref": "[RFC-ietf-oauth-status-list-21, Section 6.1]", "type": "object", "shape": ["single"]}
+  - {"name": "status_list", "ref": "[RFC-ietf-oauth-status-list-21, Section 5.1]"}
+  - {"name": "ttl", "ref": "[RFC-ietf-oauth-status-list-21, Section 5.1]"}
+  - {"name": "stpl", "ref": "[RFC-ietf-stir-certificates-ocsp-14]"}
