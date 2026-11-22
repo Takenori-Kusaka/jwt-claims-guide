@@ -34,7 +34,7 @@
 | `registry:claims#privilege_level` | クレームが選ぶ権限の強さ（DB のロール・マスキングの解除など最高権限の印） | `p07-trust-boundary.R4`, `p07-masking.R1` |
 | `registry:hops#connection_max_lifetime` | DB・ブローカーへのホップの接続の最大寿命と再認証の設定 | `p07-lifetime-mismatch.R1`, `p08-copies-outlive-token.R1` |
 | `registry:token_types#client_type` | クライアントの種類（公開／機密／FAPI 対象） | `p06-grant-types.R1`, `p08-rotation.R2` |
-| `registry:token_types#rt_idle_timeout` | 長く使われない RT を失効させる期間 | `p08-rotation.R4` |
+| `registry:token_types#idle_timeout` | 長く使われない RT・セッションを失効させる期間（idle。絶対的な上限の max_lifetime とは別の列。#3 で rt_idle_timeout から改名） | `p08-rotation.R4` |
 | `registry:token_types#introspection_cache_ttl` | イントロスペクション応答のキャッシュの TTL（応答の exp を超えない） | `p08-revocation-propagation.R3`, `p08-copies-outlive-token.R2` |
 | `registry:token_types#selective_disclosure` | SD-JWT の選択的開示の対象クレームと鍵束縛の有無 | `p09-jwe-sd-jwt.R3` |
 | `registry:token_types#max_delegation_depth` | 委任の連鎖（act の入れ子）の深さの上限（組織の規則） | `p10-delegation-chain-depth.R1`, `p12-priorities-deferrals.R6` |

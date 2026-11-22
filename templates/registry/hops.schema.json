@@ -1,0 +1,220 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/hops.schema.json/v0.2.0",
+ "$comment": "template_version: 0.2.0. Registry v1 (#3): per-hop declarations of slide:p06-narrow-downstream (downstream never wider than upstream): aud, scope, lifetime, organization claims, exchanger. Checked by L16 of #6.",
+ "title": "Hops v1",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "hops"
+ ],
+ "properties": {
+  "hops": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/hop"
+   },
+   "maxItems": 50,
+   "minItems": 1
+  }
+ },
+ "$defs": {
+  "hop": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^H[0-9]+$"
+    },
+    "from": {
+     "type": "string",
+     "minLength": 1
+    },
+    "to": {
+     "type": "string",
+     "minLength": 1
+    },
+    "kind": {
+     "enum": [
+      "entry",
+      "service",
+      "exchange",
+      "reissue",
+      "db_connection",
+      "broker_connection",
+      "browser"
+     ]
+    },
+    "upstream": {
+     "type": "string",
+     "pattern": "^H[0-9]+$",
+     "description": "Hop whose token this hop narrows (for exchange / reissue / service)"
+    },
+    "token_type": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[A-Z][A-Za-z0-9_-]*$"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "Token type of token_types.yaml on this hop, null when no token travels (a DB connection)"
+    },
+    "aud": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 10,
+     "uniqueItems": true,
+     "description": "aud of the token on this hop (resource indicator, RFC 8707). Downstream does not widen it",
+     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-flow-browser-to-db.R3 req:p06-narrow-downstream.R2"
+    },
+    "scope": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 50,
+     "uniqueItems": true,
+     "description": "scope on this hop. Downstream does not widen it",
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
+    },
+    "max_lifetime": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "minimum": 0,
+     "description": "Seconds; lifetime of the token on this hop (null when no token). Downstream does not exceed upstream unless narrowing_exception says why (Txn-Token may outlive, draft-ietf-oauth-transaction-tokens-11 §13.6)",
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
+    },
+    "custom_claims": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^C-[a-z0-9-]+$"
+     },
+     "maxItems": 50,
+     "uniqueItems": true,
+     "description": "Registry rows of organization claims carried on this hop (or the values copied, for a DB hop)",
+     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-narrow-downstream.R2"
+    },
+    "authorization_details": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 20,
+     "uniqueItems": true,
+     "description": "authorization_details types carried on this hop, narrowed to its audience (RFC 9396 §9.1)"
+    },
+    "exchanger": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "Service that exchanges or reissues the token for this hop (null when the token is passed as is)",
+     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-narrow-downstream.R2"
+    },
+    "validates": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "mode": {
+       "enum": [
+        "local",
+        "introspection",
+        "none"
+       ]
+      },
+      "checks": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1
+       },
+       "maxItems": 20,
+       "minItems": 1
+      }
+     },
+     "required": [
+      "mode",
+      "checks"
+     ],
+     "description": "What the receiver of the hop checks and whether it validates locally (accepted until exp) or asks the issuer",
+     "$comment": "Trace: req:p08-revocation-propagation.R4"
+    },
+    "connection_max_lifetime": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "minimum": 0,
+     "description": "Seconds; lifetime of a DB / broker connection on this hop, compared with the token lifetime (slide:p07-lifetime-mismatch)"
+    },
+    "forwarded_headers": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "name": {
+        "type": "string",
+        "minLength": 1
+       },
+       "claim": {
+        "type": "string",
+        "pattern": "^C-[a-z0-9-]+$"
+       },
+       "strip_inbound": {
+        "type": "boolean"
+       },
+       "written_only_by": {
+        "type": "string",
+        "minLength": 1
+       },
+       "encoding": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "name",
+       "strip_inbound",
+       "written_only_by"
+      ]
+     },
+     "maxItems": 20,
+     "description": "Claims copied into headers on this hop (L8: inbound headers of the same name are dropped)"
+    },
+    "narrowing_exception": {
+     "type": "string",
+     "minLength": 1
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "from",
+    "to",
+    "kind",
+    "token_type",
+    "aud",
+    "scope",
+    "max_lifetime",
+    "custom_claims",
+    "exchanger",
+    "validates"
+   ]
+  }
+ }
+}

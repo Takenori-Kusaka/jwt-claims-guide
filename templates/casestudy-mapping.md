@@ -177,20 +177,21 @@
 | 文章を写してしまう | 一覧表の文章が `templates/` に入り、直す場所が 2 か所になる | 文章は写さず、台帳では書き直す。事実（名前・型・値）と ID だけを参照する |
 | 似た名前の列を同じものとして写す | `status`・`checked_on`・`pii` が別の意味のまま混ざる | 3. の「意味が違う」「一部」の行は、機械的に写さない |
 
-上の照合の CI と `casestudy-deviations.yaml` は、まだありません。8. で #3 に渡します。それまでは、二重管理の対策は未実施です。
+上の照合の CI は `tools/casestudy_check.py` です（#3。ORG 行の名前と型、採否と判定の照合）。`casestudy-deviations.yaml` は #16 で作りました。8. の #3 の項目ごとの回答は `templates/registry/README.md` の 12. にあります。
 
 ## 8. 後続の issue に渡すこと
 
 この PR のマージ後に、各 issue にコメントで渡します。各 issue を閉じるときは、下の項目ごとに、実装したか、実装しない理由を書きます（完了の定義の「指摘ごとに反映したか、反映しない理由」と同じ扱い）。
 
 ### #3（台帳 v1）
-- [ ] ORG 行の名前と型を、固定したコミットの `catalog.json` と照合する CI
-- [ ] 記入例の採否を、ケーススタディの判定と照合する CI と、`templates/casestudy-deviations.yaml` の形式
-- [ ] 一覧表の ID を参照する列（`catalog_ref`）を足すか
-- [ ] `alt`（代替のクレーム）、`comparison`・`uniqueness`・`vocabulary`、`synonym_group` を足すか
-- [ ] `decision` の値を細かくするか（「代替あり・不要・禁止」の区別）
-- [ ] 台帳の README の列ごとの説明に、3. の対応を載せる
-- [ ] ASVS を `asvs_ids` に書き、`refs` に書かない、をスキーマで確かめる
+回答（実装したか、実装しない理由）は `templates/registry/README.md` の 12. にあります（PR「クレーム台帳 v1 (#3)」）。
+- [x] ORG 行の名前と型を、固定したコミットの `catalog.json` と照合する CI（`tools/casestudy_check.py`）
+- [x] 記入例の採否を、ケーススタディの判定と照合する CI と、`templates/casestudy-deviations.yaml` の形式（同上）
+- [x] 一覧表の ID を参照する列（`catalog_ref`）を足すか（配列の `catalog_refs` で足した）
+- [x] `alt`（代替のクレーム）、`comparison`・`uniqueness`・`vocabulary`、`synonym_group` を足すか（`alt`・`value_vocabulary`・`value_normalization.compare` を足し、`uniqueness`・`synonym_group` は理由つきで足さない）
+- [x] `decision` の値を細かくするか（「代替あり・不要・禁止」の区別）（`decision` は 3 値のまま、`rejection_kind` で持つ）
+- [x] 台帳の README の列ごとの説明に、3. の対応を載せる
+- [x] ASVS を `asvs_ids` に書き、`refs` に書かない、をスキーマで確かめる
 
 ### #2（カタログ）
 - [ ] `keycloak.refresh_reevaluation`・`keycloak.logout_introspection`・`C.keycloak_exchange` を、Keycloak のリフレッシュ・ログアウト・トークン交換の行の `evidence` にする

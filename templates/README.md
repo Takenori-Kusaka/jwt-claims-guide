@@ -15,7 +15,7 @@
 
 いま入っているのは、共通の規約（[CONTRIBUTING.md](CONTRIBUTING.md)）と、ケーススタディとの対応表（[casestudy-mapping.md](casestudy-mapping.md)）と、#16（縦の一本）で作った仮の版です。仮の版は列や形が変わります。
 
-- 発行・利用イベントのカタログ（[catalog/](catalog/)。Keycloak 26.8 と Auth0。#2）と、台帳のスキーマ v0（[registry/](registry/)）
+- 発行・利用イベントのカタログ（[catalog/](catalog/)。Keycloak 26.8 と Auth0。#2）と、台帳 v1（[registry/](registry/)。スキーマ・問いの一覧・発行方式の効果。#3）
   - カタログの出どころと、種になる一覧との差集合（[catalog/sources.md](catalog/sources.md)）。検査は `python tools/catalog_check.py`
 - シナリオ A（Keycloak）の記入例（[examples/scenario-a/](examples/scenario-a/)）。推奨ではなく、ケーススタディの前提での一例
 - 検査：`python tools/claim_lint templates/examples/scenario-a`（規則は [tools/claim_lint/RULES.md](../tools/claim_lint/RULES.md)）

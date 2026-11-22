@@ -1,152 +1,1157 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/token_types.schema.json/v0.1.0",
-  "$comment": "template_version: 0.1.0. Schema v0 (#16): token inventory, the minimal issuance_profile and the size inputs of rule R8, only as far as scenario A (Keycloak) needs them. Gaps are listed in research/template-design/v0-columns.md for #3.",
-  "title": "Token types and issuance profile v0",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["issuance_profile", "token_types"],
-  "properties": {
-    "issuance_profile": {"$ref": "#/$defs/issuance_profile"},
-    "token_types": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/token_type"}}
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/token_types.schema.json/v0.2.0",
+ "$comment": "template_version: 0.2.0. Registry v1 (#3): token inventory (one row per token kind of templates/catalog/token_kinds.yaml, adopted or rejected with a reason), validation profile, lifetime and revocation, keys, who can read the token, JWE, size inputs of rule R8, and the issuance_profile (effects of each choice in issuance_effects.yaml). Columns are described in templates/registry/README.md.",
+ "title": "Token types and issuance profile v1",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "issuance_profile",
+  "token_types"
+ ],
+ "properties": {
+  "issuance_profile": {
+   "$ref": "#/$defs/issuance_profile"
   },
-  "$defs": {
-    "text": {"type": "string", "minLength": 1},
-    "ref": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "id"],
+  "token_types": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/token_type"
+   },
+   "maxItems": 100,
+   "minItems": 1
+  }
+ },
+ "$defs": {
+  "text": {
+   "type": "string",
+   "minLength": 1
+  },
+  "ref": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "id"
+   ],
+   "properties": {
+    "kind": {
+     "enum": [
+      "spec",
+      "guidance",
+      "research",
+      "book",
+      "incident",
+      "guide-slide",
+      "author-proposal"
+     ]
+    },
+    "id": {
+     "type": "string",
+     "minLength": 1
+    },
+    "url": {
+     "type": "string",
+     "pattern": "^https?://"
+    },
+    "verified_on": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "tracking": {
+     "type": "string",
+     "pattern": "^#\\d+$"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
       "properties": {
-        "kind": {"enum": ["spec", "guidance", "research", "book", "incident", "guide-slide", "author-proposal"]},
-        "id": {"type": "string", "minLength": 1},
-        "url": {"type": "string"},
-        "verified_on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
-        "tracking": {"type": "string", "pattern": "^#\\d+$"}
-      },
-      "allOf": [
-        {"if": {"properties": {"kind": {"const": "author-proposal"}}}, "then": {"required": ["tracking"]}}
+       "kind": {
+        "const": "author-proposal"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "tracking"
       ]
+     }
     },
-    "choice": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["value", "rationale"],
+    {
+     "$comment": "ASVS belongs in asvs_ids, not in refs (templates/CONTRIBUTING.md 1., casestudy-mapping.md 8.)",
+     "not": {
+      "required": [
+       "id"
+      ],
       "properties": {
-        "value": {},
-        "rationale": {"$ref": "#/$defs/text"},
-        "refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}}
+       "id": {
+        "pattern": "(?i)^\\s*(OWASP\\s+)?ASVS"
+       }
       }
+     }
+    }
+   ]
+  },
+  "choice": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "value": {},
+    "rationale": {
+     "type": "string",
+     "minLength": 1
     },
-    "issuance_profile": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["client_type", "client_auth", "grants", "sender_constraint", "at_format", "rt_strategy"],
-      "properties": {
-        "client_type": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["public", "confidential", "fapi"]}}}]},
-        "client_auth": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["private_key_jwt", "tls_client_auth", "client_secret_basic", "client_secret_post", "client_secret_jwt", "none"]}}}]},
-        "grants": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"type": "array", "items": {"enum": ["authorization_code_pkce", "client_credentials", "token_exchange", "ciba", "device_code", "refresh_token"]}}}}]},
-        "sender_constraint": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["none", "dpop", "mtls"]}}}]},
-        "at_format": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["jwt", "opaque_introspection", "phantom"]}}}]},
-        "rt_strategy": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["rotation_reuse_detection", "rotation", "sender_constrained", "none"]}}}]},
-        "request_protection": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"type": "array", "items": {"enum": ["par", "jar", "rar", "resource_indicators"]}}}}]},
-        "conformance_profile": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["none", "fapi2_security", "oauth2_1"]}}}]}
+    "refs": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 20,
+     "items": {
+      "$ref": "#/$defs/ref"
+     }
+    }
+   },
+   "required": [
+    "value",
+    "rationale"
+   ]
+  },
+  "issuance_profile": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "client_type": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "public",
+          "confidential",
+          "fapi"
+         ]
+        }
+       }
       }
+     ],
+     "$comment": "public / confidential / FAPI target. Effects (PKCE for public clients, no RT rotation for FAPI confidential clients with sender-constrained RTs) are in issuance_effects.yaml Trace: req:p06-grant-types.R1 req:p08-rotation.R2"
     },
-    "header_param": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "type", "max_bytes"],
-      "properties": {
-        "name": {"type": "string"},
-        "type": {"enum": ["string", "number"]},
-        "max_bytes": {"type": "integer", "minimum": 0}
+    "client_auth": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "private_key_jwt",
+          "tls_client_auth",
+          "self_signed_tls_client_auth",
+          "client_secret_basic",
+          "client_secret_post",
+          "client_secret_jwt",
+          "none"
+         ]
+        }
+       }
       }
+     ]
     },
-    "token_type": {
+    "grants": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 8,
+         "uniqueItems": true,
+         "items": {
+          "enum": [
+           "authorization_code_pkce",
+           "client_credentials",
+           "token_exchange",
+           "ciba",
+           "device_code",
+           "refresh_token",
+           "jwt_bearer"
+          ]
+         }
+        }
+       }
+      }
+     ]
+    },
+    "sender_constraint": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "none",
+          "dpop",
+          "mtls"
+         ]
+        }
+       }
+      }
+     ],
+     "$comment": "Trace: req:p01-client-made-jwts.R2 req:p08-rotation.R2"
+    },
+    "tls_termination": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "not_applicable",
+          "at_entry",
+          "end_to_end"
+         ]
+        }
+       }
+      }
+     ]
+    },
+    "forwarded_cert_header": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "strip_inbound": {
+       "const": true
+      },
+      "written_only_by": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "name",
+      "strip_inbound",
+      "written_only_by"
+     ],
+     "description": "When mTLS terminates at the entry: the header that carries the client certificate downstream. Inbound headers of the same name are dropped (L8) and only the entry writes it (L64)"
+    },
+    "at_format": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "jwt",
+          "opaque_introspection",
+          "phantom"
+         ]
+        }
+       }
+      }
+     ]
+    },
+    "rt_strategy": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "rotation_reuse_detection",
+          "rotation",
+          "sender_constrained",
+          "none"
+         ]
+        }
+       }
+      }
+     ]
+    },
+    "request_protection": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "type": "array",
+         "maxItems": 4,
+         "uniqueItems": true,
+         "items": {
+          "enum": [
+           "par",
+           "jar",
+           "rar",
+           "resource_indicators"
+          ]
+         }
+        }
+       }
+      }
+     ]
+    },
+    "conformance_profile": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/choice"
+      },
+      {
+       "properties": {
+        "value": {
+         "enum": [
+          "none",
+          "fapi2_security",
+          "oauth2_1"
+         ]
+        }
+       }
+      }
+     ]
+    }
+   },
+   "required": [
+    "client_type",
+    "client_auth",
+    "grants",
+    "sender_constraint",
+    "at_format",
+    "rt_strategy",
+    "request_protection",
+    "conformance_profile"
+   ],
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "sender_constraint": {
+        "properties": {
+         "value": {
+          "const": "mtls"
+         }
+        }
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "tls_termination"
+      ]
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "tls_termination": {
+        "properties": {
+         "value": {
+          "const": "at_entry"
+         }
+        }
+       }
+      },
+      "required": [
+       "tls_termination"
+      ]
+     },
+     "then": {
+      "required": [
+       "forwarded_cert_header"
+      ]
+     }
+    }
+   ]
+  },
+  "header_param": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "type",
+    "max_bytes"
+   ],
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "type": {
+     "enum": [
+      "string",
+      "number"
+     ]
+    },
+    "max_bytes": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  },
+  "token_type": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Z][A-Za-z0-9_-]*$"
+    },
+    "kind": {
+     "enum": [
+      "access_token",
+      "id_token",
+      "refresh_token",
+      "session",
+      "authorization_code",
+      "txn_token",
+      "logout_token",
+      "internal_token",
+      "id_jag",
+      "dpop_proof",
+      "client_assertion",
+      "jar_request_object",
+      "jarm_response",
+      "jwt",
+      "security_event_token",
+      "status_list_token",
+      "introspection_response_jwt"
+     ],
+     "description": "ID of templates/catalog/token_kinds.yaml (tools/catalog_check.py checks)"
+    },
+    "decision": {
+     "enum": [
+      "採用",
+      "却下",
+      "既定どおり"
+     ]
+    },
+    "rationale": {
+     "type": "string",
+     "minLength": 1
+    },
+    "assumption": {
+     "type": "string",
+     "minLength": 1
+    },
+    "revisit_trigger": {
+     "type": "string",
+     "minLength": 1
+    },
+    "refs": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 20,
+     "items": {
+      "$ref": "#/$defs/ref"
+     }
+    },
+    "purpose": {
+     "type": "string",
+     "minLength": 1
+    },
+    "issuer": {
+     "type": "string",
+     "minLength": 1
+    },
+    "aud": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 20,
+     "minItems": 1,
+     "uniqueItems": true
+    },
+    "holder": {
+     "type": "string",
+     "minLength": 1
+    },
+    "format": {
+     "enum": [
+      "jwt",
+      "opaque"
+     ]
+    },
+    "subject_type": {
+     "enum": [
+      "public",
+      "pairwise"
+     ]
+    },
+    "typ": {
+     "type": "string",
+     "minLength": 1
+    },
+    "alg_allowlist": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 5,
+     "minItems": 1,
+     "uniqueItems": true,
+     "description": "Allowed alg values; one per key"
+    },
+    "issuers": {
+     "type": "array",
+     "items": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "decision", "rationale", "format"],
       "properties": {
-        "id": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9_-]*$"},
-        "kind": {"enum": ["access_token", "id_token", "refresh_token", "authorization_code", "session", "logout_token", "txn_token", "dpop_proof", "internal_token"]},
-        "decision": {"enum": ["採用", "却下", "既定どおり"]},
-        "rationale": {"$ref": "#/$defs/text"},
-        "purpose": {"$ref": "#/$defs/text"},
-        "issuer": {"$ref": "#/$defs/text"},
-        "aud": {"type": "array", "items": {"type": "string"}},
-        "holder": {"$ref": "#/$defs/text"},
-        "format": {"enum": ["jwt", "opaque"]},
-        "typ": {"type": "string"},
-        "alg_allowlist": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "issuers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["iss", "jwks_uri"],
-            "properties": {"iss": {"type": "string"}, "jwks_uri": {"type": "string"}}
-          }
+       "iss": {
+        "type": "string",
+        "minLength": 1
+       },
+       "jwks_uri": {
+        "type": "string",
+        "pattern": "^https://"
+       }
+      },
+      "required": [
+       "iss",
+       "jwks_uri"
+      ]
+     },
+     "maxItems": 100,
+     "minItems": 1,
+     "description": "Allowed iss with the jwks_uri of its metadata; keys are taken only from there"
+    },
+    "key_source": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "from": {
+       "enum": [
+        "issuer_metadata_jwks_uri",
+        "configured_jwks_uri",
+        "static_keys"
+       ]
+      },
+      "header_key_params": {
+       "const": "reject",
+       "description": "jku, x5u, jwk, x5c in the JOSE header are not followed or trusted"
+      }
+     },
+     "required": [
+      "from",
+      "header_key_params"
+     ]
+    },
+    "required_claims": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "uniqueItems": true,
+     "description": "Claims the consumer rejects the token without (RFC 9068 §2.2 for at+jwt: iss, exp, aud, sub, client_id, iat, jti). Namespaced claims as <namespace>.<name>",
+     "$comment": "Trace: req:p02-delegation-client.R6"
+    },
+    "max_clock_skew": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "max_lifetime": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "Seconds; the absolute upper bound (for sessions and RTs the absolute lifetime)"
+    },
+    "idle_timeout": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "Seconds without use after which an RT or a session ends (separate from the absolute max_lifetime)",
+     "$comment": "Trace: req:p08-rotation.R4"
+    },
+    "lifetime_refs": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 20,
+     "items": {
+      "$ref": "#/$defs/ref"
+     }
+    },
+    "lifetime_set_by": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 5,
+     "uniqueItems": true,
+     "items": {
+      "enum": [
+       "platform",
+       "tenant_admin",
+       "end_user",
+       "client",
+       "caller"
+      ]
+     },
+     "description": "Who can change the setting that decides the value (A01 of research/template-design/gate1.md 5.)"
+    },
+    "lifetime_exception": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "approved_by": {
+       "type": "string",
+       "minLength": 1
+      },
+      "reason": {
+       "type": "string",
+       "minLength": 1
+      },
+      "approved_on": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+     },
+     "required": [
+      "approved_by",
+      "reason",
+      "approved_on"
+     ],
+     "description": "Approval when max_lifetime exceeds the organization cap (L23 of #6)"
+    },
+    "refresh": {
+     "type": "string",
+     "minLength": 1
+    },
+    "rt_rotation": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "rotation": {
+       "type": "boolean"
+      },
+      "reuse_detection": {
+       "enum": [
+        "yes",
+        "no",
+        "unverified"
+       ]
+      }
+     },
+     "required": [
+      "rotation",
+      "reuse_detection"
+     ],
+     "description": "For refresh tokens: rotation and whether reuse of an old RT revokes the family"
+    },
+    "sender_constraint": {
+     "enum": [
+      "none",
+      "dpop",
+      "mtls"
+     ]
+    },
+    "jti_policy": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "unique_scope": {
+       "enum": [
+        "per_issuer",
+        "across_issuers"
+       ]
+      },
+      "replay_check": {
+       "type": "boolean"
+      },
+      "max_age_seconds": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "required": [
+      "unique_scope",
+      "replay_check"
+     ],
+     "description": "Uniqueness of jti and whether consumers reject a seen jti (for DPoP proofs within max_age_seconds of iat)",
+     "$comment": "Trace: req:p01-client-made-jwts.R2 req:p02-registered-claims.R5"
+    },
+    "revocation": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "method": {
+        "enum": [
+         "exp_only",
+         "introspection",
+         "status_list",
+         "ssf_caep",
+         "back_channel_logout",
+         "front_channel_logout",
+         "rp_initiated_logout",
+         "revocation_endpoint",
+         "session_delete",
+         "refresh_failure",
+         "db_lookup",
+         "one_time_use",
+         "rotation"
+        ]
+       },
+       "delay_seconds": {
+        "type": [
+         "integer",
+         "null"
+        ],
+        "minimum": 0
+       },
+       "note": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "method",
+       "delay_seconds"
+      ]
+     },
+     "maxItems": 10,
+     "minItems": 1,
+     "description": "Means that end the token (or session) before max_lifetime, with the worst-case delay until consumers stop accepting it. exp_only: a locally validated JWT stays until exp",
+     "$comment": "Trace: req:p06-flow-partner-events.R7 req:p08-logout.R2"
+    },
+    "introspection_cache_ttl": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "Seconds an introspection response is cached; never beyond the exp of the response (RFC 7662 §4)",
+     "$comment": "Trace: req:p08-revocation-propagation.R3"
+    },
+    "long_running": {
+     "type": "string",
+     "minLength": 1
+    },
+    "max_delegation_depth": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "tenant_binding": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "by": {
+       "type": "array",
+       "items": {
+        "enum": [
+         "iss",
+         "aud",
+         "tid",
+         "org_id",
+         "claim"
+        ]
+       },
+       "maxItems": 5,
+       "minItems": 1,
+       "uniqueItems": true
+      },
+      "claim": {
+       "type": "string",
+       "pattern": "^C-[a-z0-9-]+$"
+      }
+     },
+     "required": [
+      "by"
+     ],
+     "description": "How the tenant is bound to the token (L9 of #6)"
+    },
+    "key_rotation": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "period_days": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "minimum": 1
+      },
+      "publish_before_use_seconds": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "retire_after_seconds": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "publish_before_use_seconds",
+      "retire_after_seconds"
+     ],
+     "description": "New keys are published before use; old keys leave the JWKS after the longest token signed with them expires"
+    },
+    "unknown_kid": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "refetch_min_interval_seconds": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "negative_cache_seconds": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "on_fetch_failure": {
+       "enum": [
+        "use_last_known",
+        "reject"
+       ]
+      }
+     },
+     "required": [
+      "refetch_min_interval_seconds",
+      "negative_cache_seconds",
+      "on_fetch_failure"
+     ]
+    },
+    "jwks_cache_ttl": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "signing_key_scope": {
+     "enum": [
+      "per_tenant",
+      "shared",
+      "per_client"
+     ]
+    },
+    "stored_at": {
+     "enum": [
+      "browser",
+      "bff_server",
+      "idp",
+      "rp_server",
+      "service_memory",
+      "none"
+     ]
+    },
+    "transport": {
+     "enum": [
+      "authorization_bearer",
+      "authorization_dpop",
+      "cookie",
+      "form_post_body",
+      "token_response_body",
+      "back_channel_post",
+      "redirect_query",
+      "txn_token_header",
+      "introspection_response"
+     ],
+     "$comment": "Trace: req:p08-copies-outlive-token.R4"
+    },
+    "visible_to": {
+     "type": "array",
+     "items": {
+      "anyOf": [
+       {
+        "enum": [
+         "browser",
+         "client",
+         "bff",
+         "gateway",
+         "idp",
+         "api",
+         "db",
+         "logs",
+         "analytics",
+         "external_rp",
+         "broker"
+        ]
+       },
+       {
+        "type": "string",
+        "pattern": "^hop:[a-z0-9][a-z0-9._-]*$"
+       }
+      ]
+     },
+     "maxItems": 15,
+     "minItems": 1,
+     "uniqueItems": true,
+     "description": "Who holds or can read the token, derived from stored_at, transport, hops and logging (compared with confidential_from, L65 of #6)"
+    },
+    "jwe": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "used": {
+       "type": "boolean"
+      },
+      "nesting": {
+       "const": "sign_then_encrypt"
+      },
+      "recipients": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "recipient": {
+          "type": "string",
+          "minLength": 1
+         },
+         "key_ref": {
+          "type": "string",
+          "minLength": 1
+         }
         },
-        "required_claims": {"type": "array", "items": {"type": "string"}},
-        "max_clock_skew": {"type": "integer", "minimum": 0},
-        "max_lifetime": {"type": "integer", "minimum": 0, "description": "Seconds"},
-        "lifetime_refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}},
-        "refresh": {"$ref": "#/$defs/text"},
-        "revocation": {"$ref": "#/$defs/text"},
-        "stored_at": {"enum": ["browser", "bff_server", "idp", "rp_server", "none"]},
-        "transport": {"enum": ["authorization_bearer", "authorization_dpop", "cookie", "form_post_body", "token_response_body", "back_channel_post", "redirect_query"]},
-        "key_rotation": {"$ref": "#/$defs/text"},
-        "size": {"$ref": "#/$defs/size"},
-        "note": {"type": "string"}
+        "required": [
+         "recipient",
+         "key_ref"
+        ]
+       },
+       "maxItems": 10,
+       "minItems": 1
+      },
+      "decryptors": {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "enum": [
+           "browser",
+           "client",
+           "bff",
+           "gateway",
+           "idp",
+           "api",
+           "db",
+           "logs",
+           "analytics",
+           "external_rp",
+           "broker"
+          ]
+         },
+         {
+          "type": "string",
+          "pattern": "^hop:[a-z0-9][a-z0-9._-]*$"
+         }
+        ]
+       },
+       "maxItems": 10,
+       "minItems": 1,
+       "uniqueItems": true
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1
       }
+     },
+     "required": [
+      "used"
+     ],
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "used": {
+          "const": true
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "nesting",
+         "recipients",
+         "decryptors"
+        ]
+       }
+      }
+     ],
+     "description": "Whether the token is encrypted. When used: signed then encrypted, one encryption key per recipient, and who can decrypt",
+     "$comment": "Trace: req:p01-jwt-structure.R3"
+    },
+    "log_policy": {
+     "enum": [
+      "記録しない",
+      "jti だけ記録",
+      "ハッシュ化して記録",
+      "記録する"
+     ]
     },
     "size": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["signing", "header", "path"],
-      "description": "Inputs of rule R8. Only for JWT types that travel in an HTTP header",
-      "properties": {
-        "signing": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["alg"],
-          "properties": {"alg": {"type": "string"}, "key_bits": {"type": "integer", "minimum": 1}}
-        },
-        "header": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["params"],
-          "properties": {
-            "params": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/header_param"}},
-            "serializer_extra_bytes": {"type": "integer", "minimum": 0, "description": "Bytes the issuer's JSON serializer adds beyond compact JSON (whitespace). Measured per IdP and version"},
-            "serializer_extra_basis": {"type": "string"}
-          }
-        },
-        "path": {
-          "type": "array",
-          "minItems": 1,
-          "description": "Limits on the way of this token, as IDs of tools/claim_lint/path_limits.yaml or inline declared limits",
-          "items": {
-            "oneOf": [
-              {"type": "string"},
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["id", "applies_to", "bytes", "basis"],
-                "properties": {
-                  "id": {"type": "string"},
-                  "applies_to": {"enum": ["header_field", "all_headers"]},
-                  "bytes": {"type": "integer", "minimum": 1},
-                  "basis": {"type": "string"},
-                  "verified_on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "date the basis was checked"},
-                  "review_by": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "date by which the basis is checked again; claim_lint R10 warns when it is missing or has passed"}
-                }
-              }
-            ]
-          }
-        },
-        "other_headers_bytes": {"type": "integer", "minimum": 0, "description": "Reserve for the request line and the other headers, used against all_headers limits"}
-      }
+     "$ref": "#/$defs/size"
+    },
+    "asvs_ids": {
+     "type": "array",
+     "maxItems": 20,
+     "uniqueItems": true,
+     "items": {
+      "type": "string",
+      "pattern": "^v\\d+\\.\\d+\\.\\d+-\\d+\\.\\d+\\.\\d+$"
+     },
+     "description": "OWASP ASVS requirement IDs with the version, e.g. v5.0.0-8.3.2. The only place for ASVS"
+    },
+    "note": {
+     "type": "string"
     }
+   },
+   "required": [
+    "id",
+    "kind",
+    "decision",
+    "rationale",
+    "format"
+   ],
+   "allOf": [
+    {
+     "$comment": "An access token never travels in a URL (slide:p08-copies-outlive-token)",
+     "if": {
+      "properties": {
+       "kind": {
+        "const": "access_token"
+       }
+      },
+      "required": [
+       "kind"
+      ]
+     },
+     "then": {
+      "properties": {
+       "transport": {
+        "not": {
+         "const": "redirect_query"
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "size": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "signing",
+    "header",
+    "path"
+   ],
+   "description": "Inputs of rule R8. Only for JWT types that travel in an HTTP header",
+   "properties": {
+    "signing": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "alg"
+     ],
+     "properties": {
+      "alg": {
+       "type": "string"
+      },
+      "key_bits": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    },
+    "header": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "params"
+     ],
+     "properties": {
+      "params": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "$ref": "#/$defs/header_param"
+       },
+       "maxItems": 20
+      },
+      "serializer_extra_bytes": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Bytes the issuer's JSON serializer adds beyond compact JSON (whitespace). Measured per IdP and version"
+      },
+      "serializer_extra_basis": {
+       "type": "string"
+      }
+     }
+    },
+    "path": {
+     "type": "array",
+     "minItems": 1,
+     "description": "Limits on the way of this token, as IDs of tools/claim_lint/path_limits.yaml or inline declared limits",
+     "items": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "id",
+         "applies_to",
+         "bytes",
+         "basis"
+        ],
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "applies_to": {
+          "enum": [
+           "header_field",
+           "all_headers"
+          ]
+         },
+         "bytes": {
+          "type": "integer",
+          "minimum": 1
+         },
+         "basis": {
+          "type": "string"
+         },
+         "verified_on": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "date the basis was checked"
+         },
+         "review_by": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "date by which the basis is checked again; claim_lint R10 warns when it is missing or has passed"
+         }
+        }
+       }
+      ]
+     },
+     "maxItems": 10
+    },
+    "other_headers_bytes": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "Reserve for the request line and the other headers, used against all_headers limits"
+    }
+   }
   }
+ }
 }

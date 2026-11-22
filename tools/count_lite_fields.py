@@ -47,6 +47,21 @@ GATE1_EVENTS = {f'I{n:02d}' for n in range(1, 10)} | {f'U{n:02d}' for n in range
 DESIGN = {1: 'generated', 2: 'hand', 3: 'hand', 4: 'generated', 5: 'generated', 6: 'hand', 7: 'full-only',
           8: 'generated', 9: 'hand', 10: 'generated', 11: 'generated', 12: 'hand'}
 LITE_4 = {2, 3, 6, 8, 9, 12}
+# Registry v1 (#3) added columns and the rejected rows of the remaining token kinds to the example. The gate-1 count
+# was taken with schema v0, so the record stays reproducible by counting only the v0 columns and the v0 token rows
+# (as GATE1_EVENTS does for the catalogue). The v0 columns are those of templates/registry/*.schema.json v0.1.0.
+V0_CLAIM_COLUMNS = {'name', 'namespace', 'catalog_refs', 'registered_ref', 'type', 'shape', 'description', 'not_meaning',
+                    'decision', 'rationale', 'assumption', 'revisit_trigger', 'refs', 'usage', 'issuers',
+                    'authoritative_writer', 'issue_events', 'source_system', 'volatility', 'propagation_delay',
+                    'recompute_trigger', 'on_revoke', 'carried_in', 'consumers', 'on_missing', 'enforced_at', 'max_bytes',
+                    'max_items', 'typical_items', 'overflow_strategy', 'pii_category', 'log_policy', 'status', 'owner',
+                    'change_controller', 'integrity_until', 'evidence', 'note'}
+V0_TT_COLUMNS = {'id', 'kind', 'decision', 'rationale', 'purpose', 'issuer', 'aud', 'holder', 'format', 'typ', 'alg_allowlist',
+                 'issuers', 'required_claims', 'max_clock_skew', 'max_lifetime', 'lifetime_refs', 'refresh', 'revocation',
+                 'stored_at', 'transport', 'key_rotation', 'size', 'note'}
+V0_TT_IDS = {'AT', 'IDT', 'RT', 'CODE', 'BFFSESSION', 'SSO', 'LOGOUT', 'DPOP', 'TXN'}
+V0_PROFILE = {'client_type', 'client_auth', 'grants', 'sender_constraint', 'at_format', 'rt_strategy', 'request_protection',
+              'conformance_profile'}
 
 
 def fields(row, skip=('id',)):
@@ -60,7 +75,7 @@ def count(example):
     rows = []
     groups = {'read': [0, 0, 0], 'unread': [0, 0, 0], 'rejected': [0, 0, 0]}
     for c in claims:
-        f = fields(c)
+        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS]
         if c['decision'] == '却下':
             g, after = 'rejected', f
         elif c['decision'] == '既定どおり' and c.get('consumers') == []:
@@ -72,8 +87,9 @@ def count(example):
     rows.append((f"台帳：載せて誰かが読む行（{groups['read'][0]} 行）", groups['read'][1], groups['read'][2]))
     rows.append((f"台帳：既定どおりで誰も読まない行（{groups['unread'][0]} 行）", groups['unread'][1], groups['unread'][2]))
     rows.append((f"台帳：却下の行（{groups['rejected'][0]} 行）", groups['rejected'][1], groups['rejected'][2]))
-    ip = sum(len(fields(v, ())) for v in tts['issuance_profile'].values())
+    ip = sum(len(fields(v, ())) for k, v in tts['issuance_profile'].items() if k in V0_PROFILE)
     rows.append(('発行方式の選択（既定の組み合わせのまま）', ip, 0))
+    tts['token_types'] = [{k: v for k, v in t.items() if k in V0_TT_COLUMNS} for t in tts['token_types'] if t['id'] in V0_TT_IDS]
     ttb = sum(len(fields(t)) for t in tts['token_types'])
     tta = sum(len(fields(t)) if t['decision'] != '却下' else len([k for k in fields(t) if k in REJECTED_TT_KEEP]) for t in tts['token_types'])
     rows.append(('トークン目録', ttb, tta))

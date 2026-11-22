@@ -1,0 +1,53 @@
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../registry/hops.schema.json
+# 縮小 Lite の案（関門 1）：交換・作り直しのホップが無いので、この表は token_types から生成できる（手で書かない）。交換のホップがあれば手で書く
+# 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
+# ホップごとの宣言（台帳 v1：templates/registry/hops.schema.json）。「下流は上流を超えない」（slide:p06-narrow-downstream）を、
+# aud・scope・寿命・独自クレーム・交換を担うサービスの 5 つで宣言する。この例では交換が無いので exchanger はどれも null。
+# H3 はトークンを渡さず、iss から引いたテナントの値だけを DB の文脈に写す（C-tenant-id の integrity_until）
+hops:
+  - id: H1
+    from: ブラウザ
+    to: BFF（saas-web）
+    kind: browser
+    token_type: BFFSESSION
+    aud: []
+    scope: []
+    max_lifetime: 36000
+    custom_claims: []
+    exchanger: null
+    validates: {mode: local, checks: [Cookie のセッション ID を BFF のセッションの表で引く, idle 1800 秒と絶対的な上限 36000 秒]}
+    note: Cookie は HttpOnly・Secure・SameSite=Lax。トークンはこのホップを通らない
+
+  - id: H2
+    from: BFF（saas-web のサーバー）
+    to: saas-api
+    kind: service
+    upstream: H1
+    token_type: AT
+    aud: [saas-api]
+    scope: [openid]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id, C-user-id, C-roles, C-v]
+    exchanger: null
+    validates:
+      mode: local
+      checks: [署名（iss ごとの JWKS、RS256 だけ）, iss の許可リスト, aud が saas-api, "exp・iat（ずれ 30 秒、exp − iat ≤ 300）", ヘッダーの typ が at+jwt, required_claims, tenant_id と iss とパスのテナントの一致]
+    note: 経路に nginx がある（TLS を終端し、AT を見る。token_types の AT の visible_to）。nginx はトークンを作り直さない
+
+  - id: H3
+    from: saas-api
+    to: Postgres
+    kind: db_connection
+    upstream: H2
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    validates:
+      mode: none
+      checks: ["RLS（ENABLE と FORCE）のポリシー tenant_id = current_setting('app.tenant', true)", app.tenant が未設定なら 0 行]
+    connection_max_lifetime: null
+    note: 接続はプールの設定によりトークンより長く生きる（slide:p07-lifetime-mismatch）。接続の寿命は決めていない（null）。テナントの文脈はトランザクションごとに set_config（第 3 引数 true）で設定し直し、コミットで消える（ケーススタディ A7）。H2 の部分集合（テナントだけ）で、上流を超えていない
