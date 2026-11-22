@@ -1,0 +1,72 @@
+# Default path limits for rule R8 (claim_lint). Only values checked in the primary documentation are listed
+# (research/template-design/unverified.md V01・V02, closed in #16). A value that was not checked is not a default:
+# declare it inline in token_types.yaml (size.path) with its basis instead.
+#
+# applies_to:
+#   header_field  the limit is on one request header field. R8 compares "Authorization: Bearer <token>"
+#                 (field name, ": ", value) with it. Counting the field name is the conservative reading;
+#                 whether each server counts it was not checked (author-proposal, tracking #16).
+#   all_headers   the limit is on the request line and all headers together. R8 compares the field above plus
+#                 size.other_headers_bytes (declared by the author) with it.
+# review_by: verified_on + 90 days (author-proposal, tracking #17).
+limits:
+  - id: nginx-large-client-header-buffers
+    product: nginx
+    version: "documentation page without a version (nginx.org, ngx_http_core_module)"
+    setting: large_client_header_buffers (default 4 8k)
+    applies_to: header_field
+    bytes: 8192
+    on_exceed: "400 (header field), 414 (request line)"
+    source: https://nginx.org/en/docs/http/ngx_http_core_module.html#large_client_header_buffers
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+  - id: apache-httpd-limitrequestfieldsize
+    product: Apache HTTP Server
+    version: "2.4"
+    setting: LimitRequestFieldSize (default 8190)
+    applies_to: header_field
+    bytes: 8190
+    on_exceed: not stated in the directive description
+    source: https://httpd.apache.org/docs/2.4/mod/core.html#limitrequestfieldsize
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+  - id: tomcat-11-maxhttpheadersize
+    product: Apache Tomcat
+    version: "11.0.29"
+    setting: maxHttpHeaderSize (default 8192; maxHttpRequestHeaderSize defaults to it)
+    applies_to: all_headers
+    bytes: 8192
+    on_exceed: not stated (the page mentions the error "Request header is too large")
+    source: https://tomcat.apache.org/tomcat-11.0-doc/config/http.html
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+  - id: httpsys-maxfieldlength
+    product: Windows HTTP.sys (IIS)
+    version: "Microsoft Learn article updated 2025-08-13 (KB 820129; Windows Server 2008 and later)"
+    setting: MaxFieldLength (default 16384, range 64-65534)
+    applies_to: header_field
+    bytes: 16384
+    on_exceed: not stated in the table
+    source: https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/health-diagnostic-performance/httpsys-registry-windows
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+  - id: httpsys-maxrequestbytes
+    product: Windows HTTP.sys (IIS)
+    version: "Microsoft Learn article updated 2025-08-13 (KB 820129; Windows Server 2008 and later)"
+    setting: MaxRequestBytes (default 16384, range 256-16777216; request line and headers)
+    applies_to: all_headers
+    bytes: 16384
+    on_exceed: not stated in the table
+    source: https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/health-diagnostic-performance/httpsys-registry-windows
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+  - id: nodejs-max-http-header-size
+    product: Node.js
+    version: "v26.13.1 documentation (default 16 KiB since v13.13.0)"
+    setting: --max-http-header-size (default 16 KiB)
+    applies_to: all_headers
+    bytes: 16384
+    on_exceed: not stated in the CLI documentation
+    source: https://nodejs.org/docs/v26.13.1/api/cli.html#--max-http-header-sizesize
+    verified_on: 2026-11-22
+    review_by: 2027-02-20

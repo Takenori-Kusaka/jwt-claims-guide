@@ -1,0 +1,10 @@
+# Secret scan configuration (gitleaks 8.30.1, .github/workflows/claims.yml job secret-scan). #16
+# The default rules are used. Each exclusion names one file and gives its reason (templates/CONTRIBUTING.md 4.).
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """Golden access token of rule R8 (#16). Issued 2026-11-22 by a throw-away Keycloak 26.8.0 container with the
+casestudy's test realm t1 and test user; the signing key existed only in that container, which was removed. The token has
+expired and carries no secret. It is kept so that the encoded length can be re-checked."""
+paths = ['''^tools/tests/fixtures/claim_lint/golden/token\.json$''']

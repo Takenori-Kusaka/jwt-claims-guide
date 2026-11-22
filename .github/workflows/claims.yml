@@ -1,0 +1,57 @@
+# Registry schemas, claim_lint on the worked example, and the secret scan (#16).
+# Actions are pinned by commit SHA (checked with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`); the gitleaks
+# binary is pinned by version and sha256 (from gitleaks_8.30.1_checksums.txt of the release, equal to the asset digest).
+name: claims
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  claim-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install dependencies (pinned by hash)
+        run: python -m pip install --require-hashes --no-deps -r tools/requirements-ci.txt
+      - name: Registry schemas are valid JSON Schema 2020-12
+        run: |
+          python - <<'EOF'
+          import json, jsonschema
+          for p in ('templates/registry/claims.schema.json', 'templates/registry/token_types.schema.json'):
+              jsonschema.Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8')))
+              print('valid schema:', p)
+          EOF
+      - name: claim_lint on the scenario A worked example (schema validation, R1, R2, R8, slide references)
+        run: python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md
+      - name: claim_lint tests (R1 / R2 / R8 pass and fail cases, R8 golden token)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint.py
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install gitleaks (pinned version and sha256)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          rm gitleaks.tar.gz
+      - name: Scan the git history (fails on any finding; exclusions are in .gitleaks.toml with reasons)
+        run: ./gitleaks git --no-banner --redact --verbose --config .gitleaks.toml .
