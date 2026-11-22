@@ -1,0 +1,83 @@
+template_version: 0.1.0
+# 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
+# カタログ（templates/catalog/issue_events.yaml・use_events.yaml、v0 の一部）の全イベントへの回答。
+# 対象外 11 件／全 19 件（58%）
+answers:
+  # ---------------------------------------------------------------- 発行イベント
+  - event: I01
+    answer: 該当
+    token_types: [AT, IDT, RT, CODE]
+    note: 利用者のログイン。マッパーで tenant_id・user_id・roles・v を AT に足す
+  - event: I02
+    answer: 該当
+    token_types: [AT, IDT, RT]
+    note: BFF の AT の取り直し。マッパーが再実行されるので、ロールの変更はリフレッシュで反映される
+  - event: I03
+    answer: 対象外
+    assumption: クライアントに軽量アクセストークンの executor を適用しない。API は AT の中の tenant_id を必須にしており、軽量にすると tenant_id が落ちる（ケーススタディ A11）
+    breaks_when: AT の大きさを減らすため、または PII を AT から外すために軽量アクセストークンを使うとき。その場合は tenant_id などのマッパーで Add to lightweight access token を ON にし、R8 を計算し直す
+  - event: I04
+    answer: 対象外
+    assumption: クライアントの Direct Access Grants を OFF にする。RFC 9700 §2.4 が ROPC を使わないよう求めている
+    breaks_when: ROPC でしかログインできない旧いクライアントをつなぐとき
+  - event: I05
+    answer: 対象外
+    assumption: テナントの連携先（社外の API クライアント）に AT を発行しない。この例の利用者は人だけ
+    breaks_when: 連携先の API 利用を受け入れるとき（ケーススタディでは DPoP で束縛する条件付き採用の行がある）
+  - event: I06
+    answer: 対象外
+    assumption: API は AT を交換しない。後ろに別のサービスを呼ばない
+    breaks_when: API が別のサービスを利用者の権限で呼ぶようになったとき（slide:p10-token-exchange-not-narrowing の実測のとおり、交換で絞られるとは限らない）
+  - event: I07
+    answer: 対象外
+    assumption: ブラウザの無い端末からのログインがない
+    breaks_when: テレビ・CLI など、入力の限られた端末のクライアントを足すとき
+  - event: I08
+    answer: 対象外
+    assumption: offline_access のスコープをクライアントに付けない。BFF は SSO セッションの間だけ動く
+    breaks_when: 利用者がログインしていない間に、BFF が利用者の権限でバッチを動かす要件が出たとき
+  - event: I09
+    answer: 対象外
+    assumption: RP は saas-web の 1 つだけで、Back-Channel Logout の受け口を作らない（トークン目録の LOGOUT は却下）
+    breaks_when: 同じレルムに 2 つ目の RP を足し、片方のログアウトを他方に伝える必要が出たとき
+  # ---------------------------------------------------------------- 利用イベント
+  - event: U01
+    answer: 該当
+    token_types: [AT]
+    note: saas-api が alg・iss・aud・exp・typ・必須クレームを検証する
+  - event: U02
+    answer: 該当
+    token_types: [AT]
+    note: tenant_id を iss と照合した後で、トランザクションごとに SET LOCAL app.tenant を設定し、RLS で絞る
+  - event: U03
+    answer: 該当
+    token_types: [IDT]
+    note: BFF がログインの応答で ID トークンを検証し、nonce を照合する
+  - event: U04
+    answer: 該当
+    token_types: [RT]
+    note: BFF が AT の期限の前に取り直す
+  - event: U05
+    answer: 対象外
+    assumption: API は AT をローカルで検証し、剥奪の反映は AT の寿命（300 秒）まで待つことを許す
+    breaks_when: テナントの停止や権限の剥奪を、300 秒より早く反映する必要が出たとき。または軽量アクセストークンを使うとき
+  - event: U06
+    answer: 該当
+    token_types: [IDT, RT, SSO, BFFSESSION]
+    note: BFF のログアウトで、BFF のセッションを消してから RP-Initiated Logout を送る
+  - event: U07
+    answer: 対象外
+    assumption: Back-Channel Logout を使わない（I09 と同じ前提）
+    breaks_when: 2 つ目の RP を足すとき（I09 と同じ）
+  - event: U08
+    answer: 対象外
+    assumption: 画面の表示名とメールは ID トークンから得るので、UserInfo を呼ばない
+    breaks_when: 表示に使う属性が増え、ID トークンに載せたくないとき
+  - event: U09
+    answer: 該当
+    token_types: [AT, IDT]
+    note: 未知の kid を見たら JWKS を 1 回だけ取り直す。iss ごとに別の JWKS
+  - event: U10
+    answer: 対象外
+    assumption: API は AT を交換しない（I06 と同じ前提）
+    breaks_when: API が受け取った AT を subject_token にして、別のサービス宛てのトークンを得るようになったとき

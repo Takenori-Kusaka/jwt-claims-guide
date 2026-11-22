@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 718
-  未着手: 675
-  実装済み: 0
+  未着手: 674
+  実装済み: 1
   後回し: 42
   扱わない: 1
-  core_未着手: 445
-  core_実装済み: 0
+  core_未着手: 444
+  core_実装済み: 1
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 230
@@ -4547,7 +4547,7 @@ requirements:
     text: "12 の項目を台帳の必須列とし、欠けていれば検出する"
     owner_issue: "#16"
     planned_items: [lint:R1, registry:README#slide-134-map]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 136 slide:p11-schema-contract-tests
   - id: p11-schema-contract-tests.R1

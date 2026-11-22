@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/claims.schema.json/v0.1.0",
+  "$comment": "template_version: 0.1.0. Schema v0 (#16): only the columns needed to write scenario A (Keycloak). Columns found missing or unneeded are listed in research/template-design/v0-columns.md and handed to #3. Which columns must be filled for which decision is rule R1 of claim_lint (tools/claim_lint/RULES.md), not this schema, so that a missing column is reported with a rule ID.",
+  "title": "Claim registry v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["template_version", "scenario", "claims"],
+  "properties": {
+    "template_version": {"type": "string"},
+    "scenario": {"type": "string", "description": "Scenario of the casestudy this registry is written for (A, B, C) or a free name"},
+    "casestudy_commit": {"type": "string", "description": "Commit of jwt-claims-casestudy that catalog_ref points into"},
+    "claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"}}
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["spec", "guidance", "research", "book", "incident", "guide-slide", "author-proposal"]},
+        "id": {"type": "string", "minLength": 1},
+        "url": {"type": "string"},
+        "verified_on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "tracking": {"type": "string", "pattern": "^#\\d+$"}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "author-proposal"}}}, "then": {"required": ["tracking"]}}
+      ]
+    },
+    "text": {"type": "string", "minLength": 1},
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "decision"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^C-[a-z0-9-]+$"},
+        "name": {"type": "string", "minLength": 1, "description": "Claim name as it appears in the JSON object (without the namespace)"},
+        "namespace": {"type": ["string", "null"], "description": "Name of the namespace object the claim sits in (e.g. https://claims.example.com/), or null for a top-level claim"},
+        "catalog_refs": {"type": "array", "items": {"type": "string", "pattern": "^jwt-claims-casestudy@[0-9a-f]{7,40}:(CLM-\\d{4}|ORG-\\d{2}|HDR-\\d{2})$"}, "description": "Rows of the casestudy claim list (name and type are owned there). A list, because the list has one row per defining source (RFC 9068 for the access token, OIDC Core for the ID token ...)"},
+        "registered_ref": {"$ref": "#/$defs/ref"},
+        "type": {"enum": ["string", "number", "integer", "boolean", "object"]},
+        "shape": {"enum": ["single", "array"]},
+        "description": {"$ref": "#/$defs/text"},
+        "not_meaning": {"$ref": "#/$defs/text"},
+        "decision": {"enum": ["採用", "却下", "既定どおり"]},
+        "rationale": {"$ref": "#/$defs/text"},
+        "assumption": {"$ref": "#/$defs/text"},
+        "revisit_trigger": {"$ref": "#/$defs/text"},
+        "refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}},
+        "usage": {"enum": ["identifier", "authz", "display", "protocol"]},
+        "issuers": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "authoritative_writer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stage", "writer"],
+          "properties": {
+            "stage": {"enum": ["①", "②", "③", "④", "⑤", "⑥"]},
+            "writer": {"$ref": "#/$defs/text"}
+          }
+        },
+        "issue_events": {"type": "array", "items": {"type": "string", "pattern": "^I\\d{2}$"}},
+        "source_system": {"$ref": "#/$defs/text"},
+        "volatility": {"type": "integer", "minimum": 0, "description": "Seconds allowed between a change of the value and its reflection in the token. 0 means the value never changes for the subject"},
+        "propagation_delay": {"type": "integer", "minimum": 0, "description": "Worst-case seconds until a change reaches the consumers (bounded by the token lifetime when only exp ends it)"},
+        "recompute_trigger": {"type": "array", "items": {"enum": ["login", "refresh", "exchange", "never"]}},
+        "on_revoke": {"$ref": "#/$defs/text"},
+        "carried_in": {"type": "array", "items": {"type": "string"}, "description": "IDs of token types (token_types.yaml) that carry the claim"},
+        "consumers": {"type": "array", "items": {"type": "string"}},
+        "on_missing": {"enum": ["拒否", "既定値", "無視"]},
+        "enforced_at": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["service", "check"],
+            "properties": {"service": {"type": "string"}, "check": {"$ref": "#/$defs/text"}}
+          }
+        },
+        "max_bytes": {"type": "integer", "minimum": 0, "description": "Worst-case UTF-8 bytes of one value as serialized in JSON, without the quotes of a string (after JSON escaping)"},
+        "max_items": {"type": "integer", "minimum": 1, "description": "Worst-case number of elements when shape is array"},
+        "typical_items": {"type": "integer", "minimum": 0},
+        "overflow_strategy": {"enum": ["発行を失敗させる", "問い合わせに切り替える", "上限で固定（超えない値域）"]},
+        "pii_category": {"enum": ["個人情報", "要配慮個人情報", "個人関連情報", "仮名加工情報", "該当なし"]},
+        "log_policy": {"enum": ["記録する", "ハッシュ化して記録", "記録しない"]},
+        "status": {"enum": ["proposed", "active", "deprecated", "sunset"]},
+        "owner": {"$ref": "#/$defs/text"},
+        "change_controller": {"$ref": "#/$defs/text"},
+        "integrity_until": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Places where the value is copied out of the signed token, so that the JWS no longer protects it (header, DB session context, queue, logs). Early form of the integrity_until column of #3; free text in v0"},
+        "evidence": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"}
+      }
+    }
+  }
+}
