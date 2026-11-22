@@ -43,6 +43,7 @@
 # （registry:claims#recompute_trigger は #3）が揃うまで「未着手」のまま
 _trace:
   lifetime_impact: "req:p06-issuance-hook.R7 req:p08-refresh-reevaluation.R1（I02 の lifetime_impact と idp ごとの hook_note・lifetime_note）"
+  hook_invoked: "req:p03-cognito-pre-token-hook.R2 req:p06-issuance-hook.R2（各行の idp.<IdP>.hook_invoked。設計書の側は #17 の lint:R3b）"
 _refs:
   kc_capability: &kc_capability {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Capability Config」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
   kc_scopes: &kc_scopes {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Link client scope with the client」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}

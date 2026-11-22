@@ -31,10 +31,14 @@ jobs:
               jsonschema.Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8')))
               print('valid schema:', p)
           EOF
-      - name: claim_lint on the scenario A worked example (schema validation, R1, R2, R8, slide references)
+      - name: claim_lint on the scenario A worked example (schema validation, R1-R10, slide references)
         run: python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md
       - name: claim_lint tests (R1 / R2 / R8 pass and fail cases, R8 golden token)
         run: python -m pytest -q -rs tools/tests/test_claim_lint.py
+      - name: claim_lint coverage rule tests (R2 / R3 / R3b / R4 / R6 / R9 / R10, lite vs full severities)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_coverage.py
+      - name: claim_lint on scenario A with --profile lite
+        run: python tools/claim_lint templates/examples/scenario-a --profile lite
       - name: Event catalogue (#2) - columns, seed-list closure, subject-state matrix, sources.md counts
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""claim_lint v0 (#16).
+"""claim_lint (#16, #17).
 
   python tools/claim_lint DESIGN_DIR [--profile lite|full] [--format table|json] [--json-out FILE]
                                      [--catalog DIR] [--limits FILE]
@@ -18,7 +18,7 @@ from claim_lint import core  # noqa: E402
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='claim_lint', description='Check a claim design (registry, token types, catalogue answers).')
     ap.add_argument('design_dir')
-    ap.add_argument('--profile', choices=('lite', 'full'), default='full', help='lite downgrades R2 to warn')
+    ap.add_argument('--profile', choices=('lite', 'full'), default='full', help='lite downgrades R2 and R4 to warn (R6 is warn in both)')
     ap.add_argument('--format', choices=('table', 'json'), default='table')
     ap.add_argument('--json-out', help='also write the machine-readable result to this file')
     ap.add_argument('--catalog', help='catalogue directory (default templates/catalog)')

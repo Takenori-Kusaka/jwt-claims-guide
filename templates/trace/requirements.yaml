@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 718
-  未着手: 674
-  実装済み: 1
+  未着手: 670
+  実装済み: 5
   後回し: 42
   扱わない: 1
-  core_未着手: 482
-  core_実装済み: 1
+  core_未着手: 478
+  core_実装済み: 5
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 192
@@ -1327,7 +1327,7 @@ requirements:
     text: "フックが呼ばれない発行（V2 以下での M2M など）で、独自クレームが載る前提にしない"
     owner_issue: "#17"
     planned_items: [lint:R3b, catalog:issue_events#hook_invoked]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-cognito-pre-token-hook.R3
     slide: slide:p03-cognito-pre-token-hook
@@ -1363,7 +1363,7 @@ requirements:
     text: "IdP の挙動に関する社内の手順書・書籍の記述は、現行の公式文書で確かめ直し、確認日と見直しの期限を記録する"
     owner_issue: "#2"
     planned_items: [catalog:sources, lint:R10]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-recent-changes.R2
     slide: slide:p03-recent-changes
@@ -2048,7 +2048,7 @@ requirements:
     text: "主体の種類ごとに、発行イベントと段階の組み合わせを検討する"
     owner_issue: "#17"
     planned_items: [lint:R6]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 64 slide:p05-one-request-carries
   - id: p05-one-request-carries.R1
@@ -2495,7 +2495,7 @@ requirements:
     text: "フックが呼ばれない発行・失敗する発行を、カタログのイベントごとに明示する"
     owner_issue: "#2"
     planned_items: [catalog:issue_events#hook_invoked, lint:R3b]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-issuance-hook.R3
     slide: slide:p06-issuance-hook

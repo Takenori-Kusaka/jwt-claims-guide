@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""claim_lint v0 (#16): load a design's registry, validate it against the schemas, and check rules R1, R2, R8
-and the slide references. Rules are described in tools/claim_lint/RULES.md.
+"""claim_lint (#16, #17): load a design's registry, validate it against the schemas, and check rules R1, R2, R8, the
+slide references, and the coverage rules R3, R3b, R4, R6, R9, R10 (coverage.py). Rules are described in
+tools/claim_lint/RULES.md.
 
 Input directory (e.g. templates/examples/scenario-a):
   claims.yaml            claim registry (templates/registry/claims.schema.json)
@@ -14,7 +15,7 @@ import sys
 
 import yaml
 
-from . import r8
+from . import coverage, r8
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.dirname(HERE)
@@ -126,8 +127,12 @@ def rule_r1(claims, token_types):
 
 # ------------------------------------------------------------------ R2
 def rule_r2(answers_doc, catalog, profile):
+    """Every catalogue event has 該当 or 対象外. 対象外 needs assumption and breaks_when with substance (the same test
+    as catalog_check's seed items: >= MIN_REASON characters, not one repeated character, not the event ID or name, not
+    equal to each other). Lite may inherit the IdP default for an event that one client setting stops (coverage.py)."""
     out = []
     sev = WARN if profile == 'lite' else ERROR
+    idp = coverage.idp_name(answers_doc)
     answers = {}
     for a in (answers_doc or {}).get('answers', []) or []:
         eid = a.get('event')
@@ -141,14 +146,21 @@ def rule_r2(answers_doc, catalog, profile):
             out.append(Finding('R2', sev, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"))
             continue
         ans = a.get('answer')
+        label = (eid, known[eid].get('name'))
+        if a.get('inherit') is not None:
+            if a.get('inherit') != coverage.INHERIT:
+                out.append(Finding('R2', sev, eid, f"inherit に書けるのは {coverage.INHERIT} だけ（あるのは {a.get('inherit')!r}）"))
+            else:
+                out += coverage.r2_inherit(a, known[eid], idp, profile, sev)
+            continue
         if ans == '該当':
             if _empty(a.get('token_types')) and _empty(a.get('note')):
                 out.append(Finding('R2', sev, eid, '該当の回答に、関係するトークン種別（token_types）か説明（note）がない'))
         elif ans == '対象外':
             for k in ('assumption', 'breaks_when'):
-                v = a.get(k)
-                if _empty(v) or len(str(v).strip()) < MIN_REASON:
-                    out.append(Finding('R2', sev, eid, f'対象外の回答に {k} がない、または {MIN_REASON} 字未満'))
+                if coverage.weak(a.get(k), label):
+                    out.append(Finding('R2', sev, eid, f'対象外の回答に {k} がない、{MIN_REASON} 字未満、同じ文字の繰り返し、'
+                                                       'またはイベントの ID・名前そのもの'))
             if not _empty(a.get('assumption')) and a.get('assumption') == a.get('breaks_when'):
                 out.append(Finding('R2', sev, eid, 'assumption と breaks_when が同じ文'))
         else:
@@ -284,7 +296,7 @@ def rule_slides(docs, files, root):
 
 
 # ------------------------------------------------------------------ driver
-def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=()):
+def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=(), today=None):
     catalog_dir = catalog_dir or os.path.join(root, 'templates', 'catalog')
     limits_path = limits_path or os.path.join(HERE, 'path_limits.yaml')
     reg = os.path.join(root, 'templates', 'registry')
@@ -310,8 +322,14 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
         catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
     findings += rule_r1(claims, tts)
     findings += rule_r2(docs['catalog_answers'], catalog, profile)
+    findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)
+    findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir)
+    findings += coverage.rule_r4(docs['catalog_answers'], tts, catalog_dir, profile)
+    findings += coverage.rule_r6(docs['catalog_answers'], catalog)
+    findings += coverage.rule_r9(docs['catalog_answers'])
     r8_findings, reports = rule_r8(claims, tts, load_limits(limits_path))
     findings += r8_findings
+    findings += coverage.rule_r10(catalog_dir, limits_path, tts, today)
     files = [p for p in paths.values() if os.path.isfile(p)] + list(extra_files)
     findings += rule_slides({k: docs[k] for k in docs}, files, root)
     counts = {s: sum(1 for f in findings if f['severity'] == s) for s in SEVERITIES}
@@ -321,7 +339,7 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
 
 
 def format_table(result):
-    lines = [f"claim_lint v0  design={result['design']}  profile={result['profile']}  "
+    lines = [f"claim_lint  design={result['design']}  profile={result['profile']}  "
              f"claims={result['claims']}  token_types={result['token_types']}  catalog_events={result['catalog_events']}", '']
     rows = [('rule', 'severity', 'target', 'message')] + [(f['rule'], f['severity'], f['target'], f['message']) for f in result['findings']]
     w = [max(len(str(r[i])) for r in rows) for i in range(3)]
