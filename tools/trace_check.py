@@ -26,6 +26,11 @@ an error) and checks:
 (e) prints counts by status, tier x status, owner issue and slide kind, checks the `summary` block, and
     checks that templates/trace/new_items.md matches what --write-new-items generates.
 
+(f) gate 1 (#16): a classification row may carry `review_required: true` (checklist, anti-pattern, review-viewpoint and
+    pre-add-question slides); every requirement on such a slide needs at least one `review:` planned item. The
+    optional top-level `tier_confirmed` block (confirmed_on, by, record, note) records that the tiers were decided;
+    its record file must exist. The report prints the number of requirements with a review: item by tier.
+
 --tier restricts the counts to one tier; --require-done also fails when a requirement of that tier (or of
 any tier) is still 未着手 (the "未着手 0 件" condition of #11).
 Exit status: 0 if everything holds, 1 otherwise (each problem is printed on its own line).
@@ -54,8 +59,11 @@ OUT_OF_SCOPE_OWNER = '#22'
 OUT_OF_SCOPE_ITEM = 'none:out-of-scope'
 MIN_REASON = 20
 REQ_FIELDS = {'id', 'slide', 'text', 'owner_issue', 'planned_items', 'status', 'tier', 'assumption', 'breaks_when', 'note'}
-CLS_FIELDS = {'slide', 'kind', 'sha', 'reviewed_on'}
+CLS_FIELDS = {'slide', 'kind', 'sha', 'reviewed_on', 'review_required'}
+# review_required: true on checklist / anti-pattern / review-viewpoint / pre-add-question slides (#16): every
+# requirement on such a slide needs at least one review: planned item
 TEACH_FIELDS = {'slide', 'use', 'note'}
+TIER_CONFIRMED_FIELDS = {'confirmed_on', 'by', 'record', 'note'}  # not 'on': YAML 1.1 reads the key on as true
 ITEM_FIELDS = {'ref', 'issue', 'origin', 'title', 'note'}
 ORIGINS = ('issue', 'proposed')
 
@@ -355,7 +363,7 @@ def check(root, tier_filter=None, require_done=False):
         return errors, report, None
 
     # (a) classification and content hashes
-    kind_of = {}
+    kind_of, review_required = {}, {}
     for k, row in enumerate(req_data.get('classification') or [], 1):
         where = f'{REQ_FILE}: classification row {k}'
         if not isinstance(row, dict):
@@ -373,6 +381,9 @@ def check(root, tier_filter=None, require_done=False):
             errors.append(f'{where}: classified more than once')
             continue
         kind_of[sid] = row.get('kind')
+        if row.get('review_required') not in (None, True):
+            errors.append(f'{where}: review_required must be true or absent')
+        review_required[sid] = bool(row.get('review_required'))
         if not _valid_date(row.get('reviewed_on')):
             errors.append(f'{where}: reviewed_on must be a date YYYY-MM-DD')
         sha = str(row.get('sha') or '')
@@ -396,6 +407,7 @@ def check(root, tier_filter=None, require_done=False):
     reqs = req_data.get('requirements') or []
     seen, per_slide, used = set(), Counter(), Counter()
     by_status, by_owner, by_tier = Counter(), Counter(), Counter()
+    by_review = Counter()
     todo_in_scope = []
     for k, r in enumerate(reqs, 1):
         if not isinstance(r, dict):
@@ -492,6 +504,10 @@ def check(root, tier_filter=None, require_done=False):
             if status == '未着手':
                 todo_in_scope.append(rid)
         by_tier[(tier, status)] += 1
+        has_review = any(str(x).startswith('review:') for x in (pis or []))
+        by_review[(tier, has_review)] += 1
+        if review_required.get(str(r.get('slide', ''))[6:]) and not has_review:
+            errors.append(f'{where}: the slide is review_required, but no planned item is review:')
 
     # (b) every design-decision slide has a requirement
     for sid in slide_ids:
@@ -541,6 +557,7 @@ def check(root, tier_filter=None, require_done=False):
     report.append(f'by status{scope}: ' + ', '.join(f'{s} {by_status[s]}' for s in STATUSES))
     for t in TIERS:
         report.append(f'tier {t}: ' + ', '.join(f'{s} {by_tier[(t, s)]}' for s in STATUSES) + f' (total {sum(by_tier[(t, s)] for s in STATUSES)})')
+    report.append('with a review: item: ' + ', '.join(f'{t} {by_review[(t, True)]} / {by_review[(t, True)] + by_review[(t, False)]}' for t in TIERS))
     out = by_status['扱わない']
     report.append(f'扱わない{scope}: {out} / {total} ({(100.0 * out / total) if total else 0:.1f}%)')
     report.append(f'by owner issue{scope}: ' + ', '.join(f'{o} {n}' for o, n in sorted(by_owner.items(), key=lambda x: int(x[0][1:]) if ISSUE_RE.match(x[0]) else 0)))
@@ -552,6 +569,20 @@ def check(root, tier_filter=None, require_done=False):
     if require_done:
         for rid in todo_in_scope:
             errors.append(f'{REQ_FILE}: {rid}: still 未着手' + (f' (tier {tier_filter})' if tier_filter else ''))
+
+    # tier decision (gate 1, #16): optional block; without it the tiers are a proposal
+    tc_block = req_data.get('tier_confirmed')
+    if tc_block is None:
+        report.append('tiers: proposal (no tier_confirmed block)')
+    elif not isinstance(tc_block, dict) or set(tc_block) - TIER_CONFIRMED_FIELDS or not {'confirmed_on', 'by', 'record'} <= set(tc_block):
+        errors.append(f'{REQ_FILE}: tier_confirmed must be a mapping with confirmed_on, by, record (and optional note)')
+    else:
+        if not _valid_date(tc_block.get('confirmed_on')):
+            errors.append(f'{REQ_FILE}: tier_confirmed.confirmed_on must be a date YYYY-MM-DD')
+        rec = str(tc_block.get('record') or '')
+        if not os.path.isfile(os.path.join(root, rec)):
+            errors.append(f'{REQ_FILE}: tier_confirmed.record {rec!r} does not exist')
+        report.append(f'tiers: confirmed on {tc_block.get("confirmed_on")} by {tc_block.get("by")} (record: {rec})')
 
     want = summary_of(kind_of.values(), reqs)
     summary = req_data.get('summary')
@@ -591,11 +622,16 @@ def dump_requirements(data, slide_ids):
            '# 検査：python tools/trace_check.py（summary の件数も照合する。summary は --update-hash で書き直される）',
            '# 人による点検は未実施。', '', 'summary:']
     out += [f'  {k}: {v}' for k, v in summary_of([c['kind'] for c in cls], reqs).items()]
+    tcb = data.get('tier_confirmed')
+    if isinstance(tcb, dict):
+        out += ['', '# tier（core／full）を確定した記録（関門 1、#16）。無ければ tier は提案のまま', 'tier_confirmed:']
+        out += [f'  {k}: {_q(tcb[k])}' for k in ('confirmed_on', 'by', 'record', 'note') if tcb.get(k)]
     out += ['', '# 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁',
             'classification:']
     for c in cls:
         sid = str(c['slide'])[6:]
-        out.append(f'  - {{slide: {c["slide"]}, kind: {c["kind"]}, sha: "{c.get("sha", "")}", reviewed_on: "{c.get("reviewed_on", "")}"}}  # {n_of.get(sid, "?")}')
+        rr = ', review_required: true' if c.get('review_required') else ''
+        out.append(f'  - {{slide: {c["slide"]}, kind: {c["kind"]}, sha: "{c.get("sha", "")}", reviewed_on: "{c.get("reviewed_on", "")}"{rr}}}  # {n_of.get(sid, "?")}')
     out += ['', '# 設計判断のスライドの要件', 'requirements:']
     cur = None
     for r in reqs:

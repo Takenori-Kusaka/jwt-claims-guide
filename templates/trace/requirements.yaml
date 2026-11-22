@@ -12,14 +12,21 @@ summary:
   実装済み: 1
   後回し: 42
   扱わない: 1
-  core_未着手: 444
+  core_未着手: 476
   core_実装済み: 1
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 230
+  full_未着手: 198
   full_実装済み: 0
   full_後回し: 42
   full_扱わない: 1
+
+# tier（core／full）を確定した記録（関門 1、#16）。無ければ tier は提案のまま
+tier_confirmed:
+  confirmed_on: "2026-11-22"
+  by: "作成者（関門 1、#16）"
+  record: "research/template-design/gate1.md"
+  note: "関門 1 の判定（絞る）とあわせて、gate1.md の 7. の案と、レビューの 17 件から導いた規則の拡張に結びつく要件を core にして確定した"
 
 # 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
 classification:
@@ -83,7 +90,7 @@ classification:
   - {slide: slide:p04-reject-missing-required, kind: design-decision, sha: "3c87925be943", reviewed_on: "2026-11-22"}  # 58
   - {slide: slide:p04-single-issuer, kind: design-decision, sha: "02820e71dab2", reviewed_on: "2026-11-22"}  # 59
   - {slide: slide:p04-namespace-object-example, kind: design-decision, sha: "6d6e2480c57a", reviewed_on: "2026-11-22"}  # 60
-  - {slide: slide:p04-design-checklist, kind: design-decision, sha: "8032ff72d312", reviewed_on: "2026-11-22"}  # 61
+  - {slide: slide:p04-design-checklist, kind: design-decision, sha: "8032ff72d312", reviewed_on: "2026-11-22", review_required: true}  # 61
   - {slide: slide:p05-part, kind: structural, sha: "77e6ff419aed", reviewed_on: "2026-11-22"}  # 62
   - {slide: slide:p05-three-principals, kind: design-decision, sha: "f3d3b2aceb77", reviewed_on: "2026-11-22"}  # 63
   - {slide: slide:p05-one-request-carries, kind: design-decision, sha: "33b5f07bd326", reviewed_on: "2026-11-22"}  # 64
@@ -112,7 +119,7 @@ classification:
   - {slide: slide:p06-flow-browser-to-db, kind: design-decision, sha: "37ed9e81d99d", reviewed_on: "2026-11-22"}  # 87
   - {slide: slide:p06-flow-multitenant-saas, kind: design-decision, sha: "70ffbcbfd7a5", reviewed_on: "2026-11-22"}  # 88
   - {slide: slide:p06-flow-partner-events, kind: design-decision, sha: "c75a7e39179d", reviewed_on: "2026-11-22"}  # 89
-  - {slide: slide:p06-flow-checklist, kind: design-decision, sha: "01944e469a33", reviewed_on: "2026-11-22"}  # 90
+  - {slide: slide:p06-flow-checklist, kind: design-decision, sha: "01944e469a33", reviewed_on: "2026-11-22", review_required: true}  # 90
   - {slide: slide:p07-part, kind: structural, sha: "a298c3b435d8", reviewed_on: "2026-11-22"}  # 91
   - {slide: slide:p07-three-db-paths, kind: design-decision, sha: "d0b9c803901b", reviewed_on: "2026-11-22"}  # 92
   - {slide: slide:p07-row-level-security, kind: design-decision, sha: "8d46b9db3ee2", reviewed_on: "2026-11-22"}  # 93
@@ -123,7 +130,7 @@ classification:
   - {slide: slide:p07-connect-as-whom, kind: design-decision, sha: "1ca0d2af3af6", reviewed_on: "2026-11-22"}  # 98
   - {slide: slide:p07-masking, kind: design-decision, sha: "e4eb01dd1691", reviewed_on: "2026-11-22"}  # 99
   - {slide: slide:p07-cloud-attributes, kind: design-decision, sha: "16530098f47e", reviewed_on: "2026-11-22"}  # 100
-  - {slide: slide:p07-data-layer-checklist, kind: design-decision, sha: "7f6d9d08fc63", reviewed_on: "2026-11-22"}  # 101
+  - {slide: slide:p07-data-layer-checklist, kind: design-decision, sha: "7f6d9d08fc63", reviewed_on: "2026-11-22", review_required: true}  # 101
   - {slide: slide:p08-part, kind: structural, sha: "cf76f313f62a", reviewed_on: "2026-11-22"}  # 102
   - {slide: slide:p08-token-types-lifetimes, kind: design-decision, sha: "2c84a802a01d", reviewed_on: "2026-11-22"}  # 103
   - {slide: slide:p08-choosing-lifetime, kind: design-decision, sha: "020637ca413b", reviewed_on: "2026-11-22"}  # 104
@@ -142,7 +149,7 @@ classification:
   - {slide: slide:p09-jwe-sd-jwt, kind: design-decision, sha: "bc179a1b62ae", reviewed_on: "2026-11-22"}  # 117
   - {slide: slide:p09-logs-traces, kind: design-decision, sha: "ac9f6b684706", reviewed_on: "2026-11-22"}  # 118
   - {slide: slide:p09-url-browser, kind: design-decision, sha: "0694f4d19f5e", reviewed_on: "2026-11-22"}  # 119
-  - {slide: slide:p09-checklist, kind: design-decision, sha: "1824c0c065e4", reviewed_on: "2026-11-22"}  # 120
+  - {slide: slide:p09-checklist, kind: design-decision, sha: "1824c0c065e4", reviewed_on: "2026-11-22", review_required: true}  # 120
   - {slide: slide:p10-part, kind: structural, sha: "f0adf86c20c0", reviewed_on: "2026-11-22"}  # 121
   - {slide: slide:p10-agent-identity, kind: design-decision, sha: "383ad23d8727", reviewed_on: "2026-11-22"}  # 122
   - {slide: slide:p10-four-questions, kind: design-decision, sha: "71d2544041c0", reviewed_on: "2026-11-22"}  # 123
@@ -153,7 +160,7 @@ classification:
   - {slide: slide:p10-delegation-chain-depth, kind: design-decision, sha: "46b6697c5a9b", reviewed_on: "2026-11-22"}  # 128
   - {slide: slide:p10-vendor-features, kind: design-decision, sha: "3725ab2452db", reviewed_on: "2026-11-22"}  # 129
   - {slide: slide:p10-guidance-standards, kind: design-decision, sha: "664fc5f0d99d", reviewed_on: "2026-11-22"}  # 130
-  - {slide: slide:p10-agent-checklist, kind: design-decision, sha: "4d4204067511", reviewed_on: "2026-11-22"}  # 131
+  - {slide: slide:p10-agent-checklist, kind: design-decision, sha: "4d4204067511", reviewed_on: "2026-11-22", review_required: true}  # 131
   - {slide: slide:p11-part, kind: structural, sha: "66071446cb4c", reviewed_on: "2026-11-22"}  # 132
   - {slide: slide:p11-why-govern, kind: design-decision, sha: "53feaec3b404", reviewed_on: "2026-11-22"}  # 133
   - {slide: slide:p11-registry-fields, kind: design-decision, sha: "0a905e46db8f", reviewed_on: "2026-11-22"}  # 134
@@ -164,13 +171,13 @@ classification:
   - {slide: slide:p11-reserved-names, kind: design-decision, sha: "c53e5e12571d", reviewed_on: "2026-11-22"}  # 139
   - {slide: slide:p11-translation-layer, kind: design-decision, sha: "b2e12c4702b6", reviewed_on: "2026-11-22"}  # 140
   - {slide: slide:p11-ownership, kind: design-decision, sha: "5df879eed500", reviewed_on: "2026-11-22"}  # 141
-  - {slide: slide:p11-pre-add-questions-1, kind: design-decision, sha: "a4069f3e68a9", reviewed_on: "2026-11-22"}  # 142
-  - {slide: slide:p11-pre-add-questions-2, kind: design-decision, sha: "eefd9fa0c0be", reviewed_on: "2026-11-22"}  # 143
+  - {slide: slide:p11-pre-add-questions-1, kind: design-decision, sha: "a4069f3e68a9", reviewed_on: "2026-11-22", review_required: true}  # 142
+  - {slide: slide:p11-pre-add-questions-2, kind: design-decision, sha: "eefd9fa0c0be", reviewed_on: "2026-11-22", review_required: true}  # 143
   - {slide: slide:p11-audit-metrics, kind: design-decision, sha: "ccf4d13da948", reviewed_on: "2026-11-22"}  # 144
   - {slide: slide:p12-part, kind: structural, sha: "33893b65905e", reviewed_on: "2026-11-22"}  # 145
-  - {slide: slide:p12-antipatterns-1, kind: design-decision, sha: "2388a5b06480", reviewed_on: "2026-11-22"}  # 146
-  - {slide: slide:p12-antipatterns-2, kind: design-decision, sha: "7a881917f654", reviewed_on: "2026-11-22"}  # 147
-  - {slide: slide:p12-review-viewpoints, kind: design-decision, sha: "acccb8a7e4fe", reviewed_on: "2026-11-22"}  # 148
+  - {slide: slide:p12-antipatterns-1, kind: design-decision, sha: "2388a5b06480", reviewed_on: "2026-11-22", review_required: true}  # 146
+  - {slide: slide:p12-antipatterns-2, kind: design-decision, sha: "7a881917f654", reviewed_on: "2026-11-22", review_required: true}  # 147
+  - {slide: slide:p12-review-viewpoints, kind: design-decision, sha: "acccb8a7e4fe", reviewed_on: "2026-11-22", review_required: true}  # 148
   - {slide: slide:p12-priorities-deferrals, kind: design-decision, sha: "a16a89d1d1bf", reviewed_on: "2026-11-22"}  # 149
   - {slide: slide:p12-claims-and-evidence, kind: structural, sha: "b5f8035814ed", reviewed_on: "2026-11-22"}  # 150
   - {slide: slide:p12-references, kind: structural, sha: "588248cf3235", reviewed_on: "2026-11-22"}  # 151
@@ -565,7 +572,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L27, registry:token_types#max_clock_skew]
     status: 未着手
-    tier: full
+    tier: core
   - id: p01-attack-patterns.R6
     slide: slide:p01-attack-patterns
     text: "同名のクレームの重複を拒否するパーサを使う"
@@ -1104,7 +1111,7 @@ requirements:
     owner_issue: "#4"
     planned_items: [template:modules/M_idp_keycloak#mappers-scopes]
     status: 未着手
-    tier: full
+    tier: core
   - id: p03-keycloak-mappers.R2
     slide: slide:p03-keycloak-mappers
     text: "マッパーでクレームの JSON の型を固定し、台帳の型と揃える"
@@ -1118,7 +1125,7 @@ requirements:
     owner_issue: "#4"
     planned_items: [template:modules/M_idp_keycloak#client-scope]
     status: 未着手
-    tier: full
+    tier: core
   - id: p03-keycloak-mappers.R4
     slide: slide:p03-keycloak-mappers
     text: "入るロールが「利用者のロール」∩「クライアントが使えるロール」であることを前提に設計する"
@@ -1333,7 +1340,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [registry:claims#provenance, lint:L31]
     status: 未着手
-    tier: full
+    tier: core
   - id: p03-cognito-pre-token-hook.R5
     slide: slide:p03-cognito-pre-token-hook
     text: "custom:属性は追加後に削除・改名・型の変更ができないので、追加の前に名前と型を確定する"
@@ -1666,7 +1673,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [registry:claims#effect, lint:L37]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-absent-null-false-empty.R3
     slide: slide:p04-absent-null-false-empty
     text: "制限をかけるクレーム（区分・地域など）は、無いときに拒否する"
@@ -1760,14 +1767,14 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#usage]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-split-by-writer.R3
     slide: slide:p04-split-by-writer
     text: "本人が編集できる値（user_metadata など）に依存した行単位の制御をしない"
     owner_issue: "#6"
     planned_items: [lint:L31, template:modules/M_multitenancy#data-layer-filter]
     status: 未着手
-    tier: full
+    tier: core
   - id: p04-split-by-writer.R4
     slide: slide:p04-split-by-writer
     text: "Txn-Token の rctx は要求時点の環境の値として扱い、TTS が決めた認可の詳細（tctx）と区別する"
@@ -1926,97 +1933,97 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L31, lint:L6]
     status: 未着手
-    tier: full
+    tier: core
   # ---- 61 slide:p04-design-checklist
   - id: p04-design-checklist.R1
     slide: slide:p04-design-checklist
     text: "「載せるか」：認可に使い、寿命の間に変わらないかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#usage, registry:claims#volatility]
+    planned_items: [registry:README#slide-61-map, registry:claims#usage, registry:claims#volatility, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R2
     slide: slide:p04-design-checklist
     text: "「既存」：登録名・IdP の既存クレームで足りないかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#registered_ref, registry:claims#prior_art_search]
+    planned_items: [registry:README#slide-61-map, registry:claims#registered_ref, registry:claims#prior_art_search, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R3
     slide: slide:p04-design-checklist
     text: "「名前」：自社の名前空間か、予約名と照合したかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#namespace, lint:L34]
+    planned_items: [registry:README#slide-61-map, registry:claims#namespace, lint:L34, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R4
     slide: slide:p04-design-checklist
     text: "「ツール」：受け手の全ツールで参照できるかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#consumer_access_path]
+    planned_items: [registry:README#slide-61-map, registry:claims#consumer_access_path, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R5
     slide: slide:p04-design-checklist
     text: "「型」：型は 1 つか、ID は文字列かを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#type, lint:L24]
+    planned_items: [registry:README#slide-61-map, registry:claims#type, lint:L24, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R6
     slide: slide:p04-design-checklist
     text: "「形」：複数値は配列か、連結・文字列化していないかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#shape, lint:L36]
+    planned_items: [registry:README#slide-61-map, registry:claims#shape, lint:L36, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R7
     slide: slide:p04-design-checklist
     text: "「欠落」：無い・null・false・空配列の意味を決めたかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#absent_semantics]
+    planned_items: [registry:README#slide-61-map, registry:claims#absent_semantics, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R8
     slide: slide:p04-design-checklist
     text: "「比較」：大小の扱いを決め、完全一致で比べるかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#value_normalization]
+    planned_items: [registry:README#slide-61-map, registry:claims#value_normalization, review:perspectives#design-checklist]
     status: 未着手
     tier: full
   - id: p04-design-checklist.R9
     slide: slide:p04-design-checklist
     text: "「識別子」：名前ではなく変わらない ID かを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#paired_id, lint:L3]
+    planned_items: [registry:README#slide-61-map, registry:claims#paired_id, lint:L3, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R10
     slide: slide:p04-design-checklist
     text: "「書き手」：誰が書けるかを決め、申告の値と分けたかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#provenance, registry:claims#authoritative_writer]
+    planned_items: [registry:README#slide-61-map, registry:claims#provenance, registry:claims#authoritative_writer, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R11
     slide: slide:p04-design-checklist
     text: "「サイズ」：上限と、超えたときの挙動を決めたかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#max_bytes, registry:claims#overflow_strategy]
+    planned_items: [registry:README#slide-61-map, registry:claims#max_bytes, registry:claims#overflow_strategy, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R12
     slide: slide:p04-design-checklist
     text: "「必須」：欠けたら拒否するか、発行者は 1 つかを答える"
     owner_issue: "#3"
-    planned_items: [registry:README#slide-61-map, registry:claims#on_missing, lint:L7, lint:L4]
+    planned_items: [registry:README#slide-61-map, registry:claims#on_missing, lint:L7, lint:L4, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   - id: p04-design-checklist.R13
     slide: slide:p04-design-checklist
     text: "1 つでも答えられない項目があればトークンに載せず、答えを台帳に残して受け手と共有する"
     owner_issue: "#16"
-    planned_items: [lint:R1, registry:README#slide-61-map]
+    planned_items: [lint:R1, registry:README#slide-61-map, review:perspectives#design-checklist]
     status: 未着手
     tier: core
   # ---- 63 slide:p05-three-principals
@@ -3117,7 +3124,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [registry:claims#provenance, lint:L31]
     status: 未着手
-    tier: full
+    tier: core
   # ---- 93 slide:p07-row-level-security
   - id: p07-row-level-security.R1
     slide: slide:p07-row-level-security
@@ -3132,7 +3139,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#provenance]
     status: 未着手
-    tier: full
+    tier: core
   - id: p07-row-level-security.R3
     slide: slide:p07-row-level-security
     text: "RLS をすり抜ける主体（superuser・BYPASSRLS・所有者・secret key など）を通常の経路から外す"
@@ -3161,7 +3168,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#q-sql-tenant-predicate]
     status: 未着手
-    tier: full
+    tier: core
   - id: p07-trust-boundary.R3
     slide: slide:p07-trust-boundary
     text: "SQL Server では SESSION_CONTEXT を @read_only = 1 で設定し、述語で接続主体も確かめる"
@@ -3321,7 +3328,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#provenance]
     status: 未着手
-    tier: full
+    tier: core
   - id: p07-cloud-attributes.R2
     slide: slide:p07-cloud-attributes
     text: "トークンのクレームが、使う先のポリシーで実際に効くか（Azure Storage ABAC はディレクトリの属性）を確かめる"
@@ -3364,7 +3371,7 @@ requirements:
     owner_issue: "#6"
     planned_items: [lint:L31, review:perspectives#checklist-p07-data-layer]
     status: 未着手
-    tier: full
+    tier: core
   - id: p07-data-layer-checklist.R5
     slide: slide:p07-data-layer-checklist
     text: "DB ロールを選ぶクレームは高権限として発行元を限定する（項目 5）"
@@ -3411,7 +3418,7 @@ requirements:
     slide: slide:p07-data-layer-checklist
     text: "データ層の設定を製品の既定値に任せず、設計書に書いて試験で確かめる"
     owner_issue: "#8"
-    planned_items: [test:negative_tests#pool-context-leak, test:negative_tests#db-context-override]
+    planned_items: [test:negative_tests#pool-context-leak, test:negative_tests#db-context-override, review:perspectives#checklist-p07-data-layer]
     status: 未着手
     tier: full
   # ---- 103 slide:p08-token-types-lifetimes
@@ -3565,14 +3572,14 @@ requirements:
     owner_issue: "#8"
     planned_items: [test:negative_tests#rt-reuse]
     status: 未着手
-    tier: full
+    tier: core
   - id: p08-rotation.R4
     slide: slide:p08-rotation
     text: "長く使われない RT を失効させる期間を決める"
     owner_issue: "#3"
     planned_items: [registry:token_types#rt_idle_timeout]
     status: 未着手
-    tier: full
+    tier: core
   - id: p08-rotation.R5
     slide: slide:p08-rotation
     text: "Keycloak の Revoke Refresh Token（既定で無効）を、公開クライアントでは有効にするかを決める"
@@ -4793,91 +4800,94 @@ requirements:
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 1：受け手はこのクレームで何を決めるか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q01, registry:claims#usage, registry:claims#answers]
+    planned_items: [template:claim_request#q01, registry:claims#usage, registry:claims#answers, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R2
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 2：寿命中に値が変わっても困らないか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q02, registry:claims#volatility, lint:L5]
+    planned_items: [template:claim_request#q02, registry:claims#volatility, lint:L5, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R3
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 3：既存の標準クレームで表せないか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q03, registry:claims#registered_ref, lint:L1a]
+    planned_items: [template:claim_request#q03, registry:claims#registered_ref, lint:L1a, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R4
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 4：自組織の名前空間か。予約名と衝突しないか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q04, lint:L1b, lint:L34]
+    planned_items: [template:claim_request#q04, lint:L1b, lint:L34, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：lint:L1b、lint:L34"
   - id: p11-pre-add-questions-1.R5
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 5：「.」「/」入りの名前を全ての受け手のツールで参照できるか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q05]
+    planned_items: [template:claim_request#q05, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
   - id: p11-pre-add-questions-1.R6
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 6：トップレベルか、組織のオブジェクトの下か"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q06, registry:claims#namespace, registry:claims#shape]
+    planned_items: [template:claim_request#q06, registry:claims#namespace, registry:claims#shape, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R7
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 7：型は 1 つか。区切り文字列を避けたか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q07, registry:claims#type, registry:claims#shape]
+    planned_items: [template:claim_request#q07, registry:claims#type, registry:claims#shape, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R8
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 8：ID・金額は文字列で運ぶか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q08, lint:L24]
+    planned_items: [template:claim_request#q08, lint:L24, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：lint:L24"
   - id: p11-pre-add-questions-1.R9
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 9：無い・null・false・空配列の意味は"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q09, registry:claims#absent_semantics, registry:claims#on_missing]
+    planned_items: [template:claim_request#q09, registry:claims#absent_semantics, registry:claims#on_missing, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R10
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 10：大文字小文字・空白・比較方法は"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q10, registry:claims#value_normalization]
+    planned_items: [template:claim_request#q10, registry:claims#value_normalization, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：registry:claims#value_normalization"
   - id: p11-pre-add-questions-1.R11
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 11：誰が値を書けるか。自己申告と分けたか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q11, registry:claims#provenance, registry:claims#authoritative_writer]
+    planned_items: [template:claim_request#q11, registry:claims#provenance, registry:claims#authoritative_writer, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R12
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 12：名前と不変の ID を出し、ID で照合させるか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q12, lint:L3]
+    planned_items: [template:claim_request#q12, lint:L3, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-1.R13
     slide: slide:p11-pre-add-questions-1
     text: "答えられない問いが残るなら共有クレームにせず、サービス内のローカルな属性にとどめる"
     owner_issue: "#4"
-    planned_items: [template:claim_request#gate, registry:claims#status]
+    planned_items: [template:claim_request#gate, registry:claims#status, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   # ---- 143 slide:p11-pre-add-questions-2
@@ -4885,98 +4895,103 @@ requirements:
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 13：上限は。超えたら失敗か、欠落か"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q13, registry:claims#max_items, registry:claims#overflow_strategy, lint:R8]
+    planned_items: [template:claim_request#q13, registry:claims#max_items, registry:claims#overflow_strategy, lint:R8, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R2
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 14：全リクエストに載せる価値があるか。宛先ごとに絞れるか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q14, registry:claims#carried_in, registry:hops#custom_claims]
+    planned_items: [template:claim_request#q14, registry:claims#carried_in, registry:hops#custom_claims, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R3
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 15：付与するのは単一の発行者だけか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q15, registry:claims#issuers, lint:L4]
+    planned_items: [template:claim_request#q15, registry:claims#issuers, lint:L4, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R4
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 16：検証を共通ライブラリで提供するか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q16, template:modules/M_token_validation#shared-validator]
+    planned_items: [template:claim_request#q16, template:modules/M_token_validation#shared-validator, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：template:modules/M_token_validation#shared-validator"
   - id: p11-pre-add-questions-2.R5
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 17：ヘッダーに移すとき、同名ヘッダーの偽装（大文字小文字・アンダースコアの変種・重複）を除去するか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q17, lint:L8, test:negative_tests#spoofed-identity-header]
+    planned_items: [template:claim_request#q17, lint:L8, test:negative_tests#spoofed-identity-header, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R6
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 18：未検証の値を流すモードは無いか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q18, review:perspectives#q-no-unverified-passthrough-mode]
+    planned_items: [template:claim_request#q18, review:perspectives#q-no-unverified-passthrough-mode, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：review:perspectives#q-no-unverified-passthrough-mode"
   - id: p11-pre-add-questions-2.R7
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 19：知らない受け手が無視しても安全か"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q19, registry:claims#restrictive, lint:L60]
+    planned_items: [template:claim_request#q19, registry:claims#restrictive, lint:L60, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
-    tier: full
+    tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：registry:claims#restrictive、lint:L60"
   - id: p11-pre-add-questions-2.R8
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 20：ログに残すか。値かハッシュか。個人情報か"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q20, registry:claims#log_policy, registry:claims#pii_category]
+    planned_items: [template:claim_request#q20, registry:claims#log_policy, registry:claims#pii_category, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R9
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 21：委任なら act・承認 ID との関係は"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q21, registry:questions#q-actor, template:profiles/P4_ai_agent_delegation#audit-correlation]
+    planned_items: [template:claim_request#q21, registry:questions#q-actor, template:profiles/P4_ai_agent_delegation#audit-correlation, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：template:profiles/P4_ai_agent_delegation#audit-correlation"
   - id: p11-pre-add-questions-2.R10
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 22：台帳に登録し、受け手を把握したか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q22, registry:claims#consumers]
+    planned_items: [template:claim_request#q22, registry:claims#consumers, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R11
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 23：形式を変えるときの移行計画はあるか"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q23, template:00_core#definition-lifecycle]
+    planned_items: [template:claim_request#q23, template:00_core#definition-lifecycle, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R12
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 24：改名・廃止の互換期間と並行発行は"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q24, registry:claims#sunset_on, template:00_core#definition-lifecycle]
+    planned_items: [template:claim_request#q24, registry:claims#sunset_on, template:00_core#definition-lifecycle, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   - id: p11-pre-add-questions-2.R13
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 25：発行前の確認手段と、受け手の条件のテストは"
     owner_issue: "#4"
-    planned_items: [template:claim_request#q25, template:modules/M_idp_keycloak#token-preview, test:consumer_contract]
+    planned_items: [template:claim_request#q25, template:modules/M_idp_keycloak#token-preview, test:consumer_contract, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
+    note: "問いの回答欄は core。次の成果物は full のままでよい（関門 1、2026-11-22）：template:modules/M_idp_keycloak#token-preview、test:consumer_contract"
   - id: p11-pre-add-questions-2.R14
     slide: slide:p11-pre-add-questions-2
     text: "25 問の回答を、判断の行（ADR）と台帳の 1 件に残す"
     owner_issue: "#4"
-    planned_items: [template:claim_request, template:00_core#decisions, registry:claims#rationale]
+    planned_items: [template:claim_request, template:00_core#decisions, registry:claims#rationale, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
   # ---- 144 slide:p11-audit-metrics
@@ -5041,120 +5056,120 @@ requirements:
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：トークンの alg に従って検証しない。許可リストで鍵ごとに 1 つに固定する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-attacker, registry:token_types#alg_allowlist, test:negative_tests#alg-none, test:negative_tests#alg-confusion]
+    planned_items: [review:perspectives#ap-1-1, review:perspectives#role-attacker, registry:token_types#alg_allowlist, test:negative_tests#alg-none, test:negative_tests#alg-confusion]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R2
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：署名を確かめずに中身で認可しない。必ず検証してから読む"
     owner_issue: "#5"
-    planned_items: [review:contrasts/signed-vs-enforced, review:perspectives#role-consumer]
+    planned_items: [review:perspectives#ap-1-2, review:contrasts/signed-vs-enforced, review:perspectives#role-consumer]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R3
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：aud を確かめないことを避け、aud を必須にして自分宛てか確認する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-consumer, registry:token_types#required_claims, test:negative_tests#aud-wrong]
+    planned_items: [review:perspectives#ap-1-3, review:perspectives#role-consumer, registry:token_types#required_claims, test:negative_tests#aud-wrong]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R4
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：マルチテナントで iss・tid を見ないことを避け、発行者とテナントの許可リストで照合する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-attacker, lint:L9, test:negative_tests#tenant-mismatch]
+    planned_items: [review:perspectives#ap-1-4, review:perspectives#role-attacker, lint:L9, test:negative_tests#tenant-mismatch]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R5
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：署名が通れば発行者も正しいと仮定せず、鍵と発行者の対応を確かめる"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-consumer, registry:token_types#issuers, test:negative_tests#untrusted-key]
+    planned_items: [review:perspectives#ap-1-5, review:perspectives#role-consumer, registry:token_types#issuers, test:negative_tests#untrusted-key]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R6
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：email・upn を利用者のキーにせず、iss＋sub（Entra は tid＋oid）を使う"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-attacker, lint:L3]
+    planned_items: [review:perspectives#ap-1-6, review:perspectives#role-attacker, lint:L3]
     status: 未着手
     tier: core
   - id: p12-antipatterns-1.R7
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：本人が書ける属性から権限のクレームを作らない"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-attacker, lint:L31, registry:claims#provenance]
+    planned_items: [review:perspectives#ap-1-7, review:perspectives#role-attacker, lint:L31, registry:claims#provenance]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-antipatterns-1.R8
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：exp を必須にせず、時刻のずれを大きく許すことを避ける（ずれは数分まで）"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-consumer, lint:L27, test:negative_tests#expired]
+    planned_items: [review:perspectives#ap-1-8, review:perspectives#role-consumer, lint:L27, test:negative_tests#expired]
     status: 未着手
-    tier: full
+    tier: core
   # ---- 147 slide:p12-antipatterns-2
   - id: p12-antipatterns-2.R1
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：グループ・ロールを全部トークンに詰めず、粗いロールだけにして細かい権限は PDP に置く"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-issuer, template:modules/M_authz_pdp#carry-or-query, lint:R8]
+    planned_items: [review:perspectives#ap-2-1, review:perspectives#role-issuer, template:modules/M_authz_pdp#carry-or-query, lint:R8]
     status: 未着手
     tier: core
   - id: p12-antipatterns-2.R2
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：変わりやすい権限を焼き込まず、短命化・都度判定・失効の伝播で対処する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-freshness-mitigation, lint:L5]
+    planned_items: [review:perspectives#ap-2-2, review:perspectives#q-freshness-mitigation, lint:L5]
     status: 未着手
     tier: core
   - id: p12-antipatterns-2.R3
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：型を決めない・配列を区切り文字列にすることを避け、台帳で型を 1 つに固定する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-consumer, registry:claims#type, registry:claims#shape]
+    planned_items: [review:perspectives#ap-2-3, review:perspectives#role-consumer, registry:claims#type, registry:claims#shape]
     status: 未着手
     tier: core
   - id: p12-antipatterns-2.R4
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：名前空間なしの独自クレームを作らない"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-issuer, lint:L1b]
+    planned_items: [review:perspectives#ap-2-4, review:perspectives#role-issuer, lint:L1b]
     status: 未着手
     tier: core
   - id: p12-antipatterns-2.R5
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：クレームをヘッダーに移すとき、同名ヘッダーを消さないことを避け、入口で除去してから書き込む"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-attacker, lint:L8, test:negative_tests#spoofed-identity-header]
+    planned_items: [review:perspectives#ap-2-5, review:perspectives#role-attacker, lint:L8, test:negative_tests#spoofed-identity-header]
     status: 未着手
     tier: core
   - id: p12-antipatterns-2.R6
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：受け取ったトークンを上流へそのまま渡さず、宛先ごとに交換する"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-no-passthrough, lint:L41, calib:errors#external-at-inside]
+    planned_items: [review:perspectives#ap-2-6, review:perspectives#q-no-passthrough, lint:L41, calib:errors#external-at-inside]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-antipatterns-2.R7
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：エージェントが利用者のトークンを借りず、act で委任を表す"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-agent-own-identity, lint:L55]
+    planned_items: [review:perspectives#ap-2-7, review:perspectives#q-agent-own-identity, lint:L55]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-antipatterns-2.R8
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：トークン全文をログに出さず、種別・発行者・ハッシュだけを残す"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-token-logging, lint:L45]
+    planned_items: [review:perspectives#ap-2-8, review:perspectives#q-token-logging, lint:L45]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-antipatterns-2.R9
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：署名がなく、取り消せず、ログも残らない内部の代理トークンを作らない"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-internal-delegation-token, lint:L17]
+    planned_items: [review:perspectives#ap-2-9, review:perspectives#q-internal-delegation-token, lint:L17]
     status: 未着手
     tier: core
   # ---- 148 slide:p12-review-viewpoints
@@ -5178,7 +5193,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-definition, lint:L61, lint:R1]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-review-viewpoints.R4
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 発行：書けるのは 1 つの発行者だけか"
@@ -5213,7 +5228,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-propagation, lint:L41]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-review-viewpoints.R9
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 伝搬：ヘッダーに移すとき同名ヘッダーを除去するか"
@@ -5227,7 +5242,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-validation, template:modules/M_token_validation#shared-validator]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-review-viewpoints.R11
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 検証：alg・iss・aud・exp・typ を確かめるか"
@@ -5262,7 +5277,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-authorization, registry:claims#provenance, lint:L31]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-review-viewpoints.R16
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 運用：変更の手順と互換期間があるか"
@@ -5276,7 +5291,7 @@ requirements:
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-operations, lint:L45]
     status: 未着手
-    tier: full
+    tier: core
   - id: p12-review-viewpoints.R18
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 運用：失効の伝え方を決めたか"

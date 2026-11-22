@@ -4,7 +4,7 @@
 
 対応表（`requirements.yaml`）を作るときに、どの issue の本文にもない成果物が必要になったものの一覧です。各 issue の本文に書き足すかどうかは、担当の issue で決めます。書き足さない場合は、`planned_items.yaml` の項目を別の成果物に付け替えるか、要件を「扱わない」にします。
 
-提案の件数：239 件
+提案の件数：259 件
 
 ## #3（32 件）
 
@@ -117,7 +117,7 @@
 | `template:claim_request#q25` | 追加前の 25 問の第 25 問の回答欄 | `p11-pre-add-questions-2.R13` |
 | `template:claim_request#gate` | 答えられない問いが残るなら共有クレームにせずローカルな属性にとどめる判定 | `p11-pre-add-questions-1.R13` |
 
-## #5（67 件）
+## #5（86 件）
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
@@ -152,7 +152,7 @@
 | `review:perspectives#q-unverified-claim-extraction` | 署名を検証せずに取り出したクレームを認可に使っていないか | `p06-header-forwarding.R4` |
 | `review:perspectives#q-trace-id-trust` | 監査に署名つきの txn を、観測に traceparent を使い分けているか | `p06-audit-trail.R4` |
 | `review:perspectives#checklist-p06-flow` | Part 6 の流れの規則 10 項目（スライド 90）との対応 | `p06-flow-checklist.R1`, `p06-flow-checklist.R2`, `p06-flow-checklist.R3`, `p06-flow-checklist.R4`, `p06-flow-checklist.R5`, `p06-flow-checklist.R6`, `p06-flow-checklist.R7`, `p06-flow-checklist.R8`, `p06-flow-checklist.R9`, `p06-flow-checklist.R10` |
-| `review:perspectives#checklist-p07-data-layer` | Part 7 のデータ層の規則 10 項目（スライド 101）との対応 | `p07-data-layer-checklist.R1`, `p07-data-layer-checklist.R2`, `p07-data-layer-checklist.R3`, `p07-data-layer-checklist.R4`, `p07-data-layer-checklist.R5`, `p07-data-layer-checklist.R6`, `p07-data-layer-checklist.R7`, `p07-data-layer-checklist.R8`, `p07-data-layer-checklist.R9`, `p07-data-layer-checklist.R10` |
+| `review:perspectives#checklist-p07-data-layer` | Part 7 のデータ層の規則 10 項目（スライド 101）との対応 | `p07-data-layer-checklist.R1`, `p07-data-layer-checklist.R2`, `p07-data-layer-checklist.R3`, `p07-data-layer-checklist.R4`, `p07-data-layer-checklist.R5`, `p07-data-layer-checklist.R6`, `p07-data-layer-checklist.R7`, `p07-data-layer-checklist.R8`, `p07-data-layer-checklist.R9`, `p07-data-layer-checklist.R10`, `p07-data-layer-checklist.R11` |
 | `review:perspectives#q-db-context-writers` | DB の文脈を設定する主体以外が、同じ接続・取引で SQL を流せないか | `p07-three-db-paths.R3`, `p07-trust-boundary.R1` |
 | `review:perspectives#q-sql-tenant-predicate` | 全 SQL にテナントの条件があることを、規約とレビューで確かめているか | `p07-trust-boundary.R2`, `p07-connect-as-whom.R3` |
 | `review:perspectives#q-db-context-parameterized` | DB の文脈の値をパラメータで渡しているか | `p07-connection-pool.R4` |
@@ -188,8 +188,27 @@
 | `review:perspectives#stage-validation` | 観点書：レビューの段：検証 | `p12-review-viewpoints.R10`, `p12-review-viewpoints.R11`, `p12-review-viewpoints.R12` |
 | `review:perspectives#stage-authorization` | 観点書：レビューの段：認可 | `p12-review-viewpoints.R13`, `p12-review-viewpoints.R14`, `p12-review-viewpoints.R15` |
 | `review:perspectives#stage-operations` | 観点書：レビューの段：運用 | `p12-review-viewpoints.R16`, `p12-review-viewpoints.R17`, `p12-review-viewpoints.R18` |
+| `review:perspectives#pre-add-questions` | 観点書：追加・変更する共有クレームに追加前の 25 問の回答がそろい、回答が妥当か（スライド 142・143） | `p11-pre-add-questions-1.R1`, `p11-pre-add-questions-1.R2`, `p11-pre-add-questions-1.R3`, `p11-pre-add-questions-1.R4`, `p11-pre-add-questions-1.R5`, `p11-pre-add-questions-1.R6`, `p11-pre-add-questions-1.R7`, `p11-pre-add-questions-1.R8`, `p11-pre-add-questions-1.R9`, `p11-pre-add-questions-1.R10`, `p11-pre-add-questions-1.R11`, `p11-pre-add-questions-1.R12`, `p11-pre-add-questions-1.R13`, `p11-pre-add-questions-2.R1`, `p11-pre-add-questions-2.R2`, `p11-pre-add-questions-2.R3`, `p11-pre-add-questions-2.R4`, `p11-pre-add-questions-2.R5`, `p11-pre-add-questions-2.R6`, `p11-pre-add-questions-2.R7`, `p11-pre-add-questions-2.R8`, `p11-pre-add-questions-2.R9`, `p11-pre-add-questions-2.R10`, `p11-pre-add-questions-2.R11`, `p11-pre-add-questions-2.R12`, `p11-pre-add-questions-2.R13`, `p11-pre-add-questions-2.R14` |
+| `review:perspectives#design-checklist` | 観点書：設計のチェックリスト 12 項目（スライド 61）に、載せる独自クレームごとに答えているか | `p04-design-checklist.R1`, `p04-design-checklist.R2`, `p04-design-checklist.R3`, `p04-design-checklist.R4`, `p04-design-checklist.R5`, `p04-design-checklist.R6`, `p04-design-checklist.R7`, `p04-design-checklist.R8`, `p04-design-checklist.R9`, `p04-design-checklist.R10`, `p04-design-checklist.R11`, `p04-design-checklist.R12`, `p04-design-checklist.R13` |
+| `review:perspectives#ap-1-1` | 観点書：アンチパターン 1-1（トークンの alg に従って検証しない。許可リストで鍵ごとに 1 つに固定する） | `p12-antipatterns-1.R1` |
+| `review:perspectives#ap-1-2` | 観点書：アンチパターン 1-2（署名を確かめずに中身で認可しない。必ず検証してから読む） | `p12-antipatterns-1.R2` |
+| `review:perspectives#ap-1-3` | 観点書：アンチパターン 1-3（aud を確かめないことを避け、aud を必須にして自分宛てか確認する） | `p12-antipatterns-1.R3` |
+| `review:perspectives#ap-1-4` | 観点書：アンチパターン 1-4（マルチテナントで iss・tid を見ないことを避け、発行者とテナントの許可リストで照合する） | `p12-antipatterns-1.R4` |
+| `review:perspectives#ap-1-5` | 観点書：アンチパターン 1-5（署名が通れば発行者も正しいと仮定せず、鍵と発行者の対応を確かめる） | `p12-antipatterns-1.R5` |
+| `review:perspectives#ap-1-6` | 観点書：アンチパターン 1-6（email・upn を利用者のキーにせず、iss＋sub（Entra は tid＋oid）を使う） | `p12-antipatterns-1.R6` |
+| `review:perspectives#ap-1-7` | 観点書：アンチパターン 1-7（本人が書ける属性から権限のクレームを作らない） | `p12-antipatterns-1.R7` |
+| `review:perspectives#ap-1-8` | 観点書：アンチパターン 1-8（exp を必須にせず、時刻のずれを大きく許すことを避ける（ずれは数分まで）） | `p12-antipatterns-1.R8` |
+| `review:perspectives#ap-2-1` | 観点書：アンチパターン 2-1（グループ・ロールを全部トークンに詰めず、粗いロールだけにして細かい権限は PDP に置く） | `p12-antipatterns-2.R1` |
+| `review:perspectives#ap-2-2` | 観点書：アンチパターン 2-2（変わりやすい権限を焼き込まず、短命化・都度判定・失効の伝播で対処する） | `p12-antipatterns-2.R2` |
+| `review:perspectives#ap-2-3` | 観点書：アンチパターン 2-3（型を決めない・配列を区切り文字列にすることを避け、台帳で型を 1 つに固定する） | `p12-antipatterns-2.R3` |
+| `review:perspectives#ap-2-4` | 観点書：アンチパターン 2-4（名前空間なしの独自クレームを作らない） | `p12-antipatterns-2.R4` |
+| `review:perspectives#ap-2-5` | 観点書：アンチパターン 2-5（クレームをヘッダーに移すとき、同名ヘッダーを消さないことを避け、入口で除去してから書き込む） | `p12-antipatterns-2.R5` |
+| `review:perspectives#ap-2-6` | 観点書：アンチパターン 2-6（受け取ったトークンを上流へそのまま渡さず、宛先ごとに交換する） | `p12-antipatterns-2.R6` |
+| `review:perspectives#ap-2-7` | 観点書：アンチパターン 2-7（エージェントが利用者のトークンを借りず、act で委任を表す） | `p12-antipatterns-2.R7` |
+| `review:perspectives#ap-2-8` | 観点書：アンチパターン 2-8（トークン全文をログに出さず、種別・発行者・ハッシュだけを残す） | `p12-antipatterns-2.R8` |
+| `review:perspectives#ap-2-9` | 観点書：アンチパターン 2-9（署名がなく、取り消せず、ログも残らない内部の代理トークンを作らない） | `p12-antipatterns-2.R9` |
 
-## #6（35 件）
+## #6（36 件）
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
@@ -228,6 +247,7 @@
 | `lint:L58` | エージェント・交換のトークン種別で RT を出す、または寿命がタスク単位の上限を超える（仮称 agent-token-refresh） | `p10-per-tool-scopes.R5`, `p10-agent-checklist.R6` |
 | `lint:L59` | 委任のあるトークン種別に max_delegation_depth がない、または経路の深さが上限を超える（仮称 delegation-depth） | `p10-delegation-chain-depth.R1`, `p10-agent-checklist.R8`, `p12-priorities-deferrals.R6` |
 | `lint:L61` | 発行の設定（マッパー・フック）に台帳に無いクレーム名がある（仮称 issuer-config-unregistered） | `p11-reserved-names.R4`, `p12-review-viewpoints.R3` |
+| `lint:L72` | claim_request の 25 問に未回答がある共有クレーム（仮称 claim-request-complete） | `p11-pre-add-questions-1.R1`, `p11-pre-add-questions-1.R2`, `p11-pre-add-questions-1.R3`, `p11-pre-add-questions-1.R4`, `p11-pre-add-questions-1.R5`, `p11-pre-add-questions-1.R6`, `p11-pre-add-questions-1.R7`, `p11-pre-add-questions-1.R8`, `p11-pre-add-questions-1.R9`, `p11-pre-add-questions-1.R10`, `p11-pre-add-questions-1.R11`, `p11-pre-add-questions-1.R12`, `p11-pre-add-questions-1.R13`, `p11-pre-add-questions-2.R1`, `p11-pre-add-questions-2.R2`, `p11-pre-add-questions-2.R3`, `p11-pre-add-questions-2.R4`, `p11-pre-add-questions-2.R5`, `p11-pre-add-questions-2.R6`, `p11-pre-add-questions-2.R7`, `p11-pre-add-questions-2.R8`, `p11-pre-add-questions-2.R9`, `p11-pre-add-questions-2.R10`, `p11-pre-add-questions-2.R11`, `p11-pre-add-questions-2.R12`, `p11-pre-add-questions-2.R13`, `p11-pre-add-questions-2.R14` |
 
 ## #8（32 件）
 

@@ -387,6 +387,58 @@ def test_yaml_template_version_is_first_line_comment():
                 assert f.readline().startswith('# template_version: '), name
 
 
+# ------------------------------------------------------------------ gate 1 (#16): tier_confirmed, review_required
+def test_tiers_are_a_proposal_without_block(tmp_path, capsys):
+    code, out = run(build(tmp_path), capsys)
+    assert code == 0 and 'tiers: proposal (no tier_confirmed block)' in out
+    assert 'with a review: item: core 0 / 1, full 0 / 2' in out
+
+
+def test_tier_confirmed_block(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
+    code, out = run(build(tmp_path, reqs=reqs, files={'gate1.md': 'x'}), capsys)
+    assert code == 0, out
+    assert 'tiers: confirmed on 2026-11-22 by author (record: gate1.md)' in out
+
+
+def test_tier_confirmed_block_errors(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['tier_confirmed'] = {'confirmed_on': '2026-13-40', 'by': 'author', 'record': 'missing.md'}
+    code, out = run(build(tmp_path, reqs=reqs), capsys)
+    assert code == 1
+    assert 'tier_confirmed.confirmed_on must be a date' in out and "tier_confirmed.record 'missing.md' does not exist" in out
+    reqs['tier_confirmed'] = {'on': '2026-11-22'}
+    code, out = run(build(tmp_path, reqs=reqs), capsys)
+    assert code == 1 and 'tier_confirmed must be a mapping with confirmed_on, by, record' in out
+
+
+def test_tier_confirmed_survives_canonical_dump():
+    data = copy.deepcopy(finish(REQS))
+    data['tier_confirmed'] = {'confirmed_on': '2026-11-22', 'by': 'author', 'record': 'gate1.md'}
+    text = tc.dump_requirements(data, [s['id'] for s in SLIDES])
+    assert tc.yaml_load(text)['tier_confirmed'] == data['tier_confirmed']
+
+
+def test_review_required_slide_needs_a_review_item(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['classification'][1]['review_required'] = True
+    code, out = run(build(tmp_path, reqs=reqs), capsys)
+    assert code == 1
+    assert 'p01-validate.R1: the slide is review_required, but no planned item is review:' in out
+
+
+def test_review_required_slide_passes_with_review_item(tmp_path, capsys):
+    reqs = copy.deepcopy(REQS)
+    reqs['classification'][1]['review_required'] = True
+    reqs['requirements'] = [reqs['requirements'][0]]
+    reqs['requirements'][0]['planned_items'] = ['template:00_core#hop-table', 'review:contrasts/signed-vs-enforced']
+    code, out = run(build(tmp_path, reqs=reqs), capsys)
+    assert code == 0, out
+    assert 'with a review: item: core 1 / 1, full 0 / 0' in out
+    assert 'review_required: true' in tc.dump_requirements(finish(reqs), [s['id'] for s in SLIDES])
+
+
 @pytest.mark.parametrize('ref, ok', [
     ('registry:claims#volatility', True), ('registry:claims', False), ('registry:widgets#x', False),
     ('lint:L1a', True), ('lint:R3b', True), ('lint:L5#x', False), ('lint:NEW-foo', False),
