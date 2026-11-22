@@ -1,9 +1,9 @@
-<!-- template_version: 0.1.0 -->
+<!-- template_version: 0.2.0 -->
 # 設計書（Lite）記入例：シナリオ A　マルチテナント SaaS（Keycloak 26.8）
 
-> **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
+> **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
 
-- 版：0.1.4（#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
+- 版：0.2.0（#3 の台帳 v1 に移し替えた版。前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
 - 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
@@ -12,7 +12,7 @@
 
 ```
 $ python tools/claim_lint templates/examples/scenario-a
-claim_lint  design=templates/examples/scenario-a  profile=full  claims=25  token_types=9  catalog_events=62
+claim_lint  design=templates/examples/scenario-a  profile=full  claims=25  token_types=18  catalog_events=62
 R3    info      idp       IdP keycloak の一覧（keycloak-settings・keycloak-grant-types）とカタログの差集合は 0 件
 R3b   warn      I25       keycloak のこの発行で プロトコルマッパー が呼ばれるかは unknown（カタログ）。独自クレーム C-tenant-id・C-user-id・C-roles・C-v が載ることを確かめて hook_checked に書く
 R3b   warn      I26       （I25 と同じ）
@@ -102,10 +102,13 @@ flowchart LR
 | LOGOUT | ログアウトトークン | 却下 | — | JWT | — | — | IdP 側のセッションの終了は、BFF のリフレッシュの失敗で検知する（最大 330 秒の遅れを許す） |
 | DPOP | DPoP の proof | 却下 | — | JWT | — | — | 送信者制約を付けない |
 | TXN | Txn-Token | 却下 | — | JWT | — | — | サービス間の伝搬がない |
+| INTERNAL・IDJAG・CLIENTASSERTION・JAR・JARM・WORKLOADJWT・SET・STATUSLIST・INTROSPECTIONJWT | カタログの残りの 9 種類 | 却下 | — | JWT | — | — | 前提はカタログへの回答と同じ（`token_types.yaml`。台帳 v1 で足した） |
+
+台帳 v1 では、目録の各行に、読める相手（`visible_to`）と JWE の有無（`jwe`）がある。AT は BFF・API・経路の nginx が読め、IDT は BFF だけが読む。JWE はどの種類でも使わない。
 
 ## 6. 問い × 仕組み　〔縮小 Lite：手で書く〕
 
-問いの文言は #3 の問いの一覧（案）による。選ばなかった問いには「不要」と理由を書いた。
+問いの文言は #3 の本文の問いの一覧（案）による。選ばなかった問いには「不要」と理由を書いた。台帳 v1 の問いの一覧（`templates/registry/questions.yaml`）は、文言をスライドに合わせたので、この表の文言と一部違う（例：「何が承認されたか、どこ向けか」は「何が承認されたか」と「どのリソース向けか」の 2 行。スライドに文言のない「誰が発行したか」「どの種類・目的のトークンか」「どの強さで、いつ認証されたか」「今も有効か」は pending）。表を questions.yaml の文言で作り直すのは #4（テンプレート）で行う。
 
 | 問い | 使う仕組み | 検証する場所 | 不要の理由・前提 |
 | --- | --- | --- | --- |
@@ -228,6 +231,7 @@ R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak �
 
 ## 13. 前の版との差分
 
+- 0.2.0：台帳 v1（#3）に移し替えた。`claims.yaml` に `data_category`・`confidential_from`・`identifier_properties`・`rejection_kind` などを足し、`authoritative_writer` を段階ごとの配列（`configurable_by` つき）に、`integrity_until` を構造にした。`token_types.yaml` にカタログの残りの 9 種類の却下の行と `visible_to`・`jwe`・鍵の取り直しの規則などを足した。8. の表の中身を `hops.yaml` に宣言した。判断（採否・値）は変えていない
 - 0.1.4：#17 の網羅の規則（R3・R3b・R4・R6・R9）が求める節（`idp`・`subject_states`・`pairwise`・`outside_enumeration`）を `catalog_answers.yaml` に足した。PR #33 の独立点検で、カタログに I34（OID4VCI）が足されたので対象外で答え、R9 の探した範囲から Full だけの節（シーケンス図）を外し、停止の RT の根拠を「拒否による実質の失効」と書き直した。1. の CI の結果と 11. を直した
 - 0.1.3：#2 でカタログが 19 件から 61 件（発行 33・利用 28）になったので、足した 42 件に回答した（該当 4 件：I25・I26・U14・U27、対象外 38 件）。11. の件数と 7. の注記を直した
 - 0.1.2：PR #28 の再点検の指摘を反映した（C-scope の根拠、JWKS のキャッシュの TTL と鍵の入れ替えの手順、受け入れの上限 330 秒の書き方、SECURITY DEFINER、SSO の採否、exp − iat の書き方）

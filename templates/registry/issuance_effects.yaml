@@ -1,0 +1,152 @@
+# template_version: 0.2.0
+# yaml-language-server: $schema=./issuance_effects.schema.json
+# 発行方式の選択（token_types.yaml の issuance_profile）ごとに、台帳で必要になるもの（#3）。#6 の L62（ここで導かれる要件を台帳が満たして
+# いない）・L63（FAPI 2.0）・L64（mTLS を入口で終端するときの信頼境界）の入力にする。
+#
+# 列
+#   when      issuance_profile の項目（field）と値。equals は値そのもの、includes は配列（grants・request_protection）に含まれること。
+#             複数あればすべてが成り立つとき。値がスキーマの列挙にあることは tools/tests/test_registry_v1.py が確かめる
+#   requires  台帳で必要になるもの。target は見る場所、text は人向けの説明、check は lint（#6）が読む形
+#             （path は台帳の場所、op は present／absent／equals／includes／all_consumers／not_required）。check の解釈は #6 で決める
+#   refs      根拠（版付き）。lint は担当の規則
+#
+# この表は「選んだら何が要るか」の下限で、要るものをすべて挙げたとは言えない。選択の組み合わせ（例：DPoP と phantom token）で
+# 新たに要るものが見つかったら、行を足す
+effects:
+  - id: E-dpop
+    when: [{field: sender_constraint, equals: dpop}]
+    requires:
+      - {id: E-dpop.1, target: claims, text: AT に cnf.jkt（DPoP の公開鍵の JWK Thumbprint）を載せる, check: {path: "claims[name=cnf].carried_in", op: includes, value: "kind:access_token"}}
+      - {id: E-dpop.2, target: enforced_at, text: "AT の受け手すべてが DPoP proof の htm・htu・iat を照合し（RFC 9449 §4.3）、AT と一緒に出された proof では ath も照合する（§4.3。保護リソースへの要求のとき）。jti は再送の拒否に使う（§11.1。受け手が jti を覚えておく）", check: {path: "claims[name=cnf].enforced_at", op: all_consumers, value: [htm, htu, iat, jti, ath]}}
+      - {id: E-dpop.3, target: token_types, text: トークン目録で DPoP proof（typ は dpop+jwt）を採用し、jti の再送を拒む期間を決める, check: {path: "token_types[kind=dpop_proof]", op: equals, value: {decision: 採用, typ: dpop+jwt}}}
+      - {id: E-dpop.4, target: size, text: サイズの予算に cnf を含める（AT に載るので R8 の計算に入る）, check: {path: "claims[name=cnf].max_bytes", op: present}}
+      - {id: E-dpop.5, target: token_types, text: Authorization ヘッダーの方式は DPoP（Bearer ではない）, check: {path: "token_types[kind=access_token].transport", op: equals, value: authorization_dpop}}
+    refs:
+      - {kind: spec, id: "RFC 9449 §4.2", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.2"}
+      - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
+      - {kind: spec, id: "RFC 9449 §6.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-6.1"}
+      - {kind: spec, id: "RFC 9449 §7.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-7.1"}
+      - {kind: spec, id: "RFC 9449 §11.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-11.1"}
+    lint: [L62, L15]
+
+  - id: E-mtls
+    when: [{field: sender_constraint, equals: mtls}]
+    requires:
+      - {id: E-mtls.1, target: claims, text: AT に cnf.x5t#S256（クライアント証明書の拇印）を載せる, check: {path: "claims[name=cnf].carried_in", op: includes, value: "kind:access_token"}}
+      - {id: E-mtls.2, target: enforced_at, text: AT の受け手すべてが、TLS の相手の証明書の拇印と cnf を照合する, check: {path: "claims[name=cnf].enforced_at", op: all_consumers, value: [x5t#S256]}}
+      - {id: E-mtls.3, target: issuance_profile, text: TLS をどこで終端するか（tls_termination）を宣言する, check: {path: issuance_profile.tls_termination, op: present}}
+    refs:
+      - {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+      - {kind: spec, id: "RFC 8705 §6.5", url: "https://www.rfc-editor.org/rfc/rfc8705#section-6.5"}
+    lint: [L62, L15]
+
+  - id: E-mtls-entry
+    when: [{field: sender_constraint, equals: mtls}, {field: tls_termination, equals: at_entry}]
+    requires:
+      - {id: E-mtls-entry.1, target: issuance_profile, text: 証明書を下流へ渡すヘッダー（forwarded_cert_header）で、入口はクライアントから来た同名のヘッダーを捨てる（L8）, check: {path: issuance_profile.forwarded_cert_header.strip_inbound, op: equals, value: true}}
+      - {id: E-mtls-entry.2, target: issuance_profile, text: そのヘッダーを書けるのは入口だけ、という信頼境界を宣言する（L64）, check: {path: issuance_profile.forwarded_cert_header.written_only_by, op: present}}
+    refs:
+      - {kind: guide-slide, id: p06-header-forwarding}
+      - {kind: author-proposal, id: "入口で mTLS を終端するときは、証明書を渡すヘッダーの同名を捨て、入口だけが書く（RFC 8705 §6.5 は TLS の終端を認めるが、証明書の情報を下流へ安全に渡す方法を範囲外としている）", tracking: "#3"}
+    lint: [L64, L8]
+
+  - id: E-opaque
+    when: [{field: at_format, equals: opaque_introspection}]
+    requires:
+      - {id: E-opaque.1, target: claims, text: クレームの carried_in はイントロスペクションの応答（トークン目録の別の行）で、AT そのものには載らない, check: {path: "claims[*].carried_in", op: includes, value: "kind:introspection_response_jwt|transport:introspection_response"}}
+      - {id: E-opaque.2, target: size, text: AT は R8 のサイズの予算の対象外（size を書かない）, check: {path: "token_types[kind=access_token].size", op: absent}}
+      - {id: E-opaque.3, target: token_types, text: "イントロスペクションの応答のキャッシュの TTL を宣言し、応答の exp を超えて使わない（RFC 7662 §4）。TTL がクレームの volatility を超えないことは、本ガイドの規則（slide:p08-revocation-propagation、筆者の提案）", check: {path: "token_types[kind=access_token].introspection_cache_ttl", op: present}}
+    refs:
+      - {kind: spec, id: "RFC 7662 §4", url: "https://www.rfc-editor.org/rfc/rfc7662#section-4"}
+      - {kind: guide-slide, id: p08-revocation-propagation}
+      - {kind: author-proposal, id: "イントロスペクションの応答のキャッシュの TTL を、そのトークンで運ぶクレームの volatility 以下にする", tracking: "#3"}
+    lint: [L62, L5]
+
+  - id: E-phantom
+    when: [{field: at_format, equals: phantom}]
+    requires:
+      - {id: E-phantom.1, target: claims, text: 外に出す AT には組織のクレームを載せない（参照だけ）, check: {path: "claims[namespace!=null].carried_in", op: absent, value: "kind:access_token"}}
+      - {id: E-phantom.2, target: token_types, text: 入口で作り直す内部トークンを、トークン目録の別の行（kind は internal_token）にし、iss・aud・寿命を書く, check: {path: "token_types[kind=internal_token]", op: equals, value: {decision: 採用}}}
+      - {id: E-phantom.3, target: hops, text: 作り直すホップ（kind は reissue）と、作り直すサービス（exchanger）を宣言する, check: {path: "hops[kind=reissue].exchanger", op: present}}
+    refs:
+      - {kind: guide-slide, id: p06-edge-exchange}
+      - {kind: guidance, id: "NIST SP 800-228 §2.7"}
+    lint: [L62, L16]
+
+  - id: E-client-credentials
+    when: [{field: grants, includes: client_credentials}]
+    requires:
+      - {id: E-client-credentials.1, target: claims, text: client credentials で出す AT に、利用者のクレーム（usage が identifier の利用者の属性）を載せない, check: {path: "claims[usage=identifier].carried_in", op: absent, value: "grant:client_credentials"}}
+      - {id: E-client-credentials.2, target: token_types, text: sub はクライアントを表す。利用者の sub と区別する手段（別のトークン種別・別の iss・区別のクレーム）を宣言する, check: {path: "token_types[kind=access_token].purpose", op: present}}
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: spec, id: "RFC 9068 §5", url: "https://www.rfc-editor.org/rfc/rfc9068#section-5"}
+    lint: [L62]
+
+  - id: E-token-exchange
+    when: [{field: grants, includes: token_exchange}]
+    requires:
+      - {id: E-token-exchange.1, target: claims, text: 委任なら act（最も外側が今の代理者）、交換を許す相手を事前に示すなら may_act を台帳に置く, check: {path: "claims[name=act]", op: present}}
+      - {id: E-token-exchange.2, target: hops, text: 交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る）, check: {path: "hops[kind=exchange].upstream", op: present}}
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+      - {kind: guide-slide, id: p06-narrow-downstream}
+    lint: [L62, L16]
+
+  - id: E-rar
+    when: [{field: request_protection, includes: rar}]
+    requires:
+      - {id: E-rar.1, target: claims, text: authorization_details の type の語彙を value_vocabulary で定め、持ち主を決める, check: {path: "claims[name=authorization_details].value_vocabulary", op: present}}
+      - {id: E-rar.2, target: hops, text: 宛先ごとに絞って入れる（ホップの authorization_details）, check: {path: "hops[*].authorization_details", op: present}}
+      - {id: E-rar.3, target: size, text: 配列の上限（max_items）と 1 件の上限（max_bytes）を決める, check: {path: "claims[name=authorization_details].max_items", op: present}}
+    refs:
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+      - {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+    lint: [L62, L16]
+
+  - id: E-rt-sender-constrained
+    when: [{field: rt_strategy, equals: sender_constrained}]
+    requires:
+      - {id: E-rt-sender-constrained.1, target: token_types, text: RT のローテーションは不要（送信者制約で RT の再送を防ぐ）, check: {path: "token_types[kind=refresh_token].rt_rotation.rotation", op: not_required}}
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+    lint: [L15]
+
+  - id: E-fapi-no-rotation
+    when: [{field: client_type, equals: fapi}]
+    requires:
+      - {id: E-fapi-no-rotation.1, target: token_types, text: FAPI 対象の機密クライアントでは、RT をローテーションしない（例外的な事情を除く）。クライアントはローテーションに対応できるように作る, check: {path: "token_types[kind=refresh_token].rt_rotation.rotation", op: equals, value: false}}
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html", verified_on: "2026-11-22"}
+      - {kind: guide-slide, id: p08-rotation}
+    lint: [L15]
+
+  - id: E-public-no-sender-constraint
+    when: [{field: client_type, equals: public}, {field: sender_constraint, equals: none}]
+    requires:
+      - {id: E-public-no-sender-constraint.1, target: token_types, text: 公開クライアントで送信者制約がないなら、RT のローテーションと再利用の検知が必須, check: {path: "token_types[kind=refresh_token].rt_rotation", op: equals, value: {rotation: true, reuse_detection: "yes"}}}
+    refs:
+      - {kind: spec, id: "RFC 9700 §2.2.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.2.2"}
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+    lint: [L15]
+
+  - id: E-public-pkce
+    when: [{field: client_type, equals: public}]
+    requires:
+      - {id: E-public-pkce.1, target: issuance_profile, text: 利用者の発行は認可コード＋PKCE, check: {path: issuance_profile.grants, op: includes, value: authorization_code_pkce}}
+    refs:
+      - {kind: spec, id: "RFC 9700 §2.1.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1.1"}
+      - {kind: guide-slide, id: p06-grant-types}
+    lint: [L62]
+
+  - id: E-fapi2
+    when: [{field: conformance_profile, equals: fapi2_security}]
+    requires:
+      - {id: E-fapi2.1, target: issuance_profile, text: AT に送信者制約（DPoP か mTLS）, check: {path: issuance_profile.sender_constraint, op: equals, value: [dpop, mtls]}}
+      - {id: E-fapi2.2, target: issuance_profile, text: PAR を使う, check: {path: issuance_profile.request_protection, op: includes, value: par}}
+      - {id: E-fapi2.3, target: issuance_profile, text: PKCE（S256）を使う, check: {path: issuance_profile.grants, op: includes, value: authorization_code_pkce}}
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html", verified_on: "2026-11-22"}
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.2", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html", verified_on: "2026-11-22"}
+    lint: [L63]

@@ -27,7 +27,8 @@ jobs:
         run: |
           python - <<'EOF'
           import json, jsonschema
-          for p in ('templates/registry/claims.schema.json', 'templates/registry/token_types.schema.json'):
+          for p in ('templates/registry/claims.schema.json', 'templates/registry/token_types.schema.json',
+                    'templates/registry/hops.schema.json', 'templates/registry/issuance_effects.schema.json'):
               jsonschema.Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8')))
               print('valid schema:', p)
           EOF
@@ -39,6 +40,10 @@ jobs:
         run: python -m pytest -q -rs tools/tests/test_claim_lint_coverage.py
       - name: claim_lint on scenario A with --profile lite
         run: python tools/claim_lint templates/examples/scenario-a --profile lite
+      - name: Registry v1 tests (schemas, questions wording, issuance effects, README columns, REF, casestudy_check)
+        run: python -m pytest -q -rs tools/tests/test_registry_v1.py
+      - name: Casestudy check (ORG names and types, carry decisions vs templates/casestudy-deviations.yaml; pinned commit and sha256)
+        run: python tools/casestudy_check.py templates/examples/scenario-a
       - name: Event catalogue (#2) - columns, seed-list closure, subject-state matrix, sources.md counts
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)

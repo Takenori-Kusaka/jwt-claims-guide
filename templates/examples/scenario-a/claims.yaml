@@ -1,23 +1,44 @@
-# template_version: 0.1.0
-# 縮小 Lite の案（関門 1、research/template-design/gate1.md）：中身は消していない。縮小 Lite では
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../registry/claims.schema.json
+# 縮小 Lite の案（関門 1、research/template-design/gate1.md）：中身は消していない。列ごとの扱い（手で書く／生成／Full のみ）は
+# templates/registry/README.md の「列の一覧」。要点：
 #   - 載せて受け手が読む行：issue_events・recompute_trigger・propagation_delay・change_controller・status・issuers は
 #     IdP モジュールと token_types から生成し、手で書かない。単一値の overflow_strategy は既定（上限で固定）
 #   - 既定どおりで consumers: [] の行（auth_time・typ・sid・scope）：name・namespace・type・shape・decision・rationale・refs・
 #     max_bytes・pii_category・carried_in だけを書く（R8 の計算に要るもの）。ほかの列は Full だけ
-#   - 却下の行：今と同じ
+#   - 却下の行：今と同じ（v1 で rejection_kind を足した）
 #   - 組織の名前空間の共有クレーム（tenant_id・user_id・roles・v）は、追加前の 25 問を手で書く（claim_request_tenant_id.md）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例で、自組織の判断の代わりにしない。
-# 台帳のスキーマ v0（templates/registry/claims.schema.json）で書いた。列の過不足は research/template-design/v0-columns.md。
-# クレームの名前と型の正はケーススタディ（catalog_refs のコミット）。判定が違う行は templates/casestudy-deviations.yaml に載せた。
+# 台帳 v1（templates/registry/claims.schema.json、template_version 0.2.0）で書いた。v0 から v1 への移し替えは templates/CHANGELOG.md。
+# クレームの名前と型の正はケーススタディ（catalog_refs のコミット）。ORG 行の名前と型は tools/casestudy_check.py が照合する。
+# 判定が違う行は templates/casestudy-deviations.yaml に載せた。
 # 行の数：25（採用 14・既定どおり 5・却下 6）
 scenario: A
 casestudy_commit: 080b8da
+namespaces:
+  - namespace: "https://claims.example.com/"
+    style: object
+    owner: SaaS 基盤チーム（台帳の持ち主。README の「組織の名前空間の持ち主」）
+    namespace_version: C-v
+    assignment: 名前空間の下の名前は、この台帳への登録（PR と追加前の 25 問）でだけ割り当てる
+# data_category の語彙（fideslang、CC BY 4.0）は写さず、版を固定して参照する。値の形だけをスキーマで確かめる
+data_category_vocabulary:
+  name: fideslang
+  version: "3.1.4"
+  url: "https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv"
+  license: CC-BY-4.0
+  verified_on: "2026-11-22"
+data_category_extensions:
+  - key: system.operations.tenant
+    parent: system.operations
+    description: 利用者が操作しているテナントの識別子（組織の子カテゴリ。fideslang 3.1.4 に専用のキーがない）
+    owner: SaaS 基盤チーム
 claims:
   # ------------------------------------------------------------ 標準のクレーム（採用）
   - id: C-iss
     name: iss
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0092", "jwt-claims-casestudy@080b8da:CLM-0093"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0092", "jwt-claims-casestudy@080b8da:CLM-0091", "jwt-claims-casestudy@080b8da:CLM-0093"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
     type: string
     shape: single
@@ -31,8 +52,9 @@ claims:
     assumption: テナントとレルムが 1 対 1 で、レルムの名前はテナント ID と同じ
     revisit_trigger: 1 つのレルムに複数のテナントを入れる（Keycloak の Organizations など）とき
     usage: authz
+    answers: [q-user]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（テナントのレルム）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（テナントのレルム）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のレルムの設定（Frontend URL とレルム名）
     volatility: 0
@@ -50,6 +72,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: url}
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -59,7 +84,7 @@ claims:
   - id: C-sub
     name: sub
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0030", "jwt-claims-casestudy@080b8da:CLM-0033"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0030", "jwt-claims-casestudy@080b8da:CLM-0029", "jwt-claims-casestudy@080b8da:CLM-0033"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
     type: string
     shape: single
@@ -73,8 +98,9 @@ claims:
     assumption: 利用者はレルムの中で作り直さない（作り直すと別の sub になる）。テナントの管理者は自分のレルムで利用者を作り直せるが、これはテナントの中の権限として受け入れる（他テナントには効かない）
     revisit_trigger: 利用者を別のレルムへ移す運用を始めるとき
     usage: identifier
+    answers: [q-sub]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（basic スコープの sub マッパー）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（basic スコープの sub マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザー（レルムの DB）
     volatility: 0
@@ -91,6 +117,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -99,7 +128,7 @@ claims:
   - id: C-aud
     name: aud
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0071", "jwt-claims-casestudy@080b8da:CLM-0073"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0071", "jwt-claims-casestudy@080b8da:CLM-0070", "jwt-claims-casestudy@080b8da:CLM-0073"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
     type: string
     shape: single
@@ -113,8 +142,9 @@ claims:
     assumption: AT の宛先は saas-api の 1 つだけ（Keycloak は宛先が 1 つなら文字列で出す）
     revisit_trigger: AT を 2 つ以上の API に送る構成にするとき（配列になる）
     usage: authz
+    answers: [q-resource]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（Audience マッパー aud-saas-api）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（Audience マッパー aud-saas-api）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のクライアントのマッパーの設定
     volatility: 0
@@ -131,6 +161,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -139,7 +171,7 @@ claims:
   - id: C-exp
     name: exp
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0123", "jwt-claims-casestudy@080b8da:CLM-0124"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0123", "jwt-claims-casestudy@080b8da:CLM-0122", "jwt-claims-casestudy@080b8da:CLM-0124"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
     type: integer
     shape: single
@@ -154,7 +186,7 @@ claims:
     revisit_trigger: AT の寿命を変えるとき
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（レルムの accessTokenLifespan）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（レルムの accessTokenLifespan）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のレルムの設定
     volatility: 0
@@ -171,6 +203,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -180,7 +214,7 @@ claims:
   - id: C-iat
     name: iat
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0134", "jwt-claims-casestudy@080b8da:CLM-0136"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0134", "jwt-claims-casestudy@080b8da:CLM-0132", "jwt-claims-casestudy@080b8da:CLM-0136"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
     type: integer
     shape: single
@@ -193,7 +227,7 @@ claims:
     assumption: 監査ログに iat を残す
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak}
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak の時計
     volatility: 0
@@ -210,6 +244,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -218,7 +254,7 @@ claims:
   - id: C-jti
     name: jti
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0180"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0180", "jwt-claims-casestudy@080b8da:CLM-0178"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
     type: string
     shape: single
@@ -232,7 +268,7 @@ claims:
     revisit_trigger: Keycloak の版を上げるとき（jti の形式が変わる）
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak}
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak
     volatility: 0
@@ -248,6 +284,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
@@ -269,7 +307,7 @@ claims:
       - {kind: guide-slide, id: p06-stage-map}
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "①", writer: Keycloak（basic スコープの auth_time マッパー）}
+    authoritative_writer: [{stage: "①", writer: Keycloak（basic スコープの auth_time マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のセッション
     volatility: 0
@@ -284,6 +322,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録しない
+    data_category: [system.authentication]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
@@ -307,7 +347,7 @@ claims:
         verified_on: 2026-11-22
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak}
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak
     volatility: 0
@@ -322,6 +362,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: Keycloak プロジェクト
@@ -344,8 +386,9 @@ claims:
         url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token"
         verified_on: 2026-11-22
     usage: identifier
+    answers: [q-agent]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak}
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のクライアントの設定
     volatility: 0
@@ -361,6 +404,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
@@ -383,7 +429,7 @@ claims:
         verified_on: 2026-11-22
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "①", writer: Keycloak}
+    authoritative_writer: [{stage: "①", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のセッション
     volatility: 0
@@ -398,6 +444,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人関連情報
     log_policy: 記録しない
+    data_category: [system.authentication]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: Keycloak プロジェクト
@@ -407,11 +455,11 @@ claims:
   - id: C-scope
     name: scope
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0300"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0300", "jwt-claims-casestudy@080b8da:CLM-0299"]
     registered_ref: {kind: spec, id: "RFC 9068 §2.2.3", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3"}
     type: string
-    shape: single
-    description: 付与したスコープ（空白区切り）。この例では openid だけ
+    shape: space_delimited
+    description: 付与したスコープ（空白区切りの 1 つの文字列）。この例では openid だけ
     not_meaning: 利用者の権限（ロール）ではない
     decision: 既定どおり
     rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない
@@ -423,7 +471,7 @@ claims:
       - {kind: guide-slide, id: p05-scope-vs-role}
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak}
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: 認可要求の scope とクライアントスコープの設定
     volatility: 0
@@ -435,9 +483,13 @@ claims:
     on_missing: 無視
     enforced_at: []
     max_bytes: 64
+    max_items: 4
+    note: shape は space_delimited（1 つの文字列に空白区切りで並べる。RFC 9068 §2.2.3 と RFC 8693 §4.2）。max_bytes は文字列全体の上限。max_items 4 は openid と、クライアントに付けうる任意のスコープの見積もり（筆者の提案）
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [user.authorization]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 9068）
@@ -447,7 +499,7 @@ claims:
   - id: C-nonce
     name: nonce
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0488"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0488", "jwt-claims-casestudy@080b8da:CLM-0688"]
     registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
     type: string
     shape: single
@@ -460,7 +512,7 @@ claims:
     assumption: BFF が認可要求ごとに推測できない値を作り、セッションに保存する
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "①", writer: Keycloak（要求の値を写す）}
+    authoritative_writer: [{stage: "①", writer: Keycloak（要求の値を写す）, configurable_by: [client]}]
     issue_events: [I01]
     source_system: BFF のセッション
     volatility: 0
@@ -476,6 +528,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録しない
+    data_category: [system.authentication]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
@@ -497,10 +551,12 @@ claims:
     assumption: ID トークンは BFF のサーバーの中に留まり、ブラウザには渡さない
     revisit_trigger: SPA がトークンを持つ構成に変えるとき
     usage: display
+    display: [{locale: ja, label: 氏名}, {locale: en, label: Name}]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（Full name マッパー。ID トークンだけ）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（Full name マッパー。ID トークンだけ）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザーの firstName・lastName
+    source_max_length: {value: 255, unit: unknown, basis: "仮定。Keycloak 26.8 のユーザープロファイルの属性の長さの上限（文字数）と数え方は確かめていない（note、design.md の 12.）"}
     volatility: 86400
     propagation_delay: 300
     recompute_trigger: [login, refresh]
@@ -513,6 +569,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: 記録しない
+    data_category: [user.name]
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "ブラウザに届くもの（BFF のセッションの Cookie）には載せない。ID トークンは BFF のサーバーに留め（token_types の IDT の visible_to に browser がない）、AT にも載せない。派生値・参照・JWE は要らなかった（slide:p09-jwe-sd-jwt の順で最初の手段で足りた）"}
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
@@ -536,7 +595,7 @@ claims:
     revisit_trigger: SPA がトークンを持つ構成に変えるとき
     usage: display
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（User Property マッパー。ID トークンだけ）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（User Property マッパー。ID トークンだけ）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザーの email
     volatility: 86400
@@ -551,6 +610,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: 記録しない
+    data_category: [user.contact.email]
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "ブラウザに届くもの（BFF のセッションの Cookie）には載せない。ID トークンは BFF のサーバーに留め（token_types の IDT の visible_to に browser がない）、AT にも載せない。派生値・参照・JWE は要らなかった（slide:p09-jwe-sd-jwt の順で最初の手段で足りた）"}
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
@@ -572,7 +634,7 @@ claims:
     assumption: ID トークンは BFF のサーバーの中に留まる
     usage: display
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（ID トークンだけ）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（ID トークンだけ）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザーの emailVerified
     volatility: 86400
@@ -587,10 +649,14 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: 記録しない
+    data_category: [user.contact.email]
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "ブラウザに届くもの（BFF のセッションの Cookie）には載せない。ID トークンは BFF のサーバーに留め（token_types の IDT の visible_to に browser がない）、AT にも載せない。派生値・参照・JWE は要らなかった（slide:p09-jwe-sd-jwt の順で最初の手段で足りた）"}
     status: active
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
+    note: data_category は user.contact.email にした。fideslang 3.1.4 の user.contact.email はアドレスそのもので、email_verified はそのアドレスを確かめたかどうかの付随の状態。専用のキーがないので、アドレスの付随情報として同じキーに割り当てた（筆者の判断）
 
   # ------------------------------------------------------------ 組織のクレーム（名前空間 https://claims.example.com/）
   - id: C-tenant-id
@@ -610,7 +676,7 @@ claims:
     revisit_trigger: 1 人の利用者が複数のテナントに属する（テナントの切り替え）要件が出たとき
     usage: authz
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: SaaS のテナントの台帳（レルムの作成時にマッパーへ書く）
     volatility: 0
@@ -627,11 +693,17 @@ claims:
       - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する"}
       - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）"}
       - {service: postgres, check: "app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止）"}
-    integrity_until: ["Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02）。ここから先は JWS で守られず、トランザクションの境界と、RLS をすり抜けないアプリのロールで守る"]
+    integrity_until:
+      - place: db_session
+        target: Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02）
+        trust_boundary: ここから先は JWS で守られない。守りはトランザクションの境界（コミットで消える）と、RLS をすり抜けないアプリのロール app_rls（NOBYPASSRLS・テーブルの所有者でない）。写す値は iss から引いたテナントで、トークンの値ではない
     max_bytes: 32
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations.tenant]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: SaaS 基盤チーム
@@ -653,7 +725,7 @@ claims:
     revisit_trigger: 顧客が自分の IdP を持ち込む（BYO IdP）とき
     usage: identifier
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（User Property マッパー id）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（User Property マッパー id）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザー
     volatility: 0
@@ -669,6 +741,9 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: SaaS 基盤チーム
@@ -690,8 +765,9 @@ claims:
     assumption: クライアントの Full Scope Allowed を OFF にし、スコープのロールの割り当てを approver・tenant-admin の 2 つに限る。そのため最大 2 件。この設定はテナントの管理者が変えられるので、API が語彙と件数を強制する。誰に tenant-admin を付けるかは、テナントの中の権限として受け入れる
     revisit_trigger: ロールを足すとき（max_items と R8 を見直す）
     usage: authz
+    answers: [q-authorized]
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（User Realm Role マッパー。スコープで 2 つに限る）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（User Realm Role マッパー。スコープで 2 つに限る）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のレルムロールの割り当て（テナントの管理者が付ける）
     volatility: 330
@@ -701,14 +777,18 @@ claims:
     carried_in: [AT]
     consumers: [saas-api]
     on_missing: 既定値
+    absent_semantics: {absent: ロールなし（何も許さない）, empty_array: ロールなし（何も許さない）, "null": 拒否（型の誤り。配列であることの照合で落とす）}
     enforced_at:
       - {service: saas-api, check: 配列であること。2 件を超えたら拒否。approver・tenant-admin 以外の値は無視する（語彙は API 側で固定）}
     max_bytes: 12
     max_items: 2
     typical_items: 1
+    value_vocabulary: {values: [approver, tenant-admin], owner: SaaS 基盤チーム, extensible: false}
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [user.authorization]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: SaaS 基盤チーム
@@ -731,7 +811,7 @@ claims:
     assumption: 構造を変えるときは受け手を先に直し、発行者を後に変える
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
-    authoritative_writer: {stage: "②", writer: Keycloak（Hardcoded claim マッパー）}
+    authoritative_writer: [{stage: "②", writer: Keycloak（Hardcoded claim マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: 台帳（このファイル）
     volatility: 0
@@ -747,6 +827,8 @@ claims:
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
     status: active
     owner: SaaS 基盤チーム
     change_controller: SaaS 基盤チーム
@@ -755,8 +837,10 @@ claims:
   # ------------------------------------------------------------ 却下
   - id: C-client-id
     name: client_id
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0405"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0405", "jwt-claims-casestudy@080b8da:CLM-0404"]
     decision: 却下
+    rejection_kind: IdP が出さない
+    alt: [C-azp]
     rationale: Keycloak 26.8 の AT は（この例の認可コードの発行では）client_id を出さず、azp で同じ情報を出す。API は azp を読む。そのためこの AT は、ヘッダーで at+jwt を名乗るのに RFC 9068 §2.2 が REQUIRED とする client_id を欠き、RFC 9068 に適合しない。RFC 9068 どおりに検証する汎用の部品は拒否する
     refs:
       - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
@@ -769,6 +853,7 @@ claims:
     namespace: "https://claims.example.com/"
     catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-06"]
     decision: 却下
+    rejection_kind: 不要
     rationale: この例では IdP は Keycloak だけで、元の IdP を区別する必要がない
     assumption: 顧客が自分の IdP を持ち込まない
     revisit_trigger: BYO IdP を受け入れるとき（ケーススタディの条件付き採用の条件）
@@ -778,6 +863,8 @@ claims:
     name: preferred_username
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0589"]
     decision: 却下
+    rejection_kind: 代替あり
+    alt: [C-name, C-sub]
     rationale: 変わりうる名前で、識別にも認可にも使えない。表示には name を使う
     refs:
       - {kind: guide-slide, id: p04-immutable-identifiers}
@@ -788,6 +875,8 @@ claims:
     name: realm_access
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0291"]
     decision: 却下
+    rejection_kind: 代替あり
+    alt: [C-roles]
     rationale: Keycloak の形のロールを受け手に読ませない。ロールは名前空間の roles に、2 つの語彙だけを出す
     refs:
       - {kind: guide-slide, id: p03-absorb-idp-differences}
@@ -798,6 +887,7 @@ claims:
     name: acr
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0206"]
     decision: 却下
+    rejection_kind: 不要
     rationale: この例では認証の強さで操作を分けない
     assumption: 追加認証（step-up）を要る操作がない
     revisit_trigger: 承認の操作で追加認証を求めるとき
@@ -807,6 +897,7 @@ claims:
     name: allowed-origins
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0677"]
     decision: 却下
+    rejection_kind: 不要
     rationale: ブラウザから API を直接呼ばない（BFF 経由）ので、CORS の許可元を AT に載せる必要がない
     assumption: クライアントに web-origins スコープを付けない
     revisit_trigger: SPA から API を直接呼ぶ構成に変えるとき

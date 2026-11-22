@@ -8,16 +8,16 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 749
-  未着手: 703
-  実装済み: 3
+  未着手: 649
+  実装済み: 57
   後回し: 42
   扱わない: 1
-  core_未着手: 486
-  core_実装済み: 3
+  core_未着手: 447
+  core_実装済み: 42
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 217
-  full_実装済み: 0
+  full_未着手: 202
+  full_実装済み: 15
   full_後回し: 42
   full_扱わない: 1
 
@@ -223,14 +223,14 @@ requirements:
     text: "型（文字列か配列か）と、無いときの意味を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#type, registry:claims#shape, registry:claims#absent_semantics]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-claims-are-contracts.R4
     slide: slide:p00-claims-are-contracts
     text: "クレームが何を表し、何を表さないかを書く"
     owner_issue: "#3"
     planned_items: [registry:claims#description, registry:claims#not_meaning, lint:R1]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-claims-are-contracts.R5
     slide: slide:p00-claims-are-contracts
@@ -244,7 +244,7 @@ requirements:
     text: "変更を決める持ち主と、読んでよい受け手を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#owner, registry:claims#change_controller, registry:claims#consumers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-claims-are-contracts.R7
     slide: slide:p00-claims-are-contracts
@@ -266,7 +266,7 @@ requirements:
     text: "名前・型・無いときの意味を発行側で決め、読み方を受け手に任せない"
     owner_issue: "#3"
     planned_items: [registry:claims#type, registry:claims#shape, registry:claims#absent_semantics]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-why-hard.R2
     slide: slide:p00-why-hard
@@ -280,7 +280,7 @@ requirements:
     text: "配列か空白区切りの文字列かの形を宣言し、受け手で読み方をずらさない"
     owner_issue: "#3"
     planned_items: [registry:claims#shape, lint:R1]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-why-hard.R4
     slide: slide:p00-why-hard
@@ -294,7 +294,7 @@ requirements:
     text: "クレームが無いのか null なのかの意味の違いを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#absent_semantics, registry:claims#on_missing]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p00-why-hard.R6
     slide: slide:p00-why-hard
@@ -330,7 +330,7 @@ requirements:
     text: "名前と不変の ID を対で出し、照合は ID で行う。合成の識別子は区切り文字も設計する"
     owner_issue: "#3"
     planned_items: [registry:claims#paired_id, registry:claims#composite_format]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p00-incident-signature-valid.R5
     slide: slide:p00-incident-signature-valid
@@ -359,7 +359,7 @@ requirements:
     text: "暗号化が必要なら JWE を使い、トークン種別ごとに JWE の有無を宣言する"
     owner_issue: "#3"
     planned_items: [registry:token_types#jwe]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 11 slide:p01-validation-order
   - id: p01-validation-order.R1
@@ -517,7 +517,7 @@ requirements:
     text: "DPoP の proof は作成から短い間だけ受け入れ、その間の jti の再送を拒む"
     owner_issue: "#3"
     planned_items: [registry:token_types#jti_policy, registry:token_types#sender_constraint]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p01-client-made-jwts.R3
     slide: slide:p01-client-made-jwts
@@ -711,7 +711,7 @@ requirements:
     text: "jti は発行者をまたいでも衝突しないように割り当て、リプレイ検知に使うかを決める"
     owner_issue: "#3"
     planned_items: [registry:token_types#jti_policy]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-registered-claims.R6
     slide: slide:p02-registered-claims
@@ -827,7 +827,7 @@ requirements:
     text: "値の語彙を組織の名前空間で定義し、持ち主を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#value_vocabulary]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-roles-groups-entitlements.R3
     slide: slide:p02-roles-groups-entitlements
@@ -841,7 +841,7 @@ requirements:
     text: "グループが全件入っていると仮定せず、件数の上限とあふれたときの方針を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#max_items, registry:claims#overflow_strategy, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-roles-groups-entitlements.R5
     slide: slide:p02-roles-groups-entitlements
@@ -898,7 +898,7 @@ requirements:
     text: "scope の形（空白区切りの文字列か、配列の scp か）を宣言し、受け手が取り違えない"
     owner_issue: "#3"
     planned_items: [registry:claims#shape]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 27 slide:p02-auth-strength-session
   - id: p02-auth-strength-session.R1
@@ -927,7 +927,7 @@ requirements:
     text: "認証のクレームはリフレッシュや交換で変わらないことを前提に、再計算の契機を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#recompute_trigger]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-auth-strength-session.R5
     slide: slide:p02-auth-strength-session
@@ -1042,7 +1042,7 @@ requirements:
     text: "ブローカーでの SAML 属性からクレームへの写し方を組織で決め、上流の発行者と正規化の規則を書く"
     owner_issue: "#3"
     planned_items: [registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-saml-attributes.R2
     slide: slide:p02-saml-attributes
@@ -1085,14 +1085,14 @@ requirements:
     text: "作るときに、何を意味し、何を意味しないかを書き残す"
     owner_issue: "#3"
     planned_items: [registry:claims#description, registry:claims#not_meaning, lint:R1]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-check-before-creating.R3
     slide: slide:p02-check-before-creating
     text: "近い既存クレームとの違いを書き残す"
     owner_issue: "#3"
     planned_items: [registry:claims#prior_art_search]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-check-before-creating.R4
     slide: slide:p02-check-before-creating
@@ -1538,7 +1538,7 @@ requirements:
     text: "IdP ごとのキー（oid＋tid・uid など）を組織のキーへ対応づける規則を書く"
     owner_issue: "#3"
     planned_items: [registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-absorb-idp-differences.R3
     slide: slide:p03-absorb-idp-differences
@@ -1603,7 +1603,7 @@ requirements:
     text: "小さく上限に収まらない一覧は ID などの参照だけを載せ、中身は API で引く"
     owner_issue: "#3"
     planned_items: [registry:claims#max_bytes, registry:claims#max_items, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-carry-or-query.R4
     slide: slide:p04-carry-or-query
@@ -1647,7 +1647,7 @@ requirements:
     text: "独自クレームの名前空間の形（1 つのオブジェクトにまとめるか、フラットな接頭辞か）を決めて台帳に書く"
     owner_issue: "#3"
     planned_items: [registry:claims#namespace]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-namespace.R2
     slide: slide:p04-namespace
@@ -1748,7 +1748,7 @@ requirements:
     text: "クレームごとに、無い・null・false・空配列の意味を決めて台帳に書く"
     owner_issue: "#3"
     planned_items: [registry:claims#on_missing, registry:claims#absent_semantics]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-absent-null-false-empty.R2
     slide: slide:p04-absent-null-false-empty
@@ -1791,7 +1791,7 @@ requirements:
     text: "値の正規化は、発行時に書き手が一度だけ行う"
     owner_issue: "#3"
     planned_items: [registry:claims#value_normalization, registry:claims#authoritative_writer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-case-and-characters.R3
     slide: slide:p04-case-and-characters
@@ -1820,14 +1820,14 @@ requirements:
     text: "名前と ID を対で出し、名前は表示と補助にだけ使う"
     owner_issue: "#3"
     planned_items: [registry:claims#paired_id, registry:claims#usage]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-immutable-identifiers.R3
     slide: slide:p04-immutable-identifiers
     text: "合成の sub を作るなら、区切り文字と退避の規則を発行者が決めて公開する"
     owner_issue: "#3"
     planned_items: [registry:claims#composite_format]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p04-immutable-identifiers.R4
     slide: slide:p04-immutable-identifiers
@@ -1842,7 +1842,7 @@ requirements:
     text: "発行者が確かめた値・呼び出し側の申告の値・本人が編集できる値を、別の名前（場所）に分ける"
     owner_issue: "#3"
     planned_items: [registry:claims#provenance]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p04-split-by-writer.R2
     slide: slide:p04-split-by-writer
@@ -1871,14 +1871,14 @@ requirements:
     text: "クレームごとに最大の長さと件数を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#max_bytes, registry:claims#max_items, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-size-budget.R2
     slide: slide:p04-size-budget
     text: "上限を超えたら発行を失敗させ、切り捨てや置き換えで黙って出さない"
     owner_issue: "#3"
     planned_items: [registry:claims#overflow_strategy, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-size-budget.R3
     slide: slide:p04-size-budget
@@ -2001,7 +2001,7 @@ requirements:
     text: "名前空間のオブジェクトに、構造の版（v）を持たせる"
     owner_issue: "#3"
     planned_items: [registry:claims#namespace_version]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p04-namespace-object-example.R2
     slide: slide:p04-namespace-object-example
@@ -2144,7 +2144,7 @@ requirements:
     text: "どこを経由したかは、経由を示す別の属性（aws:CalledVia に当たるもの）で運ぶ"
     owner_issue: "#3"
     planned_items: [registry:questions#q-via]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-one-request-carries.R3
     slide: slide:p05-one-request-carries
@@ -2525,7 +2525,7 @@ requirements:
     text: "経由したことは、ホップで消えうる IP などの文脈ではなく、経由を示す別の属性で示す"
     owner_issue: "#3"
     planned_items: [registry:questions#q-via]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 78 slide:p06-stage-map
   - id: p06-stage-map.R1
@@ -2533,7 +2533,7 @@ requirements:
     text: "台帳に、クレームをどの段階（① 認証時〜⑥ 承認・同意）で書くかの列を持つ"
     owner_issue: "#3"
     planned_items: [registry:claims#stage]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-stage-map.R2
     slide: slide:p06-stage-map
@@ -2683,7 +2683,7 @@ requirements:
     text: "入口の変換で独自属性が上限超過で切り捨てられないか（例：約 1KB）を確かめ、切り捨てを方針にしない"
     owner_issue: "#3"
     planned_items: [registry:claims#overflow_strategy, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 82 slide:p06-transaction-tokens
   - id: p06-transaction-tokens.R1
@@ -2798,7 +2798,7 @@ requirements:
     text: "ホップごとに aud・scope・寿命・運ぶ独自クレームと、交換を担うサービスを宣言する"
     owner_issue: "#3"
     planned_items: [registry:hops#aud, registry:hops#scope, registry:hops#max_lifetime, registry:hops#custom_claims, registry:hops#exchanger]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-narrow-downstream.R3
     slide: slide:p06-narrow-downstream
@@ -3668,7 +3668,7 @@ requirements:
     text: "古さの上限はリフレッシュまでの時間であることを、再計算の契機とともに書く"
     owner_issue: "#3"
     planned_items: [registry:claims#recompute_trigger, registry:claims#propagation_delay]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 110 slide:p08-refresh-reevaluation
   - id: p08-refresh-reevaluation.R1
@@ -3761,8 +3761,8 @@ requirements:
     slide: slide:p08-rotation
     text: "長く使われない RT を失効させる期間を決める"
     owner_issue: "#3"
-    planned_items: [registry:token_types#rt_idle_timeout]
-    status: 未着手
+    planned_items: [registry:token_types#idle_timeout]
+    status: 実装済み
     tier: core
   - id: p08-rotation.R5
     slide: slide:p08-rotation
@@ -3819,7 +3819,7 @@ requirements:
     text: "受け手ごとに、手元で検証する（期限まで通す）か問い合わせるかを宣言する"
     owner_issue: "#3"
     planned_items: [registry:hops#validates]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p08-revocation-propagation.R5
     slide: slide:p08-revocation-propagation
@@ -3855,7 +3855,7 @@ requirements:
     text: "ログアウトと失効の要求で止まるのはセッションと RT で、手元で検証する JWT の AT は exp まで残ることを前提に、失効の手段を決める"
     owner_issue: "#3"
     planned_items: [registry:token_types#revocation]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p08-logout.R3
     slide: slide:p08-logout
@@ -3963,7 +3963,7 @@ requirements:
     text: "ブラウザの WebSocket のためにトークンを URL に載せない"
     owner_issue: "#3"
     planned_items: [registry:token_types#transport]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 118 slide:p08-decision-table
   - id: p08-decision-table.R1
@@ -4021,7 +4021,7 @@ requirements:
     text: "ペイロードを機微データとして分類する"
     owner_issue: "#3"
     planned_items: [registry:claims#pii_category]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p09-jws-is-readable.R3
     slide: slide:p09-jws-is-readable
@@ -4719,77 +4719,77 @@ requirements:
     text: "型：JSON の型を 1 つに決め、形式と許容値を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#type, registry:claims#shape, registry:claims#allowed_values]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R3
     slide: slide:p11-registry-fields
     text: "意味：何を表すかと、何を意味しないかを書く"
     owner_issue: "#3"
     planned_items: [registry:claims#description, registry:claims#not_meaning]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R4
     slide: slide:p11-registry-fields
     text: "発行者：どの発行者だけが付与するかを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#issuers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R5
     slide: slide:p11-registry-fields
     text: "書ける者：管理者か、本人か、呼び出し側かを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#provenance, registry:claims#authoritative_writer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R6
     slide: slide:p11-registry-fields
     text: "許可された受け手：どのサービスが読んでよいかを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#consumers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R7
     slide: slide:p11-registry-fields
     text: "上限：最大の長さ・件数と、超えたときの挙動を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#max_bytes, registry:claims#max_items, registry:claims#overflow_strategy, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R8
     slide: slide:p11-registry-fields
     text: "個人情報の区分：ログ・転送してよいかを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#pii_category, registry:claims#log_policy]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R9
     slide: slide:p11-registry-fields
     text: "持ち主：意味と値に責任を持つ部門を決める"
     owner_issue: "#3"
     planned_items: [registry:claims#owner]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R10
     slide: slide:p11-registry-fields
     text: "鮮度：値の出どころと、反映までの遅れを決める"
     owner_issue: "#3"
     planned_items: [registry:claims#source_system, registry:claims#volatility, registry:claims#propagation_delay]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R11
     slide: slide:p11-registry-fields
     text: "状態：提案・有効・廃止予定・廃止を持つ"
     owner_issue: "#3"
     planned_items: [registry:claims#status]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R12
     slide: slide:p11-registry-fields
     text: "変更履歴：いつ、誰が、何を変えたか（来歴）を残す（Git の履歴で持つ）"
     owner_issue: "#3"
     planned_items: [registry:README#slide-134-map]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-registry-fields.R13
     slide: slide:p11-registry-fields
@@ -4911,7 +4911,7 @@ requirements:
     text: "受け手ごとの移行状況を台帳で一覧にする"
     owner_issue: "#3"
     planned_items: [registry:claims#consumers_migration]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 146 slide:p11-reserved-names
   - id: p11-reserved-names.R1
@@ -4926,7 +4926,7 @@ requirements:
     text: "組織の名前空間の持ち主を決める"
     owner_issue: "#3"
     planned_items: [registry:README#namespace-owner]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p11-reserved-names.R3
     slide: slide:p11-reserved-names
@@ -4969,7 +4969,7 @@ requirements:
     text: "宣言的な写像（claimMappings など）を使うなら、上流の発行者と正規化の規則を台帳に書く"
     owner_issue: "#3"
     planned_items: [registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-translation-layer.R5
     slide: slide:p11-translation-layer
@@ -4991,7 +4991,7 @@ requirements:
     text: "台帳・名前空間・Schema は中央の 1 チームが持ち、登録を承認する"
     owner_issue: "#3"
     planned_items: [registry:README#namespace-owner, registry:claims#change_controller]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-ownership.R2
     slide: slide:p11-ownership

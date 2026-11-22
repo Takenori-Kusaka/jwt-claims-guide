@@ -1,0 +1,21 @@
+{
+ "_comment": "Pinned casestudy for tools/casestudy_check.py (#3). Raise the commit only together with the examples and templates/casestudy-deviations.yaml (templates/casestudy-mapping.md 7.). sha256 of each file at the commit, from raw.githubusercontent.com on 2026-11-22.",
+ "repo": "Takenori-Kusaka/jwt-claims-casestudy",
+ "commit": "080b8da317ac13386f60232f1840cdb7eadbc262",
+ "catalog_file": "catalog/catalog.json",
+ "decision_files": [
+  "catalog/decisions/part1.json",
+  "catalog/decisions/part2.json",
+  "catalog/decisions/part3.json",
+  "catalog/decisions/part4.json",
+  "catalog/decisions/part5_org11.json"
+ ],
+ "files": {
+  "catalog/catalog.json": "fe37a7007d7fcd0fbdf87f4be58f32a28c3f4f44537e0c3936f6c703aa560997",
+  "catalog/decisions/part1.json": "0ddaf4d2e54f7b448a150ce5cdc23bf9b69d0e118ea30c7171e9f5b713a6db38",
+  "catalog/decisions/part2.json": "0859eff60c355f4b11fe0f72cb39990e0a62e8e5fd2e00a006ad09b6b5c7ebb8",
+  "catalog/decisions/part3.json": "1e2616e09da2fa6f3c278b61ec83a8ff99eb8ed4b9bc24edbf165cc10a26d1e4",
+  "catalog/decisions/part4.json": "67b218df0ddbe71079a42fa90b21c66ccfa1d70fa1933ed97ef9237419c7c00a",
+  "catalog/decisions/part5_org11.json": "eda19fb43c7d55c4942b88cb5581f2c18c8ad95c783ea58a31192c2a6b601f11"
+ }
+}

@@ -1,0 +1,244 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/issuance_effects.schema.json/v0.2.0",
+ "$comment": "template_version: 0.2.0. What each issuance_profile choice requires of the registry (#3). Input of L62-L64 of #6; tools/tests/test_registry_v1.py checks that each condition names a value the token_types schema allows.",
+ "title": "Issuance effects",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "effects"
+ ],
+ "properties": {
+  "effects": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^E-[a-z0-9-]+$"
+     },
+     "when": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "field": {
+         "enum": [
+          "client_type",
+          "client_auth",
+          "grants",
+          "sender_constraint",
+          "tls_termination",
+          "forwarded_cert_header",
+          "at_format",
+          "rt_strategy",
+          "request_protection",
+          "conformance_profile"
+         ]
+        },
+        "equals": {},
+        "includes": {
+         "type": "string",
+         "minLength": 1,
+         "pattern": "\\S"
+        }
+       },
+       "required": [
+        "field"
+       ],
+       "oneOf": [
+        {
+         "required": [
+          "equals"
+         ]
+        },
+        {
+         "required": [
+          "includes"
+         ]
+        }
+       ]
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "description": "All conditions hold"
+     },
+     "requires": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "id": {
+         "type": "string",
+         "pattern": "^E-[a-z0-9-]+\\.[0-9]+$"
+        },
+        "target": {
+         "enum": [
+          "claims",
+          "token_types",
+          "hops",
+          "enforced_at",
+          "size",
+          "issuance_profile"
+         ]
+        },
+        "text": {
+         "type": "string",
+         "minLength": 1,
+         "pattern": "\\S"
+        },
+        "check": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "path": {
+           "type": "string",
+           "minLength": 1,
+           "pattern": "\\S"
+          },
+          "op": {
+           "enum": [
+            "present",
+            "absent",
+            "equals",
+            "includes",
+            "all_consumers",
+            "not_required"
+           ]
+          },
+          "value": {}
+         },
+         "required": [
+          "path",
+          "op"
+         ]
+        }
+       },
+       "required": [
+        "id",
+        "target",
+        "text",
+        "check"
+       ]
+      },
+      "maxItems": 20,
+      "minItems": 1
+     },
+     "refs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+       "$ref": "#/$defs/ref"
+      }
+     },
+     "lint": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "pattern": "^L[0-9]+[a-z]?$"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "uniqueItems": true
+     }
+    },
+    "required": [
+     "id",
+     "when",
+     "requires",
+     "refs"
+    ]
+   },
+   "maxItems": 50,
+   "minItems": 1
+  }
+ },
+ "$defs": {
+  "ref": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "id"
+   ],
+   "properties": {
+    "kind": {
+     "enum": [
+      "spec",
+      "guidance",
+      "research",
+      "book",
+      "incident",
+      "guide-slide",
+      "author-proposal"
+     ]
+    },
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "pattern": "\\S"
+    },
+    "url": {
+     "type": "string",
+     "pattern": "^https?://"
+    },
+    "verified_on": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "tracking": {
+     "type": "string",
+     "pattern": "^#\\d+$"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "kind": {
+        "const": "author-proposal"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "tracking"
+      ]
+     }
+    },
+    {
+     "$comment": "ASVS belongs in asvs_ids, not in refs (templates/CONTRIBUTING.md 1., casestudy-mapping.md 8.): an id that names ASVS in any spelling or is a bare ASVS requirement number (V8.3.2), or a url of the ASVS project",
+     "not": {
+      "anyOf": [
+       {
+        "required": [
+         "id"
+        ],
+        "properties": {
+         "id": {
+          "pattern": "(?i)ASVS|application\\s+security\\s+verification\\s+standard|^\\s*v\\d+(\\.\\d+){1,3}\\s*$|^\\s*v\\d+\\.\\d+\\.\\d+-"
+         }
+        }
+       },
+       {
+        "required": [
+         "url"
+        ],
+        "properties": {
+         "url": {
+          "pattern": "(?i)owasp/asvs|application-security-verification-standard"
+         }
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

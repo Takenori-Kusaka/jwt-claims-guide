@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""claim_lint (#16, #17): load a design's registry, validate it against the schemas, and check rules R1, R2, R8, the
-slide references, and the coverage rules R3, R3b, R4, R6, R9, R10 (coverage.py). Rules are described in
-tools/claim_lint/RULES.md.
+"""claim_lint (#16, #17, #3): load a design's registry, validate it against the schemas, and check rules R1, R2, R8, the
+references between the files (REF), the slide references, and the coverage rules R3, R3b, R4, R6, R9, R10
+(coverage.py). Rules are described in tools/claim_lint/RULES.md.
 
 Input directory (e.g. templates/examples/scenario-a):
   claims.yaml            claim registry (templates/registry/claims.schema.json)
   token_types.yaml       token inventory, issuance profile and R8 inputs (templates/registry/token_types.schema.json)
+  hops.yaml              per-hop declarations (templates/registry/hops.schema.json); optional, reported as info when absent
   catalog_answers.yaml   an answer for every event of the catalogue (templates/catalog/*.yaml)
+The question IDs of claims.yaml (answers, does_not_answer) are those of templates/registry/questions.yaml.
 """
 import json
 import math
@@ -32,14 +34,17 @@ MIN_REASON = 10  # characters for assumption / breaks_when of a 対象外 answer
 COMMON = ['id', 'name', 'decision', 'rationale']
 CARRIED = ['namespace', 'type', 'shape', 'description', 'not_meaning', 'usage', 'issuers', 'authoritative_writer',
            'issue_events', 'consumers', 'carried_in', 'on_missing', 'max_bytes', 'overflow_strategy', 'pii_category',
-           'log_policy', 'owner', 'source_system', 'volatility', 'propagation_delay', 'status']
+           'log_policy', 'owner', 'source_system', 'volatility', 'propagation_delay', 'status', 'data_category',
+           'confidential_from']
 # columns whose honest answer can be "none": the key must be written, the value may be null / []
-MAY_BE_NONE = {'namespace': '最上位のクレームは null と書く', 'consumers': '読む受け手がいないなら [] と書く'}
+MAY_BE_NONE = {'namespace': '最上位のクレームは null と書く', 'consumers': '読む受け手がいないなら [] と書く',
+               'confidential_from': '改ざん防止だけで足りるなら [] と書く'}
 TWO_OF =['refs', 'assumption', 'revisit_trigger']  # 採用 (deviation from the default) and 却下 need two of these (#3)
 TT_COMMON = ['id', 'kind', 'decision', 'rationale', 'format']
-TT_ADOPTED = ['purpose', 'issuer', 'holder', 'max_lifetime', 'stored_at', 'transport', 'revocation']
-TT_JWT = ['typ', 'alg_allowlist', 'issuers', 'key_rotation']
+TT_ADOPTED = ['purpose', 'issuer', 'holder', 'max_lifetime', 'stored_at', 'transport', 'revocation', 'visible_to']
+TT_JWT = ['typ', 'alg_allowlist', 'issuers', 'key_rotation', 'jwe']
 HEADER_TRANSPORTS = {'authorization_bearer', 'authorization_dpop', 'cookie'}
+IDLE_KINDS = {'refresh_token', 'session'}  # idle and absolute lifetimes are separate columns (gate1.md 5., A14)
 
 
 class Finding(dict):
@@ -48,7 +53,12 @@ class Finding(dict):
 
 
 def _empty(v):
-    return v is None or v == '' or v == [] or v == {}
+    """None, an empty or whitespace-only string, an empty list or mapping (a list of blank strings is empty too)."""
+    if isinstance(v, str):
+        return v.strip() == ''
+    if isinstance(v, list):
+        return all(_empty(x) for x in v)
+    return v is None or v == {}
 
 
 class _Loader(yaml.SafeLoader):
@@ -115,6 +125,8 @@ def rule_r1(claims, token_types):
         need = list(TT_COMMON)
         if t.get('decision') in ('採用', '既定どおり'):
             need += TT_ADOPTED
+            if t.get('kind') in IDLE_KINDS:
+                need.append('idle_timeout')
             if t.get('format') == 'jwt':
                 need += TT_JWT
                 if t.get('transport') in HEADER_TRANSPORTS:
@@ -172,6 +184,68 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     for eid in answers:
         if eid not in known:
             out.append(Finding('R2', ERROR, eid, 'カタログにないイベント ID への回答'))
+    return out
+
+
+# ------------------------------------------------------------------ REF (#3)
+def load_questions(path):
+    doc = load_yaml(path) or {}
+    return {q['id'] for q in doc.get('questions') or []}, {q['id'] for q in doc.get('pending') or []}
+
+
+def rule_ref(claims_doc, token_types, hops_doc, questions):
+    """IDs that one file uses must exist in the file that defines them (claims, token_types, hops, questions.yaml),
+    and an organization sub-category of data_category sits below its parent."""
+    out = []
+    active, pending = questions
+    cids = {c.get('id') for c in claims_doc.get('claims') or []}
+    tids = {t.get('id') for t in token_types}
+
+    def need(target, what, ref, known, label):
+        if ref is not None and ref not in known:
+            out.append(Finding('REF', ERROR, target, f'{what} の {ref} が{label}にない'))
+
+    for c in claims_doc.get('claims') or []:
+        cid = c.get('id', '?')
+        for k in ('answers', 'does_not_answer'):
+            for q in c.get(k) or []:
+                if q in pending:
+                    out.append(Finding('REF', ERROR, cid, f'{k} の {q} は questions.yaml の pending（スライドに同じ文言の問いがない）。'
+                                                          'スライドを直して questions に載せるまで参照しない'))
+                else:
+                    need(cid, k, q, active, ' questions.yaml の questions')
+        need(cid, 'paired_id', c.get('paired_id'), cids, '台帳')
+        for a in c.get('alt') or []:
+            if str(a).startswith('C-'):
+                need(cid, 'alt', a, cids, '台帳')
+    for ns in claims_doc.get('namespaces') or []:
+        need(f"namespace {ns.get('namespace')}", 'namespace_version', ns.get('namespace_version'), cids, '台帳')
+    for e in claims_doc.get('data_category_extensions') or []:
+        if not str(e.get('key', '')).startswith(str(e.get('parent', '')) + '.'):
+            out.append(Finding('REF', ERROR, f"data_category_extensions {e.get('key')}",
+                               f"key は parent（{e.get('parent')}）の子（parent + '.' で始まる）にする"))
+    for t in token_types:
+        need(f"token_type {t.get('id')}", 'tenant_binding.claim', (t.get('tenant_binding') or {}).get('claim'), cids, '台帳')
+    hops = (hops_doc or {}).get('hops') or []
+    hids = [h.get('id') for h in hops]
+    for h in hops:
+        hid = f"hop {h.get('id')}"
+        if hids.count(h.get('id')) > 1:
+            out.append(Finding('REF', ERROR, hid, 'ホップの id が重複している'))
+        need(hid, 'token_type', h.get('token_type'), tids, 'トークン目録（token_types.yaml）')
+        need(hid, 'upstream', h.get('upstream'), set(hids), ' hops.yaml')
+        seen, cur = [h.get('id')], h.get('upstream')
+        by_id = {x.get('id'): x for x in hops}
+        while cur is not None and cur in by_id:
+            if cur in seen:
+                out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(seen + [cur])}）"))
+                break
+            seen.append(cur)
+            cur = by_id[cur].get('upstream')
+        for x in h.get('custom_claims') or []:
+            need(hid, 'custom_claims', x, cids, '台帳')
+        for fh in h.get('forwarded_headers') or []:
+            need(hid, 'forwarded_headers.claim', fh.get('claim'), cids, '台帳')
     return out
 
 
@@ -305,9 +379,13 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     limits_path = limits_path or os.path.join(HERE, 'path_limits.yaml')
     reg = os.path.join(root, 'templates', 'registry')
     findings = []
-    paths = {k: os.path.join(design_dir, k + '.yaml') for k in ('claims', 'token_types', 'catalog_answers')}
+    paths = {k: os.path.join(design_dir, k + '.yaml') for k in ('claims', 'token_types', 'catalog_answers', 'hops')}
     docs = {}
     for k, p in paths.items():
+        if k == 'hops' and not os.path.isfile(p):
+            findings.append(Finding('LOAD', INFO, k, 'hops.yaml がない（ホップごとの宣言。交換・作り直しのホップがあれば書く）'))
+            docs[k] = {}
+            continue
         if not os.path.isfile(p):
             findings.append(Finding('LOAD', ERROR, k, f'{p} がない'))
             docs[k] = {}
@@ -319,12 +397,15 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
             docs[k] = {}
     findings += schema_check(docs['claims'], os.path.join(reg, 'claims.schema.json'), 'claims')
     findings += schema_check(docs['token_types'], os.path.join(reg, 'token_types.schema.json'), 'token_types')
+    if docs['hops']:
+        findings += schema_check(docs['hops'], os.path.join(reg, 'hops.schema.json'), 'hops')
     claims = docs['claims'].get('claims') or []
     tts = docs['token_types'].get('token_types') or []
     catalog = []
     for name in ('issue_events', 'use_events'):
         catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
     findings += rule_r1(claims, tts)
+    findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
     findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)
     findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir, tts)

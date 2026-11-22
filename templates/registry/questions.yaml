@@ -1,0 +1,157 @@
+# template_version: 0.2.0
+# 問いの一覧（#3）。設計書の「問い × 仕組み」の表（#4）の行と、台帳の answers・does_not_answer（claims.schema.json）が参照する。
+#
+# 決まり
+#   - text は、slides に挙げたスライドの本文（docs/slides.json の text）に、そのままの文字列で現れる（tools/tests/test_registry_v1.py が確かめる）
+#   - スライドに同じ文言の問いが無いものは questions に入れず、pending に置く。#3 の本文は「一致しない問いは、#10 でスライドを直してから載せる」
+#     としているが、#10 は閉じ、スライドはフェーズ 3 の終わりまで凍結している（#11 のコメント）。そのため pending のまま残し、
+#     凍結が解けたらスライドを直す issue で載せる（tracking）
+#   - mechanisms は、そのスライドの表の「クレーム・チャネル」の列の要約（文章は書き直した）。クレームでないもの（mTLS の相手）は channel と書く
+#   - 1 つの問いに 1 つの仕組みとは限らない。逆に、別の問いの仕組みで代用しない（slide:p05-one-request-carries のリーダーの視点）
+#
+# 列：id / text / slides（固定 ID）/ mechanisms（[{name, kind: claim|channel, note}]）/ not_this（取り違えやすい別の問いの id）/ refs
+#
+# 件数：questions 11 件、pending 4 件
+questions:
+  - id: q-sub
+    text: 誰の権限で
+    slides: [p05-one-request-carries, p06-audit-trail]
+    mechanisms:
+      - {name: sub, kind: claim, note: トップレベルの sub。Txn-Token の sub も同じ}
+    not_this: [q-actor, q-req-wl, q-peer]
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+
+  - id: q-actor
+    text: 誰が代理して実行しているか
+    slides: [p05-one-request-carries]
+    mechanisms:
+      - {name: act, kind: claim, note: 最も外側の act だけが今の代理者。入れ子の内側の act は過去の代理者で、アクセス制御に使わない}
+    not_this: [q-sub, q-req-wl, q-peer, q-via]
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+
+  - id: q-req-wl
+    text: どのワークロードが Txn-Token を求めたか
+    slides: [p05-one-request-carries]
+    mechanisms:
+      - {name: req_wl, kind: claim, note: Txn-Token を発行させたワークロード。今の送り手とは限らない}
+    not_this: [q-peer, q-actor]
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+
+  - id: q-peer
+    text: 直接の通信相手は誰か
+    slides: [p05-one-request-carries]
+    mechanisms:
+      - {name: mTLS の相手の ID（SPIFFE の X.509-SVID など）, kind: channel, note: トークンのクレームではなく接続の性質}
+    not_this: [q-req-wl, q-actor]
+    refs:
+      - {kind: guide-slide, id: p05-one-request-carries}
+
+  - id: q-via
+    text: どこを経由したか
+    slides: [p05-one-request-carries, p06-audit-trail]
+    mechanisms:
+      - {name: 経由を示す別の属性（AWS FAS の aws:CalledVia に当たるもの）, kind: claim, note: slide:p05-one-request-carries}
+      - {name: ネストした act, kind: claim, note: 監査の情報だけ。認可に使わない（slide:p06-audit-trail）}
+    not_this: [q-actor]
+    trace: "req:p05-one-request-carries.R2 req:p05-confused-deputy.R5"
+    refs:
+      - {kind: guide-slide, id: p05-one-request-carries}
+      - {kind: guide-slide, id: p06-audit-trail}
+
+  - id: q-txn
+    text: どの取引か
+    slides: [p06-audit-trail]
+    mechanisms:
+      - {name: txn, kind: claim, note: TTS と各サービスが記録する。リプレイの検知にも使う}
+    not_this: [q-sub]
+    note: "#3 の本文の文言は「どの取引で、何をどの条件で（txn・scope・tctx）」。スライドにある問いの文言は「どの取引か」だけなので、その文言で載せた。scope は q-authorized の仕組み、tctx は Txn-Token の推奨のクレーム（slide:p06-transaction-tokens）"
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p06-audit-trail}
+
+  - id: q-user
+    text: 誰が利用者か
+    slides: [p10-four-questions]
+    mechanisms:
+      - {name: iss と sub の組, kind: claim, note: sub は発行者と組で扱う。Entra ID は tid と oid}
+    not_this: [q-agent]
+    refs:
+      - {kind: guide-slide, id: p10-four-questions}
+
+  - id: q-agent
+    text: どのエージェント・クライアントか
+    slides: [p10-four-questions]
+    mechanisms:
+      - {name: client_id, kind: claim}
+      - {name: azp, kind: claim}
+      - {name: act.sub, kind: claim, note: 現在のアクターは最も外側の act}
+      - {name: req_wl, kind: claim}
+    not_this: [q-user]
+    refs:
+      - {kind: guide-slide, id: p10-four-questions}
+
+  - id: q-authorized
+    text: 何が承認されたか
+    slides: [p10-four-questions]
+    mechanisms:
+      - {name: scope, kind: claim}
+      - {name: authorization_details, kind: claim, note: 宛先ごとに絞って入れる}
+      - {name: acr・amr・auth_time, kind: claim}
+    not_this: [q-resource]
+    refs:
+      - {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+      - {kind: guide-slide, id: p10-four-questions}
+
+  - id: q-resource
+    text: どのリソース向けか
+    slides: [p10-four-questions]
+    mechanisms:
+      - {name: aud, kind: claim, note: 1 つに絞る（ガイドの推奨）}
+      - {name: resource（RFC 8707）, kind: channel, note: 要求のパラメータ}
+    not_this: [q-authorized]
+    refs:
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: guide-slide, id: p10-four-questions}
+
+  - id: q-holder
+    text: 誰が持つべきか
+    slides: [p10-four-questions]
+    mechanisms:
+      - {name: cnf, kind: claim, note: DPoP・mTLS の鍵に束縛する}
+    refs:
+      - {kind: spec, id: "RFC 9449 §6.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-6.1"}
+      - {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+      - {kind: guide-slide, id: p10-four-questions}
+
+# スライドに同じ文言の問いがないもの（#3 の本文の問いの一覧から）。answers・does_not_answer からは参照できない（claim_lint の REF）
+pending:
+  - id: q-iss
+    proposed_text: 誰が発行したか、信頼する発行者か
+    mechanisms_hint: iss（許可リストと完全一致）、iss ごとの鍵
+    nearest_slides: [p01-validation-order, p02-registered-claims]
+    reason: スライドには iss の検証の手順と意味の表はあるが、問いの形の文言がない
+    tracking: "#3"
+  - id: q-typ
+    proposed_text: どの種類・目的のトークンか
+    mechanisms_hint: ヘッダーの typ（at+jwt・txntoken+jwt・logout+jwt など）
+    nearest_slides: [p01-dangerous-header-params, p01-attack-patterns]
+    reason: スライドの表は「typ｜トークンの種類」で、問いの形の文言がない
+    tracking: "#3"
+  - id: q-auth-strength
+    proposed_text: どの強さで、いつ認証されたか
+    mechanisms_hint: acr・amr・auth_time
+    nearest_slides: [p02-auth-strength-session, p10-four-questions]
+    reason: slide:p10-four-questions は acr・amr・auth_time を「何が承認されたか」の行に入れている。別の問いとして立てるかはスライドで決める
+    tracking: "#3"
+  - id: q-still-valid
+    proposed_text: 今も有効か
+    mechanisms_hint: exp、失効の手段（イントロスペクション・状態リスト・SSF/CAEP・Back-Channel Logout）、剥奪が反映されるまでに許す時間
+    nearest_slides: [p08-four-lifetimes, p08-revocation-propagation]
+    reason: 寿命と失効のスライドはあるが、問いの形の文言がない
+    tracking: "#3"

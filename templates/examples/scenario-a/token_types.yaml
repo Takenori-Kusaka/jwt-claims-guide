@@ -1,8 +1,11 @@
-# template_version: 0.1.0
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../registry/token_types.schema.json
 # 縮小 Lite の案（関門 1）：issuance_profile は既定の組み合わせ（BFF＋認可コード＋PKCE）から生成し、外れた点だけ手で書く。
 # トークン目録の採用の行は今と同じ（R8・寿命・失効の検査に要る）。却下の行は kind・decision・rationale だけ
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
-# トークン目録・発行方式の選択・R8 の入力（スキーマ v0：templates/registry/token_types.schema.json）
+# トークン目録・発行方式の選択・R8 の入力（台帳 v1：templates/registry/token_types.schema.json、template_version 0.2.0）。
+# 目録には templates/catalog/token_kinds.yaml の 17 種類すべてが、採用か却下＋理由で並ぶ（v1 で却下の 9 行を足した）。
+# 選択ごとに台帳で要るものは templates/registry/issuance_effects.yaml（この例の選択では、どの行の when も成り立たない）
 issuance_profile:
   client_type:
     value: confidential
@@ -65,10 +68,30 @@ token_types:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
       - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
     refresh: BFF が期限の前に RT で取り直す（I02）
-    revocation: ローカル検証なので exp まで残る（受け入れは発行から最大 330 秒）。テナントの停止は、API がすべての要求で DB の tenants.status を引いて拒否する（C-tenant-id）。利用者の無効化と IdP 側のセッションの終了は、BFF の次のリフレッシュの失敗で検知し、BFF は自分のセッションを終える（最大 330 秒）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: ローカル検証なので exp まで残る（受け入れは発行から最大 330 秒）}
+      - {method: db_lookup, delay_seconds: 0, note: テナントの停止は、API がすべての要求で DB の tenants.status を引いて拒否する（C-tenant-id）}
+      - {method: refresh_failure, delay_seconds: 330, note: 利用者の無効化と IdP 側のセッションの終了は、BFF の次のリフレッシュの失敗で検知し、BFF は自分のセッションを終える}
+    lifetime_set_by: [platform, tenant_admin]
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    tenant_binding: {by: [iss, claim], claim: C-tenant-id}
+    subject_type: public
+    long_running: 非同期の処理に AT を渡さない（期限の後に下流を呼ぶ処理を置かない）
     stored_at: bff_server
     transport: authorization_bearer
-    key_rotation: Keycloak のレルムの鍵。API は iss ごとに JWKS をキャッシュする。未知の kid を見たら、その iss の JWKS を取り直すのは最短 300 秒に 1 回まで（要求ごとではない）。取り直しても無い kid は 300 秒のあいだ負のキャッシュに入れ、取り直さずに拒否する。未知の kid が無くても、JWKS のキャッシュは 3600 秒（TTL）で取り直す（レルムから消した鍵を信頼し続けないため）。鍵の入れ替えは、新しい鍵を署名に使う前に、TTL と取り直しの間隔の和（3900 秒）より長く JWKS に公開しておく（Keycloak では新しい鍵を先に passive で足し、2 時間後に active にする。古い鍵は、最後にその鍵で署名した AT の受け入れの上限 330 秒が過ぎてから消す）。こうすると、でたらめな kid で取り直しの枠を使われても、正規の新しい鍵はすでにキャッシュにあるので拒否されない（U09。間隔と TTL は筆者の提案。Keycloak が passive の鍵を JWKS に載せるかは確かめていない）
+    visible_to: [bff, api, hop:nginx]
+    jwe: {used: false, note: "AT には confidential_from が空でないクレームを載せない（name・email は IDT だけ）。経路の nginx は TLS を終端して AT を見るが、組織の中の部品として受け入れる"}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: null
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: Keycloak のレルムの鍵。API は iss ごとに JWKS をキャッシュする。未知の kid を見たら、その iss の JWKS を取り直すのは最短 300 秒に 1 回まで（要求ごとではない）。取り直しても無い kid は 300 秒のあいだ負のキャッシュに入れ、取り直さずに拒否する。未知の kid が無くても、JWKS のキャッシュは 3600 秒（TTL）で取り直す（レルムから消した鍵を信頼し続けないため）。鍵の入れ替えは、新しい鍵を署名に使う前に、TTL と取り直しの間隔の和（3900 秒）より長く JWKS に公開しておく（Keycloak では新しい鍵を先に passive で足し、2 時間後に active にする。古い鍵は、最後にその鍵で署名した AT の受け入れの上限 330 秒が過ぎてから消す）。こうすると、でたらめな kid で取り直しの枠を使われても、正規の新しい鍵はすでにキャッシュにあるので拒否されない（U09。間隔と TTL は筆者の提案。Keycloak が passive の鍵を JWKS に載せるかは確かめていない）
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: per_tenant
     size:
       signing: {alg: RS256, key_bits: 2048}
       header:
@@ -101,10 +124,18 @@ token_types:
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
     refresh: リフレッシュの応答にも出る。BFF はログインのときだけ検証する
-    revocation: ログイン時に 1 回使うだけで、保存しない（RP-Initiated Logout の id_token_hint にだけ使う）
+    revocation:
+      - {method: exp_only, delay_seconds: 300, note: ログイン時に 1 回使うだけで、保存しない（RP-Initiated Logout の id_token_hint にだけ使う）}
     stored_at: bff_server
     transport: token_response_body
-    key_rotation: AT と同じ
+    visible_to: [bff]
+    jwe: {used: false, note: "name・email（confidential_from: [browser]）を載せるが、IDT はトークンの応答で BFF のサーバーに届き、ブラウザに渡さない"}
+    log_policy: 記録しない
+    key_rotation: {period_days: null, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: AT と同じレルムの鍵}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: per_tenant
     note: トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外（size を書かない）。typ は Keycloak の ID トークンのヘッダーの値を確かめていない
 
   - id: RT
@@ -119,10 +150,16 @@ token_types:
     max_lifetime: 36000
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
+    idle_timeout: 1800
     refresh: 使うたびにローテーション（Revoke Refresh Token）。idle 1800 秒、絶対的な上限は SSO セッションの最大（36000 秒）
-    revocation: ログアウト（U06）で SSO セッションと一緒に失効する。SSO セッションの idle 1800 秒で切れる
+    rt_rotation: {rotation: true, reuse_detection: unverified}
+    sender_constraint: none
+    revocation:
+      - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト（U06）で SSO セッションと一緒に失効する}
+      - {method: session_delete, delay_seconds: 0, note: SSO セッションの idle 1800 秒・最大 36000 秒、管理者の削除で切れる}
     stored_at: bff_server
     transport: token_response_body
+    visible_to: [bff, idp]
     note: Keycloak の RT は JWT の形をしているが、クライアントは中身を読まないので opaque とした。idle はケーススタディのレルムの ssoSessionIdleTimeout（1800 秒）
 
   - id: CODE
@@ -137,9 +174,11 @@ token_types:
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
     refresh: なし
-    revocation: 1 回使うと無効
+    revocation:
+      - {method: one_time_use, delay_seconds: 0, note: 1 回使うと無効}
     stored_at: none
     transport: redirect_query
+    visible_to: [browser, bff, idp]
     note: max_lifetime はレルムの Client login timeout の既定値として置いた値で、Keycloak 26.8 の既定値は確かめていない
 
   - id: BFFSESSION
@@ -153,10 +192,14 @@ token_types:
     max_lifetime: 36000
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
+    idle_timeout: 1800
     refresh: 操作のたびに idle（1800 秒）の期限を延ばす。作ってから 36000 秒（絶対的な上限）で必ず終える
-    revocation: ログアウトで BFF のセッションを消し、RP-Initiated Logout（U06）を送る。RT でのリフレッシュが失敗したら（IdP 側のセッションの終了・利用者の無効化）、BFF のセッションを終える
+    revocation:
+      - {method: session_delete, delay_seconds: 0, note: ログアウトで BFF のセッションを消し、RP-Initiated Logout（U06）を送る}
+      - {method: refresh_failure, delay_seconds: 330, note: RT でのリフレッシュが失敗したら（IdP 側のセッションの終了・利用者の無効化）、BFF のセッションを終える}
     stored_at: browser
     transport: cookie
+    visible_to: [browser, bff]
     note: JWT ではないので R8 の対象外
 
   - id: SSO
@@ -170,15 +213,21 @@ token_types:
     max_lifetime: 36000
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}
+    idle_timeout: 1800
     refresh: 利用で idle（1800 秒）の期限が延びる。SSO Session Max を 36000 秒にする
-    revocation: ログアウト・管理者のセッションの削除
+    revocation:
+      - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト}
+      - {method: session_delete, delay_seconds: 0, note: 管理者のセッションの削除}
     stored_at: idp
     transport: cookie
+    visible_to: [browser, idp]
     note: ケーススタディのレルムの ssoSessionIdleTimeout は 1800 秒。SSO Session Max はレルムで 36000 秒（10 時間）に設定すると決めた（slide:p08-token-types-lifetimes の Keycloak SSO の最大 10 時間に合わせた。Keycloak 26.8 の既定値は確かめていない）
 
   - id: LOGOUT
     kind: logout_token
     decision: 却下
+    assumption: IdP 側のセッションの終了を BFF のセッションに反映するまで、最大 330 秒の遅れを許す
+    revisit_trigger: IdP 側のセッションの終了を 330 秒より早く BFF のセッションに反映する必要が出たとき
     rationale: IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 330 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない
     format: jwt
     note: IdP 側のセッションの終了を 330 秒より早く BFF のセッションに反映する必要が出たら採用する
@@ -187,11 +236,89 @@ token_types:
     kind: dpop_proof
     decision: 却下
     rationale: 送信者制約を付けない（issuance_profile.sender_constraint）
+    assumption: AT は BFF のサーバーと API の間だけを通り、ブラウザに出ない（I29・I30 の回答と同じ前提）
+    revisit_trigger: AT をブラウザや第三者のクライアントに渡すようになったとき
     format: jwt
 
   - id: TXN
     kind: txn_token
     decision: 却下
     rationale: この例は BFF → API → DB の 1 段で、サービス間の伝搬がない
+    assumption: saas-api の後ろに内部のサービスがなく、呼び出しの連鎖がない（I22 の回答と同じ前提）
+    revisit_trigger: saas-api が別の内部サービスを利用者の文脈で呼ぶようになったとき
     format: jwt
     note: API の後ろにサービスを足すときに、入口での Txn-Token（slide:p06-flow-multitenant-saas）を検討する
+
+  # ---------------------------------------------------------------- v1 で足した却下の行（カタログの全種類に採否を付ける。#3）
+  # 前提と崩れる条件は、catalog_answers.yaml の、その種類を出す発行イベントへの回答と同じ
+  - id: INTERNAL
+    kind: internal_token
+    decision: 却下
+    rationale: 入口（nginx）はトークンを作り直さず、saas-api が Keycloak の AT をそのまま検証する（design.md の 2.）
+    assumption: 入口での交換を置かない（I21 の回答、casestudy-deviations.yaml の scenario_premises）
+    revisit_trigger: 入口で外部の AT を検証し、内部トークンに作り替える構成にするとき
+    format: jwt
+
+  - id: IDJAG
+    kind: id_jag
+    decision: 却下
+    rationale: ドメインをまたぐ SSO 済みの利用者のトークンを受けない
+    assumption: テナントの IdP から ID-JAG で saas-api を呼ぶ連携がない（I16 の回答）
+    revisit_trigger: テナントの IdP から ID-JAG で saas-api を呼ぶ連携を受け入れるとき
+    format: jwt
+
+  - id: CLIENTASSERTION
+    kind: client_assertion
+    decision: 却下
+    rationale: BFF のクライアント認証は client_secret_basic（issuance_profile.client_auth）で、assertion を作らない
+    assumption: クライアント認証をケーススタディのレルムのままにする（I28 の回答）
+    revisit_trigger: private_key_jwt に切り替えるとき
+    format: jwt
+
+  - id: JAR
+    kind: jar_request_object
+    decision: 却下
+    rationale: 認可要求に署名しない（issuance_profile.request_protection は空）
+    assumption: 認可要求の完全性を求める規則（FAPI 2.0 など）の対象ではない（I31 の回答）
+    revisit_trigger: FAPI 2.0 など、認可要求の完全性を求める規則の対象になったとき
+    format: jwt
+
+  - id: JARM
+    kind: jarm_response
+    decision: 却下
+    rationale: 認可応答を JWT にしない。応答は BFF のサーバーが受ける
+    assumption: 認可応答の改ざんを防ぐ規則の対象ではない（I32 の回答）
+    revisit_trigger: 認可応答の改ざんを防ぐ必要が出たとき（FAPI 2.0 など）
+    format: jwt
+
+  - id: WORKLOADJWT
+    kind: jwt
+    decision: 却下
+    rationale: ワークロードの ID のトークンやアサーショングラントの JWT を使わない
+    assumption: saas-api は DB にサービスの資格情報で接続し、ほかのサービスを呼ばない（I20 の回答）
+    revisit_trigger: saas-api の後ろに別のサービスを置き、ワークロードの ID で呼ぶとき
+    format: jwt
+
+  - id: SET
+    kind: security_event_token
+    decision: 却下
+    rationale: Keycloak から SET を受けない。剥奪と利用者の無効化は最大 330 秒の遅れを許す
+    assumption: 剥奪・無効化の反映に 330 秒の遅れを許す（I23・U05 の回答）
+    revisit_trigger: 剥奪や無効化を 330 秒より早く saas-api と BFF に届ける必要が出たとき
+    format: jwt
+
+  - id: STATUSLIST
+    kind: status_list_token
+    decision: 却下
+    rationale: 状態リストを出さない。失効は AT の短い寿命と DB の確認で扱う
+    assumption: AT の寿命が 300 秒で、受け手に失効を届ける仕組みが要らない（I27 の回答）
+    revisit_trigger: AT を長くし、受け手に失効を届ける仕組みが要るようになったとき
+    format: jwt
+
+  - id: INTROSPECTIONJWT
+    kind: introspection_response_jwt
+    decision: 却下
+    rationale: イントロスペクションを使わない（at_format は jwt）ので、JWT 形式の応答も受けない
+    assumption: AS の判断を否認できない形で残す必要がない（I33 の回答）
+    revisit_trigger: イントロスペクションを使い、AS の判断を否認できない形で残す必要が出たとき
+    format: jwt
