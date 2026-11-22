@@ -1,4 +1,11 @@
 template_version: 0.1.0
+# 縮小 Lite の案（関門 1、research/template-design/gate1.md）：中身は消していない。縮小 Lite では
+#   - 載せて受け手が読む行：issue_events・recompute_trigger・propagation_delay・change_controller・status・issuers は
+#     IdP モジュールと token_types から生成し、手で書かない。単一値の overflow_strategy は既定（上限で固定）
+#   - 既定どおりで consumers: [] の行（auth_time・typ・sid・scope）：name・namespace・type・shape・decision・rationale・refs・
+#     max_bytes・pii_category・carried_in だけを書く（R8 の計算に要るもの）。ほかの列は Full だけ
+#   - 却下の行：今と同じ
+#   - 組織の名前空間の共有クレーム（tenant_id・user_id・roles・v）は、追加前の 25 問を手で書く（claim_request_tenant_id.md）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例で、自組織の判断の代わりにしない。
 # 台帳のスキーマ v0（templates/registry/claims.schema.json）で書いた。列の過不足は research/template-design/v0-columns.md。
 # クレームの名前と型の正はケーススタディ（catalog_refs のコミット）。判定が違う行は templates/casestudy-deviations.yaml に載せた。

@@ -118,10 +118,19 @@ WRN leaks found: 1
 
 反映した後の claim_lint：`error 0, warn 0, info 5`。
 
+## 関門 1 の判定と、それに伴う変更
+
+- 判定：2026-11-22、作成者が「絞る」とした（Lite の記入は 4 時間を超えるという作成者の見積もり。実測ではない）。記録は `research/template-design/gate1.md` の 9.
+- tier：「案どおり確定」。core に上げた要件 32 件（gate1.md の 7. の 5 件、L27・L31・L23 の拡張に結びつく 13 件、追加前の 25 問 7 件、アンチパターン 3 件、レビューの観点 4 件）。`templates/trace/requirements.yaml` に `tier_confirmed` を足し、`trace_check.py` がそれを検査・表示する
+- レビューで必ず扱うスライド：チェックリスト・アンチパターン・レビューの観点・追加前の問いの 10 枚に `review_required: true` を付け、要件ごとに `review:` の成果物を必須にした。アンチパターンの 17 件に専用の問い（`review:perspectives#ap-*`）、設計のチェックリストの 13 件に `review:perspectives#design-checklist`、追加前の 25 問の 27 件に `review:perspectives#pre-add-questions` と `lint:L72` を足した
+- Lite の縮小案：gate1.md の 10.。手で書く YAML の欄 866 → 677（約 22% 減。追加前の 25 問の 56 欄を足した後）、設計書の手で書く節 12 → 5。時間は約 40% 減と見積もった（実測ではない）
+- 追加前の 25 問の記入例：`templates/examples/scenario-a/claim_request_tenant_id.md`（tenant_id。25 問すべてに回答）
+- これらの変更は、まだ別のセッションで点検していない
+
 ## 点検していないもの
 
 - 根拠の中身の抜き取り（10%、最低 10 件）
 - 「対象外」の行の抜き取り（5 件）。カタログへの回答の対象外は 11 件
 - 作成者の 1 日以上空けた見直し
-- 再点検の後の修正（この記録の「再点検（2 回目）と直し方」）を、別のセッションでもう一度点検すること
+- 再点検の後の修正（この記録の「再点検（2 回目）と直し方」）と、関門 1 に伴う変更を、別のセッションで点検すること
 - 人による点検（#20）
