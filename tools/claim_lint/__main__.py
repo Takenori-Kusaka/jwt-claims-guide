@@ -16,6 +16,10 @@ from claim_lint import core  # noqa: E402
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ['render']:  # python tools/claim_lint render ... (#19, tools/claim_lint/RENDER.md)
+        from claim_lint import render
+        return render.main(argv[1:])
     ap = argparse.ArgumentParser(prog='claim_lint', description='Check a claim design (registry, token types, catalogue answers).')
     ap.add_argument('design_dir')
     ap.add_argument('--profile', choices=('lite', 'full'), default='full', help='lite downgrades R2 and R4 to warn (R6 is warn in both)')
