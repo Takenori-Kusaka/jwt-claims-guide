@@ -4,10 +4,10 @@ module.exports = (L) => {
   L.section('Part 3 4 つの IdP の実際');
   L.divider('PART 3', '4 つの IdP の実際', '同じ名前のクレームでも、IdP ごとに位置・形・意味が違う。2026 年 11 月時点の挙動と、最近の変更',
     ['利用者の安定したキーは、IdP ごとにどれか', 'アクセストークンの aud は、どう決まるか', '独自クレームは、どこで入れ、何が禁じられているか', '古い理解のままだと、どこで誤るか'],
-    'Part 3 では、Microsoft Entra ID、Keycloak、Auth0 と Okta、Amazon Cognito の 4 つの IdP が、実際にどんなクレームを出しているかを見ます。標準のクレームの名前を使っていても、IdP によって位置や形や意味が違います。たとえば sub は、Entra ID ではアプリごとに違う値になり、Okta のアクセストークンではログイン名になります。また、各社とも最近になって大きな変更を入れています。Cognito のトークン交換や、Keycloak のトークン交換の正式サポート、Auth0 の独自クレームの規則などです。古い記事や書籍の理解のままだと誤ります。内容は各社の公式文書を 2026 年 11 月 17 日時点で確認したものです。最後に、IdP ごとの違いを各サービスに持ち込まず、入口で吸収する考え方を示します。');
+    'Part 3 では、Microsoft Entra ID、Keycloak、Auth0 と Okta、Amazon Cognito の 4 つの IdP が、実際にどんなクレームを出しているかを見ます。標準のクレームの名前を使っていても、IdP によって位置や形や意味が違います。たとえば sub は、Entra ID ではアプリごとに違う値になり、Okta のアクセストークンではログイン名になります。また、各社とも最近になって大きな変更を入れています。Cognito のトークン交換や、Keycloak のトークン交換の正式サポート、Auth0 の独自クレームの規則などです。古い記事や書籍の理解のままだと誤ります。内容は各社の公式文書を 2026 年 11 月 17 日時点で確認したものです。最後に、IdP ごとの違いを各サービスに持ち込まず、入口で吸収する考え方を示します。', { id: 'p03-part' });
 
   {
-    const s = L.content('4 つの IdP の比較：同じ用途、違うクレーム', {
+    const s = L.content('4 つの IdP の比較：同じ用途、違うクレーム', { id: 'p03-idp-comparison',
       lead: '利用者のキー、aud、ロールの位置、独自クレームの入れ方は、IdP ごとにすべて違う',
       stages: [0, 1, 3],
       notes: '4 つの IdP を、7 つの観点で並べた表です。利用者の安定したキーは、Entra ID では oid と tid の組で、sub はアプリごとに違います。Okta はアクセストークンの sub がログイン名なので、uid を使います。テナントは、Entra ID の tid、Auth0 の org_id、Keycloak の organization と、それぞれ独自です。アクセストークンの aud も違います。Keycloak は自動では API を aud に入れず、Cognito は既定では aud 自体がありません。ロールやグループの位置もばらばらで、独自クレームの入れ方も、マッパー、Actions、発行前のフックと仕組みが違います。トークン交換は、どの IdP も RFC 8693 系の仕組みを持つようになりましたが、提供の段階が違います。この表から言えるのは、受け手のサービスが IdP ごとの読み方を持つと、IdP を足したり替えたりするたびに全サービスが変わる、ということです。この後、IdP ごとに詳しく見ていきます。',
@@ -26,7 +26,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Entra ID：キーは oid と tid、sub はアプリごと', {
+    const s = L.content('Entra ID：キーは oid と tid、sub はアプリごと', { id: 'p03-entra-oid-tid',
       lead: 'sub はアプリごとに値が違う。サービス間で共有するキーは oid＋tid。iss は tid で照合する',
       stages: [3, 4],
       notes: 'Microsoft Entra ID の識別子です。Entra ID の sub は不変で再利用されませんが、ペアワイズで、アプリごとに値が違います。同じ利用者でも、クライアントが違えば sub が違います。テナント内でアプリをまたいで同じになるのは oid で、テナントは tid です。Microsoft は、サービス間で共有するキーには oid と tid を使い、tid をデータのキーに含めるよう勧めています。email、preferred_username、unique_name で認可を判断してはならず、upn も変わることがあるので認可に使いません。マルチテナントのアプリでは、common などのメタデータの issuer が tenantid を含むテンプレートになっています。そのまま文字列で比べるのではなく、トークンの tid で置き換えてから完全一致で確かめます。もう 1 つ大事なのは、自分の API 宛てでないトークンを検証しないことです。Microsoft Graph 向けのトークンは独自の形式で、自分の API で検証も受け入れもしてはいけません。受け入れると、他人宛てのトークンで動く confused deputy になります。',
@@ -40,7 +40,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Entra ID：scp と roles、グループの超過、拡張属性', {
+    const s = L.content('Entra ID：scp と roles、グループの超過、拡張属性', { id: 'p03-entra-scp-roles-groups',
       lead: 'groups は 200 件を超えると消えて別の形に置き換わる。「無い」は「所属なし」ではない',
       stages: [1, 3, 4],
       notes: 'Entra ID の認可に関わるクレームです。scp は、クライアントが同意を得たスコープを空白区切りで並べたもので、利用者のトークンだけに入ります。アプリ専用のトークンでは、許可された権限は roles に入ります。groups には注意が必要です。JWT では 200 件、SAML では 150 件を超えると groups が出なくなり、代わりに _claim_names と _claim_sources という超過の印が入ります。そこに書かれた URL は古い Azure AD Graph のものなので頼らず、idtyp でトークンの種類を見て Microsoft Graph に問い合わせます。groups が無いことを所属なしと読むと、判断を誤ります。大きな組織では、アプリに割り当てたグループだけを出す設定が勧められています。トークンの版は、呼んだエンドポイントではなく、API 側の requestedAccessTokenVersion で決まり、null は v1 扱いです。acr は v1 のトークンにしかありません。拡張属性は extn という接頭辞つきの名前で出ますが、名前の大文字小文字が揺れると黙って欠落します。AI エージェントは Agent ID 用のクレームで表されます。これは Part 10 で扱います。',
@@ -60,7 +60,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Keycloak：マッパーがなければクレームは出ない', {
+    const s = L.content('Keycloak：マッパーがなければクレームは出ない', { id: 'p03-keycloak-mappers',
       lead: '属性はプロトコルマッパーで初めてクレームになる。束ねて再利用するのがクライアントスコープ',
       stages: [0, 1],
       notes: 'Keycloak では、利用者の属性を作っただけではトークンに出ません。プロトコルマッパーを設定して、初めてクレームになります。マッパーでは、クレームの名前、JSON の型、どのトークンに載せるかを指定します。マッパーを束ねて再利用する単位がクライアントスコープです。Default に入れたスコープは常に付き、Optional に入れたスコープはクライアントが要求したときだけ付きます。User Attribute のマッパーではクレームの JSON の型を選べるので、組織で型をそろえておきます。ロールは、レルムロールが realm_access、クライアントロールが resource_access の中に入ります。入るのは、利用者が持つロールと、クライアントが使ってよいロールの積集合です。既定では Full scope allowed がオンで全ロールが入るので、本番ではオフにして必要なロールだけにします。グループは Group Membership マッパーが必要で、フルパスで出ます。なお『実践 Keycloak』は Keycloak 18 が前提なので、画面の名前は今と違います。',
@@ -73,7 +73,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Keycloak：aud・軽量トークン・組織・トークン交換', {
+    const s = L.content('Keycloak：aud・軽量トークン・組織・トークン交換', { id: 'p03-keycloak-aud-lightweight',
       lead: 'API を aud に入れるには設定が要る。トークン交換は V2 が正式、委任はまだ preview',
       stages: [1, 2, 3],
       notes: 'Keycloak の 4 つの論点です。1 つ目は aud です。Keycloak は自動では API を aud に入れません。Audience マッパーをクライアントスコープに設定するか、クライアントロールを持つクライアントを aud に足す Audience Resolve の仕組みを使います。既定で aud に入る account は、API 固有の値ではありません。『OpenID Connect入門』のサンプルも、本来は API 固有の値にすべきと断ったうえで、既定のままにしています。2 つ目は軽量アクセストークンです。クレームを絞ったアクセストークンで、Keycloak の文書では、軽量アクセストークンで消したクレームは、受け手がイントロスペクションで取得します。3 つ目は組織の機能で、organization スコープを要求すると organization クレームが出ます。ただし 2025 年に、メールのドメインが一致するだけで組織の所属を付けてしまう脆弱性が報告されました。4 つ目はトークン交換です。内部のトークン同士を交換する Standard Token Exchange V2 は正式サポートで既定で有効、旧 V1 は非推奨です。act を入れる委任は 26.8 で preview になりました。ケーススタディで Keycloak 26.8.0 を実際に動かすと、3 つのことが確かめられました。軽量アクセストークンでは、sub、aud、realm_access、組織の名前空間を含む 12 個のクレームが落ちました。標準のトークン交換では、交換するクライアント mcp-tools に optional scope として割り当てた aud-orders を要求すると、元のトークンに無い orders 宛て（aud は orders と account）のトークンが 200 で出ました。交換は範囲を絞るとは限りません。Keycloak の文書も、既定では交換で元に無いスコープと宛先を要求できると書いています。これは Part 10 で扱います。また、リフレッシュでは、変えた利用者属性と足したロールが新しいトークンに反映され、Revoke Refresh Token を有効にしたこのレルムでは、リフレッシュトークンも新しいものに替わりました。これは Part 8 で扱います。',
@@ -92,7 +92,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Auth0：名前空間の規則と、黙って消えるクレーム', {
+    const s = L.content('Auth0：名前空間の規則と、黙って消えるクレーム', { id: 'p03-auth0-namespace',
       lead: '名前空間なしも許されるようになったが制約が多い。予約名と衝突すると、エラーなしで外れる',
       stages: [0, 1],
       notes: 'Auth0 の独自クレームの規則は変わっています。以前は名前空間つきの名前が必須とされていましたが、現在は名前空間なしの名前も許されています。ただし制約が多く、Auth0 自身も、どうしても必要でない限り名前空間つきを使うよう勧めています。まず、予約された名前があります。acr、act、aud、client_id、cnf、groups、org_id、permissions、roles、sid、sub などで、roles や groups や permissions を素の名前で足すことはできません。名前空間にも、auth0.com、webtask.io、webtask.run のドメインと、urn:auth0 は使えません。Auth0 の API を宛先とするアクセストークンには、名前空間なしの私的なクレームを入れられません。そして最も注意が要るのは、衝突したときの挙動です。トランザクションは失敗せず、クレームが黙って追加されないだけです。独自クレームの合計は 100KB までです。また、audience を指定せずにトークンを要求すると、自分の API では検証できない不透明なアクセストークンが返ります。',
@@ -112,7 +112,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Okta：Custom AS を使い、AT では uid を見る', {
+    const s = L.content('Okta：Custom AS を使い、AT では uid を見る', { id: 'p03-okta-custom-as',
       lead: 'Org AS の AT は自分の API で検証しない。AT の sub はログイン名なので、キーは uid',
       stages: [1, 3, 4],
       notes: 'Okta には 2 種類の認可サーバーがあります。Org 認可サーバーは Okta 自身の API のためのもので、そのアクセストークンは Okta だけが検証する前提です。内容は予告なく変わるので、自分の API で検証してはいけません。aud やクレームも変えられません。自分の API を守るには、Custom 認可サーバーを使います。独自クレームを自由に足せるのも Custom 認可サーバーだけです。次に識別子です。Okta のアクセストークンの sub は、ログイン名、多くはメール形式の文字列です。一方、ID トークンの sub は 00u で始まる Okta のユーザー ID です。アクセストークンで利用者を識別するには uid を使います。scp は付与されたスコープの配列で、Entra ID の空白区切りの文字列とは形が違います。groups は 100 件を超えると、要求そのものが失敗します。Entra ID の超過の挙動とは逆です。独自クレームの値は式で書き、式は 1024 文字までです。トークンのプレビューの画面で、発行前に結果を確かめられます。',
@@ -135,7 +135,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Cognito：token_use を確かめ、aud の欠落に備える', {
+    const s = L.content('Cognito：token_use を確かめ、aud の欠落に備える', { id: 'p03-cognito-token-use',
       lead: 'ID トークンが API を通らないよう token_use を確かめる。AT の aud は resource 指定時だけ',
       stages: [3],
       notes: 'Amazon Cognito のトークンを受け取るときの確認点です。Cognito の ID トークンとアクセストークンは、どちらも JWT で、token_use というクレームで種類を区別します。API でアクセストークンだけを受け入れるなら、token_use が access であることを必ず確かめます。確かめないと、ID トークンが API を通ってしまいます。次に宛先です。ID トークンでは aud が、アクセストークンでは client_id が、アプリクライアントの ID と一致することを確かめます。Cognito のアクセストークンには、既定では aud がありません。2025 年 10 月から、RFC 8707 の resource を指定して要求したときだけ aud が入るようになりました。aud を必須とする検証の部品をそのまま使うと、失敗するか、設定次第では素通りします。利用者のキーは sub です。username はプール内で一意とは限りません。sub は Cognito 独自の形式なので、UUID として厳密に形式を検証してはいけません。また、署名と exp の確認だけでは、サインアウトや失効を検出できません。',
@@ -154,7 +154,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('Cognito：発行前フックと custom: 属性の落とし穴', {
+    const s = L.content('Cognito：発行前フックと custom: 属性の落とし穴', { id: 'p03-cognito-pre-token-hook',
       lead: 'AT を変えるには V2 以上が要る。custom: 属性は利用者本人が書き換えられることがある',
       stages: [1, 4],
       notes: 'Cognito で独自クレームを入れるのは、トークン発行前の Lambda のフックです。版によってできることが違います。V1 は ID トークンだけを変えられ、V2 では利用者のアクセストークンも、V3 では M2M、つまりクライアントクレデンシャルのアクセストークンも変えられます。V2 と V3 は Essentials か Plus のプランが必要です。sub、username、client_id、aud、acr、amr などは、フックでは変えられません。次に custom: 属性です。Cognito の独自の属性は custom: という接頭辞がつき、最大 50 個、値は 2048 文字までで、追加した後は削除も改名も型の変更もできません。そして重要なのは、読み取り専用にしない限り、利用者本人が書き換えられる場合があることです。custom:role のような属性を権限に使って昇格される問題が、研究で指摘されています。最後に、2026 年 11 月 12 日にトークン交換が追加されました。単一の aud に絞ったトークンを出し、actor token を付ければ act が入ります。付けなければ本人と区別できず、may_act は扱いません。',
@@ -171,7 +171,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('最近の変更：古い理解のままだと誤る点', {
+    const s = L.content('最近の変更：古い理解のままだと誤る点', { id: 'p03-recent-changes',
       lead: '2025〜2026 年に各社が大きく変えた。古い記事や書籍の手順は、現行の文書で確かめ直す',
       stages: [5],
       notes: '最近の変更のうち、古い理解のままだと誤る点をまとめます。Cognito は変更が多く、2025 年 3 月に M2M のアクセストークンを発行前フックの V3 で変えられるようになり、10 月には resource を指定するとアクセストークンに aud が入るようになりました。2026 年 11 月 12 日には RFC 8693 のトークン交換が加わりました。acr と amr も順次提供されています。Keycloak は、内部のトークン同士を交換する Standard Token Exchange V2 が正式サポートになり、旧 V1 は非推奨です。2026 年 10 月の 26.8 では、act を使う委任が preview になりました。『実践 Keycloak』は Keycloak 18 を前提にしているので、画面の名前やトークン交換、組織の機能、軽量アクセストークンの記述は現行と違います。Auth0 は、独自クレームに名前空間なしの名前も許すようになりましたが、制約と黙った欠落があります。Entra ID は、AI エージェントを表す Agent ID 用のクレームを文書化しています。いずれも、調査日時点の公式文書を正としてください。',
@@ -191,7 +191,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('独自クレームの入れ方：失敗しても黙って出る', {
+    const s = L.content('独自クレームの入れ方：失敗しても黙って出る', { id: 'p03-custom-claim-injection',
       lead: '仕組みも上限も IdP ごとに違う。フックが失敗しても、クレームなしでトークンが出ることがある',
       stages: [1, 3],
       notes: '各 IdP で独自クレームを入れる仕組みと、失敗したときの挙動、上限をまとめます。Entra ID の custom claims provider は、トークンを発行する直前に外部の REST API を呼びますが、返したクレームのうち、クレームの対応づけで明示したものだけが入ります。型は文字列と文字列の配列だけで、合計 3KB までです。Okta の token inline hook は、既定で 3 秒でタイムアウトし、リトライしません。失敗するとフローはそのまま続き、クレームの付かない元のトークンが返ります。Auth0 の post-login の Action は、リフレッシュトークンの交換のときにも実行され、予約名と衝突したクレームは黙って外れます。Cognito の発行前フックもリフレッシュのときに呼ばれ、既存と追加のクレームとスコープの合計に 5,000 の上限があります。Keycloak はマッパーで入れ、SPI で自作もできます。ここから言えるのは、独自クレームが無いトークンが実際に届く、ということです。受け手は、必要なクレームが無いときに拒否し、無いことを既定の権限ありと読んではいけません。',
@@ -208,7 +208,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('取り違えやすい点：同じ名前でも形と意味が違う', {
+    const s = L.content('取り違えやすい点：同じ名前でも形と意味が違う', { id: 'p03-confusing-differences',
       lead: 'sub・scope・groups・aud・トークンの種類は、IdP ごとに形も意味も挙動も違う',
       stages: [3, 4],
       notes: '同じ名前のクレームが、IdP ごとに違う形や意味を持つ点をまとめます。sub は、Entra ID ではアプリごとに違い、Okta のアクセストークンではログイン名、Auth0 では IdP の種類と ID をつないだ文字列です。sub を共通のキーとして各サービスで使うと、IdP が変わったときに壊れます。scope は、Entra ID の scp と Cognito の scope は空白区切りの文字列ですが、Okta の scp は配列です。groups が上限を超えたときの挙動は、Entra ID は超過の印に置き換え、Okta は要求そのものを失敗させます。aud は、Cognito の既定のアクセストークンには無く、Keycloak は設定しないと API が入らず、Auth0 は userinfo を含む配列になることがあります。トークンの種類の見分け方も、Cognito は token_use、Entra ID は idtyp、RFC 9068 の形式なら typ の at+jwt と違います。受け手の各サービスが、これらをすべて正しく扱うのは現実的ではありません。次のスライドで、入口で吸収する考え方を示します。',
@@ -225,7 +225,7 @@ module.exports = (L) => {
   }
 
   {
-    const s = L.content('IdP の差は入口で吸収する', {
+    const s = L.content('IdP の差は入口で吸収する', { id: 'p03-absorb-idp-differences',
       lead: 'IdP ごとの検証と対応づけは入口で 1 回だけ行い、内側のサービスには組織の形で渡す',
       stages: [2, 3, 5],
       notes: 'Part 3 のまとめです。4 つの IdP は、利用者のキー、テナント、aud、ロールの位置、独自クレームの入れ方がすべて違います。各サービスがこの違いを個別に扱うと、IdP を足したり、IdP の挙動が変わったりするたびに、全サービスを直すことになります。そこで、IdP ごとの検証と対応づけを入口で 1 回だけ行い、内側のサービスには組織が決めた形で渡します。入口では、IdP ごとに iss、aud、トークンの種類を検証し、Entra ID なら oid と tid、Okta なら uid というように、IdP ごとのキーを組織のキーに対応づけます。scope の形やロールの名前も、組織の語彙にそろえます。具体的な方法は、入口でのトークン交換や内部トークンの発行で、これは Part 6 で扱います。また、対応づけの表と、組織のクレームの台帳、共通の検証部品は、Part 11 のガバナンスで扱います。どちらの場合も、内側のサービスが読むのは組織の名前空間のクレームだけ、という状態を目指します。ケーススタディの社内業務システムでは、IdP を区別せずに必須のクレームを確かめる厳格な基準が、正規の要求を 2 件拒否しました。groups が超過で消えた Entra ID の管理者と、リソースバインディングを使わない既定の形で aud が無く、client_id で宛先を表す Cognito のアクセストークンです。入口の正規化で Cognito だけは client_id を照合し、groups の超過はディレクトリを引いて解決すると、どちらも正しく受理されました。なお、ケーススタディで実機を使ったのは Keycloak だけで、Entra ID・Okta・Cognito・Auth0 は 2026 年 11 月時点の公式文書の形を再現した模擬です。詳しくは Part 4 で扱います。',

@@ -50,8 +50,98 @@
 ## ビルド
 
 ```bash
-cd deck && NODE_PATH=<pptxgenjs などを入れた node_modules> node build.js
+cd deck && npm install                       # pptxgenjs など（deck/node_modules。lock ファイルは管理しない）
+cd deck && node build.js                     # PPTX と deck/slide_ids.json を書く
+cd deck && node build.js --ids-only          # deck/slide_ids.json だけを書く（PPTX は書かない）
+cd deck && node build.js --ids-only --register   # 新しいスライドの ID を台帳に登録する
+python tools/build_web_slides.py             # docs/（slides.json・index.html・slide_ids.csv）を作る
+python tools/check_slide_refs.py [ファイルやディレクトリ ...]   # スライド ID・台帳・参照を確かめる
+python -m unittest discover -s tools/tests -v                  # ID の仕組みのテスト（node と Playwright がなければ一部を飛ばす）
+python tools/tests/cmp_pptx.py before.pptx after.pptx          # 2 つのビルドで描画に関わる部分が同じかを比べる
 ```
+
+`build_web_slides.py` は、`docs/slides/` に書き出し済みの PNG があれば WebP に変換し、なければ既存の画像に触れずに `slides.json` と `index.html` だけを作り直します（PNG の書き出しには PowerPoint が要ります：`deck/export.ps1`）。`deck/package-lock.json` は `.gitignore` に入れています。依存は `package.json` の範囲指定で入れ、成果物が変わっていないことは `cmp_pptx.py` で出力を比べて確かめるためです。
+
+## スライドの固定 ID
+
+各スライドには、番号とは別の ID があります（例：`p04-carry-or-query`）。スライドを足して番号がずれても、ID は変わりません。根拠としてスライドを参照するときは、番号ではなく ID を使ってください。
+
+### ID の規則
+- 形式は `pNN-<slug>` です。`slug` は英小文字と数字の語を `-` でつないだものです
+- `pNN` は、ID を初めて付けたときに、そのスライドを定義していた Part の番号です（`deck/pNN.js`）。**接頭辞は発行時に固定**します。後でスライドを別の Part に移しても、ID は変えません
+  - ビルドは、台帳にない新しい ID に限って、接頭辞と Part が合っているかを確かめます
+- 一度付けた ID は変えず、使い回しもしません。スライドを削除したら、台帳でその ID を `retired` にします（欠番）
+
+### 定義と台帳
+- **定義**：`deck/p*.js` の各スライドに `id` を書きます。書き方は次の 3 通りです。ID は画面には出ません
+  - `L.content(title, { id: '…', … })`
+  - `L.divider(…, notes, { id: '…' })`
+  - `L.slide({ id: '…', … })`
+- **台帳**：`deck/slide_ids_registry.json` は、発行したすべての ID の記録です。追記だけを行い、行を消しません。ID ごとに次を書きます
+  - `issued`：発行日
+  - `title`：最初のタイトル
+  - タイトルを意図して変えたとき：`retitled` に `{"date", "title"}` を追記します
+  - 削除したとき：`retired`（日付）と `reason` を足します
+- **新しいスライドを足したとき**：`node build.js --ids-only --register` で台帳に登録します
+- **ビルドが失敗する場合**：
+  - `id` がない
+  - 形式が違う
+  - 重複している
+  - 台帳にない（`--register` なしの場合）
+  - `retired` の ID を使っている
+  - 台帳にある有効な ID が、どのスライドにもない（改名や削除を `retired` にせずに行った場合）
+  - 新しい ID の接頭辞が、定義している Part と合わない
+
+### 一覧
+- `deck/slide_ids.json`：ビルドが出力します。`title` は `deck/p*.js` に書いたタイトルです
+- `docs/slides.json`：`id` 欄があります
+- 番号との対応表 [docs/slide_ids.csv](docs/slide_ids.csv)：列は `n,id,title,source_title` です。番号で書いた既存の参照を ID に置き換えるときに使います
+  - `title` は、Web 版と `slides.json` に出るタイトルです（PPTX のタイトル枠）
+  - `source_title` は、`deck/p*.js` に書いたタイトルです
+  - 表紙と Part の扉の 13 枚だけは、2 つが違います（例：`PART 1` と `基礎：JWT の構造と検証`）
+
+### Web 版
+- `https://takenori-kusaka.github.io/jwt-claims-guide/#p04-carry-or-query` で、そのスライドが開きます
+- 従来の、番号で指す `#s47` の形も開けます。ただし、番号はずれるので、文書には書かないでください
+- 見つからない ID や壊れたハッシュのときは、1 枚目を開き、見つからなかったことを表示します
+
+### 文書からの参照
+参照は `slide:<id>` と書きます（例：`slide:p04-carry-or-query`）。文法は次のとおりです。
+
+```
+ref    = "slide:" id [ ".R" 1*DIGIT ]          ; "slide" は小文字、":" の前後に空白を入れない
+id     = "p" 2DIGIT "-" word *( "-" word )     ; word = 1*( a-z / 0-9 )
+```
+
+- `slide:` の直前が英数字・`_`・`-` のときは、参照とみなしません
+- ID は、`slide:` の後の英数字・`_`・`-` の並びです。それ以外の文字（`.`・`,`・`)`・空白・日本語など）で終わります
+  - `_` や英大文字を含むときと、末尾が `-` のときは、形式違いのエラーになります
+- ID の直後の `.R<数字>` は、要件の番号です（例：`slide:p06-narrow-downstream.R1`。文法は #22 で決めます）。番号の部分は検証しません
+- `.` の後がそれ以外のときは、参照は ID で終わります。そのため、文末の `.` は問題ありません
+- `slide:` の後に英数字が続かないとき（`slide:<id>` のような書式の説明）は、参照とみなしません
+- 参照に見えて形が違うものは、エラーにします。対象は、`slide` の大文字小文字が違うものと、`:` の前後に空白があるもので、後ろに ID らしい文字列か番号が続く場合です
+- Web 版の URL（`takenori-kusaka.github.io/jwt-claims-guide/#…`）も検査します。番号で指す形（`#sNN`）と、存在しない ID はエラーです
+
+### 確かめ方
+`python tools/check_slide_refs.py templates research` のように、調べるファイルやディレクトリを渡します。次の 1 つでも外れれば、終了コード 1 で失敗します。
+
+- ID がそろって一意であること
+- `deck/slide_ids.json` が `deck/p*.js` の宣言と一致していること（古くないこと）
+- 枚数が `deck/p*.js` で宣言した数と同じであること（`--expect N` でも指定できます）
+- `docs/slides.json` と一致していること
+- 台帳の規則：
+  - 未登録の ID・`retired` の再使用・消えた ID がないこと
+  - タイトルが台帳のタイトルから大きく変わっていないこと（類似度 0.6 未満は失敗）
+  - 他の ID の台帳のタイトルに、より近くないこと（ID の付け替えの検出）
+- 渡した中の参照が、すべて実在の ID を指していること
+
+スキャンの対象：
+- ディレクトリは、`.md` `.markdown` `.txt` `.rst` `.adoc` `.yaml` `.yml` `.json` `.csv` `.tsv` `.py` `.js` `.ts` `.html` `.toml` `.rego` `.cel` を再帰的に調べます。`--ext` で拡張子を足せます
+- 直接渡したファイルは、拡張子によらず調べます
+- UTF-8 でないファイルは、エラーにします
+- `.xlsx` などのバイナリは調べません
+
+`--base origin/main` を付けると、台帳がその版から追記だけで変わっていることも確かめます（エントリの削除や、`issued`・`title`・`retired` の書き換えを検出します）。
 
 ## ライセンス
 
