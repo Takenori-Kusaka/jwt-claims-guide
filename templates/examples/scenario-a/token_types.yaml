@@ -1,4 +1,6 @@
-template_version: 0.1.0
+# template_version: 0.1.0
+# 縮小 Lite の案（関門 1）：issuance_profile は既定の組み合わせ（BFF＋認可コード＋PKCE）から生成し、外れた点だけ手で書く。
+# トークン目録の採用の行は今と同じ（R8・寿命・失効の検査に要る）。却下の行は kind・decision・rationale だけ
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
 # トークン目録・発行方式の選択・R8 の入力（スキーマ v0：templates/registry/token_types.schema.json）
 issuance_profile:

@@ -12,18 +12,19 @@
 <!-- counts:begin -->
 - スライド 152 枚：設計判断 128 枚、知識 7 枚、構造 17 枚。教材の行 10 件（知識のスライドは全件）
 - 要件 718 件：未着手 674、実装済み 1、後回し 42、扱わない 1
-- 段階：core 445 件（未着手 444・実装済み 1）、full 273 件（未着手 230・後回し 42・扱わない 1）
+- 段階（2026-11-22 に確定）：core 483 件（未着手 482・実装済み 1）、full 235 件（未着手 192・後回し 42・扱わない 1）
+- `review:` の成果物を持つ要件：core 164／483 件、full 69／235 件
 - **扱わない 1 件／全 718 件（0.1%）**
-- 成果物 493 件：issue の本文にあるもの 254 件、対応表で足した提案 239 件（`new_items.md`）
+- 成果物 513 件：issue の本文にあるもの 254 件、対応表で足した提案 259 件（`new_items.md`）
 
 | 担当 | 要件 | core | full | 未着手 | 後回し | 扱わない | 提案した成果物 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | #2 | 5 | 5 | 0 | 5 | 0 | 0 | 0 |
-| #3 | 135 | 106 | 29 | 135 | 0 | 0 | 32 |
-| #4 | 197 | 145 | 52 | 197 | 0 | 0 | 69 |
-| #5 | 116 | 63 | 53 | 116 | 0 | 0 | 67 |
-| #6 | 147 | 67 | 80 | 147 | 0 | 0 | 35 |
-| #8 | 49 | 36 | 13 | 49 | 0 | 0 | 32 |
+| #3 | 135 | 113 | 22 | 135 | 0 | 0 | 32 |
+| #4 | 197 | 154 | 43 | 197 | 0 | 0 | 69 |
+| #5 | 116 | 74 | 42 | 116 | 0 | 0 | 86 |
+| #6 | 147 | 77 | 70 | 147 | 0 | 0 | 36 |
+| #8 | 49 | 37 | 12 | 49 | 0 | 0 | 32 |
 | #13 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
 | #16 | 2 | 2 | 0 | 1（実装済み 1） | 0 | 0 | 0 |
 | #17 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
@@ -38,6 +39,7 @@
 | ファイル | 中身 |
 | --- | --- |
 | `requirements.yaml` | 次の 4 つの部分からなる。`summary`（件数。`trace_check.py` が実際の件数と照合する）。`classification`（152 枚すべての分類と、本文のハッシュ）。`requirements`（設計判断のスライドの要件）。`teaching`（教材に使うスライド） |
+| `review_required.yaml` | レビューで必ず扱うスライドの固定の一覧（10 枚、理由つき）。`classification` の `review_required: true` と一致しなければ検査が失敗する（#16） |
 | `planned_items.yaml` | 要件から参照できる成果物の一覧。`origin: issue` は担当の issue の本文にあるもの、`origin: proposed` は対応表を作るときに足した提案 |
 | `new_items.md` | `origin: proposed` の一覧を issue ごとにまとめたもの。生成物で、`python tools/trace_check.py --write-new-items` で作る。各 issue の本文に書き足すかどうかは、担当の issue で決める |
 | `../../tools/trace_check.py` | 対応表の検査。CI は `.github/workflows/trace.yml` |
@@ -133,7 +135,33 @@ python tools/trace_check.py --update-hash <スライド ID> [...] --reviewed-on 
 
 ### 段階（tier）
 
-すべての要件に、`tier: core` か `tier: full` を付けます。**この区分は提案です。関門 1（#16）で確定します。** #11 の完了状態 3（「未着手 0 件」）は、`tier: core` の未着手が 0 件、と読み替えることを提案します。関門 1・2 で「絞る」と判定したら、要件の tier を下げる PR で記録します。
+すべての要件に、`tier: core` か `tier: full` を付けます。**この区分は、関門 1（#16、2026-11-22）で作成者が確定しました。** 記録は `requirements.yaml` の `tier_confirmed`（`confirmed_on`・`by`・`record`・`note`）と `research/template-design/gate1.md` です。`tier_confirmed` が無いとき、`trace_check.py` は「tiers: proposal」と表示します。#11 の完了状態 3（「未着手 0 件」）は、`tier: core` の未着手が 0 件、と読み替えます。関門 2 で「絞る」と判定したら、要件の tier を下げる PR で記録します。
+
+関門 1 で、最初の割り当て（下の規則）から core に上げた要件は 38 件です。gate1.md の 7. の案は 5 件で、残りの 33 件は案に無かったものです（規則の拡張に結びつく 13 件、作成者の追加の指示による 14 件、PR #31 の点検による 6 件）。
+- gate1.md の 7. の案の 5 件：`p03-keycloak-mappers.R1`・`R3`、`p04-absent-null-false-empty.R2`、`p07-trust-boundary.R2`、`p08-rotation.R3`
+- シナリオ A のレビューの 17 件から導いた規則の拡張（L27・L31・L23 の idle と絶対的な上限）に結びつく要件 13 件：L27 の 2 件、L31 の 10 件、`p08-rotation.R4`
+- 追加前の 25 問（スライド 142・143）の 7 件。問いの回答欄は core にし、深い lint（L24・L34・L60 など）は full のままでよい成果物として、要件の `note` に書いた。あわせて 27 件すべてに `review:perspectives#pre-add-questions`（#5）と `lint:L72`（#6、25 問の未回答）を足した
+- アンチパターン（スライド 146・147）の 3 件（`p12-antipatterns-2.R6`〜`R8`。`p12-antipatterns-1.R7`・`R8` は L31・L27 で上げた）と、レビューの観点（スライド 148）の 4 件（`p12-review-viewpoints.R3`・`R8`・`R10`・`R17`。`R15` は L31 で上げた）。どちらも観点書の骨格になるため、全件を core にした
+- 設計のチェックリスト（スライド 61）の 6 件（`p04-design-checklist.R3`〜`R8`）。追加前の 25 問の core の問い（問 4・5・7・9・10）と中身が重なるため（PR #31 の点検）
+
+確定したときの core の集合は、`tier_confirmed` の `core_count`・`core_sha`（要件 ID を並べた sha256 の先頭 12 桁）に記録してあります（`python tools/trace_check.py --snapshot-tiers --confirmed-on YYYY-MM-DD --by <判定者>` で書く）。確定の後に tier を変えるときは、`tier_changes` に 1 件ずつ次を書きます。記録の無い変更は `trace_check.py` が失敗させます。
+
+```yaml
+tier_changes:
+  - {id: p01-validate.R1, from: core, to: full, changed_on: "2026-12-01", reason: "関門 2（#9）で Full の欄に移したため、MVP の範囲から外す"}
+```
+
+- `changed_on` は `tier_confirmed` の `confirmed_on` 以降の日付。キーを `on` にしないのは、YAML 1.1（PyYAML）が `on`・`off`・`yes`・`no`・`y`・`n` のキーを真偽値として読むためです（`confirmed_on` も同じ理由）
+- `from` は、その時点の tier（確定の後に初めて変えるなら確定時の tier）。`to` は変えた後の tier
+- `reason` は 20 字以上で、同じ文字の繰り返しでなく、決めた issue・PR・関門（`#NN`・`PR`・`関門`）を書く
+- tier を確定し直すときは、`--snapshot-tiers --reconfirm --confirmed-on <日付> --by <判定者>` を使います。日付は前の確定と全ての `tier_changes` の日付以降でなければ拒否します。前の確定の記録は `previous` に残り、`tier_changes` は空になります
+- `core_sha` を手で書き換えることは機械では防げません。`core_count`・`core_sha` の差分は、確定のし直しとしてレビューで扱います
+
+提案の lint（L24〜L61）だけに頼る要件は既定で full、という下の目安の例外として、L27・L31 に結びつく要件を core にしました。
+
+### レビューで必ず扱うスライド（`review_required`）
+
+チェックリスト・アンチパターン・レビューの観点・追加前の問いのスライドは、設計書の欄や lint だけでなく、観点書（#5）でも問います。対象のスライドは `templates/trace/review_required.yaml` に理由とともに固定し、`classification` の `review_required: true` がこの一覧と完全に一致しなければ失敗します（フラグを消すだけでは外せない）。`review_required: true` を付けたスライドでは、要件ごとに `review:` の成果物が 1 つ以上要り、無ければ `trace_check.py` が失敗します（#16 で追加）。対象は p04-design-checklist、p06-flow-checklist、p07-data-layer-checklist、p09-checklist、p10-agent-checklist、p11-pre-add-questions-1・2、p12-antipatterns-1・2、p12-review-viewpoints の 10 枚です。アンチパターンの 17 件には、行ごとに専用の問い（`review:perspectives#ap-1-<n>`・`#ap-2-<n>`）を付けました。`trace_check.py` は、`review:` の成果物を持つ要件の数を tier ごとに表示します。
 
 | 段階 | 目安 |
 | --- | --- |

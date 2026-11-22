@@ -1,4 +1,8 @@
-template_version: 0.1.0
+# template_version: 0.1.0
+# 縮小 Lite の案（関門 1）：「該当」は手で書く。「対象外」は、クライアントの設定のスイッチ 1 つで止めたイベントで指摘が出ていないもの
+# （この例では I03・I04・I05・I07）だけ IdP モジュール（#4 の M_idp_keycloak）の既定の回答を引き継ぎ、「その設定を確かめた」の 1 欄を書く。
+# 指摘が出た行・レルムやクライアントの既定に依存する行・利用イベント（I06・I08・I09・U05・U07・U08・U10）は assumption と breaks_when を
+# 手で書く（tools/count_lite_fields.py の STRUCTURAL）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
 # カタログ（templates/catalog/issue_events.yaml・use_events.yaml、v0 の一部）の全イベントへの回答。
 # 対象外 11 件／全 19 件（58%）

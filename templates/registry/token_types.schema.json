@@ -5,9 +5,8 @@
   "title": "Token types and issuance profile v0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["template_version", "issuance_profile", "token_types"],
+  "required": ["issuance_profile", "token_types"],
   "properties": {
-    "template_version": {"type": "string"},
     "issuance_profile": {"$ref": "#/$defs/issuance_profile"},
     "token_types": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/token_type"}}
   },

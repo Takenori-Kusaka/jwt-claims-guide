@@ -1,0 +1,15 @@
+# template_version: 0.1.0
+# レビューで必ず扱うスライドの固定の一覧（#16、関門 1）。requirements.yaml の classification の review_required: true は、
+# この一覧と完全に一致しなければならない（tools/trace_check.py が照合する。フラグを消すだけでは外せない）。
+# 足す・外すときは、この一覧と classification の両方を同じ PR で変え、理由を書く。
+slides:
+  - {slide: slide:p04-design-checklist, reason: 設計のチェックリスト 12 項目。観点書で、載せる独自クレームごとに答えたかを問う}
+  - {slide: slide:p06-flow-checklist, reason: 流れの規則 10 項目（レビューで確かめる項目として示されている）}
+  - {slide: slide:p07-data-layer-checklist, reason: データ層の規則 10 項目（レビューで確かめる項目として示されている）}
+  - {slide: slide:p09-checklist, reason: 機微情報・最小化・ログのチェックリスト}
+  - {slide: slide:p10-agent-checklist, reason: エージェントのアクセスの設計チェックリスト}
+  - {slide: slide:p11-pre-add-questions-1, reason: 追加前の 25 問（前半）。共有クレームを足すかどうかの関所}
+  - {slide: slide:p11-pre-add-questions-2, reason: 追加前の 25 問（後半）。共有クレームを足すかどうかの関所}
+  - {slide: slide:p12-antipatterns-1, reason: ガイドの譲れない基準（検証と識別子のアンチパターン）}
+  - {slide: slide:p12-antipatterns-2, reason: ガイドの譲れない基準（設計・流れ・運用のアンチパターン）}
+  - {slide: slide:p12-review-viewpoints, reason: 観点書の骨格（クレームの一生に沿った 6 つの観点）}

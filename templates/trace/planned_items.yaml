@@ -536,3 +536,25 @@ items:
   - {ref: lint:L60, issue: "#18", origin: proposed, title: "制限のクレームに、全受け手の enforced_at がない（仮称 restrictive-claim-unenforced）"}
   # ---- #21
   - {ref: deferred:data-platform-modules, issue: "#21", origin: proposed, title: "クラウドの DB・データ基盤ごとのモジュール（Azure SQL・RDS・Cloud SQL・Snowflake・Kafka・AWS STS・GCP WIF）"}
+
+  # ---------------------------------------------------------------- 関門 1（#16、2026-11-22）で足した提案
+  - {ref: "review:perspectives#pre-add-questions", issue: "#5", origin: proposed, title: "観点書：追加・変更する共有クレームに追加前の 25 問の回答がそろい、回答が妥当か（スライド 142・143）"}
+  - {ref: "lint:L72", issue: "#6", origin: proposed, title: "claim_request の 25 問に未回答がある共有クレーム（仮称 claim-request-complete）"}
+  - {ref: "review:perspectives#design-checklist", issue: "#5", origin: proposed, title: "観点書：設計のチェックリスト 12 項目（スライド 61）に、載せる独自クレームごとに答えているか"}
+  - {ref: "review:perspectives#ap-1-1", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-1（トークンの alg に従って検証しない。許可リストで鍵ごとに 1 つに固定する）"}
+  - {ref: "review:perspectives#ap-1-2", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-2（署名を確かめずに中身で認可しない。必ず検証してから読む）"}
+  - {ref: "review:perspectives#ap-1-3", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-3（aud を確かめないことを避け、aud を必須にして自分宛てか確認する）"}
+  - {ref: "review:perspectives#ap-1-4", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-4（マルチテナントで iss・tid を見ないことを避け、発行者とテナントの許可リストで照合する）"}
+  - {ref: "review:perspectives#ap-1-5", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-5（署名が通れば発行者も正しいと仮定せず、鍵と発行者の対応を確かめる）"}
+  - {ref: "review:perspectives#ap-1-6", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-6（email・upn を利用者のキーにせず、iss＋sub（Entra は tid＋oid）を使う）"}
+  - {ref: "review:perspectives#ap-1-7", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-7（本人が書ける属性から権限のクレームを作らない）"}
+  - {ref: "review:perspectives#ap-1-8", issue: "#5", origin: proposed, title: "観点書：アンチパターン 1-8（exp を必須にせず、時刻のずれを大きく許すことを避ける（ずれは数分まで））"}
+  - {ref: "review:perspectives#ap-2-1", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-1（グループ・ロールを全部トークンに詰めず、粗いロールだけにして細かい権限は PDP に置く）"}
+  - {ref: "review:perspectives#ap-2-2", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-2（変わりやすい権限を焼き込まず、短命化・都度判定・失効の伝播で対処する）"}
+  - {ref: "review:perspectives#ap-2-3", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-3（型を決めない・配列を区切り文字列にすることを避け、台帳で型を 1 つに固定する）"}
+  - {ref: "review:perspectives#ap-2-4", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-4（名前空間なしの独自クレームを作らない）"}
+  - {ref: "review:perspectives#ap-2-5", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-5（クレームをヘッダーに移すとき、同名ヘッダーを消さないことを避け、入口で除去してから書き込む）"}
+  - {ref: "review:perspectives#ap-2-6", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-6（受け取ったトークンを上流へそのまま渡さず、宛先ごとに交換する）"}
+  - {ref: "review:perspectives#ap-2-7", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-7（エージェントが利用者のトークンを借りず、act で委任を表す）"}
+  - {ref: "review:perspectives#ap-2-8", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-8（トークン全文をログに出さず、種別・発行者・ハッシュだけを残す）"}
+  - {ref: "review:perspectives#ap-2-9", issue: "#5", origin: proposed, title: "観点書：アンチパターン 2-9（署名がなく、取り消せず、ログも残らない内部の代理トークンを作らない）"}
