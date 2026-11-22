@@ -53,7 +53,7 @@
 - 【実証/二次】チューリッヒ大学の面接 10 名と調査 182 名: 開発者はセキュリティの訓練や知識が足りず、レビューのときにセキュリティの問題を扱えない。組織もセキュリティを見たレビューを評価しない — [The Daily Swig 記事](https://portswigger.net/daily-swig/developers-still-struggling-with-security-issues-during-code-reviews-study-finds)（非公式） / [arXiv 2208.04261](https://arxiv.org/pdf/2208.04261)
 - 【実証/二次】GitHub の 37 の OSS プロジェクトの開発者 5,697 名への調査から、レビューでセキュリティの欠陥を見逃す主な理由を 5 つ特定した — [Paul 博士論文 (Wayne State)](https://digitalcommons.wayne.edu/oa_dissertations/3842)
 - 【実証】医療の外部の証拠: WHO の手術安全チェックリストを導入した 8 施設で、死亡率が 1.5% から 0.8% に、合併症が 11.0% から 7.0% に下がった — [Haynes et al., NEJM 2009, doi:10.1056/NEJMsa0810119](https://doi.org/10.1056/NEJMsa0810119)
-- 【実証】しかし、オンタリオ州の 101 病院で義務化したときは、死亡率は 0.71% から 0.65%（OR 0.91、有意でない）で、合併症なども改善しなかった。Leape の論説は、チェックリストが形だけの作業（perfunctory）になっていた可能性を挙げ、現場に合わせること、訓練、チームの作業の流れに組み込むことが必要だと指摘した — [Urbach et al., NEJM 2014 (PubMed 24620866)](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet 解説](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)。Gawande は方法論（導入後 3 か月での測定など）を批判した — [Author reply (PubMed 24918385)](https://pubmed.ncbi.nlm.nih.gov/24918385/)
+- 【実証】しかし、オンタリオ州の 101 病院で義務化したときは、死亡率は 0.71% から 0.65%（OR 0.91、有意でない）で、合併症なども改善しなかった。Leape の論説は、効果を出すには、現場に合わせること、訓練と一貫した作業の流れ、チーム全体の参加が必要だと述べた（【訂正 2026-11-22】論説の要旨は PSNet で確かめた。調査時に書いた「形だけの作業（perfunctory）になっていた可能性」は確かめられず外した。[Leape「The checklist conundrum」, NEJM 2014](https://doi.org/10.1056/NEJMe1315851)） — [Urbach et al., NEJM 2014 (PubMed 24620866)](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet 解説](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)。Gawande は方法論（導入後 3 か月での測定など）を批判した — [Author reply (PubMed 24918385)](https://pubmed.ncbi.nlm.nih.gov/24918385/)
 - 【意見/実務報告】SmartBear と Cisco の事例にもとづく実務の指針: 一度に 200〜400 行、60〜90 分以内。速すぎるレビュー（1 時間に約 500 行を超える）では検出の力が落ちる — [SmartBear: Best Practices for Peer Code Review](https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/)（ベンダーの資料で、査読を経た研究ではない）
 
 ### 推論
@@ -74,12 +74,12 @@
 ## Q3. 却下候補をあらかじめ記入したカタログのリスク（アンカリング、理由のコピー、完全だという錯覚）と緩和策
 
 ### 要点
-却下候補のカタログそのものの効果とリスクを直接測った研究は見つからなかった。ただし隣接する証拠（ADR の 63% が熟議なしで accepted、オンタリオの形だけの遵守、設計根拠が事後の再構成であること）は、カタログが「考えた形跡を定型にする」リスクを強く示唆する。有力な緩和策は「証拠のリンクを必須にする」「既定と逸脱を分ける」「抜き取りで深く確かめる」「列挙の外を問う」である。ただし、これらの効果も実証は乏しく、意見の水準にとどまる。
+却下候補のカタログそのものの効果とリスクを直接測った研究は見つからなかった。ただし隣接する証拠（ADR の 63% が熟議なしで accepted、オンタリオの義務化で成果が改善しなかったこと、設計根拠が事後の再構成であること）は、カタログが「考えた形跡を定型にする」リスクを強く示唆する。有力な緩和策は「証拠のリンクを必須にする」「既定と逸脱を分ける」「抜き取りで深く確かめる」「列挙の外を問う」である。ただし、これらの効果も実証は乏しく、意見の水準にとどまる。
 
 ### 出典のある所見
 - 【実証】アンカリング: 示された初期値に判断が引き寄せられる — [Tversky & Kahneman, Science 1974, doi:10.1126/science.185.4157.1124](https://doi.org/10.1126/science.185.4157.1124)
 - 【実証/二次】ADR の約 63% が最初から accepted で作られ、熟議を飛ばしている（形だけの記録） — [ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou)
-- 【実証】義務化して導入しても成果は改善せず、論説は形だけの実施を疑っている — [Urbach et al. 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)
+- 【実証】義務化して導入しても成果は改善しなかった — [Urbach et al. 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/) / [PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)
 - 【実証】セキュリティのチェックリストを足しても、それ以上は有意に改善しなかったが、「セキュリティに注目」の指示は 8 倍効いた — [Braz et al. ICSE 2022](https://arxiv.org/abs/2202.04586)
 - 【意見】価値にもとづいて記録の対象を絞れば、記録の手間と形骸化を抑えられる — [Falessi et al. WICSA 2008](https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf)
 - 【実証】QOC は制約の強い設計空間では邪魔になる（つまり、定型の項目に毎回理由を書かせるのは逆効果になりうる） — [KMi Tech Report](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)。【訂正 2026-11-22】出典にこの記述がない。根拠として使わない
@@ -177,7 +177,7 @@
 - 【実証】チェックリストは、アドホックより一貫して優れるとは言えない — [Porter et al. 1995](https://www.cs.umd.edu/~aporter/html/scenarios.html)（チェックリストとアドホックの比較）; [Ciolkowski 2009](https://doi.org/10.1109/ESEM.2009.5316026)（PBR とアドホック・チェックリストの比較）; [Gonçalves et al. 2022](https://link.springer.com/10.1007/s10664-022-10123-8)
 - 【実証】焦点の明示は効くが、セキュリティのチェックリストを足しても、それ以上は有意に改善しなかった — [Braz et al. 2022](https://arxiv.org/abs/2202.04586)
 - 【実証】データの真正性とアクセス制御の欠陥は、レビューで最も漏れる — [Paul et al.](https://ar5iv.labs.arxiv.org/html/2102.06909)
-- 【実証】チェックリストは、適切に導入すれば大きな効果がある（Haynes 2009）。形だけの導入では効果がない（Urbach 2014） — [NEJM 2009](https://doi.org/10.1056/NEJMsa0810119); [NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)
+- 【実証】チェックリストは、適切に導入すれば大きな効果がある（Haynes 2009）。義務化して導入しても効果が見られないことがある（Urbach 2014） — [NEJM 2009](https://doi.org/10.1056/NEJMsa0810119); [NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)
 - 【実証】設計根拠は理解の浅い設計空間で有効で、定型の空間では邪魔になる — [KMi](https://kmi.open.ac.uk/publications/techreport/kmi-95-13)（【訂正 2026-11-22】出典にこの記述がない。根拠として使わない）
 - 【実証/二次】記録は形骸化し、放棄されやすい — [ICSA 2026](https://conf.researchr.org/details/icsa-2026/icsa-2026-papers/34/Architecture-Decision-Records-Adoption-Impact-and-Developer-Engagement-in-Open-Sou); [arXiv 2604.03826](https://arxiv.org/html/2604.03826)
 
@@ -190,7 +190,7 @@
   - 流出欠陥のふりかえりでカタログと観点を更新する運用がある（Haynes 型の「現場に合わせ、訓練し、作業の流れに組み込む」）。
 - **価値が低くなる（または逆効果になる）条件**
   - 定型の、単一のサービスの内部 API で、カタログの既定どおりの設計。全列挙は儀式になり、理由はコピーになる。
-  - 記入率や遵守率を KPI にしている（形だけの遵守になるおそれ。オンタリオの論説の指摘）。
+  - 記入率や遵守率を KPI にしている（記入率は成果を表さない。オンタリオの結果を参照）。
   - レビュアーに「理由の妥当性だけ」を見る役割を課し、枠の外の質問や実装の確認を求めない。
   - 記入する人に見返りがなく、レビューの結果がカタログの改善に戻らない。
 - **前提の文言の修正案**: 「全候補に採否と理由があれば、網羅の漏れは起こらない」を、「採否と理由の記録は、*列挙された*候補の判断の漏れと、判断の不透明さを減らす。列挙されなかった候補は、観点別の問い・カタログ外の質問・流出欠陥のふりかえりで補う」に改める。

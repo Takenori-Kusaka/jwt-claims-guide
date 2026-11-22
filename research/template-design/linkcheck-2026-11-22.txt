@@ -1,8 +1,8 @@
 # Link check: research/template-design/
 # date: 2026-11-22  tool: tools/linkcheck.py (Python urllib; HEAD then GET, generic UA, 30s timeout, retries on 429/5xx/timeouts)
-# links (file x url): 268  unique external URLs: 189  relative links: 7
+# links (file x url): 270  unique external URLs: 190  relative links: 7
 # OK: 252
-# OK-DOI: 5
+# OK-DOI: 7
 # OK-MANUAL: 11
 # BROKEN: 0
 # OK-DOI: publisher refuses automated clients; DOI confirmed registered.
@@ -17,11 +17,13 @@ OK-MANUAL	notes/prior_art.md	119	https://webstore.ansi.org/standards/ieee/ieeest
 OK-MANUAL	notes/prior_art.md	65	https://www.pwc.com/jp/ja/knowledge/column/awareness-cyber-security/digital-identity/new-identity-verification-guideline-ds511-1.html	403 GET; 403 to scripts; page (DS-511 column) retrieved with Tavily extract
 OK-MANUAL	notes/review_effectiveness.md	18,84,143	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
 OK-MANUAL	notes/review_effectiveness.md	22	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
+OK-DOI	notes/review_effectiveness.md	56	https://doi.org/10.1056/NEJMe1315851	403 GET; DOI registered (doi.org handle API)
 OK-DOI	notes/review_effectiveness.md	55,180	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
 OK-DOI	notes/review_effectiveness.md	80	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
 OK-DOI	notes/review_effectiveness.md	49	https://doi.org/10.1145/3379597.3387509	403 GET; DOI registered (doi.org handle API)
 OK-MANUAL	report.md	85,95	https://art.torvergata.it/bitstream/2108/57813/1/2008_WICSA_FCK_Value-Based%20Design%20Decision%20Rationale%20Documentation%20Principles%20and%20empirical%20feasibility%20study.pdf	403 GET; 403 to scripts (bot check); opened in a browser, PDF loaded after the site's automatic wait page (no CAPTCHA). DOI 10.1109/WICSA.2008.8
 OK-MANUAL	report.md	95	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
+OK-DOI	report.md	127	https://doi.org/10.1056/NEJMe1315851	403 GET; DOI registered (doi.org handle API)
 OK-DOI	report.md	34	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
 OK-DOI	report.md	83	https://doi.org/10.1126/science.185.4157.1124	403 GET; DOI registered (doi.org handle API)
 OK-MANUAL	report.md	119	https://swehb.nasa.gov/spaces/7150/pages/16450565/SWE-119+-+Software+Documentation+Requirements+-+Software+Inspection+Peer+Reviews+Inspections	403 GET; whole site returns 403 to this network, including a browser; page listed in a search index (Tavily search) with matching content. Replaces short link /x/BQT7 (Confluence tiny link of page 16450565)
@@ -188,6 +190,7 @@ OK	notes/review_effectiveness.md	14	https://dblp1.uni-trier.de/rec/journals/ijmm
 OK	notes/review_effectiveness.md	54	https://digitalcommons.wayne.edu/oa_dissertations/3842	200 HEAD
 OK-MANUAL	notes/review_effectiveness.md	22	https://doaj.org/article/f838f2a538ea48e7a3b15ce99befe612	403 GET; 403 to scripts; opened in a browser, title "Using Architecture Decision Records in Open Source Projects - An MSR Study on GitHub"
 OK	notes/review_effectiveness.md	47	https://doi.org/10.1023/A:1009742216007	200 HEAD
+OK-DOI	notes/review_effectiveness.md	56	https://doi.org/10.1056/NEJMe1315851	403 GET; DOI registered (doi.org handle API)
 OK-DOI	notes/review_effectiveness.md	55,180	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
 OK	notes/review_effectiveness.md	48,177	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
 OK	notes/review_effectiveness.md	20	https://doi.org/10.1109/TSE.1986.6312940	202 HEAD
@@ -239,6 +242,7 @@ OK	report.md	101	https://docs.aws.amazon.com/cognito/latest/developerguide/quota
 OK	report.md	58	https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html	200 HEAD
 OK	report.md	48	https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources-oidc.html	200 HEAD
 OK	report.md	48	https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/identity-sources.html	200 HEAD
+OK-DOI	report.md	127	https://doi.org/10.1056/NEJMe1315851	403 GET; DOI registered (doi.org handle API)
 OK-DOI	report.md	34	https://doi.org/10.1056/NEJMsa0810119	403 GET; DOI registered (doi.org handle API)
 OK	report.md	137	https://doi.org/10.1109/ESEM.2009.5316026	202 HEAD
 OK	report.md	83	https://doi.org/10.1109/TSE.1986.6312940	202 HEAD
@@ -260,7 +264,7 @@ OK	report.md	69	https://openid.net/specs/openid-connect-backchannel-1_0.html	200
 OK	report.md	113	https://openid.net/specs/openid-connect-core-1_0.html#AggregatedDistributedClaims	200 HEAD
 OK	report.md	54	https://owasp.org/www-project-application-security-verification-standard/	200 HEAD
 OK	report.md	79	https://pages.nist.gov/800-63-4/sp800-63c/glossary	200 HEAD
-OK	report.md	34	https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada	200 HEAD
+OK	report.md	34,127	https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada	200 HEAD
 OK	report.md	34	https://pubmed.ncbi.nlm.nih.gov/24620866/	203 HEAD
 OK	report.md	26	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x17-V8-Authorization.md	200 HEAD
 OK	report.md	89	https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x18-V9-Self-contained-Tokens.md	200 HEAD

@@ -11,17 +11,17 @@
 
 取り込んだ版（コミット 9876fe1・f0d2ef9）を、作成とは別の LLM のセッションで点検し、次を直した（記録：`research/reviews/template-design-report-2026-11-22.md`）。結論（「漏れゼロ」は約束できず、定義した軸の内側で判断の漏れを機械で見つける）は変えていない。根拠の一部を弱め、言い方を出典に合わせた。
 
-- Q1：NaPiRE の 48% の出典を、正しい論文（Méndez Fernández et al., EMSE 2016）に直した。「主因は領域知識の不足」を「資格や経験の不足など」に直した。EWD288 の日付（1970 年 7 月）を足した。Shostack の引用を、原文に合わせて弱めた。オンタリオの「約 100% の遵守」は、出典で確かめられず外した
+- Q1：医療のチェックリストの文を「義務化して導入しても成果が改善するとは限らない」に弱めた。NaPiRE の 48% の出典を、正しい論文（Méndez Fernández et al., EMSE 2016）に直した。「主因は領域知識の不足」を「資格や経験の不足など」に直した。EWD288 の日付（1970 年 7 月）を足した。Shostack の引用を、原文に合わせて弱めた。オンタリオの「約 100% の遵守」は、出典で確かめられず外した
 - Q2：チェックリストとアドホックの比較の出典を Porter ら（1995）だけにした。Braz らと Gonçalves らの書き方を原文に合わせた
-- Q3：「実システムの大半はハイブリッド」を「標準と主要な製品はハイブリッドを前提にしている」に改めた。SP 800-162 の「関係」の意味の違いを書いた
+- Q3：「実システムの大半はハイブリッド」を「標準と主要な製品はハイブリッドを前提にしている」に改めた。SP 800-162 の「関係」の意味の違いを書いた。AWS Verified Permissions の例のあるページ（OIDC の ID ソース）へのリンクを足した
 - Q4：RFC 8628 のリンク、IANA の登録簿の名前、RFC 9700 の強さ（ROPC は §2.4 で MUST NOT、implicit は §2.1.2 で SHOULD NOT）を直した
 - Q6：KMi-95-13 を出典にした QOC の対比を外した
 - Q8：ADR の約 50% の一次の出典を Buchgeher et al. にした
 - Q11：Li et al. の版を v1 に固定し、「150 時間超」を外した
-- 価値評価：Tang の「約 50%」を外した
+- 価値評価：Tang の「約 50%」を外した。「記入率が KPI になればオンタリオ型の形式的遵守に陥る」を、Leape の論説（NEJM 2014）で確かめられる内容だけに書き直し、論説へのリンクを足した。「形だけの遵守」は論説の要旨で確かめられないので外した
 - R6：NIST ACTS の「96%」を、出典が示す幅（10 種類のアプリで 2 因子までにおよそ 47〜97%）に直した。R6 を warn にとどめる理由に使った
 - サイズチェッカー：RSA の署名長の出典に RFC 8017 §8.2.1 を足した
-- 未決事項：Okta の 100 件の上限は公式の文書で確かめられたので、未検証点から外した
+- 未決事項：Okta の 100 件の上限は公式の文書で確かめられたので、未検証点から外した（`limit` は 1〜100。Authorization Code と PKCE のフローでは 100 を超える最大数も指定できる）
 
 この構想には価値がある。ただし価値の源泉は、構想が掲げる「レビューは採否理由の妥当性評価だけで済み、網羅性不足や発行/利用ケースの想定漏れが一切生じない」という約束ではない。この約束は原理的に証明できず、実証研究とも矛盾する。列挙されなかった候補はテンプレートでは検出できない。またレビューで最も見逃されやすいのは、データ真正性の検証不足（CWE-345、13/13 件見逃し）とアクセス制御の不備（CWE-284、約 88% 見逃し）で、どちらも JWT クレーム設計の中核にあたる（[Paul et al.](https://ar5iv.labs.arxiv.org/html/2102.06909)）。価値の源泉は三つある。第一に、ASVS 5.0 が要求しながら様式を定めていない「認可ドキュメント」（V8.1.1〜8.1.4）を具体化できる（[OWASP ASVS 5.0 V8](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x17-V8-Authorization.md)）。第二に、「発行・利用のタイミング × 情報 × クレーム × データ源」の時系列対応表と採否根拠の一覧は、公開された先行事例が調査範囲で見つからなかった空白地帯にあたる。第三に、定義した列挙軸の内側では未記入を機械的に検出できる。修正すべき点は三つある。ファイルの分割軸を認可方式から「主体 × フロー」に移し、認可方式はモジュールに格下げする。発行イベントのマスターカタログを外部の一覧（IANA、IdP フックの契機値）から作る。トークンサイズのチェッカーは入れるべきで、宣言値から最悪ケースを静的に合算し、経路上で最も厳しい上限を超えたら error にする。約束の文言は「定義した軸の内側では判断漏れを機械的に検出し、軸そのものは外部の一覧と運用の実測で更新し続ける」に改めるのが、根拠に沿った表現である。
 
@@ -31,7 +31,7 @@
 
 言えない。テンプレートが保証できるのは「列挙された候補には判断が記録されている」ことまでで、列挙されなかった候補（unknown unknowns）には何も言えない。Dijkstra が 1969 年の NATO ソフトウェア工学会議で述べ、EWD288（1970 年 7 月）にも書いた「テストはバグの存在を示せるが、不在は示せない」は、チェックリストにもそのまま当てはまる（[EWD288](https://www.cs.utexas.edu/%7EEWD/transcriptions/EWD02xx/EWD288.html)、[出典の整理](https://buttondown.com/hillelwayne/archive/testing-can-show-the-presence-of-bugs-but-not-the)（非公式））。脅威モデリングの第一人者 Shostack も、図のすべての要素に STRIDE を当てれば「かなり良い」としつつ、それはすべてのドアと窓に鍵があるのを確かめて終わりにするようなもので、それで足りる場合もある、と書いている（[Shostack, MSDN 2008](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/july/security-briefs-reinvigorate-your-threat-modeling-process)）。要求工学の大規模調査 NaPiRE（10 か国 228 組織）では、最も多く挙がった問題が「不完全な要求・隠れた要求」（回答者の **48%**）だった。原因として多く挙がったのは、要求工学の担当者の資格や経験の不足、時間の圧力などである（[Méndez Fernández et al., EMSE 2016（arXiv 1611.10288）](https://arxiv.org/pdf/1611.10288) Table 9・Fig. 4）。担当者の力量の不足は、様式だけでは埋まらない。
 
-医療のチェックリストの経験は、「全欄記入」が品質の指標にならないことを示している。WHO の手術安全チェックリストは 8 施設で死亡率を 1.5% から 0.8% に下げた（[Haynes et al., NEJM 2009](https://doi.org/10.1056/NEJMsa0810119)）。一方、オンタリオ州の 101 病院で義務化した際は、死亡率の改善は有意でなかった（0.71% → 0.65%、OR 0.91）（[Urbach et al., NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)、[PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)）。したがって、「漏れゼロ」という約束は撤回し、次の文言に置き換えるべきである。
+医療のチェックリストの経験は、義務化して導入しても成果が改善するとは限らないことを示している。WHO の手術安全チェックリストは 8 施設で死亡率を 1.5% から 0.8% に下げた（[Haynes et al., NEJM 2009](https://doi.org/10.1056/NEJMsa0810119)）。一方、オンタリオ州の 101 病院で義務化した際は、死亡率の改善は有意でなかった（0.71% → 0.65%、OR 0.91）（[Urbach et al., NEJM 2014](https://pubmed.ncbi.nlm.nih.gov/24620866/)、[PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada)）。したがって、「漏れゼロ」という約束は撤回し、次の文言に置き換えるべきである。
 
 > **修正後の約束（案）**：本テンプレートは、定義した列挙軸（発行イベントカタログ × 段階 × 受け手 × トークン種別）の内側で、判断の未記入・根拠の欠落・データ源の不明を機械的に検出する。列挙軸の外にある漏れは、観点別の問い、カタログ外を問う必須質問、流出欠陥のふりかえりで見つけ、見つけた漏れはカタログに還流する。レビューの主眼は採否理由の妥当性評価に置くが、それだけでは終わらない。
 
@@ -124,7 +124,7 @@ error のメッセージからは `M_authz_pdp` モジュールの「載せる�
 
 ## 価値評価：境界を越える契約では高く、定型の内部 API では儀式になる
 
-構想全体の価値は、適用条件によって大きく変わる。設計根拠の記録が効くのは、後から「なぜ」を問われる場面である。JWT のクレームは外部の RP や RS との契約で、変更は破壊的になりうる（[Curity](https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/)）ので、この便益は通常の内部設計より大きい。逆に、定型の設計に全列挙を課すと、理由はコピペになり、記入率が KPI になれば、形だけの遵守に陥るおそれがある（オンタリオの結果に添えた Leape の論説の指摘）。
+構想全体の価値は、適用条件によって大きく変わる。設計根拠の記録が効くのは、後から「なぜ」を問われる場面である。JWT のクレームは外部の RP や RS との契約で、変更は破壊的になりうる（[Curity](https://curity.io/blog/managing-scopes-and-claims-in-oauth-tokens/)）ので、この便益は通常の内部設計より大きい。逆に、定型の設計に全列挙を課すと、理由はコピペになり、記入率を KPI にしても、成果が伴うとは限らない（オンタリオでは義務化しても成果が改善しなかった。添えられた Leape の論説は、効果を出すには現場に合わせること、訓練と一貫した作業の流れ、チーム全体の参加が要ると述べている。[Leape「The checklist conundrum」, NEJM 2014](https://doi.org/10.1056/NEJMe1315851)。論説の要旨は [PSNet](https://psnet.ahrq.gov/issue/introduction-surgical-safety-checklists-ontario-canada) で確かめた）。
 
 | 観点 | 高価値になる条件 | 低価値・逆効果になる条件 |
 |---|---|---|
@@ -211,7 +211,7 @@ R6 は、NIST の組み合わせテストの知見による。NIST が示す 10 
 
 ## 未決事項と未検証点
 
-先行事例の不在は、検索範囲内での結論にすぎない。Okta、Keycloak、Ping、Microsoft SDL、OWASP Threat Dragon にクレーム設計の様式がないことを一次資料で直接確かめたわけではなく、非公開の社内テンプレートは調べられない。ガイドとの突合はキーワード検索によるので、言い換えで扱っているスライドを「なし」と誤判定した可能性がある。特にサインアップ・招待と資格情報の変更後の発行は、ノート本文まで目視していない。IdP の挙動では、Okta の token inline hook がリフレッシュや client credentials でも動くか、Entra の custom claims provider がリフレッシュ時に呼ばれるか、OpenID Native SSO の現在の状態が未確認である。Okta の groups の 100 件の上限は、公式の開発者ドキュメントで確かめた（[Okta Developer](https://developer.okta.com/docs/guides/customize-tokens-dynamic/add-groups-claim-dynamic/)。Authorization Code と PKCE のフローでは件数を指定しなくてよい、という例外がある）。サイズ上限では、Tomcat、IIS/HTTP.sys、Node.js、Google Cloud LB、Azure Front Door の既定値が未確認である。HTTP/2・HTTP/3 のヘッダー圧縮下での実効上限、Auth0・Okta・Keycloak のトークン全体の上限（公表されていない可能性がある）も分かっていない。ガイドのスライド 110 が引く「ID-JAG 草案 06」は正しい。最新版は -06（2026-10-31）である（[datatracker](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/)）。調査の時点では検索で見た -05 を最新としていたが、古い情報だった。
+先行事例の不在は、検索範囲内での結論にすぎない。Okta、Keycloak、Ping、Microsoft SDL、OWASP Threat Dragon にクレーム設計の様式がないことを一次資料で直接確かめたわけではなく、非公開の社内テンプレートは調べられない。ガイドとの突合はキーワード検索によるので、言い換えで扱っているスライドを「なし」と誤判定した可能性がある。特にサインアップ・招待と資格情報の変更後の発行は、ノート本文まで目視していない。IdP の挙動では、Okta の token inline hook がリフレッシュや client credentials でも動くか、Entra の custom claims provider がリフレッシュ時に呼ばれるか、OpenID Native SSO の現在の状態が未確認である。Okta の groups の 100 件の上限は、公式の開発者ドキュメントで確かめた（[Okta Developer](https://developer.okta.com/docs/guides/customize-tokens-dynamic/add-groups-claim-dynamic/)。`limit` は必須で 1〜100。ただし Authorization Code と Authorization Code with PKCE のフローでは、100 を超える最大数も指定できる）。サイズ上限では、Tomcat、IIS/HTTP.sys、Node.js、Google Cloud LB、Azure Front Door の既定値が未確認である。HTTP/2・HTTP/3 のヘッダー圧縮下での実効上限、Auth0・Okta・Keycloak のトークン全体の上限（公表されていない可能性がある）も分かっていない。ガイドのスライド 110 が引く「ID-JAG 草案 06」は正しい。最新版は -06（2026-10-31）である（[datatracker](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/)）。調査の時点では検索で見た -05 を最新としていたが、古い情報だった。
 
 論文の数値では、Tang の博士論文の「設計者の質問の約 50% が理由について」、Li et al. の「150 時間超」、Urbach の「ほぼ全病院が約 100% の遵守を報告」の出典の箇所を確かめられず、本文から外した。「QOC は未知の設計空間で有効、定型の空間では邪魔」も、引いた KMi-95-13 に該当する記述がなく、外した（[unverified.md](unverified.md) の V26〜V29）。効果の面では、次の四つがいずれも見つからなかった。「採否根拠を記録するとレビューの欠陥検出率が上がる」ことを直接測った対照実験。設計文書に限ったセキュリティレビューの実験。却下候補を事前記入したテンプレートがアンカリングに与える影響の測定。理由のルーブリックとサンプリング深掘りの効果測定。本報告の高価値・低価値の条件と緩和策は、隣接領域（ADR、インスペクション、医療チェックリスト）の証拠からの推論である。P1〜P5 をどこまで別ファイルにするか（モバイルを P1 に統合するか、など）は、想定読者に依存し、根拠となる資料はない。
 
