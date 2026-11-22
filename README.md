@@ -50,8 +50,24 @@
 ## ビルド
 
 ```bash
-cd deck && NODE_PATH=<pptxgenjs などを入れた node_modules> node build.js
+cd deck && NODE_PATH=<pptxgenjs などを入れた node_modules> node build.js   # PPTX と deck/slide_ids.json を書く
+cd deck && node build.js --ids-only                                       # slide_ids.json だけを書く（PPTX は書かない）
+python tools/build_web_slides.py                                          # docs/（slides.json・index.html・slide_ids.csv）を作る
+python tools/check_slide_refs.py [ファイルやディレクトリ ...]              # スライド ID と参照を確かめる
 ```
+
+`build_web_slides.py` は、`docs/slides/` に書き出し済みの PNG があれば WebP に変換し、なければ既存の画像に触れずに `slides.json` と `index.html` だけを作り直します（PNG の書き出しには PowerPoint が要ります：`deck/export.ps1`）。
+
+## スライドの固定 ID
+
+各スライドには、番号とは別に変わらない ID があります（例：`p04-carry-or-query`）。スライドを足して番号がずれても、ID は変わりません。根拠としてスライドを参照するときは、番号ではなく ID を使ってください。
+
+- 形式：`pNN-<kebab-case の英小文字・数字>`。`pNN` は定義しているファイル（`deck/pNN.js`）の Part 番号で、後から Part を移しても変えません。一度付けた ID は変えず、スライドを削除したら ID も欠番にします
+- 定義：`deck/p*.js` の各スライドに `id` を書きます（`L.content(title, { id: '…', … })`、`L.divider(…, notes, { id: '…' })`、`L.slide({ id: '…', … })`）。`id` がない・重複・形式違い・別の Part の接頭辞のときは、ビルドが失敗します。ID は画面には出ません
+- 一覧：`deck/slide_ids.json`（ビルドが出力）、`docs/slides.json` の `id` 欄、番号との対応表 [docs/slide_ids.csv](docs/slide_ids.csv)（`n,id,title`。番号で書いた既存の参照を ID に置き換えるときに使います）
+- Web 版：`https://takenori-kusaka.github.io/jwt-claims-guide/#p04-carry-or-query` でそのスライドが開きます。従来の `#s47` の形も使えます
+- 文書からの参照：`slide:<id>` と書きます（例：`slide:p04-carry-or-query`）。ID に使えない文字（`.`・`,`・`)`・空白など）で参照が終わるので、`slide:p06-narrow-downstream` の後ろに `.R1` のような要件の番号を続けても構いません
+- 確かめ方：`python tools/check_slide_refs.py templates research` のように、調べるファイルやディレクトリを渡します。ID が 152 件そろって一意であること、`docs/slides.json` と一致していること、渡した中の `slide:<id>` がすべて実在の ID を指すことを確かめ、1 つでも外れれば終了コード 1 で失敗します（スライドの枚数が変わったら `--expect` で指定します）
 
 ## ライセンス
 

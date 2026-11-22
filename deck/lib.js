@@ -61,6 +61,27 @@ function makeLib() {
   let curSection = null;
   const L = { pres, C, SH, MUTED, BORDER, HEX, MONO };
 
+  // Stable slide IDs (issue #15). Every slide is declared with an explicit `id` ("pNN-kebab-slug"),
+  // independent of its position, so references survive slide insertion. The IDs are collected
+  // here in slide order and written by build.js to deck/slide_ids.json; nothing is rendered.
+  L.part = null; // set by build.js to the part being loaded ("p04")
+  L.slideIds = [];
+  const ID_RE = /^p\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const track = (id, title) => {
+    if (!id) throw new Error('slide without id: ' + title);
+    if (!ID_RE.test(id)) throw new Error('bad slide id (want pNN-kebab-slug): ' + id);
+    if (L.part && !id.startsWith(L.part + '-')) throw new Error('slide id ' + id + ' is declared in ' + L.part + '.js');
+    if (L.slideIds.some((x) => x.id === id)) throw new Error('duplicate slide id: ' + id);
+    L.slideIds.push({ n: L.slideIds.length + 1, id, part: L.part, title: String(title).replace(/\s+/g, ' ').trim() });
+  };
+
+  // raw slide (e.g. the title slide): pres.addSlide options plus { id, title }
+  L.slide = (o) => {
+    const { id, title, ...opt } = o;
+    track(id, title || '');
+    return pres.addSlide(opt);
+  };
+
   L.section = (title) => { pres.addSection({ title }); curSection = title; };
 
   // evidence line: three kinds of basis, shown on the slide foot (spec / institution / Japanese book)
@@ -117,6 +138,7 @@ function makeLib() {
   };
 
   L.content = (title, o = {}) => {
+    track(o.id, title);
     const s = pres.addSlide({ masterName: 'CONTENT', sectionTitle: curSection });
     s.addText(title, { placeholder: 'title' });
     L.crumb(s, o.stages);
@@ -130,7 +152,8 @@ function makeLib() {
     return s;
   };
 
-  L.divider = (no, title, sub, qs, notes) => {
+  L.divider = (no, title, sub, qs, notes, o = {}) => {
+    track(o.id, title);
     const s = pres.addSlide({ masterName: 'SECTION', sectionTitle: curSection });
     L.T(s, no, { x: 0.8, y: 1.85, w: 4, h: 0.55, fontSize: 20, bold: true, color: C.accent2, margin: 0, charSpacing: 4 });
     s.addText(title, { placeholder: 'title' });

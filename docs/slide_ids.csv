@@ -1,0 +1,153 @@
+n,id,title
+1,p00-title,JWT クレーム設計ガイド
+2,p00-goals-and-how-to-read,この資料のゴールと読み方
+3,p00-claims-are-contracts,この資料の主張：クレームは、サービス間の「契約」である
+4,p00-why-hard,なぜ難しいか：1 つの発行者、多数の受け手、それぞれの解釈
+5,p00-incident-signature-valid,事故の例：署名は正しかった。受け入れてはいけなかった
+6,p00-structure,全体の構成
+7,p00-terminology,用語：この資料での呼び方
+8,p00-evidence-types,根拠の示し方：仕様・公的な指針・日本語の専門書
+9,p01-part,基礎：JWT の構造と検証
+10,p01-jwt-structure,JWT の構造：ヘッダー・ペイロード・署名
+11,p01-validation-order,受け手の検証の順序：受け入れてから、クレームを読む
+12,p01-dangerous-header-params,ヘッダーの危険なパラメータ：鍵とアルゴリズムは受け手が決める
+13,p01-id-token-vs-access-token,ID トークンとアクセストークン：宛先が違う
+14,p01-self-contained-vs-reference,自己完結型と参照型：クレームを運ぶか、問い合わせるか
+15,p01-library-defaults,ライブラリの既定値は、安全側とは限らない
+16,p01-attack-patterns,攻撃の型：どれも「確かめなかったクレーム」から入る
+17,p02-part,既存のクレームの地図：独自クレームを作る前に
+18,p02-registered-claims,登録クレーム：7 つの意味と、意味しないこと
+19,p02-name-categories,名前の 3 区分：登録名・公開名・私的名
+20,p02-claims-by-purpose,用途別の地図：16 の用途と既存のクレーム
+21,p02-user-identifier,利用者の識別：安定したキーは iss と sub の組だけ
+22,p02-tenant-org,テナント・組織：登録クレームはなく、各社が独自
+23,p02-roles-groups-entitlements,役割・グループ・資格：名前は標準、語彙は組織で
+24,p02-scope,権限：scope はクライアントに許した範囲
+25,p02-auth-strength-session,認証の強さとセッション：acr・amr・auth_time・sid
+26,p02-delegation-client,委任とクライアント：sub は代理される主体
+27,p02-keys-events-identity-assurance,鍵・イベント・本人確認：既存の構造を使う
+28,p02-not-in-registry,標準の登録簿にないもの：テナント・同意・端末
+29,p02-saml-attributes,SAML の属性と JWT：対応表は規範ではない
+30,p02-check-before-creating,独自クレームを作る前の確認：4 つの場所を探す
+31,p03-part,4 つの IdP の実際
+32,p03-idp-comparison,4 つの IdP の比較：同じ用途、違うクレーム
+33,p03-entra-oid-tid,Entra ID：キーは oid と tid、sub はアプリごと
+34,p03-entra-scp-roles-groups,Entra ID：scp と roles、グループの超過、拡張属性
+35,p03-keycloak-mappers,Keycloak：マッパーがなければクレームは出ない
+36,p03-keycloak-aud-lightweight,Keycloak：aud・軽量トークン・組織・トークン交換
+37,p03-auth0-namespace,Auth0：名前空間の規則と、黙って消えるクレーム
+38,p03-okta-custom-as,Okta：Custom AS を使い、AT では uid を見る
+39,p03-cognito-token-use,Cognito：token_use を確かめ、aud の欠落に備える
+40,p03-cognito-pre-token-hook,Cognito：発行前フックと custom: 属性の落とし穴
+41,p03-recent-changes,最近の変更：古い理解のままだと誤る点
+42,p03-custom-claim-injection,独自クレームの入れ方：失敗しても黙って出る
+43,p03-confusing-differences,取り違えやすい点：同じ名前でも形と意味が違う
+44,p03-absorb-idp-differences,IdP の差は入口で吸収する
+45,p04-part,独自クレームの設計原則
+46,p04-token-is-snapshot,トークンは写し：発行後の変更は届かない
+47,p04-carry-or-query,載せるか、問い合わせるか：4 つの問いで決める
+48,p04-claim-names,クレーム名：まず登録名、無ければ自社の名前空間
+49,p04-namespace,名前空間：1 つにまとめ、受け手のツールで試す
+50,p04-type,型：1 つに固定する。ID と金額は文字列で
+51,p04-shape,形：配列は配列で、JSON は JSON のまま
+52,p04-absent-null-false-empty,無い・null・false・空配列：意味を決めておく
+53,p04-case-and-characters,大文字小文字と文字：比べ方を決める
+54,p04-immutable-identifiers,識別子：名前ではなく、変わらない ID で一致させる
+55,p04-split-by-writer,書き手で分ける：確認済みの値と申告の値
+56,p04-size-budget,サイズの予算：上限を超えると黙って消える
+57,p04-forward-compatibility,前方互換：知らないものは無視、必須の欠落は拒否
+58,p04-reject-missing-required,必須の欠落は拒否。ただし IdP の違いを埋めてから
+59,p04-single-issuer,付与するのは単一の発行者：各サービスは足さない
+60,p04-namespace-object-example,設計例：組織の名前空間オブジェクト
+61,p04-design-checklist,設計のチェックリスト：12 の確認
+62,p05-part,権限の表現：利用者・サービス・システム
+63,p05-three-principals,3 種類の主体：利用者・ワークロード・システム
+64,p05-one-request-carries,1 リクエストで運ぶ：誰の権限・誰が実行・どこ経由
+65,p05-authz-models,権限のモデル：RBAC・ABAC・関係ベース
+66,p05-pep-pdp,PEP と PDP：クレームは判断の入力の 1 つ
+67,p05-coarse-fine-layers,粗い権限と細かい権限：3 層で分担する
+68,p05-scope-vs-role,scope と role：守る相手が違う
+69,p05-role-explosion,ロール爆発：細かい権限をロールで表さない
+70,p05-system-privileges,システムの権限：バッチ・運用者・緊急時を分ける
+71,p05-multitenancy,マルチテナント：iss と tid の両方で確かめる
+72,p05-cross-tenant,テナントをまたぐ：利用者・運用者・取引先
+73,p05-bola,BOLA：クレームはオブジェクトの確認を代わらない
+74,p05-confused-deputy,代理の混乱：連鎖を見せ、自分宛てだけを受ける
+75,p06-part,流れ：どこで足し、どこで絞るか
+76,p06-stage-map,段階の地図：クレームは 6 か所で生まれる
+77,p06-issuance-hook,発行時フック：失敗しても、トークンは出る
+78,p06-edge-exchange,入口での交換：外の形式を、内側に持ち込まない
+79,p06-transaction-tokens,Transaction Tokens：呼び出し全体の文脈を運ぶ
+80,p06-step-up-approval,追加認証と承認：その場で求め、結果を足す
+81,p06-narrow-downstream,下流ほど絞る：仕様は強制しない。組織で決める
+82,p06-validation-split,検証の分担：入口で検証しても、各サービスでも検証する
+83,p06-access-context,アクセス元の文脈：トークンに入れると古くなる
+84,p06-header-forwarding,ヘッダーへの転記：利用者が送った同名ヘッダーを消す
+85,p06-audit-trail,証跡：誰が・どの経路で・何の承認で動いたか
+86,p06-return-results,結果を返す：JWT にするのは、自己完結した主張だけ
+87,p06-flow-browser-to-db,流れの例 1：ブラウザから DB まで
+88,p06-flow-multitenant-saas,流れの例 2：マルチテナント SaaS
+89,p06-flow-partner-events,流れの例 3・4：取引先との API と、イベント駆動
+90,p06-flow-checklist,流れの規則：レビューで確かめる 10 項目
+91,p07-part,データ層：データアクセスとデータベース認証
+92,p07-three-db-paths,DB への 3 つの経路：誰がクレームを解釈するか
+93,p07-row-level-security,行単位の制御：クレームで行を絞る製品の違い
+94,p07-trust-boundary,信頼境界：DB の文脈を設定してよいのは誰か
+95,p07-connection-pool,接続プール：前の利用者の文脈が残る
+96,p07-db-token-auth,DB 認証：パスワードの代わりにトークンで入る
+97,p07-lifetime-mismatch,寿命のずれ：トークンが切れても、接続は生きている
+98,p07-connect-as-whom,誰として接続するか：利用者の ID か、サービスの ID か
+99,p07-masking,マスキング：ロールを決めるクレームが最も機微
+100,p07-cloud-attributes,クラウドの属性：クレームがそのまま効くとは限らない
+101,p07-data-layer-checklist,データ層の規則：レビューで確かめる 10 項目
+102,p08-part,有効期限・リフレッシュ・失効
+103,p08-token-types-lifetimes,トークンの種類と寿命：種類ごとに別々に決める
+104,p08-choosing-lifetime,寿命の決め方：RFC に数値はなく、指針は IR 8587
+105,p08-stale-claims,寿命の間のクレーム：剥奪しても exp までは古い値
+106,p08-refresh-reevaluation,リフレッシュ時の再評価：IdP ごとに違う
+107,p08-rotation,ローテーション：RFC 9700 と FAPI 2.0 は前提が違う
+108,p08-revocation-propagation,失効の伝播：問い合わせ・状態リスト・イベント
+109,p08-async-processing,非同期処理：キューに利用者のトークンを入れない
+110,p08-downstream-after-expiry,期限切れの後の下流呼び出し：作り直しを AS が判断
+111,p08-decision-table,判断表：寿命・リフレッシュ・失効を状況で選ぶ
+112,p09-part,機微情報・最小化・ログ
+113,p09-jws-is-readable,JWS は誰でも読める：載せる前に漏れる先を考える
+114,p09-do-not-carry,載せない情報：秘密・機微な属性・変わる識別子
+115,p09-minimize-derived,最小化と派生値：生年月日ではなく「18 歳以上か」
+116,p09-pairwise-identifiers,ペアワイズの識別子：受け手ごとに違う sub
+117,p09-jwe-sd-jwt,JWE と SD-JWT：暗号は最後の手段として使う
+118,p09-logs-traces,ログとトレース：トークン全文を残さない
+119,p09-url-browser,URL とブラウザ：トークンを履歴に残さない
+120,p09-checklist,チェックリスト：機微情報・最小化・ログ
+121,p10-part,AI エージェントのアクセスポリシー
+122,p10-agent-identity,エージェントの ID：利用者のトークンを借りない
+123,p10-four-questions,4 つの問いとクレーム：誰が・何が・何を・どこに
+124,p10-per-tool-scopes,ツールごとのスコープ：狭く始め、タスクごとに短く
+125,p10-human-approval-evidence,人の承認の証拠：エージェントに判断させない
+126,p10-mcp-authorization,MCP の認可：受け取ったトークンを渡さない
+127,p10-token-exchange-not-narrowing,トークン交換は絞るとは限らない：Keycloak 26.8 の実測
+128,p10-delegation-chain-depth,委任の連鎖と深さ：上限は組織の規則で決める
+129,p10-vendor-features,各社の機能：2026 年 11 月時点の姿
+130,p10-guidance-standards,指針と標準化：公的な根拠として引けるものは少ない
+131,p10-agent-checklist,設計チェックリスト：エージェントのアクセス
+132,p11-part,ガバナンス：クレームは API の契約
+133,p11-why-govern,なぜ治めるか：発行者は 1 つ、受け手は多数
+134,p11-registry-fields,台帳：クレームごとに決める 12 の項目
+135,p11-registry-example,台帳の例：テナントのクレーム 1 件
+136,p11-schema-contract-tests,スキーマと契約テスト：台帳を機械で確かめる
+137,p11-contract-test-gaps,契約テストが見逃す変更：9 つの受け手 × 10 の変更
+138,p11-change-procedure,変更の手順：受け手が先、発行者が後
+139,p11-reserved-names,予約名と名前空間：持ち主を決め、発行時に弾く
+140,p11-translation-layer,変換層：IdP の差は入口と共通部品で吸収する
+141,p11-ownership,体制：台帳の持ち主・承認・ADR
+142,p11-pre-add-questions-1,追加前の質問（1/2）：目的・名前・型
+143,p11-pre-add-questions-2,追加前の質問（2/2）：境界・監査・変更
+144,p11-audit-metrics,監査と指標：台帳と実際の発行のずれを測る
+145,p12-part,テックリーダーの実践
+146,p12-antipatterns-1,アンチパターン（1/2）：検証と識別子
+147,p12-antipatterns-2,アンチパターン（2/2）：設計・流れ・運用
+148,p12-review-viewpoints,レビューの観点：クレームの一生に沿って 6 つ
+149,p12-priorities-deferrals,重点と見送り：共通の基準の上に、組織ごとの判断を置く
+150,p12-claims-and-evidence,主張と根拠：この資料は何に基づくか
+151,p12-references,参考文献：日本語の書籍と、主な公的文書
+152,p12-summary,まとめ：クレームは契約。決めてから足し、確かめてから読む
