@@ -1,0 +1,500 @@
+# template_version: 0.1.0
+# 種になる一覧（#2）。カタログの行（issue_events・use_events・token_kinds）と行列（subject_state_matrix.md）は、
+# ここの項目に `<一覧の id>/<項目の id>` でひもづける（行の seeds、IANA JWT Claims は claims_produced・claims_read のクレーム名）。
+# どの行にもひもづかない項目は out_of_scope（assumption：起きない前提、breaks_when：崩れる条件）を持つ。
+# 差集合と件数は tools/catalog_check.py が計算し、sources.md の冒頭の件数と照合する。
+# 人が読む説明・URL・見直しの期限は sources.md にある。項目の値は事実の列挙で、各社・各団体の文書の文章は写していない。
+seed_lists:
+  - id: rfc6749-grant
+    name: "RFC 6749 の grant type（§4.1〜§4.4・§6）"
+    kind: spec
+    version: "RFC 6749"
+    url: "https://www.rfc-editor.org/rfc/rfc6749#section-4"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "authorization_code", value: "authorization_code", note: "RFC 6749 §4.1"}
+      - {id: "implicit", value: "implicit（response_type=token）", note: "RFC 6749 §4.2"}
+      - {id: "password", value: "password", note: "RFC 6749 §4.3"}
+      - {id: "client_credentials", value: "client_credentials", note: "RFC 6749 §4.4"}
+      - {id: "refresh_token", value: "refresh_token", note: "RFC 6749 §6"}
+  - id: iana-oauth-uri
+    name: "IANA「OAuth URI」の登録簿（grant type・token type・client assertion type ほか）"
+    kind: spec
+    registry_updated: "2026-11-10"
+    url: "https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#uri"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "grant-type:jwt-bearer", value: "urn:ietf:params:oauth:grant-type:jwt-bearer", note: "RFC 7523、RFC 10070"}
+      - {id: "grant-type:saml2-bearer", value: "urn:ietf:params:oauth:grant-type:saml2-bearer", note: "RFC 7522、RFC 10070", out_of_scope: {assumption: "SAML 2.0 のアサーションを OAuth の認可グラントに使わない。外部の SAML の IdP はブローカー（I17）でつなぐ", breaks_when: "SAML のアサーションを持つ既存のシステムが、トークンエンドポイントで直接 AT を得る必要があるとき"}}
+      - {id: "client-assertion-type:jwt-bearer", value: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", note: "RFC 7523"}
+      - {id: "client-assertion-type:saml2-bearer", value: "urn:ietf:params:oauth:client-assertion-type:saml2-bearer", note: "RFC 7522", out_of_scope: {assumption: "クライアントの認証に SAML のアサーションを使わない（private_key_jwt か mTLS を使う）", breaks_when: "SAML のアサーションでしかクライアントを認証できない連携先をつなぐとき"}}
+      - {id: "token-type:jwt", value: "urn:ietf:params:oauth:token-type:jwt", note: "RFC 7519"}
+      - {id: "grant-type:device_code", value: "urn:ietf:params:oauth:grant-type:device_code", note: "RFC 8628"}
+      - {id: "grant-type:token-exchange", value: "urn:ietf:params:oauth:grant-type:token-exchange", note: "RFC 8693"}
+      - {id: "token-type:access_token", value: "urn:ietf:params:oauth:token-type:access_token", note: "RFC 8693"}
+      - {id: "token-type:refresh_token", value: "urn:ietf:params:oauth:token-type:refresh_token", note: "RFC 8693"}
+      - {id: "token-type:id_token", value: "urn:ietf:params:oauth:token-type:id_token", note: "RFC 8693"}
+      - {id: "token-type:saml1", value: "urn:ietf:params:oauth:token-type:saml1", note: "RFC 8693", out_of_scope: {assumption: "SAML 1.1 のアサーションを交換の対象にしない", breaks_when: "SAML 1.1 を使う旧いシステムのトークンを交換で受け入れるとき"}}
+      - {id: "token-type:saml2", value: "urn:ietf:params:oauth:token-type:saml2", note: "RFC 8693", out_of_scope: {assumption: "SAML 2.0 のアサーションを交換の対象にしない", breaks_when: "SAML 2.0 のアサーションを交換の subject_token として受け入れるとき"}}
+      - {id: "request_uri", value: "urn:ietf:params:oauth:request_uri", note: "RFC 9126（PAR）"}
+      - {id: "jwk-thumbprint", value: "urn:ietf:params:oauth:jwk-thumbprint", note: "RFC 9278", out_of_scope: {assumption: "JWK の thumbprint を URI の形でクレームの値に使わない（DPoP の束縛は cnf.jkt に base64url で書く。RFC 9449 §6.1）", breaks_when: "鍵の thumbprint の URI を sub などの識別子に使う方式（自己発行の ID など）を受け入れるとき"}}
+      - {id: "ckt", value: "urn:ietf:params:oauth:ckt", note: "RFC 9679", out_of_scope: {assumption: "COSE の鍵を扱わない（JOSE の JWT だけを扱う）", breaks_when: "CWT・COSE の鍵を使う機器のトークンを扱うとき"}}
+  - id: iana-response-type
+    name: "IANA「OAuth Authorization Endpoint Response Types」の登録簿"
+    kind: spec
+    registry_updated: "2026-11-10"
+    url: "https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#endpoint"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "code", value: "code"}
+      - {id: "code-id_token", value: "code id_token"}
+      - {id: "code-id_token-token", value: "code id_token token"}
+      - {id: "code-token", value: "code token"}
+      - {id: "id_token", value: "id_token"}
+      - {id: "id_token-token", value: "id_token token"}
+      - {id: "none", value: "none", out_of_scope: {assumption: "トークンも認可コードも返さない要求は、発行イベントにならない（OAuth 2.0 Multiple Response Type Encoding Practices の none）", breaks_when: "response_type=none で利用者の同意だけを記録する使い方を、発行の前提に組み込むとき"}}
+      - {id: "token", value: "token"}
+      - {id: "vp_token", value: "vp_token", out_of_scope: {assumption: "検証可能な提示（OpenID4VP）を扱わない", breaks_when: "資格情報の提示を受ける RP を作るとき"}}
+      - {id: "vp_token-id_token", value: "vp_token id_token", out_of_scope: {assumption: "検証可能な提示（OpenID4VP）を扱わない", breaks_when: "資格情報の提示を ID トークンと一緒に受けるとき"}}
+  - id: iana-access-token-type
+    name: "IANA「OAuth Access Token Types」の登録簿"
+    kind: spec
+    registry_updated: "2026-11-10"
+    url: "https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#token-types"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "Bearer", value: "Bearer", note: "RFC 6750"}
+      - {id: "N_A", value: "N_A", note: "RFC 8693 §2.2.1"}
+      - {id: "PoP", value: "PoP", note: "RFC 9200", out_of_scope: {assumption: "ACE（RFC 9200）の PoP トークンを扱わない。送信者制約は DPoP か mTLS で行う", breaks_when: "IoT の機器に ACE の PoP トークンを発行するとき"}}
+      - {id: "DPoP", value: "DPoP", note: "RFC 9449"}
+  - id: iana-token-type-hint
+    name: "IANA「OAuth Token Type Hints」の登録簿"
+    kind: spec
+    registry_updated: "2026-11-10"
+    url: "https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#token-type-hint"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "access_token", value: "access_token", note: "RFC 7009"}
+      - {id: "refresh_token", value: "refresh_token", note: "RFC 7009"}
+      - {id: "pct", value: "pct", note: "UMA 2.0 Grant §3.7", out_of_scope: {assumption: "UMA 2.0 を使わない", breaks_when: "リソースの所有者が他人に共有を許す UMA の仕組みを入れるとき"}}
+  - id: oidf-grant
+    name: "OpenID Foundation の仕様が定める grant type"
+    kind: spec
+    url: "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "ciba", value: "urn:openid:params:grant-type:ciba", note: "OpenID Connect CIBA Core 1.0 §4"}
+  - id: oidc-logout
+    name: "OpenID Connect のログアウト・セッションの仕様（4 つ）"
+    kind: spec
+    url: "https://openid.net/specs/openid-connect-rpinitiated-1_0.html"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "rp-initiated", value: "OpenID Connect RP-Initiated Logout 1.0（Final）"}
+      - {id: "front-channel", value: "OpenID Connect Front-Channel Logout 1.0（Final）"}
+      - {id: "back-channel", value: "OpenID Connect Back-Channel Logout 1.0（Final）"}
+      - {id: "session-management", value: "OpenID Connect Session Management 1.0（Final）", out_of_scope: {assumption: "RP は OP の check_session_iframe でセッションの変化を見張らない。IdP 側のセッションの終了は、リフレッシュの失敗か Back-Channel Logout で知る", breaks_when: "ブラウザの中だけで動き、リフレッシュもバックチャネルも使えない RP を作るとき"}}
+  - id: iana-jwt-claims
+    name: "IANA「JSON Web Token Claims」の登録簿"
+    kind: spec
+    registry_updated: "2026-10-28"
+    url: "https://www.iana.org/assignments/jwt/jwt.xhtml#claims"
+    mapping: "行の claims_produced（発行イベント）か claims_read（利用イベント）にクレーム名を書けば、この一覧の項目にひもづく"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "iss", note: "[RFC 7519, Section 4.1.1]"}
+      - {id: "sub", note: "[RFC 7519, Section 4.1.2]"}
+      - {id: "aud", note: "[RFC 7519, Section 4.1.3]"}
+      - {id: "exp", note: "[RFC 7519, Section 4.1.4]"}
+      - {id: "nbf", note: "[RFC 7519, Section 4.1.5]"}
+      - {id: "iat", note: "[RFC 7519, Section 4.1.6]"}
+      - {id: "jti", note: "[RFC 7519, Section 4.1.7]"}
+      - {id: "name", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "given_name", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "family_name", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "middle_name", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "nickname", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "preferred_username", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "profile", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "picture", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "website", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "email", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "email_verified", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "gender", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "birthdate", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "zoneinfo", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "locale", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "phone_number", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "phone_number_verified", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "address", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "updated_at", note: "[OpenID Connect Core 1.0, Section 5.1]"}
+      - {id: "azp", note: "[OpenID Connect Core 1.0, Section 2]"}
+      - {id: "nonce", note: "[OpenID Connect Core 1.0, Section 2]; [RFC 9449]"}
+      - {id: "auth_time", note: "[OpenID Connect Core 1.0, Section 2]"}
+      - {id: "at_hash", note: "[OpenID Connect Core 1.0, Section 2]"}
+      - {id: "c_hash", note: "[OpenID Connect Core 1.0, Section 3.3.2.11]"}
+      - {id: "acr", note: "[OpenID Connect Core 1.0, Section 2]"}
+      - {id: "amr", note: "[OpenID Connect Core 1.0, Section 2]"}
+      - {id: "sub_jwk", note: "[OpenID Connect Core 1.0, Section 7.4]", out_of_scope: {assumption: "自己発行の OP（OpenID Connect Core 1.0 §7）を使わない", breaks_when: "利用者の端末が自分で ID トークンに署名する方式（Self-Issued OP）を受け入れるとき"}}
+      - {id: "cnf", note: "[RFC 7800, Section 3.1]"}
+      - {id: "sip_from_tag", note: "[RFC 8055]; [RFC 3261]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sip_date", note: "[RFC 8055]; [RFC 3261]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sip_callid", note: "[RFC 8055]; [RFC 3261]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sip_cseq_num", note: "[RFC 8055]; [RFC 3261]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sip_via_branch", note: "[RFC 8055]; [RFC 3261]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "orig", note: "[RFC 8225, Section 5.2.1]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "dest", note: "[RFC 8225, Section 5.2.1]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "mky", note: "[RFC 8225, Section 5.2.2]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "events", note: "[RFC 8417, Section 2.2]"}
+      - {id: "toe", note: "[RFC 8417, Section 2.2]"}
+      - {id: "txn", note: "[RFC 8417, Section 2.2]"}
+      - {id: "rph", note: "[RFC 8443, Section 3]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sid", note: "[OpenID Connect Front-Channel Logout 1.0, Section 3]"}
+      - {id: "vot", note: "[RFC 8485]", out_of_scope: {assumption: "Vectors of Trust（RFC 8485）で信頼の度合いを表さない。認証の強さは acr・amr で表す（slide:p02-auth-strength-session）", breaks_when: "連携先が Vectors of Trust の値を要求するとき"}}
+      - {id: "vtm", note: "[RFC 8485]", out_of_scope: {assumption: "Vectors of Trust（RFC 8485）で信頼の度合いを表さない。認証の強さは acr・amr で表す（slide:p02-auth-strength-session）", breaks_when: "連携先が Vectors of Trust の値を要求するとき"}}
+      - {id: "attest", note: "[RFC 8588]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "origid", note: "[RFC 8588]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "act", note: "[RFC 8693, Section 4.1]"}
+      - {id: "scope", note: "[RFC 8693, Section 4.2]"}
+      - {id: "client_id", note: "[RFC 8693, Section 4.3]"}
+      - {id: "may_act", note: "[RFC 8693, Section 4.4]"}
+      - {id: "jcard", note: "[RFC 8688]; [RFC 7095]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "at_use_nbr", note: "[ETSI GS NFV-SEC 022 V2.7.1]", out_of_scope: {assumption: "ETSI NFV（ネットワーク機能の仮想化）の API の使用回数の制限で、組織の API では使わない", breaks_when: "NFV の管理 API にトークンを発行するとき"}}
+      - {id: "div", note: "[RFC 8946]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "opt", note: "[RFC 8946]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "vc", note: "[W3C Recommendation  Verifiable Credentials Data Model 1.0 - Expressing verifiab", out_of_scope: {assumption: "検証可能な資格情報（W3C VC・VP）を JWT のクレームで運ばない", breaks_when: "資格情報の発行・提示（OpenID4VCI・OpenID4VP）を扱うとき"}}
+      - {id: "vp", note: "[W3C Recommendation  Verifiable Credentials Data Model 1.0 - Expressing verifiab", out_of_scope: {assumption: "検証可能な資格情報（W3C VC・VP）を JWT のクレームで運ばない", breaks_when: "資格情報の発行・提示（OpenID4VCI・OpenID4VP）を扱うとき"}}
+      - {id: "sph", note: "[RFC 9027]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "ace_profile", note: "[RFC 9200, Section 5.10]", out_of_scope: {assumption: "制約のある機器（IoT）向けの ACE（RFC 9200）のプロファイルを使わない", breaks_when: "IoT の機器に ACE のトークンを発行するとき"}}
+      - {id: "cnonce", note: "[RFC 9200, Section 5.10]", out_of_scope: {assumption: "制約のある機器（IoT）向けの ACE（RFC 9200）のプロファイルを使わない", breaks_when: "IoT の機器に ACE のトークンを発行するとき"}}
+      - {id: "exi", note: "[RFC 9200, Section 5.10.3]", out_of_scope: {assumption: "制約のある機器（IoT）向けの ACE（RFC 9200）のプロファイルを使わない", breaks_when: "IoT の機器に ACE のトークンを発行するとき"}}
+      - {id: "roles", note: "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]"}
+      - {id: "groups", note: "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]"}
+      - {id: "entitlements", note: "[RFC 7643, Section 4.1.2]; [RFC 9068, Section 2.2.3.1]"}
+      - {id: "token_introspection", note: "[RFC 9701, Section 5]"}
+      - {id: "eat_nonce", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "ueid", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "sueids", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "oemid", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "hwmodel", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "hwversion", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "oemboot", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "dbgstat", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "location", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "eat_profile", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "submods", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "uptime", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "bootcount", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "bootseed", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "dloas", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "swname", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "swversion", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "manifests", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "measurements", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "measres", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "intuse", note: "[RFC 9711]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "cdniv", note: "[RFC 9246, Section 2.1.8]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdnicrit", note: "[RFC 9246, Section 2.1.9]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdniip", note: "[RFC 9246, Section 2.1.10]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdniuc", note: "[RFC 9246, Section 2.1.11]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdniets", note: "[RFC 9246, Section 2.1.12]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdnistt", note: "[RFC 9246, Section 2.1.13]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "cdnistd", note: "[RFC 9246, Section 2.1.14]", out_of_scope: {assumption: "CDN の署名つき URL のトークン（RFC 9246）を発行しない", breaks_when: "CDN の配信の認可に署名つきトークンを使うとき"}}
+      - {id: "sig_val_claims", note: "[RFC 9321, Section 3.2.3]", out_of_scope: {assumption: "署名の検証結果を表すトークン（RFC 9321）を扱わない", breaks_when: "電子署名の検証の結果をトークンで受け渡すとき"}}
+      - {id: "authorization_details", note: "[RFC 9396, Section 9.1]"}
+      - {id: "verified_claims", note: "[OpenID Identity Assurance Schema Definition 1.0, Section 5]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "place_of_birth", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "nationalities", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "birth_family_name", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "birth_given_name", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "birth_middle_name", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "salutation", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "title", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "msisdn", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "also_known_as", note: "[OpenID Connect for Identity Assurance Claims Registration 1.0, Section 4]", out_of_scope: {assumption: "本人確認の結果（OpenID Connect for Identity Assurance）をトークンに載せない。本人確認の属性は機微なので、載せずに API で取る（slide:p09-do-not-carry）", breaks_when: "本人確認（eKYC）の結果を連携先に渡す要件が出たとき"}}
+      - {id: "htm", note: "[RFC 9449, Section 4.2]"}
+      - {id: "htu", note: "[RFC 9449, Section 4.2]"}
+      - {id: "ath", note: "[RFC 9449, Section 4.2]"}
+      - {id: "atc", note: "[RFC 9447]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "sub_id", note: "[RFC 9493, Section 4.1]"}
+      - {id: "rcd", note: "[RFC 9795]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "rcdi", note: "[RFC 9795]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "crn", note: "[RFC 9795]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "msgi", note: "[RFC 9475]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+      - {id: "_claim_names", note: "[OpenID Connect Core 1.0, Section 5.6.2]", out_of_scope: {assumption: "集約・分散クレーム（OpenID Connect Core 1.0 §5.6.2）を使わない。クレームの書き手は発行者 1 つに決める（slide:p04-single-issuer）", breaks_when: "外部の属性の提供者のクレームを、発行者を通さずに受け手へ渡すとき"}}
+      - {id: "_claim_sources", note: "[OpenID Connect Core 1.0, Section 5.6.2]", out_of_scope: {assumption: "集約・分散クレーム（OpenID Connect Core 1.0 §5.6.2）を使わない。クレームの書き手は発行者 1 つに決める（slide:p04-single-issuer）", breaks_when: "外部の属性の提供者のクレームを、発行者を通さずに受け手へ渡すとき"}}
+      - {id: "rdap_allowed_purposes", note: "[RFC 9560, Section 3.1.5.1]", out_of_scope: {assumption: "RDAP（登録データの照会）の目的を表すクレームで、組織の API では使わない", breaks_when: "RDAP のサーバーにトークンで照会するとき"}}
+      - {id: "rdap_dnt_allowed", note: "[RFC 9560, Section 3.1.5.2]", out_of_scope: {assumption: "RDAP（登録データの照会）の目的を表すクレームで、組織の API では使わない", breaks_when: "RDAP のサーバーにトークンで照会するとき"}}
+      - {id: "geohash", note: "[Fast and Readable Geographical Hashing (CTA-5009)]", out_of_scope: {assumption: "位置をトークンに載せない（slide:p06-access-context は、アクセス元の文脈をトークンに入れると古くなるとしている）", breaks_when: "位置によって認可する要件が出て、位置をトークンで運ぶと決めたとき"}}
+      - {id: "_sd", note: "[RFC 9901, Section 4.2.4.1]", out_of_scope: {assumption: "SD-JWT（RFC 9901）を発行しない。最小化は載せない・派生値・参照で行う（slide:p09-minimize-derived・slide:p09-jwe-sd-jwt）", breaks_when: "受け手ごとに開示するクレームを選ばせる必要が出て、SD-JWT を発行するとき"}}
+      - {id: "...", note: "[RFC 9901, Section 4.2.4.2]", out_of_scope: {assumption: "SD-JWT（RFC 9901）を発行しない。最小化は載せない・派生値・参照で行う（slide:p09-minimize-derived・slide:p09-jwe-sd-jwt）", breaks_when: "受け手ごとに開示するクレームを選ばせる必要が出て、SD-JWT を発行するとき"}}
+      - {id: "_sd_alg", note: "[RFC 9901, Section 4.1.1]", out_of_scope: {assumption: "SD-JWT（RFC 9901）を発行しない。最小化は載せない・派生値・参照で行う（slide:p09-minimize-derived・slide:p09-jwe-sd-jwt）", breaks_when: "受け手ごとに開示するクレームを選ばせる必要が出て、SD-JWT を発行するとき"}}
+      - {id: "sd_hash", note: "[RFC 9901, Section 4.3]", out_of_scope: {assumption: "SD-JWT（RFC 9901）を発行しない。最小化は載せない・派生値・参照で行う（slide:p09-minimize-derived・slide:p09-jwe-sd-jwt）", breaks_when: "受け手ごとに開示するクレームを選ばせる必要が出て、SD-JWT を発行するとき"}}
+      - {id: "consumerPlmnId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "consumerSnpnId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerPlmnId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerSnpnId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerSnssaiList", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerNsiList", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerNfSetId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "producerNfServiceSetId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "sourceNfInstanceId", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "analyticsIdList", note: "[3GPP TS 29.510, Clause 6.3.5.2.4]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "resOwnerId", note: "[3GPP TS 29.222, Clause 8.5.4.2.8]", out_of_scope: {assumption: "3GPP（5G のコアネットワーク）の機能間の認可のクレームで、組織の API では使わない", breaks_when: "5G のコアネットワークの機能にトークンを発行するとき"}}
+      - {id: "cmw", note: "[RFC 9999, Section 3.1, 3.3]", out_of_scope: {assumption: "機器の真正性の証明（EAT、RFC 9711・RATS）を、利用者やワークロードのトークンに入れない", breaks_when: "端末や実行環境の証明を、発行の条件や受け手の判断に使うとき"}}
+      - {id: "jwks", note: "[OpenID Federation 1.0, Section 13.1]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "metadata", note: "[OpenID Federation 1.0, Section 13.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "constraints", note: "[OpenID Federation 1.0, Section 13.3]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "crit", note: "[OpenID Federation 1.0, Section 13.4]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "ref", note: "[OpenID Federation 1.0, Section 13.5]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "delegation", note: "[OpenID Federation 1.0, Section 13.6]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "logo_uri", note: "[OpenID Federation 1.0, Section 13.7]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "authority_hints", note: "[OpenID Federation 1.0, Section 3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_anchor_hints", note: "[OpenID Federation 1.0, Section 3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_marks", note: "[OpenID Federation 1.0, Section 3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_mark_issuers", note: "[OpenID Federation 1.0, Section 3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_mark_owners", note: "[OpenID Federation 1.0, Section 3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "metadata_policy", note: "[OpenID Federation 1.0, Section 3.3]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "metadata_policy_crit", note: "[OpenID Federation 1.0, Section 3.3]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "source_endpoint", note: "[OpenID Federation 1.0, Section 3.3]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "keys", note: "[OpenID Federation 1.0, Section 5.2.1]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_mark_type", note: "[OpenID Federation 1.0, Section 7.1]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_chain", note: "[OpenID Federation 1.0, Section 8.3.2]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "trust_anchor", note: "[OpenID Federation 1.0, Section 12.2.3]", out_of_scope: {assumption: "OpenID Federation 1.0 のエンティティの宣言（entity statement）を発行・検証しない。信頼する発行者は許可リストで固定する（slide:p05-multitenancy）", breaks_when: "多数の発行者・RP を OpenID Federation の信頼の連鎖でつなぐとき"}}
+      - {id: "status", note: "[RFC-ietf-oauth-status-list-21, Section 6.1]"}
+      - {id: "status_list", note: "[RFC-ietf-oauth-status-list-21, Section 5.1]"}
+      - {id: "ttl", note: "[RFC-ietf-oauth-status-list-21, Section 5.1]"}
+      - {id: "stpl", note: "[RFC-ietf-stir-certificates-ocsp-14]", out_of_scope: {assumption: "電話・SIP の発信者確認（STIR／SHAKEN の PASSporT）と ACME の認証トークンのクレーム。組織の API の AT・ID トークンには載らない", breaks_when: "電話の発信者確認や、ACME の Authority Token を発行・検証する仕組みを、組織の発行者が持つとき"}}
+  - id: auth0-protocol
+    name: "Auth0 の post-login Action の event.transaction.protocol の値"
+    kind: spec
+    idp: auth0
+    url: "https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger/post-login-event-object"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "oidc-basic-profile"}
+      - {id: "oidc-ciba"}
+      - {id: "oidc-ciba-web-link"}
+      - {id: "oidc-implicit-profile"}
+      - {id: "oauth2-device-code"}
+      - {id: "oauth2-resource-owner", note: "文書に値の説明はない。RO 系の grant（password・password-realm）の発行として I04 にひもづけた（推論。unverified.md の V35）"}
+      - {id: "oauth2-resource-owner-jwt-bearer", note: "文書に値の説明はない", out_of_scope: {assumption: "Auth0 の旧来の grant（legacy の ro/jwt-bearer）を使わない。文書の Application Grant Types は legacy として扱っている", breaks_when: "旧来の Auth0 の SDK・grant を使うアプリを引き継ぐとき"}}
+      - {id: "oauth2-password"}
+      - {id: "oauth2-webauthn", note: "文書に値の説明はない", out_of_scope: {assumption: "この値で post-login が呼ばれるフローを使わない（文書に説明がなく、どの発行かを確かめていない。unverified.md の V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
+      - {id: "oauth2-access-token", note: "文書に値の説明はない", out_of_scope: {assumption: "この値で post-login が呼ばれるフローを使わない（文書に説明がない。legacy の access_token grant と推測。unverified.md の V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
+      - {id: "oauth2-refresh-token"}
+      - {id: "oauth2-token-exchange"}
+      - {id: "oidc-hybrid-profile"}
+      - {id: "samlp", out_of_scope: {assumption: "SAML・WS-Federation の応答は JWT のクレーム設計の対象にしない（属性の写し方は slide:p02-saml-attributes）", breaks_when: "Auth0 を SAML の IdP として使い、アプリに SAML の応答を返すとき"}}
+      - {id: "wsfed", out_of_scope: {assumption: "WS-Federation を使わない", breaks_when: "WS-Federation の RP（旧い Microsoft の製品など）をつなぐとき"}}
+      - {id: "wstrust-usernamemixed", out_of_scope: {assumption: "WS-Trust を使わない", breaks_when: "WS-Trust でしか認証できない旧いクライアントをつなぐとき"}}
+  - id: auth0-trigger
+    name: "Auth0 の Actions のトリガー（Explore Triggers の一覧）"
+    kind: spec
+    idp: auth0
+    url: "https://auth0.com/docs/customize/actions/explore-triggers"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "post-login"}
+      - {id: "credentials-exchange"}
+      - {id: "pre-user-registration"}
+      - {id: "post-user-registration"}
+      - {id: "post-change-password"}
+      - {id: "password-reset-post-challenge"}
+      - {id: "send-phone-message", out_of_scope: {assumption: "SMS・音声で MFA の文言を送る処理で、トークンを発行しない", breaks_when: "このトリガーの中でトークンを作って外部に渡す実装をするとき"}}
+      - {id: "custom-token-exchange"}
+  - id: auth0-grant
+    name: "Auth0 の Application Grant Types（アプリの Advanced Settings の Grant Types）"
+    kind: spec
+    idp: auth0
+    url: "https://auth0.com/docs/get-started/applications/application-grant-types"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "implicit"}
+      - {id: "authorization_code"}
+      - {id: "client_credentials"}
+      - {id: "password"}
+      - {id: "refresh_token"}
+      - {id: "device_code", value: "urn:ietf:params:oauth:grant-type:device_code"}
+      - {id: "password-realm", value: "http://auth0.com/oauth/grant-type/password-realm"}
+      - {id: "mfa-oob", value: "http://auth0.com/oauth/grant-type/mfa-oob"}
+      - {id: "mfa-otp", value: "http://auth0.com/oauth/grant-type/mfa-otp"}
+      - {id: "mfa-recovery-code", value: "http://auth0.com/oauth/grant-type/mfa-recovery-code"}
+      - {id: "passwordless-otp", value: "http://auth0.com/oauth/grant-type/passwordless/otp"}
+      - {id: "ro", value: "http://auth0.com/oauth/legacy/grant-type/ro", out_of_scope: {assumption: "Auth0 の legacy の grant を使わない（文書は legacy として分けている）", breaks_when: "legacy の grant に依存する旧いアプリを引き継ぐとき"}}
+      - {id: "ro/jwt-bearer", value: "http://auth0.com/oauth/legacy/grant-type/ro/jwt-bearer", out_of_scope: {assumption: "Auth0 の legacy の grant を使わない（文書は legacy として分けている）", breaks_when: "legacy の grant に依存する旧いアプリを引き継ぐとき"}}
+      - {id: "delegation/refresh_token", value: "http://auth0.com/oauth/legacy/grant-type/delegation/refresh_token", out_of_scope: {assumption: "Auth0 の legacy の grant を使わない（文書は legacy として分けている）", breaks_when: "legacy の grant に依存する旧いアプリを引き継ぐとき"}}
+      - {id: "delegation/id_token", value: "http://auth0.com/oauth/legacy/grant-type/delegation/id_token", out_of_scope: {assumption: "Auth0 の legacy の grant を使わない（文書は legacy として分けている）", breaks_when: "legacy の grant に依存する旧いアプリを引き継ぐとき"}}
+      - {id: "access_token", value: "http://auth0.com/oauth/legacy/grant-type/access_token", out_of_scope: {assumption: "Auth0 の legacy の grant を使わない（文書は legacy として分けている）", breaks_when: "legacy の grant に依存する旧いアプリを引き継ぐとき"}}
+  - id: keycloak-settings
+    name: "Keycloak 26.8 のクライアント・レルムの設定のうち、発行・利用を起こす・止めるもの（Capability config ほか）"
+    kind: spec
+    idp: keycloak
+    url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html#capability-config"
+    mapping: "Keycloak は契機の値の一覧を持たない（Auth0 の protocol の値のようなものがない）。そこで、公式文書のクライアント・レルムの設定のうち、発行・利用を起こす・止める項目を筆者が拾って一覧にした（author-proposal、tracking #2）"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "standard-flow", value: "Capability config > Standard Flow"}
+      - {id: "direct-access-grants", value: "Capability config > Direct Access Grants"}
+      - {id: "implicit-flow", value: "Capability config > Implicit Flow"}
+      - {id: "service-account-roles", value: "Capability config > Service account roles"}
+      - {id: "standard-token-exchange", value: "Capability config > Standard Token Exchange"}
+      - {id: "device-authorization-grant", value: "Capability config > OAuth 2.0 Device Authorization Grant"}
+      - {id: "ciba-grant", value: "Capability config > OIDC CIBA Grant"}
+      - {id: "jwt-authorization-grant", value: "Capability config > JWT Authorization Grant"}
+      - {id: "pkce-method", value: "Capability config > PKCE method"}
+      - {id: "require-dpop", value: "Capability config > Require DPoP bound tokens"}
+      - {id: "client-authentication", value: "Capability config > Client authentication"}
+      - {id: "authorization", value: "Capability config > Authorization", out_of_scope: {assumption: "Keycloak の Authorization Services（UMA・RPT）を使わない。認可は API と PDP で行う（slide:p05-pep-pdp）", breaks_when: "Keycloak の Authorization Services で権限を判定し、RPT をトークンとして受け渡すとき"}}
+      - {id: "offline-access-scope", value: "Client scopes > offline_access（Optional）"}
+      - {id: "organization-scope", value: "Client scopes > organization（Optional）"}
+      - {id: "lightweight-access-token", value: "Client policies > executor use-lightweight-access-token"}
+      - {id: "backchannel-logout", value: "Logout settings > Backchannel logout URL"}
+      - {id: "frontchannel-logout", value: "Logout settings > Front channel logout"}
+      - {id: "first-broker-login", value: "Identity providers > First login flow（first broker login）"}
+      - {id: "impersonation", value: "Users > Impersonate（realm の impersonation ロール）"}
+      - {id: "loa-mapping", value: "ACR to LoA mapping（レルム・クライアント）"}
+      - {id: "identity-assertion-jwt", value: "feature identity-assertion-jwt（26.7 で experimental）"}
+      - {id: "introspection-audience", value: "OpenID Connect Compatibility Modes > Allow token introspection without audience check"}
+      - {id: "revocation-not-before", value: "Sessions > Revocation（Not before）"}
+  - id: slide-stage-map
+    name: "ガイドの段階の地図（slide:p06-stage-map）の 6 段階と代表的な仕組み"
+    kind: guide-slide
+    url: "docs/slides.json（p06-stage-map）"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "stage1-authentication", value: "① 認証時（acr・amr・auth_time）"}
+      - {id: "stage2-issuance-hook", value: "② 発行時フック"}
+      - {id: "stage3-edge", value: "③ 入口（phantom token・Passport・ext_authz）"}
+      - {id: "stage4-service", value: "④ サービス間（Transaction Tokens・mTLS（SPIFFE））"}
+      - {id: "stage5-step-up", value: "⑤ 追加認証（RFC 9470）"}
+      - {id: "stage6-approval", value: "⑥ 承認・同意（RAR・CIBA）"}
+  - id: slide103-kinds
+    name: "ガイドのトークンの種類（slide:p08-token-types-lifetimes）"
+    kind: guide-slide
+    url: "docs/slides.json（p08-token-types-lifetimes）"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "access-token", value: "アクセストークン"}
+      - {id: "id-token", value: "ID トークン"}
+      - {id: "refresh-token", value: "リフレッシュトークン"}
+      - {id: "session", value: "セッション"}
+      - {id: "authorization-code", value: "認可コード"}
+      - {id: "txn-token", value: "Txn-Token"}
+  - id: guide-token-kinds
+    name: "ガイドで扱うトークンの種類（#2 の本文の一覧）"
+    kind: author-proposal
+    url: "https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/2"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "logout-token", value: "Logout Token"}
+      - {id: "internal-token", value: "内部トークン（入口で作り直すもの）"}
+      - {id: "id-jag", value: "ID-JAG"}
+      - {id: "dpop-proof", value: "DPoP の proof"}
+      - {id: "client-assertion", value: "クライアントの assertion（private_key_jwt）"}
+      - {id: "jar", value: "署名つきの要求（JAR）"}
+      - {id: "jarm", value: "署名つきの応答（JARM）"}
+  - id: subject-states
+    name: "主体の状態（#2 の本文。行列の行）"
+    kind: author-proposal
+    url: "https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/2"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "invited", value: "招待"}
+      - {id: "active", value: "有効（初回ログイン・招待の受諾）"}
+      - {id: "suspended", value: "停止"}
+      - {id: "deleted", value: "削除"}
+      - {id: "tenant-switch", value: "テナント切替"}
+      - {id: "role-change", value: "権限変更"}
+      - {id: "credential-change", value: "資格情報変更"}
+  - id: prior-catalogue
+    name: "調査ノートの先行の一覧（research/template-design/notes/coverage_lifecycle.md の I01〜I30・U01〜U21）"
+    kind: research
+    url: "research/template-design/notes/coverage_lifecycle.md"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+    items:
+      - {id: "I01", value: "対話ログイン（認可コード＋PKCE）"}
+      - {id: "I02", value: "implicit・hybrid"}
+      - {id: "I03", value: "ROPC"}
+      - {id: "I04", value: "サイレント再認証（prompt=none）"}
+      - {id: "I05", value: "リフレッシュ"}
+      - {id: "I06", value: "トークン交換"}
+      - {id: "I07", value: "追加認証（step-up）"}
+      - {id: "I08", value: "client credentials"}
+      - {id: "I09", value: "device flow"}
+      - {id: "I10", value: "CIBA"}
+      - {id: "I11", value: "JWT・SAML のアサーショングラント"}
+      - {id: "I12", value: "ID-JAG"}
+      - {id: "I13", value: "外部 IdP 経由のログイン・JIT"}
+      - {id: "I14", value: "アカウントの名寄せ・リンク"}
+      - {id: "I15", value: "運用者の代理操作・break-glass"}
+      - {id: "I16", value: "オフライン・夜間バッチ・長時間ジョブ"}
+      - {id: "I17", value: "AI エージェントの委任・自律"}
+      - {id: "I18", value: "ワークロード ID の連携"}
+      - {id: "I19", value: "入口での作り直し"}
+      - {id: "I20", value: "Txn-Token の発行と作り直し"}
+      - {id: "I21", value: "ログアウトトークン"}
+      - {id: "I22", value: "共有シグナル（SET）の発行"}
+      - {id: "I23", value: "ID トークン・AT・UserInfo の作り分け"}
+      - {id: "I24", value: "テナント・組織の切り替えによる再発行"}
+      - {id: "I25", value: "サインアップ・招待・初回ログイン"}
+      - {id: "I26", value: "資格情報の変更の後の発行"}
+      - {id: "I27", value: "端末の認証・端末の記憶", out_of_scope: {assumption: "端末の記憶（Cognito の TokenGeneration_AuthenticateDevice）は Cognito に固有で、カタログの IdP（Keycloak・Auth0）にない。Cognito は #21 で扱う", breaks_when: "Cognito をカタログの IdP に加えるとき（#21）"}}
+      - {id: "I28", value: "レガシーの連携プロトコル（SAMLP・WS-Fed・WS-Trust）", out_of_scope: {assumption: "SAML・WS-Federation・WS-Trust の応答は JWT のクレーム設計の対象にしない（auth0-protocol の samlp・wsfed・wstrust-usernamemixed と同じ前提）", breaks_when: "これらのプロトコルの RP をつなぐとき"}}
+      - {id: "I29", value: "署名鍵のローテーション"}
+      - {id: "I30", value: "ネイティブアプリ間の SSO（device_secret）", out_of_scope: {assumption: "ネイティブアプリ間の SSO（OpenID Connect Native SSO for Mobile Apps 1.0、2026-11-22 時点で draft 07、Final ではない）を使わない", breaks_when: "同じ会社の複数のネイティブアプリで、ログインを共有する要件が出たとき"}}
+      - {id: "U01", value: "リソースサーバーでの検証と認可"}
+      - {id: "U02", value: "入口での変換・ヘッダーへの転記"}
+      - {id: "U03", value: "サービス間の伝搬"}
+      - {id: "U04", value: "非同期"}
+      - {id: "U05", value: "DB のセッション文脈・接続プール"}
+      - {id: "U06", value: "ログ・監査・トレース"}
+      - {id: "U07", value: "イントロスペクション"}
+      - {id: "U08", value: "失効"}
+      - {id: "U09", value: "ログアウト"}
+      - {id: "U10", value: "クライアントや UI が ID トークンを読む"}
+      - {id: "U11", value: "UserInfo の呼び出し"}
+      - {id: "U12", value: "応答・Webhook の署名"}
+      - {id: "U13", value: "取引先 API"}
+      - {id: "U14", value: "判断や検証結果のキャッシュ"}
+      - {id: "U15", value: "ブラウザ・URL への保存"}
+      - {id: "U16", value: "長時間の接続"}
+      - {id: "U17", value: "クラウドの STS での利用"}
+      - {id: "U18", value: "エージェントのツール呼び出し（MCP）"}
+      - {id: "U19", value: "送信者制約での利用"}
+      - {id: "U20", value: "拒否と再挑戦"}
+      - {id: "U21", value: "分析基盤へのクレームの複製"}
