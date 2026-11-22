@@ -384,7 +384,8 @@ events:
       - {kind: spec, id: "OpenID Connect Front-Channel Logout 1.0 §2", url: "https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPLogout"}
     phase: 運用
     tokens_used: [session_rp]
-    claims_read: [iss, sid]
+    claims_read: []
+    claims_read_note: iss・sid を読むが、JWT のクレームではなく、Front-Channel Logout の URL のクエリパラメータ（§2）なので claims_read に入れない
     lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp], note: "ブラウザを通して RP のセッションを消す。サードパーティの Cookie が使えないと届かないことがある（推論）"}
     seeds: [oidc-logout/front-channel, keycloak-settings/frontchannel-logout, prior-catalogue/U09]
     guide: {status: gap, marker: ガイドの空白, slides: [], note: "Front-Channel Logout を扱うスライドがない",

@@ -2,7 +2,8 @@
 # 種になる一覧（#2）。カタログの行（issue_events・use_events・token_kinds）と行列（subject_state_matrix.md）は、
 # ここの項目に `<一覧の id>/<項目の id>` でひもづける（行の seeds、IANA JWT Claims は claims_produced・claims_read のクレーム名）。
 # どの行にもひもづかない項目は out_of_scope（assumption：起きない前提、breaks_when：崩れる条件）を持つ。
-# 差集合と件数は tools/catalog_check.py が計算し、sources.md の冒頭の件数と照合する。
+# 差集合と件数は tools/catalog_check.py が計算し、sources.md の冒頭の件数と表の件数と照合する。expected は、出どころの一覧の
+# 項目の数（確かめた日と数え方つき）。手元の items の数と合わなければ失敗する（写し漏れ・消しすぎを防ぐ）。
 # 人が読む説明・URL・見直しの期限は sources.md にある。項目の値は事実の列挙で、各社・各団体の文書の文章は写していない。
 seed_lists:
   - id: rfc6749-grant
@@ -13,6 +14,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 5, source: "RFC 6749 の §4.1〜§4.4 と §6 の grant type", verified_on: 2026-11-22}
     items:
       - {id: "authorization_code", value: "authorization_code", note: "RFC 6749 §4.1"}
       - {id: "implicit", value: "implicit（response_type=token）", note: "RFC 6749 §4.2"}
@@ -27,11 +29,12 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 15, source: "2026-11-22 に取得した IANA の oauth-parameters.xml の uri の登録簿のレコード数", verified_on: 2026-11-22}
     items:
       - {id: "grant-type:jwt-bearer", value: "urn:ietf:params:oauth:grant-type:jwt-bearer", note: "RFC 7523、RFC 10070"}
       - {id: "grant-type:saml2-bearer", value: "urn:ietf:params:oauth:grant-type:saml2-bearer", note: "RFC 7522、RFC 10070", out_of_scope: {assumption: "SAML 2.0 のアサーションを OAuth の認可グラントに使わない。外部の SAML の IdP はブローカー（I17）でつなぐ", breaks_when: "SAML のアサーションを持つ既存のシステムが、トークンエンドポイントで直接 AT を得る必要があるとき"}}
-      - {id: "client-assertion-type:jwt-bearer", value: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", note: "RFC 7523"}
-      - {id: "client-assertion-type:saml2-bearer", value: "urn:ietf:params:oauth:client-assertion-type:saml2-bearer", note: "RFC 7522", out_of_scope: {assumption: "クライアントの認証に SAML のアサーションを使わない（private_key_jwt か mTLS を使う）", breaks_when: "SAML のアサーションでしかクライアントを認証できない連携先をつなぐとき"}}
+      - {id: "client-assertion-type:jwt-bearer", value: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", note: "RFC 7523、RFC 10070"}
+      - {id: "client-assertion-type:saml2-bearer", value: "urn:ietf:params:oauth:client-assertion-type:saml2-bearer", note: "RFC 7522、RFC 10070", out_of_scope: {assumption: "クライアントの認証に SAML のアサーションを使わない（private_key_jwt か mTLS を使う）", breaks_when: "SAML のアサーションでしかクライアントを認証できない連携先をつなぐとき"}}
       - {id: "token-type:jwt", value: "urn:ietf:params:oauth:token-type:jwt", note: "RFC 7519"}
       - {id: "grant-type:device_code", value: "urn:ietf:params:oauth:grant-type:device_code", note: "RFC 8628"}
       - {id: "grant-type:token-exchange", value: "urn:ietf:params:oauth:grant-type:token-exchange", note: "RFC 8693"}
@@ -51,6 +54,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 10, source: "2026-11-22 に取得した IANA の endpoint.csv の行数", verified_on: 2026-11-22}
     items:
       - {id: "code", value: "code"}
       - {id: "code-id_token", value: "code id_token"}
@@ -70,6 +74,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 4, source: "2026-11-22 に取得した IANA の token-types.csv の行数", verified_on: 2026-11-22}
     items:
       - {id: "Bearer", value: "Bearer", note: "RFC 6750"}
       - {id: "N_A", value: "N_A", note: "RFC 8693 §2.2.1"}
@@ -83,6 +88,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 3, source: "2026-11-22 に取得した IANA の token-type-hint.csv の行数", verified_on: 2026-11-22}
     items:
       - {id: "access_token", value: "access_token", note: "RFC 7009"}
       - {id: "refresh_token", value: "refresh_token", note: "RFC 7009"}
@@ -94,6 +100,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 1, source: "CIBA Core 1.0 §4 が定める grant type の数", verified_on: 2026-11-22}
     items:
       - {id: "ciba", value: "urn:openid:params:grant-type:ciba", note: "OpenID Connect CIBA Core 1.0 §4"}
   - id: oidc-logout
@@ -103,6 +110,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 4, source: "openid.net の OpenID Connect のログアウト・セッションの Final の仕様の数", verified_on: 2026-11-22}
     items:
       - {id: "rp-initiated", value: "OpenID Connect RP-Initiated Logout 1.0（Final）"}
       - {id: "front-channel", value: "OpenID Connect Front-Channel Logout 1.0（Final）"}
@@ -117,6 +125,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 163, source: "2026-11-22 に取得した IANA の jwt/claims.csv の行数", verified_on: 2026-11-22}
     items:
       - {id: "iss", note: "[RFC 7519, Section 4.1.1]"}
       - {id: "sub", note: "[RFC 7519, Section 4.1.2]"}
@@ -289,6 +298,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 16, source: "Auth0 Docs「post-login - Event Object」の event.transaction.protocol の値の数", verified_on: 2026-11-22}
     items:
       - {id: "oidc-basic-profile"}
       - {id: "oidc-ciba"}
@@ -298,8 +308,8 @@ seed_lists:
       - {id: "oauth2-resource-owner", note: "文書に値の説明はない。RO 系の grant（password・password-realm）の発行として I04 にひもづけた（推論。unverified.md の V35）"}
       - {id: "oauth2-resource-owner-jwt-bearer", note: "文書に値の説明はない", out_of_scope: {assumption: "Auth0 の旧来の grant（legacy の ro/jwt-bearer）を使わない。文書の Application Grant Types は legacy として扱っている", breaks_when: "旧来の Auth0 の SDK・grant を使うアプリを引き継ぐとき"}}
       - {id: "oauth2-password"}
-      - {id: "oauth2-webauthn", note: "文書に値の説明はない", out_of_scope: {assumption: "この値で post-login が呼ばれるフローを使わない（文書に説明がなく、どの発行かを確かめていない。unverified.md の V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
-      - {id: "oauth2-access-token", note: "文書に値の説明はない", out_of_scope: {assumption: "この値で post-login が呼ばれるフローを使わない（文書に説明がない。legacy の access_token grant と推測。unverified.md の V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
+      - {id: "oauth2-webauthn", note: "文書に値の説明はない", out_of_scope: {assumption: "post-login の中で、event.transaction.protocol がこの値のときはログインを拒む（どのフローかを確かめるまで許さない。V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
+      - {id: "oauth2-access-token", note: "文書に値の説明はない", out_of_scope: {assumption: "post-login の中で、event.transaction.protocol がこの値のときはログインを拒む（legacy の access_token grant と推測するが、確かめるまで許さない。V35）", breaks_when: "post-login のログにこの値が出たとき。そのときはフローを確かめて行を足す"}}
       - {id: "oauth2-refresh-token"}
       - {id: "oauth2-token-exchange"}
       - {id: "oidc-hybrid-profile"}
@@ -314,6 +324,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 8, source: "Auth0 Docs「Explore Triggers」のトリガーの数", verified_on: 2026-11-22}
     items:
       - {id: "post-login"}
       - {id: "credentials-exchange"}
@@ -331,6 +342,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 16, source: "Auth0 Docs「Application Grant Types」の grant の数（仕様 6・拡張 5・legacy 5）", verified_on: 2026-11-22}
     items:
       - {id: "implicit"}
       - {id: "authorization_code"}
@@ -357,13 +369,14 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 23, source: "外部の件数はない。筆者が文書から拾った件数（author-proposal、tracking #2）", verified_on: 2026-11-22}
     items:
       - {id: "standard-flow", value: "Capability config > Standard Flow"}
       - {id: "direct-access-grants", value: "Capability config > Direct Access Grants"}
       - {id: "implicit-flow", value: "Capability config > Implicit Flow"}
       - {id: "service-account-roles", value: "Capability config > Service account roles"}
       - {id: "standard-token-exchange", value: "Capability config > Standard Token Exchange"}
-      - {id: "device-authorization-grant", value: "Capability config > OAuth 2.0 Device Authorization Grant"}
+      - {id: "device-authorization-grant", value: "Capability config > OAuth 2.0 Device Authorization Grant", note: "管理画面の表記。文書（SAG 26.8.2）は Auth 2.0 Device Authorization Grant と書く（文書側の誤記）"}
       - {id: "ciba-grant", value: "Capability config > OIDC CIBA Grant"}
       - {id: "jwt-authorization-grant", value: "Capability config > JWT Authorization Grant"}
       - {id: "pkce-method", value: "Capability config > PKCE method"}
@@ -378,7 +391,7 @@ seed_lists:
       - {id: "first-broker-login", value: "Identity providers > First login flow（first broker login）"}
       - {id: "impersonation", value: "Users > Impersonate（realm の impersonation ロール）"}
       - {id: "loa-mapping", value: "ACR to LoA mapping（レルム・クライアント）"}
-      - {id: "identity-assertion-jwt", value: "feature identity-assertion-jwt（26.7 で experimental）"}
+      - {id: "identity-assertion-jwt", value: "feature identity-assertion-jwt", note: "26.7.0 のリリースノートで experimental（features のページに状態の表示はない）"}
       - {id: "introspection-audience", value: "OpenID Connect Compatibility Modes > Allow token introspection without audience check"}
       - {id: "revocation-not-before", value: "Sessions > Revocation（Not before）"}
   - id: slide-stage-map
@@ -388,6 +401,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 6, source: "slide:p06-stage-map の表の段階の数", verified_on: 2026-11-22}
     items:
       - {id: "stage1-authentication", value: "① 認証時（acr・amr・auth_time）"}
       - {id: "stage2-issuance-hook", value: "② 発行時フック"}
@@ -402,6 +416,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 6, source: "slide:p08-token-types-lifetimes の表の種類の数", verified_on: 2026-11-22}
     items:
       - {id: "access-token", value: "アクセストークン"}
       - {id: "id-token", value: "ID トークン"}
@@ -416,6 +431,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 7, source: "#2 の本文の「ガイドで扱うもの」の列挙の数", verified_on: 2026-11-22}
     items:
       - {id: "logout-token", value: "Logout Token"}
       - {id: "internal-token", value: "内部トークン（入口で作り直すもの）"}
@@ -431,6 +447,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 7, source: "#2 の本文の「主体の状態」の列挙の数", verified_on: 2026-11-22}
     items:
       - {id: "invited", value: "招待"}
       - {id: "active", value: "有効（初回ログイン・招待の受諾）"}
@@ -446,6 +463,7 @@ seed_lists:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+    expected: {count: 51, source: "research/template-design/notes/coverage_lifecycle.md の表の行数（I01〜I30・U01〜U21）", verified_on: 2026-11-22}
     items:
       - {id: "I01", value: "対話ログイン（認可コード＋PKCE）"}
       - {id: "I02", value: "implicit・hybrid"}

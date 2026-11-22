@@ -132,14 +132,25 @@ def _find_kind_enum(node):
 
 
 # ------------------------------------------------------------------ seeds and closure
-def seed_items(seeds_doc):
-    """{'<list>/<item>': item} and the list rows."""
+def seed_items(seeds_doc, dups=None):
+    """{'<list>/<item>': item} and the list rows. Duplicate keys are appended to `dups` when given."""
     items, lists = {}, []
     for sl in (seeds_doc or {}).get('seed_lists', []) or []:
         lists.append(sl)
         for it in sl.get('items', []) or []:
-            items[f"{sl['id']}/{it['id']}"] = it
+            key = f"{sl['id']}/{it['id']}"
+            if key in items and dups is not None:
+                dups.append(key)
+            items[key] = it
     return items, lists
+
+
+def _weak_reason(v, label):
+    """A 対象外 reason that is too short, one repeated character, or just the item label.
+    Whether the reason is sound is not judged here (left to the sampled review of #13)."""
+    t = str(v or '').strip()
+    core_chars = set(t) - set(' \u3000、。・（）()')
+    return len(t) < MIN_REASON or len(core_chars) <= 2 or t in {str(x) for x in label if x}
 
 
 def row_refs(row, items):
@@ -159,7 +170,17 @@ def matrix_refs(matrix_md):
 def closure(docs):
     """Seed-list closure. Returns (findings, stats). Usable by claim_lint R3 (#17)."""
     out = []
-    items, lists = seed_items(docs.get('seeds'))
+    dups = []
+    items, lists = seed_items(docs.get('seeds'), dups)
+    for key in dups:
+        out.append(err('CLOSURE', key, '同じ一覧の中で項目の id が重複している'))
+    for sl in lists:
+        exp = (sl.get('expected') or {})
+        n = len(sl.get('items') or [])
+        if not isinstance(exp.get('count'), int) or _empty(exp.get('source')) or _empty(exp.get('verified_on')):
+            out.append(err('CLOSURE', f"seeds.yaml:{sl.get('id')}", 'expected（count・source・verified_on）がない'))
+        elif exp['count'] != n:
+            out.append(err('CLOSURE', f"seeds.yaml:{sl.get('id')}", f"項目の数 {n} が出どころの件数 {exp['count']}（{exp['source']}）と合わない"))
     referenced = {}
     rows = [('issue_events', r) for r in (docs.get('issue_events') or {}).get('events', []) or []] + \
            [('use_events', r) for r in (docs.get('use_events') or {}).get('events', []) or []] + \
@@ -186,8 +207,8 @@ def closure(docs):
             oos += 1
             for k in ('assumption', 'breaks_when'):
                 v = (o or {}).get(k)
-                if _empty(v) or len(str(v).strip()) < MIN_REASON:
-                    out.append(err('CLOSURE', key, f'対象外の {k} がない、または {MIN_REASON} 字未満'))
+                if _empty(v) or _weak_reason(v, (it.get('id'), it.get('value'), it.get('note'))):
+                    out.append(err('CLOSURE', key, f'対象外の {k} がない、{MIN_REASON} 字未満、同じ文字の繰り返し、または項目の名前そのもの'))
             if not _empty(o.get('assumption')) and o.get('assumption') == o.get('breaks_when'):
                 out.append(err('CLOSURE', key, '対象外の assumption と breaks_when が同じ文'))
             if key in referenced:
@@ -195,7 +216,8 @@ def closure(docs):
         elif key not in referenced:
             out.append(err('CLOSURE', key, 'カタログのどの行にもひもづかず、対象外でもない（差集合に残る）'))
     total = len(items)
-    stats = {'seed_lists': len(lists), 'seed_items': total, 'out_of_scope': oos,
+    reasons = {(o.get('assumption'), o.get('breaks_when')) for o in (it.get('out_of_scope') for it in items.values()) if o}
+    stats = {'seed_lists': len(lists), 'seed_items': total, 'out_of_scope': oos, 'out_of_scope_reason_texts': len(reasons),
              'out_of_scope_ratio': round(oos / total, 4) if total else 0.0,
              'unmapped': sum(1 for f in out if f['message'].startswith('カタログのどの行にもひもづかず'))}
     return out, stats
@@ -310,6 +332,8 @@ def check_rows(docs, slides, reg_kinds):
                     out.append(err('COLUMNS', w, f"hook_invoked は {'/'.join(HOOK[:3])}（確かめていなければ unknown）"))
                 elif b['hook_invoked'] in ('conditional', 'unknown') and _empty(b.get('hook_note')):
                     out.append(err('COLUMNS', w, f"hook_invoked {b['hook_invoked']} に hook_note がない"))
+                elif b['hook_invoked'] == 'yes' and '推論' in str(b.get('hook_note') or ''):
+                    out.append(err('COLUMNS', w, 'hook_note が推論なのに hook_invoked が yes（確かめていなければ unknown）'))
                 elif b['hook_invoked'] == 'unknown':
                     info.append(note('COLUMNS', w, 'hook_invoked unknown（確かめていない）'))
                 _check_refs(w, b.get('source_refs'), out, slides)
@@ -391,19 +415,29 @@ def check_matrix(docs):
 # ------------------------------------------------------------------ sources.md
 def check_sources(docs, stats):
     out = []
-    md = docs.get('sources') or ''
+    md = re.sub(r'(?s)<!--.*?-->', '', docs.get('sources') or '')
+    head = md.split('\n## ', 1)[0]
     _, lists = seed_items(docs.get('seeds'))
+    table = {}
+    for line in md.splitlines():
+        m = re.match(r'^\|\s*`([a-z0-9-]+)`\s*\|.*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*$', line)
+        if m:
+            table[m.group(1)] = (int(m.group(2)), int(m.group(3)))
     for sl in lists:
-        if f"`{sl['id']}`" not in md:
-            out.append(err('SOURCES', 'sources.md', f"種の一覧 {sl['id']} が sources.md にない"))
+        n = len(sl.get('items') or [])
+        o = sum(1 for i in sl.get('items') or [] if i.get('out_of_scope'))
+        if sl['id'] not in table:
+            out.append(err('SOURCES', 'sources.md', f"種の一覧 {sl['id']} が sources.md の表にない"))
+        elif table[sl['id']] != (n, o):
+            out.append(err('SOURCES', 'sources.md', f"表の {sl['id']} の項目・対象外 {table[sl['id']]} が seeds.yaml の ({n}, {o}) と合わない"))
         for k in ('name', 'url', 'verified_on', 'review_by', 'owner'):
             if _empty(sl.get(k)):
                 out.append(err('SOURCES', f"seeds.yaml:{sl['id']}", f'{k} がない'))
         if not _empty(sl.get('verified_on')):
             _check_dates(f"seeds.yaml:{sl['id']}", sl, out)
     pct = round(100 * stats['out_of_scope_ratio'])
-    want = f"対象外 {stats['out_of_scope']} 件／全 {stats['seed_items']} 件（{pct}%）"
-    if want not in md:
+    want = f"**対象外 {stats['out_of_scope']} 件／全 {stats['seed_items']} 件（{pct}%）**"
+    if want not in head:
         out.append(err('SOURCES', 'sources.md', f'冒頭の件数が計算と合わない（計算：{want}）'))
     return out
 

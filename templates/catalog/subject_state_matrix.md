@@ -40,7 +40,7 @@
 | 層 | 結果 | 根拠 | Keycloak 26.8 | Auth0 |
 | --- | --- | --- | --- | --- |
 | AT | 発行 | ログインで出る（RFC 6749 §4.1、I01・I25）。所属・ロールが未確定のまま出ることがある | 初回ログインも I01 と同じ発行（推論） | post-login はサインアップの直後の認証でも動く（文書） |
-| RT | 発行 | ログインで出る（RFC 6749 §4.1.4） | 同上 | offline_access を求めたときだけ（文書。I08） |
+| RT | 発行（条件つき：AS が RT を出す設定のとき） | RT を出すかは AS の任意（RFC 6749 §4.1.4 の refresh_token は OPTIONAL） | 同上 | offline_access を求めたときだけ（文書。I08） |
 | ID | 発行 | ログインで出る（OpenID Connect Core 1.0 §3.1.3.3）。email_verified が false のことがある | 同上 | 同上 |
 | 内部トークン | 発行 | 最初の API の呼び出しで、入口が作る（I21） | — | — |
 | Logout Token | 影響なし | セッションを終えないので出ない（OpenID Connect Back-Channel Logout 1.0 §2.4） | — | — |
@@ -55,7 +55,7 @@
 | 層 | 結果 | 根拠 | Keycloak 26.8 | Auth0 |
 | --- | --- | --- | --- | --- |
 | AT | 影響なし | 自己完結型の AT は exp まで受け手が受理する（RFC 7009 §3、slide:p08-stale-claims）。イントロスペクションなら早く止まる（U05） | 無効化した利用者のイントロスペクションの応答は確かめていない（V36） | 既存のトークンの扱いは文書に記載がない（V34） |
-| RT | 失効 | RT は使うたびに AS が検証するので、AS が停止を反映できる（RFC 6749 §6） | リフレッシュを invalid_grant（User disabled）で拒む（ソースの要約。V31） | ブロックした利用者のログインは user is blocked のエラーになる（文書）。RT の交換の扱いは記載がない（V34） |
+| RT | 失効（Keycloak：ソースの要約。Auth0：未確認） | RT は使うたびに AS が検証するので、AS は停止を反映できる（RFC 6749 §6）。反映するかは製品次第で、文書で確かめた製品はない | リフレッシュを invalid_grant（User disabled）で拒む（ソースの要約。V31） | ブロックした利用者のログインは user is blocked のエラーになる（文書）。RT の交換の扱いは記載がない（V34） |
 | ID | 影響なし | ID トークンはログインの時点の主張で、失効の仕組みがない（OpenID Connect Core 1.0 §2） | — | — |
 | 内部トークン | 影響なし | 入口が外部の AT から作るので、外部の AT が exp まで通る間は作られ続ける（slide:p06-edge-exchange） | — | — |
 | Logout Token | 影響なし | IdP がセッションを終えたときだけ出る（OpenID Connect Back-Channel Logout 1.0 §2.4）。停止がセッションを終えるかは標準の定めがない | 無効化でセッションを消すかは文書に記載がない（ソースの要約では、リフレッシュの拒否の経路でセッションを消さない。V31） | 記載がない（V34） |
@@ -70,7 +70,7 @@
 | 層 | 結果 | 根拠 | Keycloak 26.8 | Auth0 |
 | --- | --- | --- | --- | --- |
 | AT | 影響なし | 自己完結型の AT は exp まで受理される（RFC 7009 §3、slide:p08-stale-claims）。DB の主体も残っていれば入れる（slide:p07-lifetime-mismatch） | 文書は「プロファイルとデータを消す」とだけ書く。セッション・トークンの扱いは記載がない（V36） | 記載がない（V34） |
-| RT | 失効 | 結びつく主体が無いので、AS は RT から AT を作れない（RFC 6749 §6 の RT の検証） | 文書に記載なし（V36） | 削除で RT が失効するかは記載がない（V34） |
+| RT | 失効（推論。Keycloak・Auth0 とも未確認） | 結びつく主体が無いので、AS は RT から AT を作れないと見込む（推論。RFC 6749 §6 は RT の検証を求めるだけ） | 文書に記載なし（V36） | 削除で RT が失効するかは記載がない（V34） |
 | ID | 影響なし | 失効の仕組みがない（OpenID Connect Core 1.0 §2） | — | — |
 | 内部トークン | 影響なし | 外部の AT が exp まで通る間は作られ続ける（slide:p06-edge-exchange） | — | — |
 | Logout Token | 影響なし | IdP がセッションを終えたときだけ出る（OpenID Connect Back-Channel Logout 1.0 §2.4）。削除で送るかは製品次第 | 記載がない（V36） | 記載がない（V34） |
@@ -100,7 +100,7 @@
 | 層 | 結果 | 根拠 | Keycloak 26.8 | Auth0 |
 | --- | --- | --- | --- | --- |
 | AT | 再計算 | 手元の AT は exp まで古い値。次のリフレッシュで再計算される IdP と、されない IdP がある（slide:p08-stale-claims・slide:p08-refresh-reevaluation） | リフレッシュで属性とロールが再計算された（ケーススタディの実測 keycloak.refresh_reevaluation） | post-login が RT の交換のときにも動く（文書） |
-| RT | 影響なし | RT そのものは変わらない（RFC 6749 §6）。ローテーションする設定では次のリフレッシュで替わる | Revoke Refresh Token は既定で無効（slide:p08-rotation） | ローテーションは設定による（I02） |
+| RT | 影響なし | RT そのものは変わらない（RFC 6749 §6）。ローテーションする設定では次のリフレッシュで替わる | Revoke Refresh Token の既定は文書に記載なし（slide:p08-rotation は無効とし、ソースの要約も false。V31） | ローテーションは設定による（I02） |
 | ID | 再計算 | リフレッシュの応答に ID トークンが出るときは、その時点の値（OpenID Connect Core 1.0 §12.2） | リフレッシュの応答にも出る（シナリオ A の記入例のライフサイクル表。実物では確かめていない） | 確かめていない（V34） |
 | 内部トークン | 再計算 | 入口が外部の AT から作るので、外部の AT が再計算されたときに新しい値になる（slide:p06-edge-exchange） | — | — |
 | Logout Token | 影響なし | セッションを終えないので出ない（OpenID Connect Back-Channel Logout 1.0 §2.4） | — | — |

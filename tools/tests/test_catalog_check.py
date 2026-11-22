@@ -180,3 +180,66 @@ def test_sources_md_counts_must_match(base):
     n = run(base)['stats']['out_of_scope']
     docs['sources'] = docs['sources'].replace(f'対象外 {n} 件', f'対象外 {n - 1} 件')
     assert errors(run(docs), 'SOURCES', '件数')
+
+
+def _list(docs, lid):
+    return next(s for s in docs['seeds']['seed_lists'] if s['id'] == lid)
+
+
+def _header(stats):
+    return f"**対象外 {stats['out_of_scope']} 件／全 {stats['seed_items']} 件（{round(100 * stats['out_of_scope_ratio'])}%）**"
+
+
+def test_removing_an_item_fails_even_if_counts_are_rewritten(base):
+    # L1: the expected count of the external list catches a dropped item although the header and table are adjusted
+    docs = copy.deepcopy(base)
+    sl = _list(docs, 'iana-response-type')
+    dropped = sl['items'].pop(0)
+    for r in docs['issue_events']['events']:
+        r['seeds'] = [s for s in r['seeds'] if s != f"iana-response-type/{dropped['id']}"]
+    docs['sources'] = docs['sources'].replace(_header(cc.closure(base)[1]), _header(cc.closure(docs)[1]))
+    docs['sources'] = docs['sources'].replace('| #2 | 10 | 3 |', '| #2 | 9 | 3 |', 1)
+    res = run(docs)
+    assert errors(res, 'CLOSURE', '出どころの件数')
+    assert not errors(res, 'SOURCES')
+
+
+def test_sources_table_counts_must_match_seeds(base):
+    docs = copy.deepcopy(base)
+    docs['sources'] = docs['sources'].replace('| #2 | 15 | 6 |', '| #2 | 99 | 0 |', 1)
+    assert errors(run(docs), 'SOURCES', 'iana-oauth-uri')
+
+
+def test_header_count_in_html_comment_is_ignored(base):
+    docs = copy.deepcopy(base)
+    right = _header(cc.closure(base)[1])
+    docs['sources'] = docs['sources'].replace(right, right.replace('対象外 ', '対象外 9'), 1)
+    docs['sources'] = f'<!-- {right} -->\n' + docs['sources']
+    assert errors(run(docs), 'SOURCES', '件数')
+
+
+def test_header_count_after_first_section_is_ignored(base):
+    docs = copy.deepcopy(base)
+    right = _header(cc.closure(base)[1])
+    docs['sources'] = docs['sources'].replace(right, '（件数は下）', 1) + f'\n## 末尾\n\n{right}\n'
+    assert errors(run(docs), 'SOURCES', '件数')
+
+
+def test_duplicate_item_id_in_a_list_fails(base):
+    docs = copy.deepcopy(base)
+    sl = _list(docs, 'oidf-grant')
+    sl['items'].append(copy.deepcopy(sl['items'][0]))
+    assert errors(run(docs), 'CLOSURE', '重複')
+
+
+@pytest.mark.parametrize('bad', ['ああああああああああああ', 'session-management'])
+def test_weak_out_of_scope_reasons_fail(base, bad):
+    docs = copy.deepcopy(base)
+    item(docs, 'oidc-logout/session-management')['out_of_scope']['assumption'] = bad
+    assert errors(run(docs), 'CLOSURE', 'oidc-logout/session-management')
+
+
+def test_inferred_yes_fails(base):
+    docs = copy.deepcopy(base)
+    event(docs, 'I01')['idp']['keycloak']['hook_note'] = '一般の記述からの推論'
+    assert errors(run(docs), 'COLUMNS', '推論')

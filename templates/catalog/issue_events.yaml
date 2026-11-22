@@ -24,7 +24,8 @@
 #     occurs          この IdP がこのイベントを起こすか：yes / no / conditional（設定・プランによる）。issuer が idp でない行では no
 #                     （IdP は発行者でない）。確かめていなければ unknown
 #     hook_name       独自クレームを足す仕組みの名前（Keycloak はプロトコルマッパー、Auth0 は Actions のトリガー）
-#     hook_invoked    その仕組みがこの発行で呼ばれるか：yes / no / conditional。確かめていなければ unknown（hook_note に理由）。
+#     hook_invoked    その仕組みがこの発行で呼ばれるか：yes / no / conditional。文書か実測で確かめたときだけ yes・no にする。
+#                     推論しかなければ unknown（hook_note に理由）。hook_note に「推論」とある yes は catalog_check が error にする。
 #                     no の発行で独自クレームを運ぶ設計は #17 の R3b で落ちる。一覧表の「フック・式で可」をここに写さない（#13 の 6.）
 #     hook_note       条件と、確かめた方法（文書の記述か、推論か）
 #     stop_setting    このイベントを 1 つの設定で止められるとき、その設定（setting）・効く範囲（scope：client / realm / tenant / api /
@@ -37,7 +38,7 @@
 #
 # 文書に書かれていない既定値を、Keycloak 26.8.2 のソース（GitHub のタグ）の要約で補った箇所は「ソースの要約」と書いた。行は直接確かめて
 # いない（research/template-design/unverified.md の V31）。
-# 件数：発行イベント 33 件。「ガイドの空白」9 件、一部だけ扱う 6 件
+# 件数：発行イベント 33 件。「ガイドの空白」10 件、一部だけ扱う 5 件
 # 対応表（templates/trace/）の要件への逆参照。catalog の部分を満たした要件だけを書く。要件の状態は、ほかの成果物
 # （registry:claims#recompute_trigger は #3）が揃うまで「未着手」のまま
 _trace:
@@ -148,14 +149,14 @@ events:
         hook_invoked: "yes"
         hook_note: ケーススタディの実測（26.8.0）で、リフレッシュ後の AT に変更後の属性とロールが出た。文書には記述がない（ソースの要約では、クライアントのセッションから文脈を作り直してマッパーを再実行する。V31）
         stop_setting: null
-        lifetime_note: Revoke Refresh Token は既定で無効（slide:p08-rotation）。有効にしたレルムでは RT が 1 回限りになる。SSO セッションの idle の期限が延びる
+        lifetime_note: Revoke Refresh Token の既定は文書に記載なし（slide:p08-rotation は無効とし、ソースの要約も false。V31）。有効にしたレルムでは RT が 1 回限りになる。SSO セッションの idle の期限が延びる
         source_refs: [*kc_scopes]
         evidence: ["jwt-claims-casestudy@080b8da:keycloak.refresh_reevaluation"]
       auth0:
         occurs: "yes"
         hook_name: post-login（Actions）
         hook_invoked: "yes"
-        hook_note: post-login は RT の交換のときにも動く（文書）。api.redirect は使えない（文書）。リフレッシュで setCustomClaim が効くことの明文はない（動くことからの推論。V34）
+        hook_note: post-login は RT の交換のときにも動く（文書）。api.redirect は使えない（文書）。リフレッシュで setCustomClaim が効くことの明文はない（V34）
         stop_setting: {setting: "Application > Advanced Settings > Grant Types > Refresh Token", scope: client, default: "新しいアプリのすべての種類で有効（文書）"}
         lifetime_note: ローテーションは Allow Refresh Token Rotation（SPA は既定でローテーション。ほかの種類の既定は文書に記載なし）。再利用を検知すると RT の系列全体を無効にする。Idle の既定は 30 日（文書）
         source_refs: [*a0_login, *a0_api, *a0_grants, *a0_rt_rotation, *a0_rt_expiration]
@@ -268,7 +269,7 @@ events:
         hook_name: credentials-exchange（Actions。post-login ではない）
         hook_invoked: conditional
         hook_note: client credentials では credentials-exchange が動き、api.accessToken.setCustomClaim でクレームを足せる（文書）。post-login は動かない（Login Flow の実行条件に client credentials がないことからの推論。V34）。post-login で足すクレームは M2M の AT に載らない
-        stop_setting: {setting: "Application > Advanced Settings > Grant Types > Client Credentials", scope: client, default: "Confidential のアプリ（Regular Web・M2M）で既定で有効（文書）"}
+        stop_setting: {setting: "Application > Advanced Settings > Grant Types > Client Credentials", scope: client, default: "Confidential のアプリで既定で有効（文書の分類。Regular Web・M2M という名前は文書に出ない）"}
         source_refs: [*a0_m2m, *a0_grants, *a0_login]
     verified_on: 2026-11-22
     review_by: 2027-02-20
@@ -336,15 +337,15 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: 文書は AT・RT・ID トークンを出すとだけ書く。マッパーの適用は、Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。文書は AT・RT・ID トークンを出すとだけ書く。マッパーの適用は、Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）
         stop_setting: {setting: "Capability config > OAuth 2.0 Device Authorization Grant", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）"}
         source_refs: [*kc_capability, *kc_scopes]
       auth0:
         occurs: conditional
         hook_name: post-login（Actions）
-        hook_invoked: "yes"
-        hook_note: protocol の値に oauth2-device-code があることからの推論（device flow で動くことの明文はない。V34）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。protocol の値に oauth2-device-code があることからの推論（device flow で動くことの明文はない。V34）
         stop_setting: {setting: "Application > Advanced Settings > Grant Types > Device Code", scope: client, default: "Native のアプリで選べる。既定で有効とは書かれていない（文書）"}
         source_refs: [*a0_event, *a0_grants]
     verified_on: 2026-11-22
@@ -448,8 +449,8 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）。DPoP は implicit・hybrid に対応しない（文書）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）。DPoP は implicit・hybrid に対応しない（文書）
         stop_setting: {setting: "Capability config > Implicit Flow", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）"}
         lifetime_note: implicit 用の AT の寿命は別の設定（文書に既定の記載なし。ソースの要約では 900 秒。V31）
         source_refs: [*kc_capability, *kc_dpop]
@@ -478,7 +479,8 @@ events:
       revoked: []
       note: 利用者の操作なしに、既存の IdP のセッションから新しいトークンを出す。auth_time と acr は前回の認証の値のまま（iat とは別。slide:p02-auth-strength-session）
     seeds: [prior-catalogue/I04]
-    guide: {status: partial, slides: [p02-auth-strength-session], note: "「再認証なしの再発行がある」ことは auth_time の行で扱う。prompt=none を発行イベントとして扱い、フックの再実行や auth_time の扱いを決めるスライドはない"}
+    guide: {status: gap, marker: ガイドの空白, slides: [], note: "prompt=none を扱うスライドがない。slide:p02-auth-strength-session の「再認証なしの再発行がある」は auth_time と iat の違いを説く一般論で、prompt=none の言い換えではない（PR #32 の独立点検）",
+            checked: "2026-11-22 に docs/slides.json を prompt・サイレント・silent・再認証 で検索し、ヒットした p02-auth-strength-session・p07-lifetime-mismatch・p08-token-types-lifetimes・p08-choosing-lifetime・p08-rotation を目で読んだ"}
     idp:
       keycloak:
         occurs: "yes"
@@ -518,8 +520,8 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: acr_values・claims に対応し、acr は AT と ID トークンに入る（文書）。ログインの一種なので I01 と同じくマッパーが適用される（推論）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。acr_values・claims に対応し、acr は AT と ID トークンに入る（文書）。ログインの一種なので I01 と同じくマッパーが適用される（推論）
         stop_setting: null
         source_refs: [*kc_loa]
       auth0:
@@ -553,15 +555,15 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）
         stop_setting: {setting: "Capability config > OIDC CIBA Grant", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）"}
         source_refs: [*kc_capability, *kc_scopes]
       auth0:
         occurs: conditional
         hook_name: post-login（Actions）
-        hook_invoked: "yes"
-        hook_note: protocol の値に oidc-ciba・oidc-ciba-web-link があることからの推論（V34）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。protocol の値に oidc-ciba・oidc-ciba-web-link があることからの推論（V34）
         stop_setting: null
         source_refs: [*a0_event]
     verified_on: 2026-11-22
@@ -622,8 +624,8 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: 機能 jwt-authorization-grant:v1 は既定で有効、26.6.0 で supported（文書）。confidential のクライアントだけ、RT は出さず、常に一時的なセッション（文書）。マッパーの適用は一般の記述からの推論（V32）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。機能 jwt-authorization-grant:v1 は既定で有効、26.6.0 で supported（文書）。confidential のクライアントだけ、RT は出さず、常に一時的なセッション（文書）。マッパーの適用は一般の記述からの推論（V32）
         stop_setting: {setting: "Capability config > JWT Authorization Grant", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）"}
         source_refs: [*kc_jwt_grant, *kc_features]
       auth0:
@@ -724,8 +726,8 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: first broker login で既存のアカウントがあると、確認の後にメールか再認証で結びつける（文書）。その後のログインは I01・I17 と同じ（推論）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。first broker login で既存のアカウントがあると、確認の後にメールか再認証で結びつける（文書）。その後のログインは I01・I17 と同じ（推論）
         stop_setting: null
         source_refs: [*kc_broker]
       auth0:
@@ -896,14 +898,14 @@ events:
         occurs: conditional
         hook_name: プロトコルマッパー（organization のマッパー）
         hook_invoked: "yes"
-        hook_note: organization の client scope は組み込みの Optional。scope=organization:<alias> などで求め、複数の組織に属すると認証のときに選ばせる（文書）。「アクティブな組織の切り替え」の機能は文書にない。別の scope で新しい認可要求を出すことになる（推論）
+        hook_note: organization の client scope は組み込みの Optional。scope=organization:<alias> などで求め、複数の組織に属すると認証のときに選ばせる（文書）。「アクティブな組織の切り替え」の機能は文書にない。切り替えの手順は文書に記載なし
         stop_setting: {setting: "クライアントの Client scopes から organization を外す", scope: client, default: "組み込みの Optional（文書）"}
         source_refs: [*kc_org]
       auth0:
         occurs: conditional
         hook_name: post-login（Actions）
         hook_invoked: "yes"
-        hook_note: org_id は既定で ID トークンと AT に入る（org_name はテナントの設定で ON にしたときだけ。文書）。/authorize の organization で組織を指定する（文書）。切り替えは、別の organization での新しい認可要求（推論。V34）
+        hook_note: org_id は既定で ID トークンと AT に入る（org_name はテナントの設定で ON にしたときだけ。文書）。/authorize の organization で組織を指定する（文書）。切り替えの手順は文書に記載なし（V34）
         stop_setting: null
         source_refs: [*a0_org]
     verified_on: 2026-11-22
@@ -930,15 +932,15 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: 初回ログインは I01（または I17）と同じ発行（推論）。利用者の登録と組織への招待の機能は確かめていない（V33）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。初回ログインは I01（または I17）と同じ発行（推論）。利用者の登録と組織への招待の機能は確かめていない（V33）
         stop_setting: null
         source_refs: [*kc_scopes]
       auth0:
         occurs: conditional
         hook_name: pre-user-registration・post-user-registration・post-login（Actions）
         hook_invoked: "yes"
-        hook_note: post-login はサインアップの直後の認証でも動く（文書）。pre-user-registration・post-user-registration は利用者の作成の前後に動き、トークンにはクレームを足さない（足すのは post-login と credentials-exchange だけ。各トリガーの文書の setCustomClaim の有無からの推論）。event.stats.logins_count の初回の値は文書に明示がない
+        hook_note: post-login はサインアップの直後の認証でも動く（文書）。pre-user-registration・post-user-registration は利用者の作成の前後に動き、トークンにクレームを足す API（setCustomClaim）が文書にあるのは post-login と credentials-exchange だけ。event.stats.logins_count の初回の値は文書に明示がない
         stop_setting: null
         source_refs: [*a0_login, *a0_triggers]
     verified_on: 2026-11-22
@@ -965,16 +967,16 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: 変更の後のログインは I01 と同じ発行（推論）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。変更の後のログインは I01 と同じ発行（推論）
         stop_setting: null
         lifetime_note: パスワードの変更の「Sign out from other devices」は 26.3.0 から既定で未チェック。チェックするとオフラインのセッションもログアウトする（文書）
         source_refs: [*kc_pw_signout]
       auth0:
         occurs: conditional
         hook_name: post-change-password・password-reset-post-challenge・post-login（Actions）
-        hook_invoked: "yes"
-        hook_note: post-change-password は変更の後に動く（文書の一覧）。トークンにクレームを足すのは post-login（推論。I25 と同じ）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。post-change-password は変更の後に動く（文書の一覧）。トークンにクレームを足すのは post-login（推論。I25 と同じ）
         stop_setting: null
         lifetime_note: パスワードの変更で RT が失効するかは文書に記載がない（V34）
         source_refs: [*a0_triggers]
@@ -1051,16 +1053,16 @@ events:
       keycloak:
         occurs: conditional
         hook_name: プロトコルマッパー
-        hook_invoked: "yes"
-        hook_note: 束縛は発行の処理が足す。ほかのクレームは I01・I02 と同じくマッパーで決まる（推論）。機能 dpop:v1 は既定で有効（文書）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。束縛は発行の処理が足す。ほかのクレームは I01・I02 と同じくマッパーで決まる（推論）。機能 dpop:v1 は既定で有効（文書）
         stop_setting: null
         lifetime_note: Require DPoP bound tokens を OFF にしていても、proof が送られれば束縛する（文書）。1 つの設定では止まらない
         source_refs: [*kc_dpop, *kc_features]
       auth0:
         occurs: conditional
         hook_name: post-login（Actions）
-        hook_invoked: "yes"
-        hook_note: 束縛は発行の処理が足す。ほかのクレームは I01 と同じく post-login で決まる（推論）
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。束縛は発行の処理が足す。ほかのクレームは I01 と同じく post-login で決まる（推論）
         stop_setting: null
         lifetime_note: アプリの Require Sender Constraining、API の proof_of_possession（mechanism は none・mtls・dpop）。必要なプランは文書に記載がない（V34）
         source_refs: [*a0_sender]
