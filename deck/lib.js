@@ -64,13 +64,19 @@ function makeLib() {
   // Stable slide IDs (issue #15). Every slide is declared with an explicit `id` ("pNN-kebab-slug"),
   // independent of its position, so references survive slide insertion. The IDs are collected
   // here in slide order and written by build.js to deck/slide_ids.json; nothing is rendered.
+  // The prefix is fixed when the id is first issued (recorded in deck/slide_ids_registry.json):
+  // a new id must use the prefix of the part it is declared in, an issued id keeps its prefix
+  // even if the slide later moves to another part, and a retired id can never be used again.
   L.part = null; // set by build.js to the part being loaded ("p04")
+  L.registry = {}; // set by build.js: the issued-id registry
   L.slideIds = [];
   const ID_RE = /^p\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
   const track = (id, title) => {
     if (!id) throw new Error('slide without id: ' + title);
     if (!ID_RE.test(id)) throw new Error('bad slide id (want pNN-kebab-slug): ' + id);
-    if (L.part && !id.startsWith(L.part + '-')) throw new Error('slide id ' + id + ' is declared in ' + L.part + '.js');
+    const reg = Object.prototype.hasOwnProperty.call(L.registry, id) ? L.registry[id] : null;
+    if (reg && reg.retired) throw new Error('slide id ' + id + ' was retired on ' + reg.retired + ' and cannot be reused');
+    if (!reg && L.part && !id.startsWith(L.part + '-')) throw new Error('new slide id ' + id + ' must use the prefix of the part it is declared in (' + L.part + '.js)');
     if (L.slideIds.some((x) => x.id === id)) throw new Error('duplicate slide id: ' + id);
     L.slideIds.push({ n: L.slideIds.length + 1, id, part: L.part, title: String(title).replace(/\s+/g, ' ').trim() });
   };

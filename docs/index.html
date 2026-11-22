@@ -3812,7 +3812,10 @@ aud・scope・寿命を絞り、そのまま渡さない。エージェントは
   addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(i+1)}if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(i-1)}if(e.key==='Escape')document.body.classList.remove('present')});
   let x0=null;addEventListener('touchstart',e=>x0=e.touches[0].clientX);addEventListener('touchend',e=>{if(x0===null)return;const d=e.changedTouches[0].clientX-x0;if(Math.abs(d)>50)show(i+(d<0?1:-1));x0=null});
   // #<slide id> (stable, e.g. #p04-carry-or-query) or #sNN (slide number, kept for old links)
-  function idx(){const h=decodeURIComponent(location.hash.slice(1));const k=S.findIndex(s=>s.dataset.id===h);if(k>=0)return k;const m=/^s([0-9]+)$/.exec(h);return m?Math.max(0,Math.min(S.length-1,parseInt(m[1])-1)):0;}
-  addEventListener('hashchange',()=>{const k=idx();if(k!==i)show(k);});
-  i=idx();pos.textContent=(i+1)+' / '+S.length;S[i]&&S[i].classList.add('on');
+  // an unknown or malformed hash (e.g. "#%E0") falls back to slide 1 and says so
+  let miss='';
+  function idx(){miss='';let h=location.hash.slice(1);if(!h)return 0;try{h=decodeURIComponent(h)}catch(e){}const k=S.findIndex(s=>s.dataset.id===h);if(k>=0)return k;const m=/^s([0-9]+)$/.exec(h);if(m&&+m[1]>=1&&+m[1]<=S.length)return +m[1]-1;miss=h;return 0;}
+  function note(){if(miss)pos.textContent+='（#'+miss+' のスライドは見つかりません）';}
+  addEventListener('hashchange',()=>{const k=idx();if(k!==i||miss)show(k);note();});
+  i=idx();pos.textContent=(i+1)+' / '+S.length;note();S[i]&&S[i].classList.add('on');
   </script></body></html>

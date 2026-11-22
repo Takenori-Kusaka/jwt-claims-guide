@@ -5,3 +5,5 @@ deck/qa/
 research/deck_text.md
 deck/*.pptx
 deck/make.sh
+deck/package-lock.json
+__pycache__/

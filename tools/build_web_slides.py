@@ -20,7 +20,7 @@ def load_slide_ids(slides):
           sys.exit(f'bad or duplicate slide id at slide {d["n"]}: {x}')
       seen.add(x['id'])
       # the deck-side title must appear on the PPTX slide, so a stale ID file cannot silently shift the IDs
-      if x['n'] > 1 and norm(x['title']) not in norm(d['text']):
+      if norm(x['title']) not in norm(d['text']):
           sys.exit(f'slide {d["n"]}: title of {x["id"]} ({x["title"]!r}) is not on the PPTX slide; deck/slide_ids.json is out of date')
   return ids
 
@@ -53,8 +53,10 @@ def build(pptx_name, docs_rel, title, lead, og_desc, other):
   ids = load_slide_ids(slides)
   slides = [dict(n=d['n'], id=x['id'], title=d['title'], text=d['text'], notes=d['notes']) for d, x in zip(slides, ids)]
   with open(os.path.join(DOCS, 'slide_ids.csv'), 'w', encoding='utf-8', newline='') as f:
-      w = csv.writer(f, lineterminator='\n'); w.writerow(['n', 'id', 'title'])
-      for x in ids: w.writerow([x['n'], x['id'], x['title']])
+      # title = the title shown in the web viewer and docs/slides.json (the PPTX title placeholder; "PART 1"
+      # for a part divider); source_title = the title given in deck/p*.js, as in deck/slide_ids.json
+      w = csv.writer(f, lineterminator='\n'); w.writerow(['n', 'id', 'title', 'source_title'])
+      for d, x in zip(slides, ids): w.writerow([d['n'], d['id'], d['title'], x['title']])
   json.dump(slides, open(os.path.join(DOCS, 'slides.json'), 'w', encoding='utf-8'), ensure_ascii=False)
 
   # 3) viewer page
@@ -101,9 +103,12 @@ def build(pptx_name, docs_rel, title, lead, og_desc, other):
   addEventListener('keydown',e=>{{if(['ArrowRight','PageDown',' '].includes(e.key)){{e.preventDefault();show(i+1)}}if(['ArrowLeft','PageUp'].includes(e.key)){{e.preventDefault();show(i-1)}}if(e.key==='Escape')document.body.classList.remove('present')}});
   let x0=null;addEventListener('touchstart',e=>x0=e.touches[0].clientX);addEventListener('touchend',e=>{{if(x0===null)return;const d=e.changedTouches[0].clientX-x0;if(Math.abs(d)>50)show(i+(d<0?1:-1));x0=null}});
   // #<slide id> (stable, e.g. #p04-carry-or-query) or #sNN (slide number, kept for old links)
-  function idx(){{const h=decodeURIComponent(location.hash.slice(1));const k=S.findIndex(s=>s.dataset.id===h);if(k>=0)return k;const m=/^s([0-9]+)$/.exec(h);return m?Math.max(0,Math.min(S.length-1,parseInt(m[1])-1)):0;}}
-  addEventListener('hashchange',()=>{{const k=idx();if(k!==i)show(k);}});
-  i=idx();pos.textContent=(i+1)+' / '+S.length;S[i]&&S[i].classList.add('on');
+  // an unknown or malformed hash (e.g. "#%E0") falls back to slide 1 and says so
+  let miss='';
+  function idx(){{miss='';let h=location.hash.slice(1);if(!h)return 0;try{{h=decodeURIComponent(h)}}catch(e){{}}const k=S.findIndex(s=>s.dataset.id===h);if(k>=0)return k;const m=/^s([0-9]+)$/.exec(h);if(m&&+m[1]>=1&&+m[1]<=S.length)return +m[1]-1;miss=h;return 0;}}
+  function note(){{if(miss)pos.textContent+='（#'+miss+' のスライドは見つかりません）';}}
+  addEventListener('hashchange',()=>{{const k=idx();if(k!==i||miss)show(k);note();}});
+  i=idx();pos.textContent=(i+1)+' / '+S.length;note();S[i]&&S[i].classList.add('on');
   </script></body></html>'''
   open(os.path.join(DOCS, 'index.html'), 'w', encoding='utf-8', newline='\n').write(page)
   open(os.path.join(DOCS, '.nojekyll'), 'w').close()

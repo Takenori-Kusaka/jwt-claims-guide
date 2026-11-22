@@ -1,0 +1,610 @@
+{
+ "p00-title": {
+  "issued": "2026-11-22",
+  "title": "JWT クレーム設計ガイド"
+ },
+ "p00-goals-and-how-to-read": {
+  "issued": "2026-11-22",
+  "title": "この資料のゴールと読み方"
+ },
+ "p00-claims-are-contracts": {
+  "issued": "2026-11-22",
+  "title": "この資料の主張：クレームは、サービス間の「契約」である"
+ },
+ "p00-why-hard": {
+  "issued": "2026-11-22",
+  "title": "なぜ難しいか：1 つの発行者、多数の受け手、それぞれの解釈"
+ },
+ "p00-incident-signature-valid": {
+  "issued": "2026-11-22",
+  "title": "事故の例：署名は正しかった。受け入れてはいけなかった"
+ },
+ "p00-structure": {
+  "issued": "2026-11-22",
+  "title": "全体の構成"
+ },
+ "p00-terminology": {
+  "issued": "2026-11-22",
+  "title": "用語：この資料での呼び方"
+ },
+ "p00-evidence-types": {
+  "issued": "2026-11-22",
+  "title": "根拠の示し方：仕様・公的な指針・日本語の専門書"
+ },
+ "p01-part": {
+  "issued": "2026-11-22",
+  "title": "基礎：JWT の構造と検証"
+ },
+ "p01-jwt-structure": {
+  "issued": "2026-11-22",
+  "title": "JWT の構造：ヘッダー・ペイロード・署名"
+ },
+ "p01-validation-order": {
+  "issued": "2026-11-22",
+  "title": "受け手の検証の順序：受け入れてから、クレームを読む"
+ },
+ "p01-dangerous-header-params": {
+  "issued": "2026-11-22",
+  "title": "ヘッダーの危険なパラメータ：鍵とアルゴリズムは受け手が決める"
+ },
+ "p01-id-token-vs-access-token": {
+  "issued": "2026-11-22",
+  "title": "ID トークンとアクセストークン：宛先が違う"
+ },
+ "p01-self-contained-vs-reference": {
+  "issued": "2026-11-22",
+  "title": "自己完結型と参照型：クレームを運ぶか、問い合わせるか"
+ },
+ "p01-library-defaults": {
+  "issued": "2026-11-22",
+  "title": "ライブラリの既定値は、安全側とは限らない"
+ },
+ "p01-attack-patterns": {
+  "issued": "2026-11-22",
+  "title": "攻撃の型：どれも「確かめなかったクレーム」から入る"
+ },
+ "p02-part": {
+  "issued": "2026-11-22",
+  "title": "既存のクレームの地図：独自クレームを作る前に"
+ },
+ "p02-registered-claims": {
+  "issued": "2026-11-22",
+  "title": "登録クレーム：7 つの意味と、意味しないこと"
+ },
+ "p02-name-categories": {
+  "issued": "2026-11-22",
+  "title": "名前の 3 区分：登録名・公開名・私的名"
+ },
+ "p02-claims-by-purpose": {
+  "issued": "2026-11-22",
+  "title": "用途別の地図：16 の用途と既存のクレーム"
+ },
+ "p02-user-identifier": {
+  "issued": "2026-11-22",
+  "title": "利用者の識別：安定したキーは iss と sub の組だけ"
+ },
+ "p02-tenant-org": {
+  "issued": "2026-11-22",
+  "title": "テナント・組織：登録クレームはなく、各社が独自"
+ },
+ "p02-roles-groups-entitlements": {
+  "issued": "2026-11-22",
+  "title": "役割・グループ・資格：名前は標準、語彙は組織で"
+ },
+ "p02-scope": {
+  "issued": "2026-11-22",
+  "title": "権限：scope はクライアントに許した範囲"
+ },
+ "p02-auth-strength-session": {
+  "issued": "2026-11-22",
+  "title": "認証の強さとセッション：acr・amr・auth_time・sid"
+ },
+ "p02-delegation-client": {
+  "issued": "2026-11-22",
+  "title": "委任とクライアント：sub は代理される主体"
+ },
+ "p02-keys-events-identity-assurance": {
+  "issued": "2026-11-22",
+  "title": "鍵・イベント・本人確認：既存の構造を使う"
+ },
+ "p02-not-in-registry": {
+  "issued": "2026-11-22",
+  "title": "標準の登録簿にないもの：テナント・同意・端末"
+ },
+ "p02-saml-attributes": {
+  "issued": "2026-11-22",
+  "title": "SAML の属性と JWT：対応表は規範ではない"
+ },
+ "p02-check-before-creating": {
+  "issued": "2026-11-22",
+  "title": "独自クレームを作る前の確認：4 つの場所を探す"
+ },
+ "p03-part": {
+  "issued": "2026-11-22",
+  "title": "4 つの IdP の実際"
+ },
+ "p03-idp-comparison": {
+  "issued": "2026-11-22",
+  "title": "4 つの IdP の比較：同じ用途、違うクレーム"
+ },
+ "p03-entra-oid-tid": {
+  "issued": "2026-11-22",
+  "title": "Entra ID：キーは oid と tid、sub はアプリごと"
+ },
+ "p03-entra-scp-roles-groups": {
+  "issued": "2026-11-22",
+  "title": "Entra ID：scp と roles、グループの超過、拡張属性"
+ },
+ "p03-keycloak-mappers": {
+  "issued": "2026-11-22",
+  "title": "Keycloak：マッパーがなければクレームは出ない"
+ },
+ "p03-keycloak-aud-lightweight": {
+  "issued": "2026-11-22",
+  "title": "Keycloak：aud・軽量トークン・組織・トークン交換"
+ },
+ "p03-auth0-namespace": {
+  "issued": "2026-11-22",
+  "title": "Auth0：名前空間の規則と、黙って消えるクレーム"
+ },
+ "p03-okta-custom-as": {
+  "issued": "2026-11-22",
+  "title": "Okta：Custom AS を使い、AT では uid を見る"
+ },
+ "p03-cognito-token-use": {
+  "issued": "2026-11-22",
+  "title": "Cognito：token_use を確かめ、aud の欠落に備える"
+ },
+ "p03-cognito-pre-token-hook": {
+  "issued": "2026-11-22",
+  "title": "Cognito：発行前フックと custom: 属性の落とし穴"
+ },
+ "p03-recent-changes": {
+  "issued": "2026-11-22",
+  "title": "最近の変更：古い理解のままだと誤る点"
+ },
+ "p03-custom-claim-injection": {
+  "issued": "2026-11-22",
+  "title": "独自クレームの入れ方：失敗しても黙って出る"
+ },
+ "p03-confusing-differences": {
+  "issued": "2026-11-22",
+  "title": "取り違えやすい点：同じ名前でも形と意味が違う"
+ },
+ "p03-absorb-idp-differences": {
+  "issued": "2026-11-22",
+  "title": "IdP の差は入口で吸収する"
+ },
+ "p04-part": {
+  "issued": "2026-11-22",
+  "title": "独自クレームの設計原則"
+ },
+ "p04-token-is-snapshot": {
+  "issued": "2026-11-22",
+  "title": "トークンは写し：発行後の変更は届かない"
+ },
+ "p04-carry-or-query": {
+  "issued": "2026-11-22",
+  "title": "載せるか、問い合わせるか：4 つの問いで決める"
+ },
+ "p04-claim-names": {
+  "issued": "2026-11-22",
+  "title": "クレーム名：まず登録名、無ければ自社の名前空間"
+ },
+ "p04-namespace": {
+  "issued": "2026-11-22",
+  "title": "名前空間：1 つにまとめ、受け手のツールで試す"
+ },
+ "p04-type": {
+  "issued": "2026-11-22",
+  "title": "型：1 つに固定する。ID と金額は文字列で"
+ },
+ "p04-shape": {
+  "issued": "2026-11-22",
+  "title": "形：配列は配列で、JSON は JSON のまま"
+ },
+ "p04-absent-null-false-empty": {
+  "issued": "2026-11-22",
+  "title": "無い・null・false・空配列：意味を決めておく"
+ },
+ "p04-case-and-characters": {
+  "issued": "2026-11-22",
+  "title": "大文字小文字と文字：比べ方を決める"
+ },
+ "p04-immutable-identifiers": {
+  "issued": "2026-11-22",
+  "title": "識別子：名前ではなく、変わらない ID で一致させる"
+ },
+ "p04-split-by-writer": {
+  "issued": "2026-11-22",
+  "title": "書き手で分ける：確認済みの値と申告の値"
+ },
+ "p04-size-budget": {
+  "issued": "2026-11-22",
+  "title": "サイズの予算：上限を超えると黙って消える"
+ },
+ "p04-forward-compatibility": {
+  "issued": "2026-11-22",
+  "title": "前方互換：知らないものは無視、必須の欠落は拒否"
+ },
+ "p04-reject-missing-required": {
+  "issued": "2026-11-22",
+  "title": "必須の欠落は拒否。ただし IdP の違いを埋めてから"
+ },
+ "p04-single-issuer": {
+  "issued": "2026-11-22",
+  "title": "付与するのは単一の発行者：各サービスは足さない"
+ },
+ "p04-namespace-object-example": {
+  "issued": "2026-11-22",
+  "title": "設計例：組織の名前空間オブジェクト"
+ },
+ "p04-design-checklist": {
+  "issued": "2026-11-22",
+  "title": "設計のチェックリスト：12 の確認"
+ },
+ "p05-part": {
+  "issued": "2026-11-22",
+  "title": "権限の表現：利用者・サービス・システム"
+ },
+ "p05-three-principals": {
+  "issued": "2026-11-22",
+  "title": "3 種類の主体：利用者・ワークロード・システム"
+ },
+ "p05-one-request-carries": {
+  "issued": "2026-11-22",
+  "title": "1 リクエストで運ぶ：誰の権限・誰が実行・どこ経由"
+ },
+ "p05-authz-models": {
+  "issued": "2026-11-22",
+  "title": "権限のモデル：RBAC・ABAC・関係ベース"
+ },
+ "p05-pep-pdp": {
+  "issued": "2026-11-22",
+  "title": "PEP と PDP：クレームは判断の入力の 1 つ"
+ },
+ "p05-coarse-fine-layers": {
+  "issued": "2026-11-22",
+  "title": "粗い権限と細かい権限：3 層で分担する"
+ },
+ "p05-scope-vs-role": {
+  "issued": "2026-11-22",
+  "title": "scope と role：守る相手が違う"
+ },
+ "p05-role-explosion": {
+  "issued": "2026-11-22",
+  "title": "ロール爆発：細かい権限をロールで表さない"
+ },
+ "p05-system-privileges": {
+  "issued": "2026-11-22",
+  "title": "システムの権限：バッチ・運用者・緊急時を分ける"
+ },
+ "p05-multitenancy": {
+  "issued": "2026-11-22",
+  "title": "マルチテナント：iss と tid の両方で確かめる"
+ },
+ "p05-cross-tenant": {
+  "issued": "2026-11-22",
+  "title": "テナントをまたぐ：利用者・運用者・取引先"
+ },
+ "p05-bola": {
+  "issued": "2026-11-22",
+  "title": "BOLA：クレームはオブジェクトの確認を代わらない"
+ },
+ "p05-confused-deputy": {
+  "issued": "2026-11-22",
+  "title": "代理の混乱：連鎖を見せ、自分宛てだけを受ける"
+ },
+ "p06-part": {
+  "issued": "2026-11-22",
+  "title": "流れ：どこで足し、どこで絞るか"
+ },
+ "p06-stage-map": {
+  "issued": "2026-11-22",
+  "title": "段階の地図：クレームは 6 か所で生まれる"
+ },
+ "p06-issuance-hook": {
+  "issued": "2026-11-22",
+  "title": "発行時フック：失敗しても、トークンは出る"
+ },
+ "p06-edge-exchange": {
+  "issued": "2026-11-22",
+  "title": "入口での交換：外の形式を、内側に持ち込まない"
+ },
+ "p06-transaction-tokens": {
+  "issued": "2026-11-22",
+  "title": "Transaction Tokens：呼び出し全体の文脈を運ぶ"
+ },
+ "p06-step-up-approval": {
+  "issued": "2026-11-22",
+  "title": "追加認証と承認：その場で求め、結果を足す"
+ },
+ "p06-narrow-downstream": {
+  "issued": "2026-11-22",
+  "title": "下流ほど絞る：仕様は強制しない。組織で決める"
+ },
+ "p06-validation-split": {
+  "issued": "2026-11-22",
+  "title": "検証の分担：入口で検証しても、各サービスでも検証する"
+ },
+ "p06-access-context": {
+  "issued": "2026-11-22",
+  "title": "アクセス元の文脈：トークンに入れると古くなる"
+ },
+ "p06-header-forwarding": {
+  "issued": "2026-11-22",
+  "title": "ヘッダーへの転記：利用者が送った同名ヘッダーを消す"
+ },
+ "p06-audit-trail": {
+  "issued": "2026-11-22",
+  "title": "証跡：誰が・どの経路で・何の承認で動いたか"
+ },
+ "p06-return-results": {
+  "issued": "2026-11-22",
+  "title": "結果を返す：JWT にするのは、自己完結した主張だけ"
+ },
+ "p06-flow-browser-to-db": {
+  "issued": "2026-11-22",
+  "title": "流れの例 1：ブラウザから DB まで"
+ },
+ "p06-flow-multitenant-saas": {
+  "issued": "2026-11-22",
+  "title": "流れの例 2：マルチテナント SaaS"
+ },
+ "p06-flow-partner-events": {
+  "issued": "2026-11-22",
+  "title": "流れの例 3・4：取引先との API と、イベント駆動"
+ },
+ "p06-flow-checklist": {
+  "issued": "2026-11-22",
+  "title": "流れの規則：レビューで確かめる 10 項目"
+ },
+ "p07-part": {
+  "issued": "2026-11-22",
+  "title": "データ層：データアクセスとデータベース認証"
+ },
+ "p07-three-db-paths": {
+  "issued": "2026-11-22",
+  "title": "DB への 3 つの経路：誰がクレームを解釈するか"
+ },
+ "p07-row-level-security": {
+  "issued": "2026-11-22",
+  "title": "行単位の制御：クレームで行を絞る製品の違い"
+ },
+ "p07-trust-boundary": {
+  "issued": "2026-11-22",
+  "title": "信頼境界：DB の文脈を設定してよいのは誰か"
+ },
+ "p07-connection-pool": {
+  "issued": "2026-11-22",
+  "title": "接続プール：前の利用者の文脈が残る"
+ },
+ "p07-db-token-auth": {
+  "issued": "2026-11-22",
+  "title": "DB 認証：パスワードの代わりにトークンで入る"
+ },
+ "p07-lifetime-mismatch": {
+  "issued": "2026-11-22",
+  "title": "寿命のずれ：トークンが切れても、接続は生きている"
+ },
+ "p07-connect-as-whom": {
+  "issued": "2026-11-22",
+  "title": "誰として接続するか：利用者の ID か、サービスの ID か"
+ },
+ "p07-masking": {
+  "issued": "2026-11-22",
+  "title": "マスキング：ロールを決めるクレームが最も機微"
+ },
+ "p07-cloud-attributes": {
+  "issued": "2026-11-22",
+  "title": "クラウドの属性：クレームがそのまま効くとは限らない"
+ },
+ "p07-data-layer-checklist": {
+  "issued": "2026-11-22",
+  "title": "データ層の規則：レビューで確かめる 10 項目"
+ },
+ "p08-part": {
+  "issued": "2026-11-22",
+  "title": "有効期限・リフレッシュ・失効"
+ },
+ "p08-token-types-lifetimes": {
+  "issued": "2026-11-22",
+  "title": "トークンの種類と寿命：種類ごとに別々に決める"
+ },
+ "p08-choosing-lifetime": {
+  "issued": "2026-11-22",
+  "title": "寿命の決め方：RFC に数値はなく、指針は IR 8587"
+ },
+ "p08-stale-claims": {
+  "issued": "2026-11-22",
+  "title": "寿命の間のクレーム：剥奪しても exp までは古い値"
+ },
+ "p08-refresh-reevaluation": {
+  "issued": "2026-11-22",
+  "title": "リフレッシュ時の再評価：IdP ごとに違う"
+ },
+ "p08-rotation": {
+  "issued": "2026-11-22",
+  "title": "ローテーション：RFC 9700 と FAPI 2.0 は前提が違う"
+ },
+ "p08-revocation-propagation": {
+  "issued": "2026-11-22",
+  "title": "失効の伝播：問い合わせ・状態リスト・イベント"
+ },
+ "p08-async-processing": {
+  "issued": "2026-11-22",
+  "title": "非同期処理：キューに利用者のトークンを入れない"
+ },
+ "p08-downstream-after-expiry": {
+  "issued": "2026-11-22",
+  "title": "期限切れの後の下流呼び出し：作り直しを AS が判断"
+ },
+ "p08-decision-table": {
+  "issued": "2026-11-22",
+  "title": "判断表：寿命・リフレッシュ・失効を状況で選ぶ"
+ },
+ "p09-part": {
+  "issued": "2026-11-22",
+  "title": "機微情報・最小化・ログ"
+ },
+ "p09-jws-is-readable": {
+  "issued": "2026-11-22",
+  "title": "JWS は誰でも読める：載せる前に漏れる先を考える"
+ },
+ "p09-do-not-carry": {
+  "issued": "2026-11-22",
+  "title": "載せない情報：秘密・機微な属性・変わる識別子"
+ },
+ "p09-minimize-derived": {
+  "issued": "2026-11-22",
+  "title": "最小化と派生値：生年月日ではなく「18 歳以上か」"
+ },
+ "p09-pairwise-identifiers": {
+  "issued": "2026-11-22",
+  "title": "ペアワイズの識別子：受け手ごとに違う sub"
+ },
+ "p09-jwe-sd-jwt": {
+  "issued": "2026-11-22",
+  "title": "JWE と SD-JWT：暗号は最後の手段として使う"
+ },
+ "p09-logs-traces": {
+  "issued": "2026-11-22",
+  "title": "ログとトレース：トークン全文を残さない"
+ },
+ "p09-url-browser": {
+  "issued": "2026-11-22",
+  "title": "URL とブラウザ：トークンを履歴に残さない"
+ },
+ "p09-checklist": {
+  "issued": "2026-11-22",
+  "title": "チェックリスト：機微情報・最小化・ログ"
+ },
+ "p10-part": {
+  "issued": "2026-11-22",
+  "title": "AI エージェントのアクセスポリシー"
+ },
+ "p10-agent-identity": {
+  "issued": "2026-11-22",
+  "title": "エージェントの ID：利用者のトークンを借りない"
+ },
+ "p10-four-questions": {
+  "issued": "2026-11-22",
+  "title": "4 つの問いとクレーム：誰が・何が・何を・どこに"
+ },
+ "p10-per-tool-scopes": {
+  "issued": "2026-11-22",
+  "title": "ツールごとのスコープ：狭く始め、タスクごとに短く"
+ },
+ "p10-human-approval-evidence": {
+  "issued": "2026-11-22",
+  "title": "人の承認の証拠：エージェントに判断させない"
+ },
+ "p10-mcp-authorization": {
+  "issued": "2026-11-22",
+  "title": "MCP の認可：受け取ったトークンを渡さない"
+ },
+ "p10-token-exchange-not-narrowing": {
+  "issued": "2026-11-22",
+  "title": "トークン交換は絞るとは限らない：Keycloak 26.8 の実測"
+ },
+ "p10-delegation-chain-depth": {
+  "issued": "2026-11-22",
+  "title": "委任の連鎖と深さ：上限は組織の規則で決める"
+ },
+ "p10-vendor-features": {
+  "issued": "2026-11-22",
+  "title": "各社の機能：2026 年 11 月時点の姿"
+ },
+ "p10-guidance-standards": {
+  "issued": "2026-11-22",
+  "title": "指針と標準化：公的な根拠として引けるものは少ない"
+ },
+ "p10-agent-checklist": {
+  "issued": "2026-11-22",
+  "title": "設計チェックリスト：エージェントのアクセス"
+ },
+ "p11-part": {
+  "issued": "2026-11-22",
+  "title": "ガバナンス：クレームは API の契約"
+ },
+ "p11-why-govern": {
+  "issued": "2026-11-22",
+  "title": "なぜ治めるか：発行者は 1 つ、受け手は多数"
+ },
+ "p11-registry-fields": {
+  "issued": "2026-11-22",
+  "title": "台帳：クレームごとに決める 12 の項目"
+ },
+ "p11-registry-example": {
+  "issued": "2026-11-22",
+  "title": "台帳の例：テナントのクレーム 1 件"
+ },
+ "p11-schema-contract-tests": {
+  "issued": "2026-11-22",
+  "title": "スキーマと契約テスト：台帳を機械で確かめる"
+ },
+ "p11-contract-test-gaps": {
+  "issued": "2026-11-22",
+  "title": "契約テストが見逃す変更：9 つの受け手 × 10 の変更"
+ },
+ "p11-change-procedure": {
+  "issued": "2026-11-22",
+  "title": "変更の手順：受け手が先、発行者が後"
+ },
+ "p11-reserved-names": {
+  "issued": "2026-11-22",
+  "title": "予約名と名前空間：持ち主を決め、発行時に弾く"
+ },
+ "p11-translation-layer": {
+  "issued": "2026-11-22",
+  "title": "変換層：IdP の差は入口と共通部品で吸収する"
+ },
+ "p11-ownership": {
+  "issued": "2026-11-22",
+  "title": "体制：台帳の持ち主・承認・ADR"
+ },
+ "p11-pre-add-questions-1": {
+  "issued": "2026-11-22",
+  "title": "追加前の質問（1/2）：目的・名前・型"
+ },
+ "p11-pre-add-questions-2": {
+  "issued": "2026-11-22",
+  "title": "追加前の質問（2/2）：境界・監査・変更"
+ },
+ "p11-audit-metrics": {
+  "issued": "2026-11-22",
+  "title": "監査と指標：台帳と実際の発行のずれを測る"
+ },
+ "p12-part": {
+  "issued": "2026-11-22",
+  "title": "テックリーダーの実践"
+ },
+ "p12-antipatterns-1": {
+  "issued": "2026-11-22",
+  "title": "アンチパターン（1/2）：検証と識別子"
+ },
+ "p12-antipatterns-2": {
+  "issued": "2026-11-22",
+  "title": "アンチパターン（2/2）：設計・流れ・運用"
+ },
+ "p12-review-viewpoints": {
+  "issued": "2026-11-22",
+  "title": "レビューの観点：クレームの一生に沿って 6 つ"
+ },
+ "p12-priorities-deferrals": {
+  "issued": "2026-11-22",
+  "title": "重点と見送り：共通の基準の上に、組織ごとの判断を置く"
+ },
+ "p12-claims-and-evidence": {
+  "issued": "2026-11-22",
+  "title": "主張と根拠：この資料は何に基づくか"
+ },
+ "p12-references": {
+  "issued": "2026-11-22",
+  "title": "参考文献：日本語の書籍と、主な公的文書"
+ },
+ "p12-summary": {
+  "issued": "2026-11-22",
+  "title": "まとめ：クレームは契約。決めてから足し、確かめてから読む"
+ }
+}
