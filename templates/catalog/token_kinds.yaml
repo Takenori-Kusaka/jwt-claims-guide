@@ -125,7 +125,7 @@ kinds:
       - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Security"}
     seeds: [guide-token-kinds/logout-token]
     issued_by: [I09]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "Logout Token の構造・検証・寿命を扱うスライドがない", checked: "2026-11-22 に docs/slides.json の本文とノートを Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ（ログアウト後のイントロスペクションの実測と「ログアウトで RT を失効」だけ）"}
+    guide: {status: covered, slides: [p08-logout], note: "Logout Token の構造・検証・寿命の目安（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
@@ -170,7 +170,7 @@ kinds:
       - {kind: spec, id: "RFC 9449 §11.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-11.1"}
     seeds: [guide-token-kinds/dpop-proof, iana-access-token-type/DPoP]
     issued_by: [I30]
-    guide: {status: partial, slides: [p02-keys-events-identity-assurance], note: "cnf.jkt は扱うが、proof そのもの（htm・htu・ath・jti の再送）は扱わない"}
+    guide: {status: covered, slides: [p01-client-made-jwts, p02-keys-events-identity-assurance], note: "proof のクレームと再送の拒否（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
@@ -185,7 +185,7 @@ kinds:
       - {kind: spec, id: "RFC 10070 §4", url: "https://www.rfc-editor.org/rfc/rfc10070#section-4"}
     seeds: [guide-token-kinds/client-assertion, iana-oauth-uri/client-assertion-type:jwt-bearer]
     issued_by: [I28]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "クライアント認証の JWT（private_key_jwt）を扱うスライドがない", checked: "2026-11-22 に docs/slides.json をクライアント認証・client_assertion・private_key で検索して 0 件。アサーションでヒットした p00-terminology・p09-do-not-carry ほかを目で読み、SAML・NIST のアサーションの意味だけと確かめた"}
+    guide: {status: covered, slides: [p01-client-made-jwts], note: "private_key_jwt のクレームと aud の規則（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
@@ -199,7 +199,7 @@ kinds:
       - {kind: spec, id: "RFC 9101 §10.8", url: "https://www.rfc-editor.org/rfc/rfc9101#section-10.8"}
     seeds: [guide-token-kinds/jar]
     issued_by: [I31]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "JAR を扱うスライドがない（PAR は p09-url-browser で URL から外す手段としてだけ出る）", checked: "2026-11-22 に docs/slides.json を JAR・9101・Pushed・PAR で検索し、ヒットした p09-url-browser を目で読んだ"}
+    guide: {status: covered, slides: [p01-client-made-jwts], note: "Request Object の署名・iss・aud（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"

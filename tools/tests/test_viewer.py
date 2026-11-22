@@ -47,15 +47,15 @@ class Viewer(unittest.TestCase):
             pg.close()
 
     def test_anchors(self):
-        self.assertEqual(self.pos('#p04-carry-or-query'), '47 / 152')
-        self.assertEqual(self.pos('#s47'), '47 / 152')  # old number links keep working
-        self.assertEqual(self.pos('#p12-summary'), '152 / 152')
-        self.assertEqual(self.pos(''), '1 / 152')
+        self.assertEqual(self.pos('#p04-carry-or-query'), '49 / 159')
+        self.assertEqual(self.pos('#s49'), '49 / 159')  # old number links keep working
+        self.assertEqual(self.pos('#p12-summary'), '159 / 159')
+        self.assertEqual(self.pos(''), '1 / 159')
 
     def test_bad_hashes_fall_back_with_a_note(self):
         for h in ['#%E0', '#p99-nope', '#s999']:
             p = self.pos(h)
-            self.assertTrue(p.startswith('1 / 152'), (h, p))
+            self.assertTrue(p.startswith('1 / 159'), (h, p))
             self.assertIn('見つかりません', p, h)
 
     def test_navigation_updates_hash(self):
@@ -63,7 +63,7 @@ class Viewer(unittest.TestCase):
         pg.click('#mode'); pg.click('#next')
         self.assertEqual(pg.evaluate('location.hash'), '#p00-goals-and-how-to-read')
         pg.evaluate("location.hash='#p06-narrow-downstream'"); pg.wait_for_timeout(200)
-        self.assertEqual(pg.inner_text('#pos'), '81 / 152')
+        self.assertEqual(pg.inner_text('#pos'), '84 / 159')
         self.assertEqual(errors, [])
         pg.close()
 
