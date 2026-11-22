@@ -1,4 +1,4 @@
-template_version: 0.1.0
+# template_version: 0.1.0
 # 縮小 Lite の案（関門 1、research/template-design/gate1.md）：中身は消していない。縮小 Lite では
 #   - 載せて受け手が読む行：issue_events・recompute_trigger・propagation_delay・change_controller・status・issuers は
 #     IdP モジュールと token_types から生成し、手で書かない。単一値の overflow_strategy は既定（上限で固定）

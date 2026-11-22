@@ -1,4 +1,4 @@
-template_version: 0.1.0
+# template_version: 0.1.0
 # 発行イベントのカタログ（v0 の一部）
 #
 # v0 subset: #16（縦の一本）で、シナリオ A（Keycloak 26.8 のレルム t1・t2）に関係する Keycloak の発行イベントだけを載せた。

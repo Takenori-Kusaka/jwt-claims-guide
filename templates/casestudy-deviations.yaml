@@ -1,4 +1,4 @@
-template_version: 0.1.0
+# template_version: 0.1.0
 # 記入例の採否が、ケーススタディ（jwt-claims-casestudy）の判定と意図して違う行の一覧（templates/casestudy-mapping.md の 7.）。
 # ケーススタディの判定は変えない。ここにない食い違いは誤りとして扱う（照合の CI は #3。それまでは手で数える）。
 #
