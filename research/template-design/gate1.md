@@ -3,7 +3,7 @@
 #16 の終わりに、関門 1（続ける／絞る／方針を変える）を判定するための資料です。**判定はこの文書ではしません。** 判定は筆者が、5. のレビューの結果を入れてから #16 に記録します。
 
 - 基準日：2026-11-22
-- 作成方法：生成 AI（Claude、Opus 5.5）を使って作った。人による点検は未実施。別の LLM のセッションでのレビューは未実施（5.）
+- 作成方法：生成 AI（Claude、Opus 5.5）を使って作った。人による点検は未実施。作成とは別の LLM のセッションでレビューした（5.、`research/reviews/scenario-a-2026-11-22.md`）
 - 成果物：`templates/catalog/`（v0 の一部）、`templates/registry/`（スキーマ v0）、`templates/examples/scenario-a/`（記入例）、`tools/claim_lint/`、`.github/workflows/claims.yml`、`templates/casestudy-deviations.yaml`、`research/template-design/v0-columns.md`
 
 ## 1. R8 の照合（見本トークン）
@@ -91,6 +91,7 @@ Bearer の行の値：1045 + 7 = 1052
 | --- | --- |
 | 書き手 | LLM（Claude、Opus 5.5）。人ではない |
 | 人の 4 時間の基準 | **LLM の作業時間からは測れない**。LLM は調べる・書く・検査を回すの速さが人と違い、記入の手間の代わりにならないため、時間を記録していない |
+| 注意 | このケースは #4 の定義では Full（マルチテナント）。Lite の欄で書いたので、測る時間は「Full に当たるケースを Lite の欄で書いた時間」になる（レビュー A17） |
 | 記入した欄 | `claims.yaml` 25 行、`token_types.yaml`（発行方式 8 項目・目録 9 行）、`catalog_answers.yaml` 19 件、`design.md`（Lite の欄と、#4 の 5・7・8・10・11） |
 | 人の記入時間（筆者が記入） | （未記入：筆者が同じ記入例を、テンプレートを見ながら書き直した時間を測って書く。測り方の案：`design.md` を消し、`claims.yaml` の C-tenant-id・C-roles・C-auth-time の 3 行と、`design.md` の 6・8・9 を書くまで） |
 
@@ -130,22 +131,69 @@ Bearer の行の値：1045 + 7 = 1052
 | ヘッダーの 5 文字の差 | R8（見本との照合） | 計算の前提の誤り | `serializer_extra_bytes` を足した |
 | `iss`・`sub`・`aud`・`azp` が AT と ID トークンの両方に載る | R8（info） | 指摘どおりの事実。設計上は意図したもの | そのまま（info） |
 
-## 5. レビュー（別のセッションで行う。作成者は書かない）
+## 5. レビュー（別のセッションで行った。作成者は書いていない）
 
-`templates/CONTRIBUTING.md` の 3. による。**この節は、作成に使ったものとは別の LLM のセッション（または人）が埋める。作成者（この文書を書いたセッション）は自己レビューをしていない。**
+`templates/CONTRIBUTING.md` の 3. による。レビューは、作成とは別の LLM のセッション（Claude。人ではない）が PR #28 のコメントとして書いた（https://github.com/Takenori-Kusaka/jwt-claims-guide/pull/28#issuecomment-7074910571 、対象はコミット `befd117`）。レビュアーは、Part A の指摘を出し終えるまで、この文書の 3.（迷った点）と 4.（lint の指摘）を読んでいない。指摘の全文、直し方、事実の点検（24／24）は `research/reviews/scenario-a-2026-11-22.md` にある。
 
-- 日付・使ったモデル：
-- 渡した資料（パスとコミット）：`templates/examples/scenario-a/` の 4 ファイル、`templates/catalog/` の 2 ファイル、`templates/registry/` の 2 つのスキーマ、#16・#4・#3 の本文、ケーススタディ `jwt-claims-casestudy@080b8da` の `cs/scen_a.py`・`kc/import/t1.json`・`catalog/DECISION_POLICY.md`、Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」
-- 渡さないもの：この文書、`v0-columns.md`、`casestudy-deviations.yaml` の理由、作成者の結論（追認になるのを防ぐため）
-- 渡した指示の全文：
-- 指摘の一覧（対象・区分（誤り・過大・不一致・曖昧）・指摘・直し方）：
+### 件数
 
-| # | 対象 | 区分 | 指摘 | claim_lint が拾ったか（拾った／拾えなかった） |
+| 区分 | 件数 | 中身 |
+| --- | --- | --- |
+| レビューだけが見つけた | **17 件**（Blocker 0・Major 4・Minor 13） | A01〜A17。すべて記入例を直した |
+| claim_lint だけが出した | **5 件**（すべて info） | R8 のサイズの計算 1 件（欠陥ではない）と、「AT と ID トークンの両方に載る」4 件（iss・sub・aud・azp。誤検出の候補。下の「R8 の info の見直しの案」） |
+| 両方が見つけた | **0 件** | — |
+
+読むときの注意：
+
+- **v0 の claim_lint は R1・R2・R8（とスキーマ・スライドの参照）しか持っていない。** 17 件はどれも意味の判断で、v0 の規則の範囲の外にある。「claim_lint が拾ったのは 0 件」は v0 の範囲を測った数で、計画している lint（#6・#17・#18 の規則と、`templates/trace/planned_items.yaml` の L24〜L61、#6 の L62〜L67）がどれだけ拾うかを測ったものではない。計画の lint で拾えるかの見積もりは、下の「分析」。
+- **記入例は、レビューの前に claim_lint を通して直してあった**（レビュアーの指摘）。記入の途中で claim_lint が拾った 6 件（4.）は、レビューの前に消えていたので、この比較には出ない。lint の上乗せは、この比較には現れにくい構造になっている。4. と合わせて読む。
+- 関門 1 の「claim-lint が少なくとも 1 件、レビューと異なる指摘を拾った」を、欠陥の検出という意味で満たすかについて、レビュアーは「満たさない材料になる」としている（R8 の info を数えるかは判定する人に委ねる）。判定は筆者が行う。
+
+### 分析：17 件を、計画している成果物が後で拾えるか
+
+判定の区分：
+
+- **静的 lint（宣言があれば）**：台帳・目録にその宣言の列があれば、計画している lint の規則（または、その小さな拡張）で機械的に拾える
+- **実行テスト**：#8 の拒否のテスト（`test:negative_tests#…`）を実装すれば、実行で拾える
+- **レビューだけ**：理由の妥当さ・根拠と主張のずれ・書いていない候補の判断で、宣言の形からは決まらない。#5 の観点書の問いで拾う
+
+| ID | 内容（要約） | 後で拾う成果物（計画） | 要る宣言・拡張 | 判定 |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| A01 | テナントの管理者が書ける値（user_id・roles・寿命・aud）を API が tenant_id 以外は守っていない | `lint:L4`（段階ごとの書き手）、`lint:L31`（authz の値の provenance が呼び出し側の申告）、`lint:L23`（寿命の上限）、`lint:L9`・`lint:L29`（テナントの束縛） | 書き手を誰が設定できるか（`authoritative_writer` に「設定を変えられる者」）を列にする。L31 を「テナントの管理者が設定できる書き手の値を、テナントの外に効く判断に使う」に広げる | 静的 lint（宣言があれば） |
+| A02 | BOLA の鍵が sub か user_id か決まっていない | `review:perspectives#q-identifier-choice`、`review:perspectives#q-object-level-authz`、`test:negative_tests#bola-other-owner`（どちらかの鍵で実装した後の動作だけ） | — | レビューだけ |
+| A03 | Back-Channel Logout の却下の理由が的外れで、代わりの手段がない | `review:perspectives#q-revocation-delivery`、`test:negative_tests#revoked-token-rejected`（IdP でセッションを消した後、BFF のセッションが残らないか） | — | 実行テスト |
+| A04 | RLS をすり抜ける主体（所有者・FORCE・superuser・ビュー）が抜けている | `template:modules/M_data_layer#masking-rls-bypass`、`review:perspectives#checklist-p07-data-layer`、`review:perspectives#q-ddm-rls-only` | — | レビューだけ |
+| A05 | テナントを決めているのは実際には iss | `review:perspectives#q-identifier-choice`、`lint:L29`（tenant_binding がクレームだけ） | — | レビューだけ |
+| A06 | 「R8 の info が出る」という記述が lint の挙動と違う | なし（文と道具の挙動のずれ） | — | レビューだけ |
+| A07 | ヘッダーで at+jwt を名乗るのに、RFC 9068 で REQUIRED の client_id がない | `lint:L27`（required_claims の基本の検査）、`lint:L1a`（登録名を登録と異なる意味で使う） | L27 を「typ が at+jwt なら RFC 9068 §2.2 の REQUIRED（iss・exp・aud・sub・client_id・iat・jti）が載る行にある」に広げる | 静的 lint（宣言があれば） |
+| A08 | azp は on_missing が拒否なのに required_claims にない | `lint:L7`（必須クレームの on_missing） | L7 を逆向きにも見る（`on_missing: 拒否` の行が、載るトークン種別の `required_claims` にある） | 静的 lint（宣言があれば） |
+| A09 | 未知の kid での JWKS の取り直しに回数の制限と負のキャッシュがない | `lint:L17`（鍵のローテーションの宣言）、`review:perspectives#role-operations`。#3 の token_types の「未知の kid が来たときの取り直しの規則・JWKS のキャッシュ TTL」 | #3 の列（取り直しの最短間隔・負のキャッシュ）を L17 の必須にする | 静的 lint（宣言があれば） |
+| A10 | 「外せない」の根拠が軽量アクセストークンの節で、主張の対象とずれる | #13 の完了の定義の「根拠の中身の抜き取り」、`review:perspectives#stage-definition` | — | レビューだけ |
+| A11 | name の max_bytes 255 が文字数とバイト数を取り違えている | `lint:R8`（ID トークンは対象外）、`lint:L24`（値の種類ごとの型の規則） | データ源の上限を文字数で宣言する列（例：`source_max_chars`）を足し、R8 か L24 で `max_bytes ≥ 4 × source_max_chars` を見る | 静的 lint（宣言があれば） |
+| A12 | SET LOCAL ではバインド変数を使えない | `review:perspectives#q-db-context-parameterized`、`template:modules/M_data_layer#pool-context` | — | レビューだけ |
+| A13 | app.tenant が未設定のときに全件を拒否するかが書かれていない | `test:negative_tests#pool-context-leak`、`test:negative_tests#db-context-override` | 「文脈なしで 0 行」のテストを #8 に足す | 実行テスト |
+| A14 | セッション・RT に絶対的な上限がない | `lint:L23`（寿命の上限）、#3 の `rt_idle_timeout`（`registry:token_types#rt_idle_timeout`） | `max_lifetime`（絶対）と idle を別の列にし、L23 で両方を必須にする | 静的 lint（宣言があれば） |
+| A15 | テナントの停止の一覧の、対象・出どころ・鮮度が決まっていない | `test:negative_tests#revocation-latency`（剥奪後、volatility 以内に拒否されるか）、`lint:L5`、`review:perspectives#q-revocation-delivery` | — | 実行テスト |
+| A16 | ローテーションの根拠（公開クライアントへの要求）が機密クライアントに合わない | `lint:L15`（公開クライアントの RT。機密には効かない）、`review:perspectives#q-relies-on-at-expiry` | — | レビューだけ |
+| A17 | #4 の定義では Full なのに Lite で書いた | なし。#4 の Lite の判定（5 問）を検査する規則は計画にない | 設計書に 5 問の回答を宣言させ、`--profile lite` のときに 1 つでも Yes なら error にする規則を足す（提案） | 静的 lint（宣言があれば） |
 
-- 件数：指摘 __ 件。うち claim_lint が拾った __ 件、拾えなかった __ 件。claim_lint だけが拾い、レビューが拾わなかったもの（4. と比べる） __ 件
-- 指摘ごとの反映（作成者が 1 日以上空けて記入）：
+### 割合
+
+| 判定 | 件数 | 割合 | ID |
+| --- | --- | --- | --- |
+| 静的 lint（宣言があれば） | 7 | 41% | A01・A07・A08・A09・A11・A14・A17 |
+| 実行テスト | 3 | 18% | A03・A13・A15 |
+| レビューだけ | 7 | 41% | A02・A04・A05・A06・A10・A12・A16 |
+
+- 静的 lint の 7 件は、どれも計画の規則のままでは拾えない。宣言の列を足すか（A01・A09・A11・A14）、規則を広げるか（A07・A08）、新しい規則が要る（A17）。いまの計画（`planned_items.yaml` と #6・#17・#18 の本文）のままで拾えるものは 0 件。足す列と規則は `v0-columns.md` と #6 に渡す候補にする。
+- 実行テストの 3 件は、#8 の拒否のテストを、この記入例の構成（BFF・RLS）で実装したときにだけ拾える。
+- この分類は作成者の判断で、別のセッションでは確かめていない。
+
+### R8 の info の見直しの案（誤検出の候補）
+
+R8 の info「同じクレームが 2 つ以上のトークン種別に載る（重複の候補）」が出した iss・sub・aud・azp の 4 件は、OIDC の ID トークンと RFC 9068 の AT の両方に載るのが仕様どおりのクレームで、重複の指摘としては誤検出に近い（レビュアーも同じ評価）。v0 の除外は `usage: protocol` だけで、iss・sub・aud・azp は `usage` が authz・identifier なので除外されない。
+
+案：info の対象から、`registered_ref` が OpenID Connect Core 1.0 §2（ID トークン）か RFC 9068 §2.2（AT）のクレームを除く。つまり、両方の仕様が載せると定めた登録名は数えず、独自クレームと、表示用の登録名（email・name など）が AT と ID トークンの両方に載るときだけ出す。この PR では規則を変えていない（info で、記入例の判断に影響しないため）。#6 で、R8 と L26（ID トークンだけが読むクレームの置き場所）の分担と合わせて決める。
 
 ## 6. 台帳の列の過不足と、ケーススタディとの食い違い
 
@@ -183,6 +231,6 @@ CONDITION C-azp CLM-0410（条件付き採用「入口の正規化でのみ読�
 
 | 選択肢 | 基準（#16） | いまあるデータ | まだ無いデータ |
 | --- | --- | --- | --- |
-| 続ける | R8 の照合が一致し、Lite の記入が 4 時間以内で、claim-lint が少なくとも 1 件、人や LLM のレビューと異なる指摘を拾った | R8 の照合は 0 バイトで一致（1.）。claim_lint は記入の途中で、記入の不足（U10）と計算の前提の誤り（ヘッダーの空白）を拾った（4.） | Lite の人の記入時間（2.）。レビューの指摘との比較（5.） |
+| 続ける | R8 の照合が一致し、Lite の記入が 4 時間以内で、claim-lint が少なくとも 1 件、人や LLM のレビューと異なる指摘を拾った | R8 の照合は 0 バイトで一致（1.）。claim_lint は記入の途中で、記入の不足（U10）と計算の前提の誤り（ヘッダーの空白）を拾った（4.）。レビューとの比較：レビューだけ 17 件、lint だけ 5 件（すべて info、欠陥 0 件、うち 4 件は誤検出の候補）、両方 0 件（5.）。ただし記入例はレビューの前に lint を通してある | Lite の人の記入時間（2.） |
 | 絞る | 記入が 4 時間を超えた場合は、Lite の項目を減らしてからフェーズ 2 へ | 迷った点 16 件（3.）。既定どおりの行の 21 列が重い（`v0-columns.md` の 2.） | 人の記入時間 |
-| 方針を変える | claim-lint に、レビューを超える上乗せが見られない場合は、構想を「カタログとサイズの検査だけ」に縮める | R8 の見本との照合は、静的な計算だけでは見つからない差（5 文字）を見つけた。R1・R2 の指摘は、書き手が自分でも気づける種類だった | レビューの指摘の数と、claim_lint との重なり（5.） |
+| 方針を変える | claim-lint に、レビューを超える上乗せが見られない場合は、構想を「カタログとサイズの検査だけ」に縮める | R8 の見本との照合は、静的な計算だけでは見つからない差（5 文字）を見つけた。R1・R2 の指摘は、書き手が自分でも気づける種類だった。v0 の lint はレビューの 17 件を 1 件も拾っていない。計画の成果物で拾える見込みは、静的 lint 7 件（41%。ただし全件で列か規則の追加が要る）、実行テスト 3 件（18%）、レビューだけ 7 件（41%）（5. の分析。作成者の判断） | 計画の lint を実装した後に、同じ 17 件を拾えるかの実測 |

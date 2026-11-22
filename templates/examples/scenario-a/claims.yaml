@@ -17,7 +17,7 @@ claims:
     description: トークンを発行したテナントのレルム（発行者）の URL。テナントごとに 1 つ
     not_meaning: 利用者の所属テナントそのものではない。テナントの判定は iss と tenant_id の対応で行う
     decision: 採用
-    rationale: レルムがテナントごとに分かれているので、iss がテナントの境界になる。tenant_id と照合して、他テナントの管理者のマッパーで書かれた tenant_id を拒否する
+    rationale: レルムがテナントごとに分かれているので、iss がテナントの境界になる。テナントを決めるのは iss（許可リストとレルムごとの鍵）で、API は iss から対応表でテナントを引く。tenant_id は照合に使い、他テナントの管理者のマッパーで書かれた tenant_id を拒否する
     refs:
       - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
       - {kind: guide-slide, id: p05-multitenancy}
@@ -37,6 +37,7 @@ claims:
     on_missing: 拒否
     enforced_at:
       - {service: saas-api, check: 許可リストと完全一致。鍵はその iss の JWKS だけから取る}
+      - {service: saas-api, check: iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う}
       - {service: saas-api, check: iss のレルム名と tenant_id が一致するか}
     max_bytes: 63
     overflow_strategy: 上限で固定（超えない値域）
@@ -58,11 +59,11 @@ claims:
     description: レルムの中の利用者の ID（Keycloak のユーザー ID、UUID）
     not_meaning: テナントをまたいで同じ人を指す ID ではない。ログイン名やメールではない
     decision: 採用
-    rationale: BOLA の照合（請求書の持ち主との一致）の鍵にする。変わらない ID なので、名前の再利用で別人に一致しない
+    rationale: BOLA の照合（請求書の持ち主との一致）の鍵は sub だけにする。請求書の持ち主の列（owner_sub）に sub を入れ、iss から引いたテナントと組で照合する。変わらない ID なので、名前の再利用で別人に一致しない
     refs:
       - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
       - {kind: guide-slide, id: p04-immutable-identifiers}
-    assumption: 利用者はレルムの中で作り直さない（作り直すと別の sub になる）
+    assumption: 利用者はレルムの中で作り直さない（作り直すと別の sub になる）。テナントの管理者は自分のレルムで利用者を作り直せるが、これはテナントの中の権限として受け入れる（他テナントには効かない）
     revisit_trigger: 利用者を別のレルムへ移す運用を始めるとき
     usage: identifier
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -77,7 +78,8 @@ claims:
     consumers: [saas-api, saas-web]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること。請求書の持ち主（grants）と照合する}
+      - {service: saas-api, check: 文字列であること}
+      - {service: saas-api, check: "BOLA：請求書の owner_sub = sub、かつ請求書の tenant_id = iss から引いたテナント"}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
@@ -157,6 +159,7 @@ claims:
     on_missing: 拒否
     enforced_at:
       - {service: saas-api, check: 必須。exp を過ぎたら拒否（ずれは 30 秒まで）}
+      - {service: saas-api, check: "exp − iat が max_lifetime（300 秒）を超えたら拒否。寿命はテナントの管理者がレルムで変えられるので、上限は API が強制する"}
     max_bytes: 10
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -195,6 +198,7 @@ claims:
     on_missing: 拒否
     enforced_at:
       - {service: saas-api, check: 必須。未来の時刻（30 秒を超える）は拒否}
+      - {service: saas-api, check: exp − iat の検査に使う（C-exp）}
     max_bytes: 10
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -288,7 +292,7 @@ claims:
     description: Keycloak 独自のペイロードの typ（AT では Bearer、ID トークンでは ID）。ヘッダーの typ（at+jwt）とは別
     not_meaning: トークンの種類の判定には使わない（ヘッダーの typ を使う）
     decision: 既定どおり
-    rationale: 公式文書で、軽量アクセストークンでも外せないクレームとされている。マッパーで消せない
+    rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）
     refs:
       - kind: spec
         id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
@@ -326,7 +330,7 @@ claims:
     description: トークンを受け取ったクライアントの ID（saas-web）
     not_meaning: 利用者ではない
     decision: 既定どおり
-    rationale: Keycloak が外せないクレーム。Keycloak の AT には client_id が無いので、API が呼び出し元のクライアントを知る手段はこれだけになる
+    rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。Keycloak の AT には client_id が無いので、API が呼び出し元のクライアントを知る手段はこれだけになる
     refs:
       - kind: spec
         id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
@@ -364,7 +368,7 @@ claims:
     description: Keycloak の SSO セッションの ID
     not_meaning: BFF のセッションの ID ではない
     decision: 既定どおり
-    rationale: 公式文書で外せないクレームとされている。API は読まない
+    rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API は読まない
     refs:
       - kind: spec
         id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
@@ -403,7 +407,7 @@ claims:
     description: 付与したスコープ（空白区切り）。この例では openid だけ
     not_meaning: 利用者の権限（ロール）ではない
     decision: 既定どおり
-    rationale: Keycloak が外せないクレーム。API の認可はロールとデータ側の照合で行い、scope は使わない
+    rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない
     refs:
       - {kind: guide-slide, id: p05-scope-vs-role}
     usage: protocol
@@ -494,7 +498,7 @@ claims:
     consumers: [saas-web]
     on_missing: 既定値
     enforced_at: []
-    max_bytes: 255
+    max_bytes: 2044
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
     log_policy: 記録しない
@@ -502,7 +506,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
-    note: 255 はユーザープロファイルの属性の長さの上限として置いた値で、Keycloak の既定値は確かめていない
+    note: Full name マッパーは「firstName 空白 lastName」を出す。属性の上限を各 255 文字と仮定すると 511 文字で、UTF-8 では 1 文字最大 4 バイトなので 2044 バイト。属性の長さの上限（文字数）の既定値は確かめていない。ID トークンは R8 の対象外
 
   - id: C-email
     name: email
@@ -587,11 +591,11 @@ claims:
     description: 利用者が今回の操作で属するテナントの ID（不変）
     not_meaning: 請求書などのオブジェクトの持ち主の確認ではない（BOLA は sub とデータ側で確かめる）
     decision: 採用
-    rationale: API はパスやヘッダーのテナントではなく、このクレームでテナントを決め、DB の文脈（app.tenant）に入れる
+    rationale: テナントを決めるのは iss で、tenant_id は照合用の写し。API は iss から引いたテナントと tenant_id とパスのテナントがすべて一致するときだけ受け入れ、iss から引いた値を DB の文脈（app.tenant）に入れる。パスやヘッダーのテナントでは決めない。ケーススタディの共通の基準（必須）に合わせて載せ、下流（ログ・将来の内部トークン）にテナントを明示する
     refs:
       - {kind: guide-slide, id: p05-multitenancy}
       - {kind: guide-slide, id: p07-row-level-security}
-    assumption: テナントの管理者は自分のレルムのマッパーを変えられる。そのため iss との照合を必ず行う
+    assumption: テナントの管理者は自分のレルムの中では全権を持つ（マッパー・ロールの割り当て・AT の寿命を変えられる）。そのため API は、テナントの外に効くもの（どのテナントか、寿命の上限、ロールの語彙と件数、利用者の識別子）を iss と API 側の設定で強制し、トークンの値だけに頼らない
     revisit_trigger: 1 人の利用者が複数のテナントに属する（テナントの切り替え）要件が出たとき
     usage: authz
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -601,7 +605,7 @@ claims:
     volatility: 0
     propagation_delay: 0
     recompute_trigger: [login, refresh]
-    on_revoke: テナントを停止したら、レルムを無効にして新しい発行を止める。発行済みの AT は exp（300 秒）まで残るので、API もテナントの停止の一覧を引く
+    on_revoke: テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない）
     carried_in: [AT]
     consumers: [saas-api]
     on_missing: 拒否
@@ -609,8 +613,10 @@ claims:
       - {service: saas-api, check: 文字列であること（配列は拒否）}
       - {service: saas-api, check: iss のレルム名と一致するか}
       - {service: saas-api, check: パスのテナントと一致するか}
-      - {service: saas-api, check: すべての SQL にテナント条件を付け、SET LOCAL app.tenant と RLS で絞る}
-    integrity_until: ["Postgres のセッション変数 app.tenant（SET LOCAL。U02）。ここから先は JWS で守られず、DB の接続とトランザクションの境界で守る"]
+      - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する"}
+      - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る"}
+      - {service: postgres, check: "app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止）"}
+    integrity_until: ["Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02）。ここから先は JWS で守られず、トランザクションの境界と、RLS をすり抜けないアプリのロールで守る"]
     max_bytes: 32
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -629,10 +635,10 @@ claims:
     description: 組織の中の利用者の不変の ID。この例では Keycloak のユーザー ID（sub と同じ値）
     not_meaning: テナントをまたいだ同一人物の ID ではない（この例では、レルムをまたぐと別の ID になる）
     decision: 採用
-    rationale: 受け手のコードを、IdP の sub ではなく組織の名前空間の user_id で書いておき、IdP を替えたときの影響を受け手に出さない
+    rationale: 組織の名前空間の user_id を載せておき、IdP を替えるときに受け手が移れるようにする。ただしこの例では認可（BOLA）の鍵にはせず（鍵は sub）、sub と一致しなければ拒否するだけにする。書き手のマッパーをテナントの管理者が変えられるため
     refs:
       - {kind: guide-slide, id: p04-namespace-object-example}
-    assumption: 当面は Keycloak だけを使う。そのため sub と同じ値になり、R8 の info（重複の候補）が出る
+    assumption: 当面は Keycloak だけを使う。そのため sub と同じ値になる（別の名前のクレームなので、R8 の重複の検査には出ない）
     revisit_trigger: 顧客が自分の IdP を持ち込む（BYO IdP）とき
     usage: identifier
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -647,7 +653,7 @@ claims:
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること}
+      - {service: saas-api, check: 文字列であること。sub と一致しなければ拒否}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
@@ -670,7 +676,7 @@ claims:
     refs:
       - {kind: guide-slide, id: p05-coarse-fine-layers}
       - {kind: guide-slide, id: p05-role-explosion}
-    assumption: クライアントの Full Scope Allowed を OFF にし、スコープのロールの割り当てを approver・tenant-admin の 2 つに限る。そのため最大 2 件
+    assumption: クライアントの Full Scope Allowed を OFF にし、スコープのロールの割り当てを approver・tenant-admin の 2 つに限る。そのため最大 2 件。この設定はテナントの管理者が変えられるので、API が語彙と件数を強制する。誰に tenant-admin を付けるかは、テナントの中の権限として受け入れる
     revisit_trigger: ロールを足すとき（max_items と R8 を見直す）
     usage: authz
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -685,7 +691,7 @@ claims:
     consumers: [saas-api]
     on_missing: 既定値
     enforced_at:
-      - {service: saas-api, check: 配列であること。知らない値は無視する}
+      - {service: saas-api, check: 配列であること。2 件を超えたら拒否。approver・tenant-admin 以外の値は無視する（語彙は API 側で固定）}
     max_bytes: 12
     max_items: 2
     typical_items: 1
@@ -740,7 +746,7 @@ claims:
     name: client_id
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0405"]
     decision: 却下
-    rationale: Keycloak 26.8 の AT は（この例の認可コードの発行では）client_id を出さず、azp で同じ情報を出す。API は azp を読む
+    rationale: Keycloak 26.8 の AT は（この例の認可コードの発行では）client_id を出さず、azp で同じ情報を出す。API は azp を読む。そのためこの AT は、ヘッダーで at+jwt を名乗るのに RFC 9068 §2.2 が REQUIRED とする client_id を欠き、RFC 9068 に適合しない。RFC 9068 どおりに検証する汎用の部品は拒否する
     refs:
       - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
     assumption: 2026-11-22 に発行した見本の AT に client_id が無かった

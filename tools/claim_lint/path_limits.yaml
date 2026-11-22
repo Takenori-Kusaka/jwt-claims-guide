@@ -67,6 +67,7 @@ limits:
     applies_to: all_headers
     bytes: 16384
     on_exceed: not stated in the CLI documentation
+    note: the documentation says "the maximum size, in bytes, of HTTP headers"; counting the request line too (all_headers) is the conservative reading (author-proposal, tracking #16)
     source: https://nodejs.org/docs/v26.13.1/api/cli.html#--max-http-header-sizesize
     verified_on: 2026-11-22
     review_by: 2027-02-20

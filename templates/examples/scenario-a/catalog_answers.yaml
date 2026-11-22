@@ -38,8 +38,8 @@ answers:
     breaks_when: 利用者がログインしていない間に、BFF が利用者の権限でバッチを動かす要件が出たとき
   - event: I09
     answer: 対象外
-    assumption: RP は saas-web の 1 つだけで、Back-Channel Logout の受け口を作らない（トークン目録の LOGOUT は却下）
-    breaks_when: 同じレルムに 2 つ目の RP を足し、片方のログアウトを他方に伝える必要が出たとき
+    assumption: IdP 側のセッションの終了は、BFF のリフレッシュの失敗で検知して BFF のセッションを終える（最大 300 秒の遅れを許す）。Back-Channel Logout の受け口を作らない（トークン目録の LOGOUT は却下）
+    breaks_when: IdP 側のセッションの終了（管理者による削除・利用者の無効化）を、300 秒より早く BFF のセッションに反映する必要が出たとき
   # ---------------------------------------------------------------- 利用イベント
   - event: U01
     answer: 該当
@@ -48,7 +48,7 @@ answers:
   - event: U02
     answer: 該当
     token_types: [AT]
-    note: tenant_id を iss と照合した後で、トランザクションごとに SET LOCAL app.tenant を設定し、RLS で絞る
+    note: iss から引いたテナントと tenant_id を照合した後で、トランザクションごとに set_config('app.tenant', $1, true) をパラメータで設定し、RLS とテナントの条件で絞る
   - event: U03
     answer: 該当
     token_types: [IDT]
@@ -59,16 +59,16 @@ answers:
     note: BFF が AT の期限の前に取り直す
   - event: U05
     answer: 対象外
-    assumption: API は AT をローカルで検証し、剥奪の反映は AT の寿命（300 秒）まで待つことを許す
-    breaks_when: テナントの停止や権限の剥奪を、300 秒より早く反映する必要が出たとき。または軽量アクセストークンを使うとき
+    assumption: API は AT をローカルで検証する。テナントの停止は DB の tenants.status で要求ごとに拒否するので、イントロスペクションは要らない。ロールの剥奪と利用者の無効化は、AT の寿命（300 秒）まで待つことを許す
+    breaks_when: ロールの剥奪や利用者の無効化を 300 秒より早く反映する必要が出たとき。または軽量アクセストークンを使うとき
   - event: U06
     answer: 該当
     token_types: [IDT, RT, SSO, BFFSESSION]
     note: BFF のログアウトで、BFF のセッションを消してから RP-Initiated Logout を送る
   - event: U07
     answer: 対象外
-    assumption: Back-Channel Logout を使わない（I09 と同じ前提）
-    breaks_when: 2 つ目の RP を足すとき（I09 と同じ）
+    assumption: Back-Channel Logout を使わない。IdP 側のセッションの終了は、BFF のリフレッシュの失敗で検知する（I09 と同じ前提）
+    breaks_when: IdP 側のセッションの終了を 300 秒より早く反映する必要が出たとき（I09 と同じ）
   - event: U08
     answer: 対象外
     assumption: 画面の表示名とメールは ID トークンから得るので、UserInfo を呼ばない
@@ -76,7 +76,7 @@ answers:
   - event: U09
     answer: 該当
     token_types: [AT, IDT]
-    note: 未知の kid を見たら JWKS を 1 回だけ取り直す。iss ごとに別の JWKS
+    note: 未知の kid を見たら、その iss の JWKS を取り直す。取り直しは iss ごとに最短 300 秒に 1 回まで、取り直しても無い kid は 300 秒の負のキャッシュ（token_types の AT の key_rotation）
   - event: U10
     answer: 対象外
     assumption: API は AT を交換しない（I06 と同じ前提）
