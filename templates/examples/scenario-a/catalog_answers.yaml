@@ -4,10 +4,10 @@
 # 指摘が出た行・レルムやクライアントの既定に依存する行・利用イベント（I06・I08・I09・U05・U07・U08・U10）は assumption と breaks_when を
 # 手で書く（tools/count_lite_fields.py の STRUCTURAL）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
-# カタログ（templates/catalog/issue_events.yaml・use_events.yaml、v0 の一部）の全イベントへの回答。
-# 対象外 11 件／全 19 件（58%）
+# カタログ（templates/catalog/issue_events.yaml・use_events.yaml。#2 で全体に広げた）の全イベントへの回答。
+# 対象外 49 件／全 61 件（80%）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
 answers:
-  # ---------------------------------------------------------------- 発行イベント
+  # ---------------------------------------------------------------- 発行イベント（v0 の I01〜I09）
   - event: I01
     answer: 該当
     token_types: [AT, IDT, RT, CODE]
@@ -44,7 +44,104 @@ answers:
     answer: 対象外
     assumption: IdP 側のセッションの終了は、BFF のリフレッシュの失敗で検知して BFF のセッションを終える（最大 330 秒の遅れを許す）。Back-Channel Logout の受け口を作らない（トークン目録の LOGOUT は却下）
     breaks_when: IdP 側のセッションの終了（管理者による削除・利用者の無効化）を、330 秒より早く BFF のセッションに反映する必要が出たとき
-  # ---------------------------------------------------------------- 利用イベント
+  # ---------------------------------------------------------------- 発行イベント（#2 で足した I10〜I33）
+  - event: I10
+    answer: 対象外
+    assumption: クライアントの Implicit Flow を OFF のままにし、BFF が認可コード（I01）でトークンを受ける（RFC 9700 §2.1.2）
+    breaks_when: BFF を通さずに、ブラウザだけで動くクライアントをつなぐとき
+  - event: I11
+    answer: 対象外
+    assumption: BFF は prompt=none でトークンを取り直さない。AT の取り直しは RT（I02）だけで行う
+    breaks_when: BFF のセッションが切れた後に、利用者の操作なしに SSO で再ログインさせる要件が出たとき
+  - event: I12
+    answer: 対象外
+    assumption: 認証の強さで操作を分けない。acr を API の判断に使わない
+    breaks_when: 請求書の承認など、より強い・より新しい認証を求める操作を足すとき
+  - event: I13
+    answer: 対象外
+    assumption: 別の端末での承認（CIBA）を使わない。利用者はいつもブラウザの前にいる
+    breaks_when: 利用者がその場にいない操作の承認（エージェントの操作など）を足すとき
+  - event: I14
+    answer: 対象外
+    assumption: 取引ごとの承認の内容（authorization_details）をトークンに載せない
+    breaks_when: 承認の内容（金額・相手先）を、トークンで API に運ぶ必要が出たとき
+  - event: I15
+    answer: 対象外
+    assumption: 外部の JWT を AT に交換しない。連携先・ワークロードの JWT を受けない（JWT Authorization Grant を OFF のままにする）
+    breaks_when: 取引先や社内のワークロードが、JWT のアサーションで AT を得るようになったとき
+  - event: I16
+    answer: 対象外
+    assumption: ドメインをまたぐ SSO 済みの利用者のトークン（ID-JAG）を受けない
+    breaks_when: テナントの IdP から ID-JAG で saas-api を呼ぶ連携を受け入れるとき
+  - event: I17
+    answer: 対象外
+    assumption: テナントのレルムに外部の IdP をつながない。利用者はレルムに直接いる
+    breaks_when: テナントが自社の IdP でのログインを求めたとき。属性の取り込みの方式（import・force）で鮮度が変わる
+  - event: I18
+    answer: 対象外
+    assumption: 外部の IdP をつながないので、アカウントのリンクが起きない（I17 と同じ前提）
+    breaks_when: I17 を該当にしたとき
+  - event: I19
+    answer: 対象外
+    assumption: 運用者がテナントの利用者として操作しない。impersonation のロールを運用者に与えない
+    breaks_when: サポートの担当者が利用者として操作する要件が出たとき。act が残らないので、監査で本人と区別する方法を先に決める
+  - event: I20
+    answer: 対象外
+    assumption: ワークロードの ID のトークンを使わない。saas-api は DB にサービスの資格情報で接続する
+    breaks_when: saas-api の後ろに別のサービスを置き、ワークロードの ID で呼ぶとき
+  - event: I21
+    answer: 対象外
+    assumption: 入口（nginx）はトークンを作り直さず、そのまま saas-api に渡す。AT は saas-api が検証する
+    breaks_when: 入口で外部の AT を検証し、内部トークンに作り替える構成にするとき
+  - event: I22
+    answer: 対象外
+    assumption: saas-api の後ろに内部のサービスがなく、呼び出しの連鎖がない
+    breaks_when: saas-api が別の内部サービスを利用者の文脈で呼ぶようになったとき
+  - event: I23
+    answer: 対象外
+    assumption: Keycloak から SET を受けない。剥奪と利用者の無効化は 330 秒の遅れを許す（U05 と同じ前提）
+    breaks_when: 剥奪や無効化を 330 秒より早く saas-api と BFF に届ける必要が出たとき
+  - event: I24
+    answer: 対象外
+    assumption: 利用者は 1 つのテナント（レルム）だけに属する。テナントごとに発行者が違うので、テナントの切り替えは起きない
+    breaks_when: 1 人の利用者が複数のテナントを使う要件が出たとき。そのときは BFF のセッションのテナントの文脈の置き換えを決める（subject_state_matrix.md の「テナント切替」）
+  - event: I25
+    answer: 該当
+    token_types: [AT, IDT, RT, SSO, BFFSESSION]
+    note: 利用者の初回ログインは I01 と同じ発行。tenant_id はレルムで決まるので未確定にならない。ロールを付ける前なら roles は空で出る
+  - event: I26
+    answer: 該当
+    token_types: [AT, RT, SSO]
+    note: パスワードの変更の後のログインは I01 と同じ発行。Keycloak 26.3 からの既定では、ほかの端末のセッションと RT は残る（Sign out from other devices が未チェック）。残りを許すかは書き手が自信のない点
+  - event: I27
+    answer: 対象外
+    assumption: 状態リスト（Token Status List）を出さない。失効は AT の短い寿命と DB の確認で扱う
+    breaks_when: AT を長くし、受け手に失効を届ける仕組みが要るようになったとき
+  - event: I28
+    answer: 対象外
+    assumption: BFF のクライアント認証は client secret のまま（ケーススタディのクライアント認証をそのまま使う。トークン目録の発行方式）で、assertion を作らない
+    breaks_when: private_key_jwt に切り替えるとき（aud は AS の issuer だけ。RFC 10070 §4）
+  - event: I29
+    answer: 対象外
+    assumption: BFF の構成では AT に送信者制約を付けない（トークン目録の DPOP は却下）
+    breaks_when: AT をブラウザや第三者のクライアントに渡すようになったとき
+  - event: I30
+    answer: 対象外
+    assumption: DPoP を使わない（I29 と同じ前提）
+    breaks_when: I29 を該当にしたとき
+  - event: I31
+    answer: 対象外
+    assumption: 認可要求に署名しない（JAR を使わない）
+    breaks_when: FAPI 2.0 など、認可要求の完全性を求める規則の対象になったとき
+  - event: I32
+    answer: 対象外
+    assumption: 認可応答を JWT にしない（JARM を使わない）。応答は BFF のサーバーが受ける
+    breaks_when: 認可応答の改ざんを防ぐ必要が出たとき（FAPI 2.0 など）
+  - event: I33
+    answer: 対象外
+    assumption: イントロスペクションを使わない（U05 と同じ前提）ので、JWT 形式の応答も受けない
+    breaks_when: U05 を該当にし、AS の判断を否認できない形で残す必要が出たとき
+  # ---------------------------------------------------------------- 利用イベント（v0 の U01〜U10）
   - event: U01
     answer: 該当
     token_types: [AT]
@@ -85,3 +182,76 @@ answers:
     answer: 対象外
     assumption: API は AT を交換しない（I06 と同じ前提）
     breaks_when: API が受け取った AT を subject_token にして、別のサービス宛てのトークンを得るようになったとき
+  # ---------------------------------------------------------------- 利用イベント（#2 で足した U11〜U28）
+  - event: U11
+    answer: 対象外
+    assumption: 入口（nginx）はトークンを検証せず、クレームをヘッダーに転記しない（I21 と同じ前提）
+    breaks_when: 入口で検証してヘッダーに転記する構成にするとき。利用者が送った同名ヘッダーを消す
+  - event: U12
+    answer: 対象外
+    assumption: saas-api の後ろに内部のサービスがない（I22 と同じ前提）
+    breaks_when: saas-api が別の内部サービスを呼ぶようになったとき
+  - event: U13
+    answer: 対象外
+    assumption: 非同期の処理がない。ある場合も AT を渡さない（ライフサイクル表の AT の行）
+    breaks_when: 請求書の一括処理などを、キューやジョブで動かすとき
+  - event: U14
+    answer: 該当
+    token_types: [AT]
+    note: saas-api のログに AT そのものを残さない。残すクレーム（sub・テナント）はこの記入例では決めていない
+  - event: U15
+    answer: 対象外
+    assumption: BFF は失効のエンドポイントを呼ばない。ログアウトは RP-Initiated Logout（U06）で、SSO セッションと RT を失効させる
+    breaks_when: ログアウトせずに RT だけを失効させる操作（端末の紛失など）が要るとき
+  - event: U16
+    answer: 対象外
+    assumption: 状態リストを使わない（I27 と同じ前提）
+    breaks_when: I27 を該当にしたとき
+  - event: U17
+    answer: 対象外
+    assumption: SET を受けない（I23 と同じ前提）
+    breaks_when: I23 を該当にしたとき
+  - event: U18
+    answer: 対象外
+    assumption: クライアントの Front channel logout を OFF にする（管理画面の新規作成では ON になるとソースの要約にある。unverified.md の V31）。IdP 側の終了は BFF のリフレッシュの失敗で知る（I09 と同じ前提）
+    breaks_when: IdP 側のセッションの終了を、330 秒より早く BFF のセッションに反映する必要が出たとき
+  - event: U19
+    answer: 対象外
+    assumption: 応答・Webhook に署名しない。saas-api は BFF にだけ応答する
+    breaks_when: テナントに Webhook で通知するとき
+  - event: U20
+    answer: 対象外
+    assumption: 取引先の API を呼ばない
+    breaks_when: saas-api が取引先の API を利用者の権限で呼ぶようになったとき
+  - event: U21
+    answer: 対象外
+    assumption: 認可の判断をキャッシュしない。テナントの停止は要求ごとに DB で確かめる
+    breaks_when: DB の負荷を減らすため、tenants.status や判断の結果をキャッシュするとき。キャッシュの寿命が停止の反映の遅れに足される
+  - event: U22
+    answer: 対象外
+    assumption: トークンは BFF のサーバーだけが持ち、ブラウザには BFF のセッションの Cookie だけを渡す（slide:p09-url-browser）
+    breaks_when: SPA がトークンを持つ構成に変えるとき
+  - event: U23
+    answer: 対象外
+    assumption: 長時間の接続（WebSocket・SSE）を使わない。要求ごとに AT を検証する
+    breaks_when: 画面への通知などで、長時間の接続を開くとき
+  - event: U24
+    answer: 対象外
+    assumption: クラウドの STS に JWT を提示しない
+    breaks_when: saas-api がクラウドの資源を、利用者やテナントの JWT で使うとき
+  - event: U25
+    answer: 対象外
+    assumption: エージェント・MCP のサーバーから呼ばれない
+    breaks_when: テナントの利用者が、エージェントに saas-api を操作させるとき
+  - event: U26
+    answer: 対象外
+    assumption: 送信者制約を使わない（I29 と同じ前提）
+    breaks_when: I29 を該当にしたとき
+  - event: U27
+    answer: 該当
+    token_types: [AT]
+    note: saas-api は検証に失敗したら 401 と WWW-Authenticate を返し、BFF が RT で取り直す（U04）。追加認証の要求（insufficient_user_authentication）は使わない（I12 は対象外）
+  - event: U28
+    answer: 対象外
+    assumption: 分析基盤にクレームを複製しない
+    breaks_when: 利用の分析のために、sub やテナントを含むログ・データを分析基盤に送るとき

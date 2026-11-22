@@ -35,6 +35,10 @@ jobs:
         run: python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md
       - name: claim_lint tests (R1 / R2 / R8 pass and fail cases, R8 golden token)
         run: python -m pytest -q -rs tools/tests/test_claim_lint.py
+      - name: Event catalogue (#2) - columns, seed-list closure, subject-state matrix, sources.md counts
+        run: python tools/catalog_check.py
+      - name: catalog_check tests (pass and fail cases)
+        run: python -m pytest -q -rs tools/tests/test_catalog_check.py
 
   secret-scan:
     runs-on: ubuntu-latest

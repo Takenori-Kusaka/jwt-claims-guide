@@ -1,185 +1,588 @@
 # template_version: 0.1.0
-# 利用イベントのカタログ（v0 の一部）
+# 利用イベントのカタログ（#2）
 #
-# v0 subset: #16（縦の一本）で、シナリオ A（Keycloak 26.8 のレルム t1・t2、Postgres の RLS）に関係する利用イベントだけを載せた。
-# 全体への拡張と、種になる一覧との差集合の検査は #2 で行う。
+# 種になる一覧との関係と、カタログの範囲（Keycloak 26.8 と Auth0）は issue_events.yaml の冒頭と同じ。
 #
-# 列は issue_events.yaml と同じ。ただし stage の代わりに phase（slide:p06-stage-map の上の帯の「伝搬・検証・認可・運用」）を持つ。
-# 利用イベントは、段階 ①〜⑥（クレームが生まれる場所）には当てはまらないため。
-# 件数：利用イベント 10 件
+# 列は issue_events.yaml と同じ。ただし次の点が違う
+#   actor          トークンを使う・受ける者（API、BFF、入口など）
+#   phase          stage の代わりに、slide:p06-stage-map の上の帯の「伝搬・検証・認可・運用」のどれか。利用イベントは、段階 ①〜⑥
+#                  （クレームが生まれる場所）には当てはまらないため
+#   tokens_used    使う・受けるトークンの種類（token_kinds.yaml の id）とセッションの層
+#   claims_read    このイベントで読む・確かめるクレーム。IANA JWT Claims の名前は seeds.yaml の項目にひもづく
+#   idp.<IdP>      occurs は、この利用に IdP が関わるか（イントロスペクション・リフレッシュなど）。hook_invoked は、この利用で IdP の
+#                  フックが呼ばれるか（受け手だけで完結する利用は no）
+# 件数：利用イベント 28 件。「ガイドの空白」4 件、一部だけ扱う 4 件
+_refs:
+  kc_introspect_aud: &kc_introspect_aud {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Token introspection audience validation」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
+  kc_oidc_layers: &kc_oidc_layers {kind: spec, id: "Keycloak Securing Applications（26.8.2）「OpenID Connect」Introspection endpoint・Token Revocation endpoint", url: "https://www.keycloak.org/securing-apps/oidc-layers", verified_on: 2026-11-22}
+  kc_lightweight: &kc_lightweight {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token", verified_on: 2026-11-22}
+  kc_rp_logout: &kc_rp_logout {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「RP-Initiated Logout」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
+  kc_logout: &kc_logout {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Logout settings」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
+  kc_revocation: &kc_revocation {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Revoking active sessions」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
+  kc_exchange: &kc_exchange {kind: spec, id: "Keycloak Securing Applications（26.8.2）「Token exchange」", url: "https://www.keycloak.org/securing-apps/token-exchange", verified_on: 2026-11-22}
+  kc_dpop: &kc_dpop {kind: spec, id: "Keycloak Securing Applications（26.8.2）「DPoP」「Configuring Keycloak」", url: "https://www.keycloak.org/securing-apps/dpop", verified_on: 2026-11-22}
+  a0_login: &a0_login {kind: spec, id: "Auth0 Docs「Login Trigger」About the Post Login Trigger", url: "https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger", verified_on: 2026-11-22}
+  a0_logout: &a0_logout {kind: spec, id: "Auth0 Docs「Log Users Out of Auth0」", url: "https://auth0.com/docs/authenticate/login/logout/log-users-out-of-auth0", verified_on: 2026-11-22}
+  a0_bcl: &a0_bcl {kind: spec, id: "Auth0 Docs「Configure OIDC Back-Channel Logout」", url: "https://auth0.com/docs/authenticate/login/logout/back-channel-logout/configure-back-channel-logout", verified_on: 2026-11-22}
+  a0_revoke: &a0_revoke {kind: spec, id: "Auth0 Authentication API「Revoke Refresh Token」", url: "https://auth0.com/docs/api/authentication/revoke-refresh-token/revoke-refresh-token", verified_on: 2026-11-22}
+  a0_session_revoke: &a0_session_revoke {kind: spec, id: "Auth0 Management API「Revoke a session」", url: "https://auth0.com/docs/api/management/v2/sessions/revoke-session", verified_on: 2026-11-22}
+  a0_obo: &a0_obo {kind: spec, id: "Auth0 Docs「On-Behalf-Of Token Exchange」", url: "https://auth0.com/docs/secure/call-apis-on-users-behalf/on-behalf-of-token-exchange", verified_on: 2026-11-22}
+  a0_sender: &a0_sender {kind: spec, id: "Auth0 Docs「Configure Sender Constraining」", url: "https://auth0.com/docs/secure/sender-constraining/configure-sender-constraining", verified_on: 2026-11-22}
 events:
   - id: U01
     name: API が Authorization ヘッダーの Bearer で AT を受けて検証する
-    idp: Keycloak 26.8.0
+    actor: リソースサーバー（API）
     standard_refs:
       - {kind: spec, id: "RFC 6750 §2.1", url: "https://www.rfc-editor.org/rfc/rfc6750#section-2.1"}
       - {kind: spec, id: "RFC 9068 §4", url: "https://www.rfc-editor.org/rfc/rfc9068#section-4"}
     phase: 検証
     tokens_used: [access_token]
-    hook_invoked: "no"
-    hook_note: 受け手での検証なので IdP のフックは動かない
-    lifetime_impact: なし（読むだけ）。AT は exp まで受理される
-    source_refs:
-      - {kind: guide-slide, id: p06-validation-split}
+    claims_read: [iss, aud, exp, iat, sub, scope]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし（読むだけ）。AT は exp まで受理される"}
+    seeds: [iana-access-token-type/Bearer, prior-catalogue/U01]
+    guide: {status: covered, slides: [p06-validation-split, p01-validation-order]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証なので IdP のフックは動かない"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証なので IdP のフックは動かない"}
     evidence: ["jwt-claims-casestudy@080b8da:A13", "jwt-claims-casestudy@080b8da:A14"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U02
-    name: API がテナントを決め、DB の文脈（SET LOCAL）を設定して行を絞る
-    idp: Keycloak 26.8.0
+    name: API がテナントを決め、DB の文脈（SET LOCAL など）を設定して行を絞る（RLS・接続プール）
+    actor: リソースサーバー（API）と DB
+    standard_refs_none: 標準の仕様はない（DB の製品の機能。slide:p07-row-level-security）
     standard_refs: []
     phase: 認可
     tokens_used: [access_token]
-    hook_invoked: "no"
-    hook_note: 受け手での利用
-    lifetime_impact: なし。DB の接続の寿命はトークンの寿命と別（接続プール）
-    source_refs:
-      - {kind: guide-slide, id: p07-row-level-security}
-      - {kind: guide-slide, id: p07-connection-pool}
-      - {kind: guide-slide, id: p05-multitenancy}
+    claims_read: [iss, sub]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。DB の接続の寿命はトークンの寿命と別（接続プール。slide:p07-lifetime-mismatch）"}
+    seeds: [prior-catalogue/U05]
+    guide: {status: covered, slides: [p07-row-level-security, p07-connection-pool, p05-multitenancy]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での利用"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での利用"}
     evidence: ["jwt-claims-casestudy@080b8da:A5", "jwt-claims-casestudy@080b8da:A7"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U03
-    name: RP（BFF）がログインの応答で ID トークンを検証する
-    idp: Keycloak 26.8.0
+    name: RP（BFF・クライアント）がログインの応答で ID トークンを検証し、読む
+    actor: RP（BFF・クライアント）
     standard_refs:
       - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
     phase: 検証
     tokens_used: [id_token]
-    hook_invoked: "no"
-    hook_note: 受け手での検証
-    lifetime_impact: なし。BFF のセッションを作る
-    source_refs:
-      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    claims_read: [iss, aud, azp, exp, iat, nonce, auth_time, acr]
+    lifetime_impact: {issued: [session_rp], recomputed: [], revoked: [], note: "BFF のセッションを作る。ID トークンの値はこの時点の写しで、セッションの間は古くなりうる"}
+    seeds: [prior-catalogue/U10]
+    guide: {status: covered, slides: [p01-id-token-vs-access-token, p08-token-types-lifetimes]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
     evidence: ["jwt-claims-casestudy@080b8da:A13"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U04
-    name: BFF がリフレッシュトークンを提示して AT を取り直す
-    idp: Keycloak 26.8.0
+    name: BFF・クライアントがリフレッシュトークンを提示して AT を取り直す
+    actor: RP（BFF・クライアント）
     standard_refs:
       - {kind: spec, id: "RFC 6749 §6", url: "https://www.rfc-editor.org/rfc/rfc6749#section-6"}
     phase: 運用
     tokens_used: [refresh_token]
-    hook_invoked: "yes"
-    hook_note: 提示を受けた IdP が I02 を起こす
-    lifetime_impact: I02 を参照
-    source_refs:
-      - {kind: guide-slide, id: p08-rotation}
+    claims_read: []
+    lifetime_impact: {issued: [access_token], recomputed: [access_token], revoked: [], note: "I02 を起こす（寿命への影響は I02）"}
+    seeds: [prior-catalogue/U08]
+    guide: {status: covered, slides: [p08-rotation, p08-refresh-reevaluation]}
+    idp:
+      keycloak: {occurs: "yes", hook_invoked: "yes", hook_note: "提示を受けた IdP が I02 を起こす（I02 の hook_note）"}
+      auth0: {occurs: "yes", hook_invoked: "yes", hook_note: "提示を受けた IdP が I02 を起こす（I02 の hook_note）"}
     evidence: ["jwt-claims-casestudy@080b8da:keycloak.refresh_reevaluation"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U05
     name: 受け手がトークンイントロスペクションで有効性とクレームを問い合わせる
-    idp: Keycloak 26.8.0
+    actor: リソースサーバー（API）
     standard_refs:
       - {kind: spec, id: "RFC 7662 §2.1", url: "https://www.rfc-editor.org/rfc/rfc7662#section-2.1"}
+      - {kind: spec, id: "RFC 7662 §4", url: "https://www.rfc-editor.org/rfc/rfc7662#section-4"}
     phase: 検証
-    tokens_used: [access_token]
-    hook_invoked: conditional
-    hook_note: 応答に載るクレームはマッパーの Add to token introspection の設定に従う（公式文書「Using lightweight access token」の記述）
-    lifetime_impact: ログアウト後の初回の問い合わせで active=false になった（ケーススタディ）。JWT のローカル検証より剥奪が早く反映される
-    source_refs:
-      - kind: spec
-        id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
-        url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token"
-        verified_on: 2026-11-22
-      - {kind: guide-slide, id: p08-revocation-propagation}
+    tokens_used: [access_token, refresh_token]
+    claims_read: [scope, client_id, sub, aud, exp, token_introspection]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "ログアウト後の初回の問い合わせで active=false になった（ケーススタディ）。JWT のローカル検証より剥奪が早く届く。キャッシュは応答の exp を超えない（§4）"}
+    seeds: [keycloak-settings/introspection-audience, prior-catalogue/U07]
+    guide: {status: covered, slides: [p08-revocation-propagation, p01-self-contained-vs-reference]}
+    idp:
+      keycloak:
+        occurs: "yes"
+        hook_invoked: conditional
+        hook_note: 応答に載るクレームはマッパーの Add to token introspection に従う（文書）。呼び出し元が AT の aud に無いと active=false（Allow token introspection without audience check で変えられる。文書）。confidential のクライアントだけが呼べる（文書）
+        source_refs: [*kc_lightweight, *kc_introspect_aud, *kc_oidc_layers]
+      auth0:
+        occurs: unknown
+        hook_invoked: unknown
+        hook_note: Auth0 の文書に、アクセストークンのイントロスペクションのエンドポイントの記載がない（ないとは明言していない。V34）
     evidence: ["jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U06
     name: RP が利用者のログアウトを IdP に送る（RP-Initiated Logout）
-    idp: Keycloak 26.8.0
+    actor: RP（BFF・クライアント）
     standard_refs:
       - {kind: spec, id: "OpenID Connect RP-Initiated Logout 1.0 §2", url: "https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout"}
     phase: 運用
-    tokens_used: [id_token]
-    hook_invoked: "no"
-    hook_note: ログアウトの要求で、トークンの発行はない
-    lifetime_impact: SSO セッションと、そのセッションの RT を失効させる。発行済みの AT（JWT）は exp まで残る
-    source_refs:
-      - {kind: guide-slide, id: p08-revocation-propagation}
+    tokens_used: [id_token, session_idp, session_rp]
+    claims_read: [sid]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [session_idp, session_rp, refresh_token], note: "SSO セッションと、そのセッションの RT を失効させる。発行済みの AT（JWT）は exp まで残る。IdP が I09 を起こすことがある"}
+    seeds: [oidc-logout/rp-initiated, prior-catalogue/U09]
+    guide: {status: partial, slides: [p08-revocation-propagation, p08-decision-table], note: "ログアウト後のイントロスペクションの実測と「ログアウトで RT を失効」は扱う。RP-Initiated Logout の要求（id_token_hint など）はない"}
+    idp:
+      keycloak:
+        occurs: "yes"
+        hook_invoked: "no"
+        hook_note: ログアウトの要求で、トークンの発行はない。id_token_hint・client_id・post_logout_redirect_uri を受ける（文書）。SSO のログアウトの後はリフレッシュが失敗する。オフラインのトークンは残る（文書）
+        source_refs: [*kc_rp_logout]
+      auth0:
+        occurs: "yes"
+        hook_invoked: "no"
+        hook_note: /oidc/logout は id_token_hint・logout_hint・client_id・post_logout_redirect_uri などを受ける（文書）。/oidc/logout で RT が失効するかは記載がない（Management API のセッションの失効は、結びつく RT も失効させる。文書）
+        source_refs: [*a0_logout, *a0_session_revoke]
     evidence: ["jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U07
     name: RP が Back-Channel Logout のログアウトトークンを受けて検証する
-    idp: Keycloak 26.8.0
+    actor: RP（BFF）
     standard_refs:
       - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.6", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation"}
     phase: 検証
     tokens_used: [logout_token]
-    hook_invoked: "no"
-    hook_note: 受け手での検証
-    lifetime_impact: RP（BFF）のセッションを消す。AT は exp まで残る
-    source_refs:
-      - {kind: guide-slide, id: p08-revocation-propagation}
-    evidence: []
+    claims_read: [iss, aud, iat, exp, jti, events, sid, sub]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp], note: "RP（BFF）のセッションを消す。AT は exp まで残る"}
+    seeds: [oidc-logout/back-channel, prior-catalogue/U09]
+    guide: {status: gap, marker: ガイドの空白, slides: [], note: "ログアウトトークンの検証（events・nonce の禁止・jti の再送）と RP のセッションの終了を扱うスライドがない",
+            checked: "2026-11-22 に docs/slides.json を Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U08
     name: クライアントが AT で UserInfo を呼ぶ
-    idp: Keycloak 26.8.0
+    actor: RP（BFF・クライアント）
     standard_refs:
       - {kind: spec, id: "OpenID Connect Core 1.0 §5.3", url: "https://openid.net/specs/openid-connect-core-1_0.html#UserInfo"}
     phase: 伝搬
     tokens_used: [access_token]
-    hook_invoked: conditional
-    hook_note: 応答に載るクレームは、マッパーの Add to userinfo の設定に従う
-    lifetime_impact: なし。応答はその時点の値
-    source_refs:
-      - {kind: guide-slide, id: p04-carry-or-query}
-    evidence: []
+    claims_read: [sub, name, email, email_verified]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。応答はその時点の値（トークンに載せるより新しい）"}
+    seeds: [prior-catalogue/U11, prior-catalogue/I23]
+    guide: {status: covered, slides: [p04-carry-or-query, p09-do-not-carry]}
+    idp:
+      keycloak:
+        occurs: "yes"
+        hook_invoked: conditional
+        hook_note: 応答に載るクレームはマッパーの Add to userinfo の設定に従う。UserInfo は既定で軽量のアクセストークンを拒む（文書）
+        source_refs: [*kc_lightweight]
+      auth0:
+        occurs: "yes"
+        hook_invoked: unknown
+        hook_note: post-login で足したクレームが UserInfo の応答に出るかを確かめていない（V34）
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U09
-    name: 受け手が未知の kid を見て JWKS を取り直す（鍵のローテーション）
-    idp: Keycloak 26.8.0
+    name: 受け手が未知の kid を見て JWKS を取り直す（署名鍵のローテーションと JWKS のキャッシュ）
+    actor: リソースサーバー（API）・RP
     standard_refs:
       - {kind: spec, id: "OpenID Connect Core 1.0 §10.1.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys"}
     phase: 運用
     tokens_used: [access_token, id_token]
-    hook_invoked: "no"
-    hook_note: 受け手での処理
-    lifetime_impact: なし。古い鍵を消すと、その鍵で署名された AT は exp の前でも検証できなくなる
-    source_refs:
-      - {kind: guide-slide, id: p05-multitenancy}
+    claims_read: [iss]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。古い鍵を JWKS から消すと、その鍵で署名された AT は exp の前でも検証できなくなる"}
+    seeds: [prior-catalogue/I29]
+    guide: {status: gap, marker: ガイドの空白, slides: [], note: "kid の扱い（slide:p01-dangerous-header-params）と DB の JWKS の設定（slide:p07-db-token-auth）はあるが、鍵のローテーションと JWKS のキャッシュ・取り直しを扱うスライドがない",
+            checked: "2026-11-22 に docs/slides.json をローテーション・JWKS・kid で検索し、ヒットした 26 件（p01-jwt-structure・p01-dangerous-header-params・p07-db-token-auth・p08-rotation ほか）を目で読んだ。p08-rotation は RT のローテーション"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
     evidence: ["jwt-claims-casestudy@080b8da:A9"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
 
   - id: U10
     name: 受け手が AT をトークン交換の subject_token として提示する
-    idp: Keycloak 26.8.0
+    actor: リソースサーバー（API）・エージェント
     standard_refs:
       - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
     phase: 伝搬
     tokens_used: [access_token]
-    hook_invoked: unknown
-    hook_note: I06 を参照
-    lifetime_impact: I06 を参照
-    source_refs:
-      - {kind: guide-slide, id: p10-token-exchange-not-narrowing}
+    claims_read: [aud, scope, may_act]
+    lifetime_impact: {issued: [access_token], recomputed: [], revoked: [], note: "I06 を起こす（寿命への影響は I06）"}
+    seeds: [iana-oauth-uri/token-type:access_token, prior-catalogue/U13]
+    guide: {status: covered, slides: [p10-token-exchange-not-narrowing]}
+    idp:
+      keycloak: {occurs: conditional, hook_invoked: "yes", hook_note: "I06 を参照（要求元クライアントのスコープのマッパーが適用される。文書）", source_refs: [*kc_exchange]}
+      auth0: {occurs: conditional, hook_invoked: "yes", hook_note: "I06 を参照（On-Behalf-Of の交換は post-login を起こす。文書）", source_refs: [*a0_obo]}
     evidence: ["jwt-claims-casestudy@080b8da:C.keycloak_exchange"]
     verified_on: 2026-11-22
     review_by: 2027-02-20
-    owner: "#16"
+    owner: "#2"
+
+  - id: U11
+    name: 入口が外部のトークンを検証し、ヘッダーに転記して内側へ渡す
+    actor: 入口（ゲートウェイ）
+    standard_refs:
+      - {kind: guidance, id: "NIST SP 800-228 §2.7"}
+    phase: 伝搬
+    tokens_used: [access_token, internal_token]
+    claims_read: [iss, aud, exp, sub]
+    lifetime_impact: {issued: [internal_token], recomputed: [], revoked: [], note: "I21 を起こすことがある。利用者が送った同名ヘッダーを消す（slide:p06-header-forwarding）"}
+    seeds: [prior-catalogue/U02]
+    guide: {status: covered, slides: [p06-edge-exchange, p06-header-forwarding]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "入口での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "入口での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U12
+    name: サービス間で文脈を伝搬する（Txn-Token・mTLS・SPIFFE）
+    actor: 内部のサービス
+    standard_refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.1", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    phase: 伝搬
+    tokens_used: [txn_token, internal_token]
+    claims_read: [txn, sub, aud]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。Txn-Token は改変せずに転送する（slide:p06-flow-browser-to-db）"}
+    seeds: [slide-stage-map/stage4-service, prior-catalogue/U03]
+    guide: {status: covered, slides: [p06-transaction-tokens, p06-narrow-downstream, p06-validation-split]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "サービス間の処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "サービス間の処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U13
+    name: 非同期の処理（キュー・イベント・ワークフロー）で主体を引き継ぐ
+    actor: 発行者・コンシューマーのサービス
+    standard_refs_none: 標準の仕様はない（CloudEvents の Auth Context 拡張などの製品・団体の文書。slide:p08-async-processing）
+    standard_refs: []
+    phase: 伝搬
+    tokens_used: [txn_token]
+    claims_read: [txn, sub]
+    lifetime_impact: {issued: [txn_token], recomputed: [], revoked: [], note: "キューに利用者のトークンを入れない。コンシューマーが自分の ID で Txn-Token を取り直す（slide:p06-flow-partner-events）"}
+    seeds: [prior-catalogue/U04]
+    guide: {status: covered, slides: [p08-async-processing, p06-flow-partner-events]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "サービスでの処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "サービスでの処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U14
+    name: ログ・監査・トレースにクレームを残す
+    actor: すべての受け手
+    standard_refs_none: 標準の仕様はない（OWASP Logging Cheat Sheet などの指針。slide:p09-logs-traces）
+    standard_refs: []
+    phase: 運用
+    tokens_used: [access_token, internal_token, txn_token]
+    claims_read: [sub, act, client_id, jti, txn]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。トークンそのものを残さない（slide:p09-logs-traces）"}
+    seeds: [prior-catalogue/U06]
+    guide: {status: covered, slides: [p09-logs-traces, p06-audit-trail]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U15
+    name: クライアント・運用者が失効のエンドポイント（RFC 7009）や管理の操作でトークン・セッションを失効させる
+    actor: RP（BFF・クライアント）・運用者
+    standard_refs:
+      - {kind: spec, id: "RFC 7009 §2.1", url: "https://www.rfc-editor.org/rfc/rfc7009#section-2.1"}
+    phase: 運用
+    tokens_used: [refresh_token, access_token]
+    claims_read: []
+    lifetime_impact: {issued: [], recomputed: [], revoked: [refresh_token, session_idp], note: "RT を失効させる。自己完結型の AT は、失効させても受け手がローカルで検証する限り exp まで通る（RFC 7009 §3。slide:p08-choosing-lifetime）"}
+    seeds: [iana-token-type-hint/access_token, iana-token-type-hint/refresh_token, keycloak-settings/revocation-not-before, prior-catalogue/U08]
+    guide: {status: partial, slides: [p08-choosing-lifetime, p08-decision-table], note: "RFC 7009 は寿命の理由としてだけ出る。失効のエンドポイントと、管理の操作（セッションの削除・Not before）の効き方はない"}
+    idp:
+      keycloak:
+        occurs: "yes"
+        hook_invoked: "no"
+        hook_note: /protocol/openid-connect/revoke は AT と RT を受け、RT を失効させると同意も失効する（文書）。Revocation（Not before）は指定の時刻より前に出たセッションとトークンを無効にし、押し出しは Keycloak の OIDC アダプターだけに届く（文書）。管理画面の Sign out all active sessions は 26.2 からオフラインのセッションも消すが、発行済みの AT は失効しない（文書）
+        source_refs: [*kc_oidc_layers, *kc_revocation]
+      auth0:
+        occurs: "yes"
+        hook_invoked: "no"
+        hook_note: /oauth/revoke で失効できるのは RT だけ（文書）。Refresh Token Revocation Deletes Grant を有効にすると、同じ利用者・アプリ・audience のトークンをまとめて失効させる（文書）
+        source_refs: [*a0_revoke, *a0_session_revoke]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U16
+    name: 受け手が状態リスト（Token Status List）で失効を確かめる
+    actor: リソースサーバー（API）
+    standard_refs:
+      - {kind: spec, id: "draft-ietf-oauth-status-list-21 §8", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-21.txt"}
+    phase: 検証
+    tokens_used: [status_list_token, access_token]
+    claims_read: [status, status_list, ttl]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "受け手がトークンを拒む。反映の遅れは ttl と取り直しの間隔で決まる"}
+    seeds: [prior-catalogue/U08]
+    guide: {status: covered, slides: [p08-revocation-propagation]}
+    idp:
+      keycloak: {occurs: unknown, hook_invoked: unknown, hook_note: "I27 を参照（V33）"}
+      auth0: {occurs: unknown, hook_invoked: unknown, hook_note: "I27 を参照（V34）"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U17
+    name: 受け手が SET（SSF・CAEP）を受けて、トークンを拒み、セッションを終える
+    actor: リソースサーバー・RP
+    standard_refs:
+      - {kind: spec, id: "RFC 8417 §2.2", url: "https://www.rfc-editor.org/rfc/rfc8417#section-2.2"}
+    phase: 運用
+    tokens_used: [security_event_token]
+    claims_read: [events, toe, txn, sub_id]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp, access_token], note: "受け手がトークンを拒み、セッションを終える（NIST IR 8587 §5.3.1.2、MUST。slide:p08-revocation-propagation）"}
+    seeds: [prior-catalogue/U08]
+    guide: {status: covered, slides: [p08-revocation-propagation, p08-stale-claims]}
+    idp:
+      keycloak: {occurs: unknown, hook_invoked: unknown, hook_note: "I23 を参照（V33）"}
+      auth0: {occurs: unknown, hook_invoked: unknown, hook_note: "I23 を参照（V34）"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U18
+    name: RP が Front-Channel Logout の要求（iframe の iss・sid）を受けてセッションを終える
+    actor: RP（ブラウザの中のフロント）
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Front-Channel Logout 1.0 §2", url: "https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPLogout"}
+    phase: 運用
+    tokens_used: [session_rp]
+    claims_read: []
+    claims_read_note: iss・sid を読むが、JWT のクレームではなく、Front-Channel Logout の URL のクエリパラメータ（§2）なので claims_read に入れない
+    lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp], note: "ブラウザを通して RP のセッションを消す。サードパーティの Cookie が使えないと届かないことがある（推論）"}
+    seeds: [oidc-logout/front-channel, keycloak-settings/frontchannel-logout, prior-catalogue/U09]
+    guide: {status: gap, marker: ガイドの空白, slides: [], note: "Front-Channel Logout を扱うスライドがない",
+            checked: "2026-11-22 に docs/slides.json を Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ"}
+    idp:
+      keycloak:
+        occurs: conditional
+        hook_invoked: "no"
+        hook_note: クライアントの Front channel logout（既定は文書に記載なし。ソースの要約では管理画面の新規作成で ON、REST の既定で OFF。V31）
+        source_refs: [*kc_logout]
+      auth0:
+        occurs: unknown
+        hook_invoked: unknown
+        hook_note: Auth0 の Front-Channel Logout への対応は文書で確かめられなかった（V34）
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U19
+    name: 応答・Webhook を署名して返す・受ける（RFC 9421）
+    actor: API・Webhook の受け手
+    standard_refs:
+      - {kind: spec, id: "RFC 9421 §3", url: "https://www.rfc-editor.org/rfc/rfc9421#section-3"}
+    phase: 伝搬
+    tokens_used: []
+    claims_read: []
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。トークンではなく HTTP のメッセージ署名で守る"}
+    seeds: [prior-catalogue/U12]
+    guide: {status: covered, slides: [p06-return-results, p06-flow-partner-events]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U20
+    name: 取引先の API（信頼ドメインをまたぐ）を呼ぶ
+    actor: 自社のサービス
+    standard_refs:
+      - {kind: spec, id: "RFC 7523 §2.1", url: "https://www.rfc-editor.org/rfc/rfc7523#section-2.1"}
+    phase: 伝搬
+    tokens_used: [access_token, jwt]
+    claims_read: [aud, sub, cnf]
+    lifetime_impact: {issued: [access_token], recomputed: [], revoked: [], note: "自社の AS で交換し（I06）、相手の AS で作り直す（I15）。相手の AT は短命（slide:p06-flow-partner-events）"}
+    seeds: [prior-catalogue/U13]
+    guide: {status: covered, slides: [p06-flow-partner-events]}
+    idp:
+      keycloak: {occurs: conditional, hook_invoked: "yes", hook_note: "自社の側の交換は I06（文書）", source_refs: [*kc_exchange]}
+      auth0: {occurs: conditional, hook_invoked: "yes", hook_note: "自社の側の交換は I06（文書）", source_refs: [*a0_obo]}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U21
+    name: 判断や検証の結果をキャッシュする
+    actor: リソースサーバー（API）・PDP
+    standard_refs:
+      - {kind: spec, id: "RFC 7662 §4", url: "https://www.rfc-editor.org/rfc/rfc7662#section-4"}
+    phase: 認可
+    tokens_used: [access_token]
+    claims_read: [exp, jti]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。キャッシュの寿命が、剥奪の反映の遅れに足される"}
+    seeds: [prior-catalogue/U14]
+    guide: {status: partial, slides: [p08-revocation-propagation, p04-token-is-snapshot], note: "イントロスペクションの応答のキャッシュ（exp を超えない）と、キャッシュと鮮度の指針だけ。認可の判断のキャッシュの寿命の決め方はない"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U22
+    name: ブラウザ・URL にトークンを置く・通す
+    actor: ブラウザ・フロント
+    standard_refs:
+      - {kind: spec, id: "RFC 9700 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.3"}
+    phase: 伝搬
+    tokens_used: [access_token, id_token, authorization_code]
+    claims_read: []
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。URL・履歴・Referer に残ると、寿命の間は盗まれうる（slide:p09-url-browser）"}
+    seeds: [prior-catalogue/U15]
+    guide: {status: covered, slides: [p09-url-browser]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "ブラウザでの扱い"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "ブラウザでの扱い"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U23
+    name: 長時間の接続（WebSocket・gRPC のストリーム・SSE）で、途中でトークンの期限が切れる
+    actor: リソースサーバー（API）
+    standard_refs_none: 標準の仕様はない（接続の上の認可は各プロトコル・製品による）
+    standard_refs: []
+    phase: 運用
+    tokens_used: [access_token]
+    claims_read: [exp]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。接続を開いた時点の AT で、exp の後も接続が続きうる"}
+    seeds: [prior-catalogue/U16]
+    guide: {status: partial, slides: [p07-lifetime-mismatch], note: "DB・ブローカーの接続の寿命とトークンの寿命のずれ（Kafka の再認証など）は扱う。利用者に向いた長時間の接続（WebSocket など）はない"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U24
+    name: クラウドの STS で JWT を使って資格情報を得る（AssumeRoleWithWebIdentity など）
+    actor: ワークロード・クラウドの STS
+    standard_refs_none: 標準の仕様はない（各クラウドの製品の機能。slide:p07-cloud-attributes）
+    standard_refs: []
+    phase: 伝搬
+    tokens_used: [jwt, access_token]
+    claims_read: [iss, sub, aud]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "クラウドの一時的な資格情報が出る（このカタログのトークンの種類の外）。その寿命は JWT の寿命と別"}
+    seeds: [prior-catalogue/U17]
+    guide: {status: covered, slides: [p07-cloud-attributes, p07-db-token-auth]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "クラウドの STS での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "クラウドの STS での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U25
+    name: エージェントがツール（MCP のサーバー）を呼ぶ
+    actor: AI エージェント・MCP のサーバー
+    standard_refs_none: 標準の仕様はない（MCP の認可の仕様は IETF・OIDF の標準ではない。slide:p10-mcp-authorization）
+    standard_refs: []
+    phase: 伝搬
+    tokens_used: [access_token, id_jag]
+    claims_read: [aud, scope, act, client_id]
+    lifetime_impact: {issued: [access_token], recomputed: [], revoked: [], note: "受け取ったトークンを渡さず、ツールごとに交換する（I06・I16）。タスクごとに短く（slide:p10-per-tool-scopes）"}
+    seeds: [prior-catalogue/U18, prior-catalogue/I17]
+    guide: {status: covered, slides: [p10-mcp-authorization, p10-per-tool-scopes]}
+    idp:
+      keycloak: {occurs: conditional, hook_invoked: "yes", hook_note: "交換は I06（文書）", source_refs: [*kc_exchange]}
+      auth0: {occurs: conditional, hook_invoked: "yes", hook_note: "交換は I06（文書）", source_refs: [*a0_obo]}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U26
+    name: 送信者制約つきのトークンを使う（DPoP の proof・mTLS の証明書と cnf を照合する）
+    actor: リソースサーバー（API）
+    standard_refs:
+      - {kind: spec, id: "RFC 9449 §7.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-7.1"}
+      - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+    phase: 検証
+    tokens_used: [access_token, dpop_proof]
+    claims_read: [cnf, htm, htu, ath, jti, iat, nonce]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。鍵を持たない者が提示したトークンを拒む"}
+    seeds: [iana-access-token-type/DPoP, prior-catalogue/U19]
+    guide: {status: covered, slides: [p02-keys-events-identity-assurance, p06-flow-partner-events]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証。Keycloak は DPoP を受けて束縛する側（I29。文書）", source_refs: [*kc_dpop]}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証", source_refs: [*a0_sender]}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U27
+    name: 受け手が拒否して再挑戦を求める（WWW-Authenticate、insufficient_user_authentication）
+    actor: リソースサーバー（API）
+    standard_refs:
+      - {kind: spec, id: "RFC 6750 §3", url: "https://www.rfc-editor.org/rfc/rfc6750#section-3"}
+      - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+    phase: 認可
+    tokens_used: [access_token]
+    claims_read: [acr, auth_time, scope]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。クライアントが I12（追加認証）を起こす"}
+    seeds: [prior-catalogue/U20]
+    guide: {status: covered, slides: [p02-auth-strength-session, p06-step-up-approval]}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"
+
+  - id: U28
+    name: 分析基盤・データウェアハウスにクレームを複製する
+    actor: 分析基盤への取り込みの処理
+    standard_refs_none: 標準の仕様はない
+    standard_refs: []
+    phase: 運用
+    tokens_used: [access_token]
+    claims_read: [sub, iss]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。複製した値はトークンの寿命を超えて残り、元の値の変更・削除が届かない"}
+    seeds: [prior-catalogue/U21]
+    guide: {status: gap, marker: ガイドの空白, slides: [], note: "ログ（slide:p09-logs-traces）は扱うが、分析用のクレームの複製と、その鮮度・削除はない",
+            checked: "2026-11-22 に docs/slides.json を 分析・データウェアハウス・DWH・BigQuery・複製 で検索し、ヒットした p07-row-level-security・p07-masking（BigQuery の行の制御とマスキング）を目で読んだ"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#2"

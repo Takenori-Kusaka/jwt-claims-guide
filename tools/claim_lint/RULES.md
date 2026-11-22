@@ -18,6 +18,8 @@ error が 1 件でもあれば終了コード 1 です。error の規則は抑�
 | R8 | トークン種別ごとの最悪のサイズと、経路の上限。下の「R8 の計算」 | error／warn／info | report Q9。しきい値は筆者の提案（tracking #16） |
 | SLIDE | `refs` の `guide-slide` の ID と、入力のファイルの中の `slide:<id>` が、実在のスライドを指す（`tools/check_slide_refs.py` の解決を使う） | error | #15 |
 
+カタログそのものの検査（列、種になる一覧との差集合、主体の状態の行列、`sources.md` の件数）は、設計書ではなくカタログの検査なので `tools/catalog_check.py` に分けました（#2）。#17 の R3 は、その `closure()` を使う想定です。
+
 ## R1 の必須の列
 
 | 行の種類 | 必須の列 |

@@ -51,7 +51,7 @@ def tt(docs, tid):
 def test_example_has_no_error():
     res = core.run(EXAMPLE)
     assert res['counts']['error'] == 0, core.format_table(res)
-    assert res['catalog_events'] == 19 and res['claims'] == 25
+    assert res['catalog_events'] == 61 and res['claims'] == 25
 
 
 # ------------------------------------------------------------------ R1

@@ -39,6 +39,9 @@ STRUCTURAL = {
     'I07': 'client setting: OAuth 2.0 Device Authorization Grant OFF',
 }
 INHERITED_FIELD = 1
+# The gate-1 count (research/template-design/gate1.md section 10) was taken on the v0 subset of the catalogue (#16).
+# #2 extended the catalogue to I01..I33 / U01..U28; the record stays reproducible by counting only the v0 events.
+GATE1_EVENTS = {f'I{n:02d}' for n in range(1, 10)} | {f'U{n:02d}' for n in range(1, 11)}
 # design.md sections: example numbering -> handling in the reduced Lite; LITE_4 = the Lite sections of #4 (00_core
 # 2, 3, 4, 6, 7, 12), mapped to the example's numbering (2, 3, 6, 8, 9, 12)
 DESIGN = {1: 'generated', 2: 'hand', 3: 'hand', 4: 'generated', 5: 'generated', 6: 'hand', 7: 'full-only',
@@ -53,7 +56,7 @@ def fields(row, skip=('id',)):
 def count(example):
     claims = core.load_yaml(os.path.join(example, 'claims.yaml'))['claims']
     tts = core.load_yaml(os.path.join(example, 'token_types.yaml'))
-    answers = core.load_yaml(os.path.join(example, 'catalog_answers.yaml'))['answers']
+    answers = [a for a in core.load_yaml(os.path.join(example, 'catalog_answers.yaml'))['answers'] if a['event'] in GATE1_EVENTS]
     rows = []
     groups = {'read': [0, 0, 0], 'unread': [0, 0, 0], 'rejected': [0, 0, 0]}
     for c in claims:
