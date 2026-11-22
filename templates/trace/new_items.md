@@ -4,13 +4,13 @@
 
 対応表（`requirements.yaml`）を作るときに、どの issue の本文にもない成果物が必要になったものの一覧です。各 issue の本文に書き足すかどうかは、担当の issue で決めます。書き足さない場合は、`planned_items.yaml` の項目を別の成果物に付け替えるか、要件を「扱わない」にします。
 
-提案の件数：238 件
+提案の件数：239 件
 
 ## #3（32 件）
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
-| `registry:claims#absent_semantics` | 無い・null・false・空配列・空文字の意味の区別（上限による欠落を「所属なし」と読まない。無いときの挙動は on_missing） | `p00-claims-are-contracts.R3`, `p00-why-hard.R1`, `p00-why-hard.R5`, `p03-entra-scp-roles-groups.R1`, `p04-absent-null-false-empty.R1`, `p04-absent-null-false-empty.R5`, `p04-design-checklist.R7`, `p11-pre-add-questions-1.R9`, `p12-review-viewpoints.R2` |
+| `registry:claims#absent_semantics` | 無い・null・false・空配列・空文字の意味の区別（上限による欠落を「所属なし」と読まない。無いときの挙動は on_missing） | `p00-claims-are-contracts.R3`, `p00-why-hard.R1`, `p00-why-hard.R5`, `p03-entra-scp-roles-groups.R1`, `p04-absent-null-false-empty.R1`, `p04-absent-null-false-empty.R5`, `p04-design-checklist.R7`, `p11-why-govern.R2`, `p11-pre-add-questions-1.R9`, `p12-review-viewpoints.R2` |
 | `registry:claims#value_vocabulary` | 値の語彙（許可値の列挙・語彙の名前空間・語彙の持ち主・acr の値と水準の対応・authorization_details の type） | `p02-roles-groups-entitlements.R2`, `p02-scope.R4`, `p02-auth-strength-session.R1`, `p05-coarse-fine-layers.R4` |
 | `registry:claims#prior_art_search` | 作る前に探した記録（IANA・仕様の構造・IdP の文書・組織の台帳）、近い既存クレームとの違い、使わなかった理由 | `p02-check-before-creating.R1`, `p02-check-before-creating.R3`, `p02-check-before-creating.R4`, `p04-claim-names.R1`, `p04-design-checklist.R2` |
 | `registry:token_types#key_source` | 検証の鍵の取得元（事前に設定した JWKS だけか、許可リストつきの jku か）。ヘッダーの jwk・x5c を信頼しないことの宣言 | `p01-dangerous-header-params.R4`, `p01-dangerous-header-params.R5` |
@@ -22,8 +22,8 @@
 | `registry:claims#consumer_access_path` | 受け手のツール（ゲートウェイ・メッシュ・CEL・JSONPath）ごとの参照式と、読めることを確かめた記録 | `p04-namespace.R2`, `p04-namespace.R3`, `p04-design-checklist.R4` |
 | `registry:claims#flat_alias` | ネストできない IdP 向けのフラットな別名 | `p04-namespace.R4`, `p04-namespace-object-example.R2` |
 | `registry:claims#namespace_version` | 名前空間のオブジェクトの構造の版（v） | `p04-namespace-object-example.R1` |
-| `registry:claims#paired_id` | 名前のクレームと対になる変わらない ID のクレーム | `p04-immutable-identifiers.R2`, `p04-design-checklist.R9` |
-| `registry:claims#composite_format` | 合成の識別子（sub など）の区切り文字と退避の規則、その公開先 | `p04-immutable-identifiers.R3` |
+| `registry:claims#paired_id` | 名前のクレームと対になる変わらない ID のクレーム | `p00-incident-signature-valid.R4`, `p04-immutable-identifiers.R2`, `p04-design-checklist.R9` |
+| `registry:claims#composite_format` | 合成の識別子（sub など）の区切り文字と退避の規則、その公開先 | `p00-incident-signature-valid.R4`, `p04-immutable-identifiers.R3` |
 | `registry:token_types#subject_kind` | sub が表す主体の種類（利用者／クライアント・ワークロード）と、受け手が区別する手段 | `p05-three-principals.R2`, `p05-system-privileges.R2` |
 | `registry:token_types#signing_key_scope` | 署名鍵のスコープ（テナント単位か、共有か） | `p05-multitenancy.R5` |
 | `registry:hops#authorization_details` | ホップごとの authorization_details（宛先に合わせて絞る。L16 の比較対象に加える） | `p05-coarse-fine-layers.R2`, `p10-four-questions.R3`, `p10-human-approval-evidence.R2` |
@@ -47,11 +47,11 @@
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
-| `template:modules/M_token_validation#shared-validator` | 組織共通の検証・解析部品の採否と版、そこで固定する alg・発行者・宛先・必須クレーム（各サービスに生で解析させない） | `p00-why-hard.R2`, `p01-library-defaults.R4`, `p11-contract-test-gaps.R3`, `p11-translation-layer.R3`, `p11-pre-add-questions-2.R4`, `p12-review-viewpoints.R10` |
+| `template:modules/M_token_validation#shared-validator` | 組織共通の検証・解析部品の採否と版、そこで固定する alg・発行者・宛先・必須クレーム（各サービスに生で解析させない） | `p00-why-hard.R2`, `p00-incident-signature-valid.R5`, `p01-library-defaults.R4`, `p11-contract-test-gaps.R3`, `p11-translation-layer.R3`, `p11-pre-add-questions-2.R4`, `p12-review-viewpoints.R10` |
 | `template:modules/M_token_validation#validation-order` | 検証の順序（形式・alg・署名・iss・aud・exp/nbf・typ・クレーム）と、受け入れ前に独自クレームを読まないこと | `p01-validation-order.R1`, `p01-validation-order.R9`, `p01-attack-patterns.R7` |
 | `template:modules/M_token_validation#audience` | aud の検証（文字列と配列の両方を受け付け、自分が含まれなければ拒否） | `p01-validation-order.R5`, `p02-registered-claims.R3` |
 | `template:modules/M_token_validation#header-params` | ヘッダーの危険なパラメータ（kid・jku・x5u・jwk・x5c）の扱い | `p01-jwt-structure.R1`, `p01-dangerous-header-params.R3` |
-| `template:modules/M_token_validation#library-config` | 使う検証ライブラリと版、明示した設定（audience・issuer・algorithms・必須クレーム・時刻のずれ・鍵の確認・重複クレームの拒否） | `p01-library-defaults.R1`, `p01-library-defaults.R3`, `p01-library-defaults.R5`, `p01-attack-patterns.R6` |
+| `template:modules/M_token_validation#library-config` | 使う検証ライブラリと版、明示した設定（audience・issuer・algorithms・必須クレーム・時刻のずれ・鍵の確認・重複クレームの拒否） | `p00-incident-signature-valid.R5`, `p01-library-defaults.R1`, `p01-library-defaults.R3`, `p01-library-defaults.R5`, `p01-attack-patterns.R6` |
 | `template:00_core#step-up` | 操作ごとに求める acr・max_age と、足りないときの応答（insufficient_user_authentication） | `p02-auth-strength-session.R6`, `p06-step-up-approval.R1` |
 | `template:profiles/P4_ai_agent_delegation#delegation-policy` | may_act を誰がどう評価するか、委任の理由・承認者をどこに置くか（act の外） | `p02-delegation-client.R3`, `p02-delegation-client.R4` |
 | `template:modules/M_idp_keycloak#broker-mapping` | Keycloak のブローカーでの写し方（IdP マッパーで取り込み、プロトコルマッパーで社内の名前のクレームに） | `p02-saml-attributes.R5` |
@@ -72,7 +72,7 @@
 | `template:profiles/P5_internal_propagation#async-messaging` | イベント・キュー（発行者の ID・メタデータの間接参照と txn・配送の認証・コンシューマーの作り直し） | `p06-flow-partner-events.R4`, `p06-flow-partner-events.R5`, `p06-flow-partner-events.R6`, `p08-async-processing.R2`, `p08-async-processing.R3` |
 | `template:modules/M_data_layer#cloud-credentials` | クラウドの一時認証情報（テナントに限る部品への集約、クレームがポリシーで効くか） | `p07-connect-as-whom.R4`, `p07-cloud-attributes.R2` |
 | `template:00_core#lifetime-policy` | 組織の種類ごとの寿命の上限と、例外を認める手順、剥奪の許容時間から導いた理由 | `p08-token-types-lifetimes.R4`, `p08-choosing-lifetime.R1`, `p08-choosing-lifetime.R2`, `p08-choosing-lifetime.R4`, `p08-decision-table.R1` |
-| `template:modules/M_idp_keycloak#refresh-token-settings` | Keycloak の RT の設定（Revoke Refresh Token、リフレッシュ時の再評価、交換で出した RT の期限） | `p08-refresh-reevaluation.R3`, `p08-rotation.R5` |
+| `template:modules/M_idp_keycloak#refresh-token-settings` | Keycloak の RT の設定（Revoke Refresh Token、リフレッシュ時の再評価、交換で出した RT の期限） | `p08-refresh-reevaluation.R3`, `p08-rotation.R5`, `p08-rotation.R8` |
 | `template:modules/M_idp_keycloak#introspection` | Keycloak のイントロスペクション（aud のクライアントだけ active、問い合わせの資格情報） | `p08-revocation-propagation.R5` |
 | `template:modules/M_privacy_minimization#derived-values` | 値ではなく判定（派生値）で足りるかの判断と、判定の責任を持つ発行者 | `p09-minimize-derived.R1`, `p09-minimize-derived.R2`, `p09-checklist.R2` |
 | `template:modules/M_privacy_minimization#sensitive-via-api` | 機微な属性をトークンに入れず、送信者制約つきの identity API で期間を限って渡す判断 | `p09-minimize-derived.R3` |
@@ -87,7 +87,7 @@
 | `template:profiles/P4_ai_agent_delegation#tool-scopes` | ツールごとの最小スコープ、WWW-Authenticate による段階的な引き上げ | `p10-per-tool-scopes.R1`, `p10-per-tool-scopes.R2` |
 | `template:profiles/P4_ai_agent_delegation#chain-revocation` | 委任の根元の承認からの一括失効の手段 | `p10-delegation-chain-depth.R3` |
 | `template:modules/M_idp_keycloak#token-preview` | 発行前に実トークンを確かめる手段（プレビュー・評価機能） | `p11-schema-contract-tests.R3`, `p11-change-procedure.R4`, `p11-pre-add-questions-2.R13` |
-| `template:00_core#operational-metrics` | 運用で測る指標（台帳とのずれ・検証失敗など）、周期、持ち主 | `p11-audit-metrics.R7` |
+| `template:00_core#operational-metrics` | 運用で測る指標（台帳とのずれ・検証失敗など）、周期、持ち主 | `p11-audit-metrics.R3`, `p11-audit-metrics.R6`, `p11-audit-metrics.R7` |
 | `template:00_core#baseline` | どの組織でも却下できない共通の基準（受け入れの検証・欠落の拒否・型の固定・不変の ID・名前空間・ログ）の確認欄 | `p12-priorities-deferrals.R1`, `p12-priorities-deferrals.R2`, `p12-summary（教材）` |
 | `template:00_core#priorities-deferrals` | 組織の種類ごとの重点と見送り、その効果・費用・見直しの条件 | `p12-priorities-deferrals.R3`, `p12-priorities-deferrals.R4`, `p12-priorities-deferrals.R5` |
 | `template:claim_request#q01` | 追加前の 25 問の第 1 問の回答欄 | `p11-pre-add-questions-1.R1` |
@@ -177,9 +177,9 @@
 | `review:perspectives#q-approval-from-as` | 観点書：機微な操作の承認を AS が本人に確かめ、受け手が照合するか | `p10-human-approval-evidence.R1`, `p10-agent-checklist.R7` |
 | `review:perspectives#q-delegation-depth-and-revocation` | 観点書：委任の深さの上限と、根元からの一括失効を決めたか | `p10-agent-checklist.R8` |
 | `review:perspectives#q-audit-correlation` | 観点書：sub・全アクター・txn・承認 ID を監査で相関できるか | `p10-agent-checklist.R9` |
-| `review:perspectives#q-internal-delegation-token` | 観点書：内部の代理トークンが署名・テナントの検証・失効・ログを備えるか（CVE-2025-55241 の逆） | `p10-delegation-chain-depth.R5`, `p12-antipatterns-2.R9` |
-| `review:perspectives#q-change-order` | 観点書：形式の変更が「受け手が先、発行者が後」の順で、通知・プレビュー・並行発行があるか | `p11-change-procedure.R1`, `p11-why-govern（教材）` |
-| `review:perspectives#q-idp-diff-absorbed` | 観点書：IdP の差（利用者キー・ロールの位置・aud）を入口か共通部品で吸収し、製品の独自クレームを契約にしていないか | `p11-translation-layer.R1`, `p11-translation-layer.R5` |
+| `review:perspectives#q-internal-delegation-token` | 観点書：内部の代理トークンが署名・テナントの検証・失効・ログを備えるか（CVE-2025-55241 の逆） | `p00-incident-signature-valid.R2`, `p10-delegation-chain-depth.R5`, `p12-antipatterns-2.R9` |
+| `review:perspectives#q-change-order` | 観点書：形式の変更が「受け手が先、発行者が後」の順で、通知・プレビュー・並行発行があるか | `p11-why-govern.R1`, `p11-change-procedure.R1`, `p11-why-govern（教材）` |
+| `review:perspectives#q-idp-diff-absorbed` | 観点書：IdP の差（利用者キー・ロールの位置・aud）を入口か共通部品で吸収し、製品の独自クレームを契約にしていないか | `p10-vendor-features.R1`, `p11-translation-layer.R1`, `p11-translation-layer.R5` |
 | `review:perspectives#q-no-unverified-passthrough-mode` | 観点書：未検証の値を流すモード（検証の無効化・デバッグ）が無いか | `p11-pre-add-questions-2.R6` |
 | `review:perspectives#q-baseline-kept` | 観点書：共通の基準を外していないか | `p12-priorities-deferrals.R1` |
 | `review:perspectives#stage-definition` | 観点書：レビューの段：定義 | `p12-review-viewpoints.R1`, `p12-review-viewpoints.R2`, `p12-review-viewpoints.R3`, `p12-review-viewpoints.R19` |
@@ -196,13 +196,13 @@
 | `lint:L24` | 値の種類ごとの型の規則に反する（ID・金額は文字列で 2^53 を超えうる number にしない、時刻は NumericDate、真偽は boolean、複数値は配列）（仮称 type-by-kind） | `p00-why-hard.R4`, `p04-type.R2`, `p04-type.R3`, `p04-type.R4`, `p04-type.R5`, `p04-type.R6`, `p04-absent-null-false-empty.R5`, `p04-design-checklist.R5`, `p11-contract-test-gaps.R2`, `p11-pre-add-questions-1.R8` |
 | `lint:L25` | token_types の key_source が、許可リストなしの jku・x5u の追跡や、ヘッダーの jwk・x5c の信頼を含めば error（仮称 header-key-params） | `p01-dangerous-header-params.R4`, `p01-dangerous-header-params.R5` |
 | `lint:L27` | required_claims に exp・aud・iss が無い、または max_clock_skew が無いか上限（例 300 秒）を超える（仮称 required-exp-and-skew） | `p01-attack-patterns.R5`, `p12-antipatterns-1.R8` |
-| `lint:L28` | usage が identifier のキーに sub を単独で使い、iss と組にしていなければ error（仮称 identifier-pairs-iss） | `p02-registered-claims.R2`, `p02-user-identifier.R1` |
+| `lint:L28` | usage が identifier のキーに sub を単独で使い、iss と組にしていなければ error（仮称 identifier-pairs-iss） | `p00-incident-signature-valid.R3`, `p02-registered-claims.R2`, `p02-user-identifier.R1` |
 | `lint:L29` | tenant_binding がテナントのクレームだけで、aud・iss・鍵の分離のどれとも重ねていなければ warn（仮称 tenant-binding-layered） | `p02-tenant-org.R2` |
 | `lint:L30` | act の中に識別以外のクレーム（権限・exp・aud・独自クレーム）を入れる宣言があれば error（仮称 act-identity-only） | `p02-delegation-client.R2`, `p02-delegation-client.R4` |
 | `lint:L31` | usage が authz のクレーム（または STS のタグ・DB の文脈）の provenance が、呼び出し側の申告か本人が編集できる値（仮称 provenance-authz） | `p03-cognito-pre-token-hook.R4`, `p04-split-by-writer.R2`, `p04-split-by-writer.R3`, `p04-namespace-object-example.R3`, `p07-three-db-paths.R4`, `p07-row-level-security.R2`, `p07-cloud-attributes.R1`, `p07-data-layer-checklist.R4`, `p12-antipatterns-1.R7`, `p12-review-viewpoints.R15` |
 | `lint:L32` | 入口より内側の受け手が、外部 IdP 固有のクレーム（組織の名前空間・内部発行者以外）を読んでいる（仮称 internal-reads-org-claims） | `p03-confusing-differences.R1`, `p03-absorb-idp-differences.R4` |
-| `lint:L33` | 上限で欠落・切り捨て・置き換えが起きうるクレームを usage authz に使っている（仮称 truncatable-not-authz） | `p03-confusing-differences.R3`, `p04-absent-null-false-empty.R4`, `p04-size-budget.R3` |
-| `lint:L34` | クレーム名が IdP・受け手の基盤の予約名・予約接頭辞の一覧（出典と確認日つき）と衝突している（仮称 reserved-name-collision） | `p04-claim-names.R3`, `p04-design-checklist.R3`, `p11-reserved-names.R1`, `p11-reserved-names.R4`, `p11-pre-add-questions-1.R4` |
+| `lint:L33` | 上限で欠落・切り捨て・置き換えが起きうるクレームを usage authz に使っている（仮称 truncatable-not-authz） | `p03-confusing-differences.R3`, `p04-absent-null-false-empty.R4`, `p04-size-budget.R3`, `p11-why-govern.R2` |
+| `lint:L34` | クレーム名が IdP・受け手の基盤の予約名・予約接頭辞の一覧（出典と確認日つき）と衝突している（仮称 reserved-name-collision） | `p04-claim-names.R3`, `p04-design-checklist.R3`, `p11-why-govern.R2`, `p11-reserved-names.R1`, `p11-reserved-names.R4`, `p11-pre-add-questions-1.R4` |
 | `lint:L35` | 「.」を含む名前を、ドット区切りで解釈する受け手のツールの参照式で読んでいる（仮称 dotted-name-tool） | `p04-namespace.R3` |
 | `lint:L36` | 区切り文字の連結、scope 以外の空白区切り、JSON の文字列化、文字列の真偽を使っている（理由の記載がない）（仮称 shape-no-concat） | `p04-shape.R1`, `p04-shape.R2`, `p04-shape.R3`, `p04-design-checklist.R6` |
 | `lint:L37` | effect が許可のクレームで無いときに許す、制限のクレームで無いときに拒否しない（仮称 absent-semantics） | `p04-absent-null-false-empty.R2`, `p04-absent-null-false-empty.R3` |
@@ -229,18 +229,19 @@
 | `lint:L59` | 委任のあるトークン種別に max_delegation_depth がない、または経路の深さが上限を超える（仮称 delegation-depth） | `p10-delegation-chain-depth.R1`, `p10-agent-checklist.R8`, `p12-priorities-deferrals.R6` |
 | `lint:L61` | 発行の設定（マッパー・フック）に台帳に無いクレーム名がある（仮称 issuer-config-unregistered） | `p11-reserved-names.R4`, `p12-review-viewpoints.R3` |
 
-## #8（31 件）
+## #8（32 件）
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
-| `test:negative_tests#untrusted-key` | 設定外の鍵、または別の発行者の鍵で正しく署名したトークンが拒否される | `p01-validation-order.R3`, `p12-antipatterns-1.R5` |
+| `test:negative_tests#revoked-token-rejected` | 失効（剥奪・ログアウト・SSF/CAEP のイベント）を受け取った受け手が、そのトークンを拒否し、セッションを終えることを確かめる | `p08-revocation-propagation.R2` |
+| `test:negative_tests#untrusted-key` | 設定外の鍵、または別の発行者の鍵で正しく署名したトークンが拒否される | `p00-incident-signature-valid.R1`, `p01-validation-order.R3`, `p12-antipatterns-1.R5` |
 | `test:negative_tests#iss-mismatch` | iss が想定と完全一致しない（部分一致・末尾のスラッシュ違いを含む）トークンが拒否される | `p01-validation-order.R4`, `p02-registered-claims.R1` |
 | `test:negative_tests#nbf-future` | nbf が未来のトークン、許容を超えた時刻のずれのトークンが拒否される | `p01-validation-order.R6` |
 | `test:negative_tests#missing-required` | exp・aud・iss など必須クレームを欠いたトークンが拒否され、文字列と配列の aud がどちらも正しく扱われる | `p01-validation-order.R8`, `p01-library-defaults.R2`, `p03-cognito-token-use.R3`, `p03-confusing-differences.R4` |
 | `test:negative_tests#alg-confusion` | RS256 の公開鍵を HMAC の鍵にした HS256 の署名（アルゴリズムの混同）が拒否される | `p01-dangerous-header-params.R2`, `p01-attack-patterns.R1`, `p12-antipatterns-1.R1` |
 | `test:negative_tests#jku-x5u` | jku・x5u で攻撃者の鍵の場所を指したトークンが拒否され、その URL が取得されない | `p01-dangerous-header-params.R4` |
 | `test:negative_tests#embedded-jwk` | ヘッダーの jwk・x5c に埋め込んだ自前の鍵で署名したトークンが拒否される | `p01-dangerous-header-params.R5` |
-| `test:negative_tests#tenant-mismatch` | 別テナントのトークン（発行者・鍵・テナントのクレーム）や、URL・ヘッダーのテナント ID とトークンのテナントが食い違う要求が拒否される | `p01-attack-patterns.R3`, `p02-tenant-org.R3`, `p05-multitenancy.R3`, `p05-multitenancy.R6`, `p06-flow-multitenant-saas.R2`, `p12-antipatterns-1.R4` |
+| `test:negative_tests#tenant-mismatch` | 別テナントのトークン（発行者・鍵・テナントのクレーム）や、URL・ヘッダーのテナント ID とトークンのテナントが食い違う要求が拒否される | `p00-incident-signature-valid.R2`, `p01-attack-patterns.R3`, `p02-tenant-org.R3`, `p05-multitenancy.R3`, `p05-multitenancy.R6`, `p06-flow-multitenant-saas.R2`, `p12-antipatterns-1.R4` |
 | `test:negative_tests#duplicate-claim` | 同名のクレームが重複したトークンが拒否される | `p01-attack-patterns.R6` |
 | `test:negative_tests#disabled-subject-exchange` | 無効にした利用者のトークンを交換しても、新しいトークンが出ない（CVE-2025-14559 の型） | `p03-keycloak-aud-lightweight.R5` |
 | `test:consumer_contract#issued-claims-present` | 実際に発行したトークンに、台帳で宣言した独自クレームが名前・型どおりに全部入っている（黙った欠落の検出） | `p03-entra-scp-roles-groups.R4`, `p03-auth0-namespace.R2` |

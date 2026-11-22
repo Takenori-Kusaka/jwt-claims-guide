@@ -498,6 +498,7 @@ items:
   - {ref: lint:L59, issue: "#6", origin: proposed, title: "委任のあるトークン種別に max_delegation_depth がない、または経路の深さが上限を超える（仮称 delegation-depth）"}
   - {ref: lint:L61, issue: "#6", origin: proposed, title: "発行の設定（マッパー・フック）に台帳に無いクレーム名がある（仮称 issuer-config-unregistered）"}
   # ---- #8
+  - {ref: test:negative_tests#revoked-token-rejected, issue: "#8", origin: proposed, title: "失効（剥奪・ログアウト・SSF/CAEP のイベント）を受け取った受け手が、そのトークンを拒否し、セッションを終えることを確かめる"}
   - {ref: test:negative_tests#untrusted-key, issue: "#8", origin: proposed, title: "設定外の鍵、または別の発行者の鍵で正しく署名したトークンが拒否される"}
   - {ref: test:negative_tests#iss-mismatch, issue: "#8", origin: proposed, title: "iss が想定と完全一致しない（部分一致・末尾のスラッシュ違いを含む）トークンが拒否される"}
   - {ref: test:negative_tests#nbf-future, issue: "#8", origin: proposed, title: "nbf が未来のトークン、許容を超えた時刻のずれのトークンが拒否される"}
