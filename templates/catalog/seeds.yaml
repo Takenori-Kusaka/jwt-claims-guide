@@ -333,7 +333,7 @@ seed_lists:
       - {id: "post-change-password"}
       - {id: "password-reset-post-challenge"}
       - {id: "send-phone-message", out_of_scope: {assumption: "SMS・音声で MFA の文言を送る処理で、トークンを発行しない", breaks_when: "このトリガーの中でトークンを作って外部に渡す実装をするとき"}}
-      - {id: "custom-token-exchange"}
+      - {id: "custom-token-exchange", note: "Early Access（https://auth0.com/docs/custom-token-exchange-early-access、2026-11-23 に確かめた）"}
   - id: auth0-grant
     name: "Auth0 の Application Grant Types（アプリの Advanced Settings の Grant Types）"
     kind: spec

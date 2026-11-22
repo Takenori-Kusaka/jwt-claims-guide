@@ -57,12 +57,13 @@
 | `seeds.yaml` の `identity-assertion-jwt` | 曖昧 | features のページに状態の表示がない | 出どころを 26.7.0 のリリースノートと note に書いた |
 | I02・行列の Revoke Refresh Token の既定 | 確認不能 | 文書に書かれていない（根拠はスライドだけ） | 「文書に記載なし（スライドとソースの要約。V31）」にした |
 | I05 の Auth0 の既定 | 曖昧 | 文書は「confidential」とだけ書く | 「文書の分類」と書き、Regular Web・M2M という名前は文書に出ないと注記した |
-| I06 の Custom Token Exchange の成熟度 | 確認不能 | changelog・blog に Early Access とある | **反映しない**。作成者は changelog・blog を読んでおらず、製品の文書には表示がない。V34 に残す（理由を別の点検で確かめるのは未実施） |
+| I06 の Custom Token Exchange の成熟度 | 確認不能 | changelog・blog に Early Access とある | 作成者は当初反映しなかった（changelog・blog を読んでいないため）。**2 回目の点検（2026-11-23）で、この不採用は認められなかった**：Auth0 の文書自体に Early Access のページ（https://auth0.com/docs/custom-token-exchange-early-access）があり、主のページ（https://auth0.com/docs/authenticate/custom-token-exchange）も提供段階の注記を出す。GA の告知は見当たらない。I06 の Auth0 の列と seeds.yaml の項目を Early Access にし（`verified_on: 2026-11-23`）、V34 からこの点を外した |
 
 ## まだ点検していないもの
 
 - 行ごとの事実の残り（上の注の欄のうち、抜き取りの 43 件の外）
 - Keycloak 26.8.2 のソースの要約で補った既定値（V31）。行を直接確かめていない
+- 反映しない指摘は 0 件（1 件あったが、2 回目の点検で覆り、反映した）
 - 根拠の中身の 10%（最低 10 件）の抜き取りを、完了の定義の手順どおりの件数で記録すること（今回の 43 件は事実の点検で、根拠の中身の抜き取りとしては数えていない）
 - 種の項目と行の対応が正しいか（`seeds` に何を書いても閉包は満たされる。意味の対応は人の点検に頼る）
 

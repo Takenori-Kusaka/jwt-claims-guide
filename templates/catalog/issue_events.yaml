@@ -75,6 +75,8 @@ _refs:
   a0_bcl: &a0_bcl {kind: spec, id: "Auth0 Docs「Configure OIDC Back-Channel Logout」", url: "https://auth0.com/docs/authenticate/login/logout/back-channel-logout/configure-back-channel-logout", verified_on: 2026-11-22}
   a0_org: &a0_org {kind: spec, id: "Auth0 Docs「Work with Tokens and Organizations」", url: "https://auth0.com/docs/manage-users/organizations/using-tokens", verified_on: 2026-11-22}
   a0_cte: &a0_cte {kind: spec, id: "Auth0 Docs「Custom Token Exchange Trigger」", url: "https://auth0.com/docs/customize/actions/explore-triggers/custom-token-exchange", verified_on: 2026-11-22}
+  a0_cte_ea: &a0_cte_ea {kind: spec, id: "Auth0 Docs「Custom Token Exchange（Early Access）」", url: "https://auth0.com/docs/custom-token-exchange-early-access", verified_on: 2026-11-23}
+  a0_cte_main: &a0_cte_main {kind: spec, id: "Auth0 Docs「Custom Token Exchange」（提供段階の注記）", url: "https://auth0.com/docs/authenticate/custom-token-exchange", verified_on: 2026-11-23}
   a0_obo: &a0_obo {kind: spec, id: "Auth0 Docs「On-Behalf-Of Token Exchange」", url: "https://auth0.com/docs/secure/call-apis-on-users-behalf/on-behalf-of-token-exchange", verified_on: 2026-11-22}
   a0_sender: &a0_sender {kind: spec, id: "Auth0 Docs「Configure Sender Constraining」", url: "https://auth0.com/docs/secure/sender-constraining/configure-sender-constraining", verified_on: 2026-11-22}
   a0_jar: &a0_jar {kind: spec, id: "Auth0 Docs「Configure JWT-Secured Authorization Requests (JAR)」", url: "https://auth0.com/docs/get-started/applications/configure-jar", verified_on: 2026-11-22}
@@ -309,8 +311,8 @@ events:
         hook_invoked: "yes"
         hook_note: Custom Token Exchange では custom-token-exchange が先に動き、利用者が決まった後に post-login が protocol oauth2-token-exchange で動く（文書）。On-Behalf-Of の交換も post-login を起こす（文書）
         stop_setting: null
-        lifetime_note: Custom Token Exchange は B2C・B2B の Professional と Enterprise のプラン（文書）。成熟度（GA か Early Access か）は文書に表示がない（V34）
-        source_refs: [*a0_cte, *a0_obo, *a0_event]
+        lifetime_note: Custom Token Exchange は Early Access（Auth0 の文書に Early Access のページがあり、主のページは提供段階の注記を出す。GA の告知は 2026-11-23 時点で見当たらない）。B2C・B2B の Professional と Enterprise のプラン（文書）
+        source_refs: [*a0_cte, *a0_cte_ea, *a0_cte_main, *a0_obo, *a0_event]
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
