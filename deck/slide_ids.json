@@ -73,840 +73,882 @@
  },
  {
   "n": 13,
+  "id": "p01-key-rotation-jwks",
+  "part": "p01",
+  "title": "鍵のローテーション：JWKS はキャッシュし、知らない kid で取り直す"
+ },
+ {
+  "n": 14,
+  "id": "p01-client-made-jwts",
+  "part": "p01",
+  "title": "クライアントが作る JWT：種類ごとに aud・typ・jti を確かめる"
+ },
+ {
+  "n": 15,
   "id": "p01-id-token-vs-access-token",
   "part": "p01",
   "title": "ID トークンとアクセストークン：宛先が違う"
  },
  {
-  "n": 14,
+  "n": 16,
   "id": "p01-self-contained-vs-reference",
   "part": "p01",
   "title": "自己完結型と参照型：クレームを運ぶか、問い合わせるか"
  },
  {
-  "n": 15,
+  "n": 17,
   "id": "p01-library-defaults",
   "part": "p01",
   "title": "ライブラリの既定値は、安全側とは限らない"
  },
  {
-  "n": 16,
+  "n": 18,
   "id": "p01-attack-patterns",
   "part": "p01",
   "title": "攻撃の型：どれも「確かめなかったクレーム」から入る"
  },
  {
-  "n": 17,
+  "n": 19,
   "id": "p02-part",
   "part": "p02",
   "title": "既存のクレームの地図：独自クレームを作る前に"
  },
  {
-  "n": 18,
+  "n": 20,
   "id": "p02-registered-claims",
   "part": "p02",
   "title": "登録クレーム：7 つの意味と、意味しないこと"
  },
  {
-  "n": 19,
+  "n": 21,
   "id": "p02-name-categories",
   "part": "p02",
   "title": "名前の 3 区分：登録名・公開名・私的名"
  },
  {
-  "n": 20,
+  "n": 22,
   "id": "p02-claims-by-purpose",
   "part": "p02",
   "title": "用途別の地図：16 の用途と既存のクレーム"
  },
  {
-  "n": 21,
+  "n": 23,
   "id": "p02-user-identifier",
   "part": "p02",
   "title": "利用者の識別：安定したキーは iss と sub の組だけ"
  },
  {
-  "n": 22,
+  "n": 24,
   "id": "p02-tenant-org",
   "part": "p02",
   "title": "テナント・組織：登録クレームはなく、各社が独自"
  },
  {
-  "n": 23,
+  "n": 25,
   "id": "p02-roles-groups-entitlements",
   "part": "p02",
   "title": "役割・グループ・資格：名前は標準、語彙は組織で"
  },
  {
-  "n": 24,
+  "n": 26,
   "id": "p02-scope",
   "part": "p02",
   "title": "権限：scope はクライアントに許した範囲"
  },
  {
-  "n": 25,
+  "n": 27,
   "id": "p02-auth-strength-session",
   "part": "p02",
   "title": "認証の強さとセッション：acr・amr・auth_time・sid"
  },
  {
-  "n": 26,
+  "n": 28,
   "id": "p02-delegation-client",
   "part": "p02",
   "title": "委任とクライアント：sub は代理される主体"
  },
  {
-  "n": 27,
+  "n": 29,
   "id": "p02-keys-events-identity-assurance",
   "part": "p02",
   "title": "鍵・イベント・本人確認：既存の構造を使う"
  },
  {
-  "n": 28,
+  "n": 30,
   "id": "p02-not-in-registry",
   "part": "p02",
   "title": "標準の登録簿にないもの：テナント・同意・端末"
  },
  {
-  "n": 29,
+  "n": 31,
   "id": "p02-saml-attributes",
   "part": "p02",
   "title": "SAML の属性と JWT：対応表は規範ではない"
  },
  {
-  "n": 30,
+  "n": 32,
   "id": "p02-check-before-creating",
   "part": "p02",
   "title": "独自クレームを作る前の確認：4 つの場所を探す"
  },
  {
-  "n": 31,
+  "n": 33,
   "id": "p03-part",
   "part": "p03",
   "title": "4 つの IdP の実際"
  },
  {
-  "n": 32,
+  "n": 34,
   "id": "p03-idp-comparison",
   "part": "p03",
   "title": "4 つの IdP の比較：同じ用途、違うクレーム"
  },
  {
-  "n": 33,
+  "n": 35,
   "id": "p03-entra-oid-tid",
   "part": "p03",
   "title": "Entra ID：キーは oid と tid、sub はアプリごと"
  },
  {
-  "n": 34,
+  "n": 36,
   "id": "p03-entra-scp-roles-groups",
   "part": "p03",
   "title": "Entra ID：scp と roles、グループの超過、拡張属性"
  },
  {
-  "n": 35,
+  "n": 37,
   "id": "p03-keycloak-mappers",
   "part": "p03",
   "title": "Keycloak：マッパーがなければクレームは出ない"
  },
  {
-  "n": 36,
+  "n": 38,
   "id": "p03-keycloak-aud-lightweight",
   "part": "p03",
   "title": "Keycloak：aud・軽量トークン・組織・トークン交換"
  },
  {
-  "n": 37,
+  "n": 39,
   "id": "p03-auth0-namespace",
   "part": "p03",
   "title": "Auth0：名前空間の規則と、黙って消えるクレーム"
  },
  {
-  "n": 38,
+  "n": 40,
   "id": "p03-okta-custom-as",
   "part": "p03",
   "title": "Okta：Custom AS を使い、AT では uid を見る"
  },
  {
-  "n": 39,
+  "n": 41,
   "id": "p03-cognito-token-use",
   "part": "p03",
   "title": "Cognito：token_use を確かめ、aud の欠落に備える"
  },
  {
-  "n": 40,
+  "n": 42,
   "id": "p03-cognito-pre-token-hook",
   "part": "p03",
   "title": "Cognito：発行前フックと custom: 属性の落とし穴"
  },
  {
-  "n": 41,
+  "n": 43,
   "id": "p03-recent-changes",
   "part": "p03",
   "title": "最近の変更：古い理解のままだと誤る点"
  },
  {
-  "n": 42,
+  "n": 44,
   "id": "p03-custom-claim-injection",
   "part": "p03",
   "title": "独自クレームの入れ方：失敗しても黙って出る"
  },
  {
-  "n": 43,
+  "n": 45,
   "id": "p03-confusing-differences",
   "part": "p03",
   "title": "取り違えやすい点：同じ名前でも形と意味が違う"
  },
  {
-  "n": 44,
+  "n": 46,
   "id": "p03-absorb-idp-differences",
   "part": "p03",
   "title": "IdP の差は入口で吸収する"
  },
  {
-  "n": 45,
+  "n": 47,
   "id": "p04-part",
   "part": "p04",
   "title": "独自クレームの設計原則"
  },
  {
-  "n": 46,
+  "n": 48,
   "id": "p04-token-is-snapshot",
   "part": "p04",
   "title": "トークンは写し：発行後の変更は届かない"
  },
  {
-  "n": 47,
+  "n": 49,
   "id": "p04-carry-or-query",
   "part": "p04",
   "title": "載せるか、問い合わせるか：4 つの問いで決める"
  },
  {
-  "n": 48,
+  "n": 50,
   "id": "p04-claim-names",
   "part": "p04",
   "title": "クレーム名：まず登録名、無ければ自社の名前空間"
  },
  {
-  "n": 49,
+  "n": 51,
   "id": "p04-namespace",
   "part": "p04",
   "title": "名前空間：1 つにまとめ、受け手のツールで試す"
  },
  {
-  "n": 50,
+  "n": 52,
   "id": "p04-type",
   "part": "p04",
   "title": "型：1 つに固定する。ID と金額は文字列で"
  },
  {
-  "n": 51,
+  "n": 53,
   "id": "p04-shape",
   "part": "p04",
   "title": "形：配列は配列で、JSON は JSON のまま"
  },
  {
-  "n": 52,
+  "n": 54,
   "id": "p04-absent-null-false-empty",
   "part": "p04",
   "title": "無い・null・false・空配列：意味を決めておく"
  },
  {
-  "n": 53,
+  "n": 55,
   "id": "p04-case-and-characters",
   "part": "p04",
   "title": "大文字小文字と文字：比べ方を決める"
  },
  {
-  "n": 54,
+  "n": 56,
   "id": "p04-immutable-identifiers",
   "part": "p04",
   "title": "識別子：名前ではなく、変わらない ID で一致させる"
  },
  {
-  "n": 55,
+  "n": 57,
   "id": "p04-split-by-writer",
   "part": "p04",
   "title": "書き手で分ける：確認済みの値と申告の値"
  },
  {
-  "n": 56,
+  "n": 58,
   "id": "p04-size-budget",
   "part": "p04",
   "title": "サイズの予算：上限を超えると黙って消える"
  },
  {
-  "n": 57,
+  "n": 59,
   "id": "p04-forward-compatibility",
   "part": "p04",
   "title": "前方互換：知らないものは無視、必須の欠落は拒否"
  },
  {
-  "n": 58,
+  "n": 60,
   "id": "p04-reject-missing-required",
   "part": "p04",
   "title": "必須の欠落は拒否。ただし IdP の違いを埋めてから"
  },
  {
-  "n": 59,
+  "n": 61,
   "id": "p04-single-issuer",
   "part": "p04",
   "title": "付与するのは単一の発行者：各サービスは足さない"
  },
  {
-  "n": 60,
+  "n": 62,
   "id": "p04-namespace-object-example",
   "part": "p04",
   "title": "設計例：組織の名前空間オブジェクト"
  },
  {
-  "n": 61,
+  "n": 63,
   "id": "p04-design-checklist",
   "part": "p04",
   "title": "設計のチェックリスト：12 の確認"
  },
  {
-  "n": 62,
+  "n": 64,
   "id": "p05-part",
   "part": "p05",
   "title": "権限の表現：利用者・サービス・システム"
  },
  {
-  "n": 63,
+  "n": 65,
   "id": "p05-three-principals",
   "part": "p05",
   "title": "3 種類の主体：利用者・ワークロード・システム"
  },
  {
-  "n": 64,
+  "n": 66,
   "id": "p05-one-request-carries",
   "part": "p05",
   "title": "1 リクエストで運ぶ：誰の権限・誰が実行・どこ経由"
  },
  {
-  "n": 65,
+  "n": 67,
   "id": "p05-authz-models",
   "part": "p05",
   "title": "権限のモデル：RBAC・ABAC・関係ベース"
  },
  {
-  "n": 66,
+  "n": 68,
   "id": "p05-pep-pdp",
   "part": "p05",
   "title": "PEP と PDP：クレームは判断の入力の 1 つ"
  },
  {
-  "n": 67,
+  "n": 69,
   "id": "p05-coarse-fine-layers",
   "part": "p05",
   "title": "粗い権限と細かい権限：3 層で分担する"
  },
  {
-  "n": 68,
+  "n": 70,
   "id": "p05-scope-vs-role",
   "part": "p05",
   "title": "scope と role：守る相手が違う"
  },
  {
-  "n": 69,
+  "n": 71,
   "id": "p05-role-explosion",
   "part": "p05",
   "title": "ロール爆発：細かい権限をロールで表さない"
  },
  {
-  "n": 70,
+  "n": 72,
   "id": "p05-system-privileges",
   "part": "p05",
   "title": "システムの権限：バッチ・運用者・緊急時を分ける"
  },
  {
-  "n": 71,
+  "n": 73,
   "id": "p05-multitenancy",
   "part": "p05",
   "title": "マルチテナント：iss と tid の両方で確かめる"
  },
  {
-  "n": 72,
+  "n": 74,
   "id": "p05-cross-tenant",
   "part": "p05",
   "title": "テナントをまたぐ：利用者・運用者・取引先"
  },
  {
-  "n": 73,
+  "n": 75,
   "id": "p05-bola",
   "part": "p05",
   "title": "BOLA：クレームはオブジェクトの確認を代わらない"
  },
  {
-  "n": 74,
+  "n": 76,
   "id": "p05-confused-deputy",
   "part": "p05",
   "title": "代理の混乱：連鎖を見せ、自分宛てだけを受ける"
  },
  {
-  "n": 75,
+  "n": 77,
   "id": "p06-part",
   "part": "p06",
   "title": "流れ：どこで足し、どこで絞るか"
  },
  {
-  "n": 76,
+  "n": 78,
   "id": "p06-stage-map",
   "part": "p06",
   "title": "段階の地図：クレームは 6 か所で生まれる"
  },
  {
-  "n": 77,
+  "n": 79,
   "id": "p06-issuance-hook",
   "part": "p06",
   "title": "発行時フック：失敗しても、トークンは出る"
  },
  {
-  "n": 78,
+  "n": 80,
+  "id": "p06-grant-types",
+  "part": "p06",
+  "title": "発行の入口：グラントごとに、主体と認証した場所が違う"
+ },
+ {
+  "n": 81,
   "id": "p06-edge-exchange",
   "part": "p06",
   "title": "入口での交換：外の形式を、内側に持ち込まない"
  },
  {
-  "n": 79,
+  "n": 82,
   "id": "p06-transaction-tokens",
   "part": "p06",
   "title": "Transaction Tokens：呼び出し全体の文脈を運ぶ"
  },
  {
-  "n": 80,
+  "n": 83,
   "id": "p06-step-up-approval",
   "part": "p06",
   "title": "追加認証と承認：その場で求め、結果を足す"
  },
  {
-  "n": 81,
+  "n": 84,
   "id": "p06-narrow-downstream",
   "part": "p06",
   "title": "下流ほど絞る：仕様は強制しない。組織で決める"
  },
  {
-  "n": 82,
+  "n": 85,
   "id": "p06-validation-split",
   "part": "p06",
   "title": "検証の分担：入口で検証しても、各サービスでも検証する"
  },
  {
-  "n": 83,
+  "n": 86,
   "id": "p06-access-context",
   "part": "p06",
   "title": "アクセス元の文脈：トークンに入れると古くなる"
  },
  {
-  "n": 84,
+  "n": 87,
   "id": "p06-header-forwarding",
   "part": "p06",
   "title": "ヘッダーへの転記：利用者が送った同名ヘッダーを消す"
  },
  {
-  "n": 85,
+  "n": 88,
   "id": "p06-audit-trail",
   "part": "p06",
   "title": "証跡：誰が・どの経路で・何の承認で動いたか"
  },
  {
-  "n": 86,
+  "n": 89,
   "id": "p06-return-results",
   "part": "p06",
   "title": "結果を返す：JWT にするのは、自己完結した主張だけ"
  },
  {
-  "n": 87,
+  "n": 90,
   "id": "p06-flow-browser-to-db",
   "part": "p06",
   "title": "流れの例 1：ブラウザから DB まで"
  },
  {
-  "n": 88,
+  "n": 91,
   "id": "p06-flow-multitenant-saas",
   "part": "p06",
   "title": "流れの例 2：マルチテナント SaaS"
  },
  {
-  "n": 89,
+  "n": 92,
   "id": "p06-flow-partner-events",
   "part": "p06",
   "title": "流れの例 3・4：取引先との API と、イベント駆動"
  },
  {
-  "n": 90,
+  "n": 93,
   "id": "p06-flow-checklist",
   "part": "p06",
   "title": "流れの規則：レビューで確かめる 10 項目"
  },
  {
-  "n": 91,
+  "n": 94,
   "id": "p07-part",
   "part": "p07",
   "title": "データ層：データアクセスとデータベース認証"
  },
  {
-  "n": 92,
+  "n": 95,
   "id": "p07-three-db-paths",
   "part": "p07",
   "title": "DB への 3 つの経路：誰がクレームを解釈するか"
  },
  {
-  "n": 93,
+  "n": 96,
   "id": "p07-row-level-security",
   "part": "p07",
   "title": "行単位の制御：クレームで行を絞る製品の違い"
  },
  {
-  "n": 94,
+  "n": 97,
   "id": "p07-trust-boundary",
   "part": "p07",
   "title": "信頼境界：DB の文脈を設定してよいのは誰か"
  },
  {
-  "n": 95,
+  "n": 98,
   "id": "p07-connection-pool",
   "part": "p07",
   "title": "接続プール：前の利用者の文脈が残る"
  },
  {
-  "n": 96,
+  "n": 99,
   "id": "p07-db-token-auth",
   "part": "p07",
   "title": "DB 認証：パスワードの代わりにトークンで入る"
  },
  {
-  "n": 97,
+  "n": 100,
   "id": "p07-lifetime-mismatch",
   "part": "p07",
   "title": "寿命のずれ：トークンが切れても、接続は生きている"
  },
  {
-  "n": 98,
+  "n": 101,
   "id": "p07-connect-as-whom",
   "part": "p07",
   "title": "誰として接続するか：利用者の ID か、サービスの ID か"
  },
  {
-  "n": 99,
+  "n": 102,
   "id": "p07-masking",
   "part": "p07",
   "title": "マスキング：ロールを決めるクレームが最も機微"
  },
  {
-  "n": 100,
+  "n": 103,
   "id": "p07-cloud-attributes",
   "part": "p07",
   "title": "クラウドの属性：クレームがそのまま効くとは限らない"
  },
  {
-  "n": 101,
+  "n": 104,
   "id": "p07-data-layer-checklist",
   "part": "p07",
   "title": "データ層の規則：レビューで確かめる 10 項目"
  },
  {
-  "n": 102,
+  "n": 105,
   "id": "p08-part",
   "part": "p08",
   "title": "有効期限・リフレッシュ・失効"
  },
  {
-  "n": 103,
+  "n": 106,
+  "id": "p08-four-lifetimes",
+  "part": "p08",
+  "title": "寿命の 4 つの層：トークン・値の鮮度・セッション・定義"
+ },
+ {
+  "n": 107,
   "id": "p08-token-types-lifetimes",
   "part": "p08",
   "title": "トークンの種類と寿命：種類ごとに別々に決める"
  },
  {
-  "n": 104,
+  "n": 108,
   "id": "p08-choosing-lifetime",
   "part": "p08",
   "title": "寿命の決め方：RFC に数値はなく、指針は IR 8587"
  },
  {
-  "n": 105,
+  "n": 109,
   "id": "p08-stale-claims",
   "part": "p08",
   "title": "寿命の間のクレーム：剥奪しても exp までは古い値"
  },
  {
-  "n": 106,
+  "n": 110,
   "id": "p08-refresh-reevaluation",
   "part": "p08",
   "title": "リフレッシュ時の再評価：IdP ごとに違う"
  },
  {
-  "n": 107,
+  "n": 111,
+  "id": "p08-reissue-triggers",
+  "part": "p08",
+  "title": "再発行の契機：利用者の状態が変わったら、新しい写しを出す"
+ },
+ {
+  "n": 112,
   "id": "p08-rotation",
   "part": "p08",
   "title": "ローテーション：RFC 9700 と FAPI 2.0 は前提が違う"
  },
  {
-  "n": 108,
+  "n": 113,
   "id": "p08-revocation-propagation",
   "part": "p08",
   "title": "失効の伝播：問い合わせ・状態リスト・イベント"
  },
  {
-  "n": 109,
+  "n": 114,
+  "id": "p08-logout",
+  "part": "p08",
+  "title": "ログアウトと失効の要求：消えるのはセッションと RT"
+ },
+ {
+  "n": 115,
   "id": "p08-async-processing",
   "part": "p08",
   "title": "非同期処理：キューに利用者のトークンを入れない"
  },
  {
-  "n": 110,
+  "n": 116,
   "id": "p08-downstream-after-expiry",
   "part": "p08",
   "title": "期限切れの後の下流呼び出し：作り直しを AS が判断"
  },
  {
-  "n": 111,
+  "n": 117,
+  "id": "p08-copies-outlive-token",
+  "part": "p08",
+  "title": "トークンより長く生きる写し：長い接続・判断のキャッシュ・分析基盤"
+ },
+ {
+  "n": 118,
   "id": "p08-decision-table",
   "part": "p08",
   "title": "判断表：寿命・リフレッシュ・失効を状況で選ぶ"
  },
  {
-  "n": 112,
+  "n": 119,
   "id": "p09-part",
   "part": "p09",
   "title": "機微情報・最小化・ログ"
  },
  {
-  "n": 113,
+  "n": 120,
   "id": "p09-jws-is-readable",
   "part": "p09",
   "title": "JWS は誰でも読める：載せる前に漏れる先を考える"
  },
  {
-  "n": 114,
+  "n": 121,
   "id": "p09-do-not-carry",
   "part": "p09",
   "title": "載せない情報：秘密・機微な属性・変わる識別子"
  },
  {
-  "n": 115,
+  "n": 122,
   "id": "p09-minimize-derived",
   "part": "p09",
   "title": "最小化と派生値：生年月日ではなく「18 歳以上か」"
  },
  {
-  "n": 116,
+  "n": 123,
   "id": "p09-pairwise-identifiers",
   "part": "p09",
   "title": "ペアワイズの識別子：受け手ごとに違う sub"
  },
  {
-  "n": 117,
+  "n": 124,
   "id": "p09-jwe-sd-jwt",
   "part": "p09",
   "title": "JWE と SD-JWT：暗号は最後の手段として使う"
  },
  {
-  "n": 118,
+  "n": 125,
   "id": "p09-logs-traces",
   "part": "p09",
   "title": "ログとトレース：トークン全文を残さない"
  },
  {
-  "n": 119,
+  "n": 126,
   "id": "p09-url-browser",
   "part": "p09",
   "title": "URL とブラウザ：トークンを履歴に残さない"
  },
  {
-  "n": 120,
+  "n": 127,
   "id": "p09-checklist",
   "part": "p09",
   "title": "チェックリスト：機微情報・最小化・ログ"
  },
  {
-  "n": 121,
+  "n": 128,
   "id": "p10-part",
   "part": "p10",
   "title": "AI エージェントのアクセスポリシー"
  },
  {
-  "n": 122,
+  "n": 129,
   "id": "p10-agent-identity",
   "part": "p10",
   "title": "エージェントの ID：利用者のトークンを借りない"
  },
  {
-  "n": 123,
+  "n": 130,
   "id": "p10-four-questions",
   "part": "p10",
   "title": "4 つの問いとクレーム：誰が・何が・何を・どこに"
  },
  {
-  "n": 124,
+  "n": 131,
   "id": "p10-per-tool-scopes",
   "part": "p10",
   "title": "ツールごとのスコープ：狭く始め、タスクごとに短く"
  },
  {
-  "n": 125,
+  "n": 132,
   "id": "p10-human-approval-evidence",
   "part": "p10",
   "title": "人の承認の証拠：エージェントに判断させない"
  },
  {
-  "n": 126,
+  "n": 133,
   "id": "p10-mcp-authorization",
   "part": "p10",
   "title": "MCP の認可：受け取ったトークンを渡さない"
  },
  {
-  "n": 127,
+  "n": 134,
   "id": "p10-token-exchange-not-narrowing",
   "part": "p10",
   "title": "トークン交換は絞るとは限らない：Keycloak 26.8 の実測"
  },
  {
-  "n": 128,
+  "n": 135,
   "id": "p10-delegation-chain-depth",
   "part": "p10",
   "title": "委任の連鎖と深さ：上限は組織の規則で決める"
  },
  {
-  "n": 129,
+  "n": 136,
   "id": "p10-vendor-features",
   "part": "p10",
   "title": "各社の機能：2026 年 11 月時点の姿"
  },
  {
-  "n": 130,
+  "n": 137,
   "id": "p10-guidance-standards",
   "part": "p10",
   "title": "指針と標準化：公的な根拠として引けるものは少ない"
  },
  {
-  "n": 131,
+  "n": 138,
   "id": "p10-agent-checklist",
   "part": "p10",
   "title": "設計チェックリスト：エージェントのアクセス"
  },
  {
-  "n": 132,
+  "n": 139,
   "id": "p11-part",
   "part": "p11",
   "title": "ガバナンス：クレームは API の契約"
  },
  {
-  "n": 133,
+  "n": 140,
   "id": "p11-why-govern",
   "part": "p11",
   "title": "なぜ治めるか：発行者は 1 つ、受け手は多数"
  },
  {
-  "n": 134,
+  "n": 141,
   "id": "p11-registry-fields",
   "part": "p11",
   "title": "台帳：クレームごとに決める 12 の項目"
  },
  {
-  "n": 135,
+  "n": 142,
   "id": "p11-registry-example",
   "part": "p11",
   "title": "台帳の例：テナントのクレーム 1 件"
  },
  {
-  "n": 136,
+  "n": 143,
   "id": "p11-schema-contract-tests",
   "part": "p11",
   "title": "スキーマと契約テスト：台帳を機械で確かめる"
  },
  {
-  "n": 137,
+  "n": 144,
   "id": "p11-contract-test-gaps",
   "part": "p11",
   "title": "契約テストが見逃す変更：9 つの受け手 × 10 の変更"
  },
  {
-  "n": 138,
+  "n": 145,
   "id": "p11-change-procedure",
   "part": "p11",
   "title": "変更の手順：受け手が先、発行者が後"
  },
  {
-  "n": 139,
+  "n": 146,
   "id": "p11-reserved-names",
   "part": "p11",
   "title": "予約名と名前空間：持ち主を決め、発行時に弾く"
  },
  {
-  "n": 140,
+  "n": 147,
   "id": "p11-translation-layer",
   "part": "p11",
   "title": "変換層：IdP の差は入口と共通部品で吸収する"
  },
  {
-  "n": 141,
+  "n": 148,
   "id": "p11-ownership",
   "part": "p11",
   "title": "体制：台帳の持ち主・承認・ADR"
  },
  {
-  "n": 142,
+  "n": 149,
   "id": "p11-pre-add-questions-1",
   "part": "p11",
   "title": "追加前の質問（1/2）：目的・名前・型"
  },
  {
-  "n": 143,
+  "n": 150,
   "id": "p11-pre-add-questions-2",
   "part": "p11",
   "title": "追加前の質問（2/2）：境界・監査・変更"
  },
  {
-  "n": 144,
+  "n": 151,
   "id": "p11-audit-metrics",
   "part": "p11",
   "title": "監査と指標：台帳と実際の発行のずれを測る"
  },
  {
-  "n": 145,
+  "n": 152,
   "id": "p12-part",
   "part": "p12",
   "title": "テックリーダーの実践"
  },
  {
-  "n": 146,
+  "n": 153,
   "id": "p12-antipatterns-1",
   "part": "p12",
   "title": "アンチパターン（1/2）：検証と識別子"
  },
  {
-  "n": 147,
+  "n": 154,
   "id": "p12-antipatterns-2",
   "part": "p12",
   "title": "アンチパターン（2/2）：設計・流れ・運用"
  },
  {
-  "n": 148,
+  "n": 155,
   "id": "p12-review-viewpoints",
   "part": "p12",
   "title": "レビューの観点：クレームの一生に沿って 6 つ"
  },
  {
-  "n": 149,
+  "n": 156,
   "id": "p12-priorities-deferrals",
   "part": "p12",
   "title": "重点と見送り：共通の基準の上に、組織ごとの判断を置く"
  },
  {
-  "n": 150,
+  "n": 157,
   "id": "p12-claims-and-evidence",
   "part": "p12",
   "title": "主張と根拠：この資料は何に基づくか"
  },
  {
-  "n": 151,
+  "n": 158,
   "id": "p12-references",
   "part": "p12",
   "title": "参考文献：日本語の書籍と、主な公的文書"
  },
  {
-  "n": 152,
+  "n": 159,
   "id": "p12-summary",
   "part": "p12",
   "title": "まとめ：クレームは契約。決めてから足し、確かめてから読む"

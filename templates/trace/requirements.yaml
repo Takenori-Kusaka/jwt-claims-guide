@@ -4,19 +4,19 @@
 # 人による点検は未実施。
 
 summary:
-  design_decision_slides: 128
+  design_decision_slides: 135
   knowledge_slides: 7
   structural_slides: 17
-  requirements: 718
-  未着手: 672
+  requirements: 749
+  未着手: 703
   実装済み: 3
   後回し: 42
   扱わない: 1
-  core_未着手: 480
+  core_未着手: 486
   core_実装済み: 3
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 192
+  full_未着手: 217
   full_実装済み: 0
   full_後回し: 42
   full_扱わない: 1
@@ -30,7 +30,16 @@ tier_confirmed:
   core_sha: "b604ad219a15"
   core_count: 483
 
-# 152 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
+# 確定の後に tier を変えた記録（1 件ずつ理由つき）
+tier_changes:
+  - {id: "p01-key-rotation-jwks.R2", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p01-key-rotation-jwks.R3", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p01-key-rotation-jwks.R4", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p05-one-request-carries.R6", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p05-one-request-carries.R7", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p08-four-lifetimes.R1", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+
+# 159 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
 classification:
   - {slide: slide:p00-title, kind: structural, sha: "7bcbcdf18ac6", reviewed_on: "2026-11-22"}  # 1
   - {slide: slide:p00-goals-and-how-to-read, kind: structural, sha: "1f50fe307d48", reviewed_on: "2026-11-22"}  # 2
@@ -40,150 +49,157 @@ classification:
   - {slide: slide:p00-structure, kind: structural, sha: "da86264b7bde", reviewed_on: "2026-11-22"}  # 6
   - {slide: slide:p00-terminology, kind: knowledge, sha: "915eae8a0c1f", reviewed_on: "2026-11-22"}  # 7
   - {slide: slide:p00-evidence-types, kind: knowledge, sha: "f5af213708fa", reviewed_on: "2026-11-22"}  # 8
-  - {slide: slide:p01-part, kind: structural, sha: "1998a7fe947f", reviewed_on: "2026-11-22"}  # 9
+  - {slide: slide:p01-part, kind: structural, sha: "6396cb872d56", reviewed_on: "2026-11-22"}  # 9
   - {slide: slide:p01-jwt-structure, kind: design-decision, sha: "ddd71e6d7a01", reviewed_on: "2026-11-22"}  # 10
   - {slide: slide:p01-validation-order, kind: design-decision, sha: "1293ec588655", reviewed_on: "2026-11-22"}  # 11
   - {slide: slide:p01-dangerous-header-params, kind: design-decision, sha: "b065805cb1b9", reviewed_on: "2026-11-22"}  # 12
-  - {slide: slide:p01-id-token-vs-access-token, kind: design-decision, sha: "e6fdfd112d40", reviewed_on: "2026-11-22"}  # 13
-  - {slide: slide:p01-self-contained-vs-reference, kind: design-decision, sha: "65a3b20a02ef", reviewed_on: "2026-11-22"}  # 14
-  - {slide: slide:p01-library-defaults, kind: design-decision, sha: "491a19f46447", reviewed_on: "2026-11-22"}  # 15
-  - {slide: slide:p01-attack-patterns, kind: design-decision, sha: "0fafcf396c78", reviewed_on: "2026-11-22"}  # 16
-  - {slide: slide:p02-part, kind: structural, sha: "e1c34aa36034", reviewed_on: "2026-11-22"}  # 17
-  - {slide: slide:p02-registered-claims, kind: design-decision, sha: "241affdf2db6", reviewed_on: "2026-11-22"}  # 18
-  - {slide: slide:p02-name-categories, kind: design-decision, sha: "ec3fbccde311", reviewed_on: "2026-11-22"}  # 19
-  - {slide: slide:p02-claims-by-purpose, kind: knowledge, sha: "493694a5eb4c", reviewed_on: "2026-11-22"}  # 20
-  - {slide: slide:p02-user-identifier, kind: design-decision, sha: "78e6b0489f10", reviewed_on: "2026-11-22"}  # 21
-  - {slide: slide:p02-tenant-org, kind: design-decision, sha: "47614b507eb9", reviewed_on: "2026-11-22"}  # 22
-  - {slide: slide:p02-roles-groups-entitlements, kind: design-decision, sha: "3c563d8a2e16", reviewed_on: "2026-11-22"}  # 23
-  - {slide: slide:p02-scope, kind: design-decision, sha: "c275988d6663", reviewed_on: "2026-11-22"}  # 24
-  - {slide: slide:p02-auth-strength-session, kind: design-decision, sha: "459125762cbf", reviewed_on: "2026-11-22"}  # 25
-  - {slide: slide:p02-delegation-client, kind: design-decision, sha: "eae4655ed2be", reviewed_on: "2026-11-22"}  # 26
-  - {slide: slide:p02-keys-events-identity-assurance, kind: design-decision, sha: "5cf9f03e1a41", reviewed_on: "2026-11-22"}  # 27
-  - {slide: slide:p02-not-in-registry, kind: knowledge, sha: "2b22a19e711e", reviewed_on: "2026-11-22"}  # 28
-  - {slide: slide:p02-saml-attributes, kind: design-decision, sha: "41b14d705043", reviewed_on: "2026-11-22"}  # 29
-  - {slide: slide:p02-check-before-creating, kind: design-decision, sha: "005a4e1a9565", reviewed_on: "2026-11-22"}  # 30
-  - {slide: slide:p03-part, kind: structural, sha: "3688c2fdf9c4", reviewed_on: "2026-11-22"}  # 31
-  - {slide: slide:p03-idp-comparison, kind: knowledge, sha: "2233611795a2", reviewed_on: "2026-11-22"}  # 32
-  - {slide: slide:p03-entra-oid-tid, kind: design-decision, sha: "3fa78ff7a3ca", reviewed_on: "2026-11-22"}  # 33
-  - {slide: slide:p03-entra-scp-roles-groups, kind: design-decision, sha: "04ae30975c8e", reviewed_on: "2026-11-22"}  # 34
-  - {slide: slide:p03-keycloak-mappers, kind: design-decision, sha: "3d9e240b9cc4", reviewed_on: "2026-11-22"}  # 35
-  - {slide: slide:p03-keycloak-aud-lightweight, kind: design-decision, sha: "26f5bf481087", reviewed_on: "2026-11-22"}  # 36
-  - {slide: slide:p03-auth0-namespace, kind: design-decision, sha: "abffe34c5194", reviewed_on: "2026-11-22"}  # 37
-  - {slide: slide:p03-okta-custom-as, kind: design-decision, sha: "b2411adc1ceb", reviewed_on: "2026-11-22"}  # 38
-  - {slide: slide:p03-cognito-token-use, kind: design-decision, sha: "65240d70cecd", reviewed_on: "2026-11-22"}  # 39
-  - {slide: slide:p03-cognito-pre-token-hook, kind: design-decision, sha: "d69675068058", reviewed_on: "2026-11-22"}  # 40
-  - {slide: slide:p03-recent-changes, kind: design-decision, sha: "31340416ac69", reviewed_on: "2026-11-22"}  # 41
-  - {slide: slide:p03-custom-claim-injection, kind: design-decision, sha: "41bd2f2c2258", reviewed_on: "2026-11-22"}  # 42
-  - {slide: slide:p03-confusing-differences, kind: design-decision, sha: "43f79e78db92", reviewed_on: "2026-11-22"}  # 43
-  - {slide: slide:p03-absorb-idp-differences, kind: design-decision, sha: "3f89186fa124", reviewed_on: "2026-11-22"}  # 44
-  - {slide: slide:p04-part, kind: structural, sha: "0b9b32e49313", reviewed_on: "2026-11-22"}  # 45
-  - {slide: slide:p04-token-is-snapshot, kind: design-decision, sha: "dd13ab4ef6b6", reviewed_on: "2026-11-22"}  # 46
-  - {slide: slide:p04-carry-or-query, kind: design-decision, sha: "134e61191d76", reviewed_on: "2026-11-22"}  # 47
-  - {slide: slide:p04-claim-names, kind: design-decision, sha: "feeef5dec791", reviewed_on: "2026-11-22"}  # 48
-  - {slide: slide:p04-namespace, kind: design-decision, sha: "d5553031e411", reviewed_on: "2026-11-22"}  # 49
-  - {slide: slide:p04-type, kind: design-decision, sha: "521402569827", reviewed_on: "2026-11-22"}  # 50
-  - {slide: slide:p04-shape, kind: design-decision, sha: "23b8b260b9a4", reviewed_on: "2026-11-22"}  # 51
-  - {slide: slide:p04-absent-null-false-empty, kind: design-decision, sha: "7356c5c289da", reviewed_on: "2026-11-22"}  # 52
-  - {slide: slide:p04-case-and-characters, kind: design-decision, sha: "4481b6a23f7a", reviewed_on: "2026-11-22"}  # 53
-  - {slide: slide:p04-immutable-identifiers, kind: design-decision, sha: "082729d6d0b8", reviewed_on: "2026-11-22"}  # 54
-  - {slide: slide:p04-split-by-writer, kind: design-decision, sha: "587e43490458", reviewed_on: "2026-11-22"}  # 55
-  - {slide: slide:p04-size-budget, kind: design-decision, sha: "5ce12e75e406", reviewed_on: "2026-11-22"}  # 56
-  - {slide: slide:p04-forward-compatibility, kind: design-decision, sha: "80ded0c11bd4", reviewed_on: "2026-11-22"}  # 57
-  - {slide: slide:p04-reject-missing-required, kind: design-decision, sha: "3c87925be943", reviewed_on: "2026-11-22"}  # 58
-  - {slide: slide:p04-single-issuer, kind: design-decision, sha: "02820e71dab2", reviewed_on: "2026-11-22"}  # 59
-  - {slide: slide:p04-namespace-object-example, kind: design-decision, sha: "6d6e2480c57a", reviewed_on: "2026-11-22"}  # 60
-  - {slide: slide:p04-design-checklist, kind: design-decision, sha: "8032ff72d312", reviewed_on: "2026-11-22", review_required: true}  # 61
-  - {slide: slide:p05-part, kind: structural, sha: "77e6ff419aed", reviewed_on: "2026-11-22"}  # 62
-  - {slide: slide:p05-three-principals, kind: design-decision, sha: "f3d3b2aceb77", reviewed_on: "2026-11-22"}  # 63
-  - {slide: slide:p05-one-request-carries, kind: design-decision, sha: "33b5f07bd326", reviewed_on: "2026-11-22"}  # 64
-  - {slide: slide:p05-authz-models, kind: design-decision, sha: "3b80ddfa67ae", reviewed_on: "2026-11-22"}  # 65
-  - {slide: slide:p05-pep-pdp, kind: design-decision, sha: "91643a07b562", reviewed_on: "2026-11-22"}  # 66
-  - {slide: slide:p05-coarse-fine-layers, kind: design-decision, sha: "cad1a312e81c", reviewed_on: "2026-11-22"}  # 67
-  - {slide: slide:p05-scope-vs-role, kind: design-decision, sha: "4f5a11009b3a", reviewed_on: "2026-11-22"}  # 68
-  - {slide: slide:p05-role-explosion, kind: design-decision, sha: "9eb3664686ad", reviewed_on: "2026-11-22"}  # 69
-  - {slide: slide:p05-system-privileges, kind: design-decision, sha: "b7bafb4bb157", reviewed_on: "2026-11-22"}  # 70
-  - {slide: slide:p05-multitenancy, kind: design-decision, sha: "21cd9190f391", reviewed_on: "2026-11-22"}  # 71
-  - {slide: slide:p05-cross-tenant, kind: design-decision, sha: "b9c0a325b667", reviewed_on: "2026-11-22"}  # 72
-  - {slide: slide:p05-bola, kind: design-decision, sha: "0f5c574df659", reviewed_on: "2026-11-22"}  # 73
-  - {slide: slide:p05-confused-deputy, kind: design-decision, sha: "e7c36e9c2736", reviewed_on: "2026-11-22"}  # 74
-  - {slide: slide:p06-part, kind: structural, sha: "cc7aec0bd076", reviewed_on: "2026-11-22"}  # 75
-  - {slide: slide:p06-stage-map, kind: design-decision, sha: "943dcf7a3ae1", reviewed_on: "2026-11-22"}  # 76
-  - {slide: slide:p06-issuance-hook, kind: design-decision, sha: "a67003064f42", reviewed_on: "2026-11-22"}  # 77
-  - {slide: slide:p06-edge-exchange, kind: design-decision, sha: "a5351b7195a5", reviewed_on: "2026-11-22"}  # 78
-  - {slide: slide:p06-transaction-tokens, kind: design-decision, sha: "0b6431f9add5", reviewed_on: "2026-11-22"}  # 79
-  - {slide: slide:p06-step-up-approval, kind: design-decision, sha: "a1a1b86eb045", reviewed_on: "2026-11-22"}  # 80
-  - {slide: slide:p06-narrow-downstream, kind: design-decision, sha: "db0b54dd5530", reviewed_on: "2026-11-22"}  # 81
-  - {slide: slide:p06-validation-split, kind: design-decision, sha: "ebf72dcd1f1d", reviewed_on: "2026-11-22"}  # 82
-  - {slide: slide:p06-access-context, kind: design-decision, sha: "c6db67d94f58", reviewed_on: "2026-11-22"}  # 83
-  - {slide: slide:p06-header-forwarding, kind: design-decision, sha: "6fa379dea589", reviewed_on: "2026-11-22"}  # 84
-  - {slide: slide:p06-audit-trail, kind: design-decision, sha: "2cc3e2bedc3c", reviewed_on: "2026-11-22"}  # 85
-  - {slide: slide:p06-return-results, kind: design-decision, sha: "5822f9f3960e", reviewed_on: "2026-11-22"}  # 86
-  - {slide: slide:p06-flow-browser-to-db, kind: design-decision, sha: "37ed9e81d99d", reviewed_on: "2026-11-22"}  # 87
-  - {slide: slide:p06-flow-multitenant-saas, kind: design-decision, sha: "70ffbcbfd7a5", reviewed_on: "2026-11-22"}  # 88
-  - {slide: slide:p06-flow-partner-events, kind: design-decision, sha: "c75a7e39179d", reviewed_on: "2026-11-22"}  # 89
-  - {slide: slide:p06-flow-checklist, kind: design-decision, sha: "01944e469a33", reviewed_on: "2026-11-22", review_required: true}  # 90
-  - {slide: slide:p07-part, kind: structural, sha: "a298c3b435d8", reviewed_on: "2026-11-22"}  # 91
-  - {slide: slide:p07-three-db-paths, kind: design-decision, sha: "d0b9c803901b", reviewed_on: "2026-11-22"}  # 92
-  - {slide: slide:p07-row-level-security, kind: design-decision, sha: "8d46b9db3ee2", reviewed_on: "2026-11-22"}  # 93
-  - {slide: slide:p07-trust-boundary, kind: design-decision, sha: "b64810714ebd", reviewed_on: "2026-11-22"}  # 94
-  - {slide: slide:p07-connection-pool, kind: design-decision, sha: "aae5b6924d76", reviewed_on: "2026-11-22"}  # 95
-  - {slide: slide:p07-db-token-auth, kind: design-decision, sha: "d00827716deb", reviewed_on: "2026-11-22"}  # 96
-  - {slide: slide:p07-lifetime-mismatch, kind: design-decision, sha: "f7e66df937af", reviewed_on: "2026-11-22"}  # 97
-  - {slide: slide:p07-connect-as-whom, kind: design-decision, sha: "1ca0d2af3af6", reviewed_on: "2026-11-22"}  # 98
-  - {slide: slide:p07-masking, kind: design-decision, sha: "e4eb01dd1691", reviewed_on: "2026-11-22"}  # 99
-  - {slide: slide:p07-cloud-attributes, kind: design-decision, sha: "16530098f47e", reviewed_on: "2026-11-22"}  # 100
-  - {slide: slide:p07-data-layer-checklist, kind: design-decision, sha: "7f6d9d08fc63", reviewed_on: "2026-11-22", review_required: true}  # 101
-  - {slide: slide:p08-part, kind: structural, sha: "cf76f313f62a", reviewed_on: "2026-11-22"}  # 102
-  - {slide: slide:p08-token-types-lifetimes, kind: design-decision, sha: "2c84a802a01d", reviewed_on: "2026-11-22"}  # 103
-  - {slide: slide:p08-choosing-lifetime, kind: design-decision, sha: "020637ca413b", reviewed_on: "2026-11-22"}  # 104
-  - {slide: slide:p08-stale-claims, kind: design-decision, sha: "87b97e1db02c", reviewed_on: "2026-11-22"}  # 105
-  - {slide: slide:p08-refresh-reevaluation, kind: design-decision, sha: "1de2bf0a24fd", reviewed_on: "2026-11-22"}  # 106
-  - {slide: slide:p08-rotation, kind: design-decision, sha: "418d50ade164", reviewed_on: "2026-11-22"}  # 107
-  - {slide: slide:p08-revocation-propagation, kind: design-decision, sha: "8705b0543b0d", reviewed_on: "2026-11-22"}  # 108
-  - {slide: slide:p08-async-processing, kind: design-decision, sha: "7d715d5a509b", reviewed_on: "2026-11-22"}  # 109
-  - {slide: slide:p08-downstream-after-expiry, kind: design-decision, sha: "3f35625e46c2", reviewed_on: "2026-11-22"}  # 110
-  - {slide: slide:p08-decision-table, kind: design-decision, sha: "6e437b7ad20c", reviewed_on: "2026-11-22"}  # 111
-  - {slide: slide:p09-part, kind: structural, sha: "e8072f3f4e2c", reviewed_on: "2026-11-22"}  # 112
-  - {slide: slide:p09-jws-is-readable, kind: design-decision, sha: "90d72e5ed791", reviewed_on: "2026-11-22"}  # 113
-  - {slide: slide:p09-do-not-carry, kind: design-decision, sha: "8f51864d4014", reviewed_on: "2026-11-22"}  # 114
-  - {slide: slide:p09-minimize-derived, kind: design-decision, sha: "c17cb8a6fb82", reviewed_on: "2026-11-22"}  # 115
-  - {slide: slide:p09-pairwise-identifiers, kind: design-decision, sha: "d0bcc47d7f8b", reviewed_on: "2026-11-22"}  # 116
-  - {slide: slide:p09-jwe-sd-jwt, kind: design-decision, sha: "bc179a1b62ae", reviewed_on: "2026-11-22"}  # 117
-  - {slide: slide:p09-logs-traces, kind: design-decision, sha: "ac9f6b684706", reviewed_on: "2026-11-22"}  # 118
-  - {slide: slide:p09-url-browser, kind: design-decision, sha: "0694f4d19f5e", reviewed_on: "2026-11-22"}  # 119
-  - {slide: slide:p09-checklist, kind: design-decision, sha: "1824c0c065e4", reviewed_on: "2026-11-22", review_required: true}  # 120
-  - {slide: slide:p10-part, kind: structural, sha: "f0adf86c20c0", reviewed_on: "2026-11-22"}  # 121
-  - {slide: slide:p10-agent-identity, kind: design-decision, sha: "383ad23d8727", reviewed_on: "2026-11-22"}  # 122
-  - {slide: slide:p10-four-questions, kind: design-decision, sha: "71d2544041c0", reviewed_on: "2026-11-22"}  # 123
-  - {slide: slide:p10-per-tool-scopes, kind: design-decision, sha: "e966d6682adf", reviewed_on: "2026-11-22"}  # 124
-  - {slide: slide:p10-human-approval-evidence, kind: design-decision, sha: "7b914e081649", reviewed_on: "2026-11-22"}  # 125
-  - {slide: slide:p10-mcp-authorization, kind: design-decision, sha: "847cb7777540", reviewed_on: "2026-11-22"}  # 126
-  - {slide: slide:p10-token-exchange-not-narrowing, kind: design-decision, sha: "63b4fe50598a", reviewed_on: "2026-11-22"}  # 127
-  - {slide: slide:p10-delegation-chain-depth, kind: design-decision, sha: "46b6697c5a9b", reviewed_on: "2026-11-22"}  # 128
-  - {slide: slide:p10-vendor-features, kind: design-decision, sha: "3725ab2452db", reviewed_on: "2026-11-22"}  # 129
-  - {slide: slide:p10-guidance-standards, kind: design-decision, sha: "664fc5f0d99d", reviewed_on: "2026-11-22"}  # 130
-  - {slide: slide:p10-agent-checklist, kind: design-decision, sha: "4d4204067511", reviewed_on: "2026-11-22", review_required: true}  # 131
-  - {slide: slide:p11-part, kind: structural, sha: "66071446cb4c", reviewed_on: "2026-11-22"}  # 132
-  - {slide: slide:p11-why-govern, kind: design-decision, sha: "53feaec3b404", reviewed_on: "2026-11-22"}  # 133
-  - {slide: slide:p11-registry-fields, kind: design-decision, sha: "0a905e46db8f", reviewed_on: "2026-11-22"}  # 134
-  - {slide: slide:p11-registry-example, kind: knowledge, sha: "07f2d357d159", reviewed_on: "2026-11-22"}  # 135
-  - {slide: slide:p11-schema-contract-tests, kind: design-decision, sha: "6f4da3f101b9", reviewed_on: "2026-11-22"}  # 136
-  - {slide: slide:p11-contract-test-gaps, kind: design-decision, sha: "02b94416c24d", reviewed_on: "2026-11-22"}  # 137
-  - {slide: slide:p11-change-procedure, kind: design-decision, sha: "d99b9e285670", reviewed_on: "2026-11-22"}  # 138
-  - {slide: slide:p11-reserved-names, kind: design-decision, sha: "c53e5e12571d", reviewed_on: "2026-11-22"}  # 139
-  - {slide: slide:p11-translation-layer, kind: design-decision, sha: "b2e12c4702b6", reviewed_on: "2026-11-22"}  # 140
-  - {slide: slide:p11-ownership, kind: design-decision, sha: "5df879eed500", reviewed_on: "2026-11-22"}  # 141
-  - {slide: slide:p11-pre-add-questions-1, kind: design-decision, sha: "a4069f3e68a9", reviewed_on: "2026-11-22", review_required: true}  # 142
-  - {slide: slide:p11-pre-add-questions-2, kind: design-decision, sha: "eefd9fa0c0be", reviewed_on: "2026-11-22", review_required: true}  # 143
-  - {slide: slide:p11-audit-metrics, kind: design-decision, sha: "ccf4d13da948", reviewed_on: "2026-11-22"}  # 144
-  - {slide: slide:p12-part, kind: structural, sha: "33893b65905e", reviewed_on: "2026-11-22"}  # 145
-  - {slide: slide:p12-antipatterns-1, kind: design-decision, sha: "2388a5b06480", reviewed_on: "2026-11-22", review_required: true}  # 146
-  - {slide: slide:p12-antipatterns-2, kind: design-decision, sha: "7a881917f654", reviewed_on: "2026-11-22", review_required: true}  # 147
-  - {slide: slide:p12-review-viewpoints, kind: design-decision, sha: "acccb8a7e4fe", reviewed_on: "2026-11-22", review_required: true}  # 148
-  - {slide: slide:p12-priorities-deferrals, kind: design-decision, sha: "a16a89d1d1bf", reviewed_on: "2026-11-22"}  # 149
-  - {slide: slide:p12-claims-and-evidence, kind: structural, sha: "b5f8035814ed", reviewed_on: "2026-11-22"}  # 150
-  - {slide: slide:p12-references, kind: structural, sha: "588248cf3235", reviewed_on: "2026-11-22"}  # 151
-  - {slide: slide:p12-summary, kind: knowledge, sha: "b776f6fc9d11", reviewed_on: "2026-11-22"}  # 152
+  - {slide: slide:p01-key-rotation-jwks, kind: design-decision, sha: "a76589240d57", reviewed_on: "2026-11-22"}  # 13
+  - {slide: slide:p01-client-made-jwts, kind: design-decision, sha: "0ab36c5d0633", reviewed_on: "2026-11-22"}  # 14
+  - {slide: slide:p01-id-token-vs-access-token, kind: design-decision, sha: "6545cf376300", reviewed_on: "2026-11-22"}  # 15
+  - {slide: slide:p01-self-contained-vs-reference, kind: design-decision, sha: "a4f46e8a7aaa", reviewed_on: "2026-11-22"}  # 16
+  - {slide: slide:p01-library-defaults, kind: design-decision, sha: "8c6196c0187a", reviewed_on: "2026-11-22"}  # 17
+  - {slide: slide:p01-attack-patterns, kind: design-decision, sha: "c38902e02a6e", reviewed_on: "2026-11-22"}  # 18
+  - {slide: slide:p02-part, kind: structural, sha: "378ca90a7264", reviewed_on: "2026-11-22"}  # 19
+  - {slide: slide:p02-registered-claims, kind: design-decision, sha: "b7c3060fd936", reviewed_on: "2026-11-22"}  # 20
+  - {slide: slide:p02-name-categories, kind: design-decision, sha: "dfbb27dfa8a3", reviewed_on: "2026-11-22"}  # 21
+  - {slide: slide:p02-claims-by-purpose, kind: knowledge, sha: "17a3cd62e2c8", reviewed_on: "2026-11-22"}  # 22
+  - {slide: slide:p02-user-identifier, kind: design-decision, sha: "ef3871972dc0", reviewed_on: "2026-11-22"}  # 23
+  - {slide: slide:p02-tenant-org, kind: design-decision, sha: "0fb4c951603e", reviewed_on: "2026-11-22"}  # 24
+  - {slide: slide:p02-roles-groups-entitlements, kind: design-decision, sha: "a56ac9572817", reviewed_on: "2026-11-22"}  # 25
+  - {slide: slide:p02-scope, kind: design-decision, sha: "b074cf0c36a5", reviewed_on: "2026-11-22"}  # 26
+  - {slide: slide:p02-auth-strength-session, kind: design-decision, sha: "8f372aa9a6db", reviewed_on: "2026-11-22"}  # 27
+  - {slide: slide:p02-delegation-client, kind: design-decision, sha: "c4a51a2de25e", reviewed_on: "2026-11-22"}  # 28
+  - {slide: slide:p02-keys-events-identity-assurance, kind: design-decision, sha: "be0979f4b0b1", reviewed_on: "2026-11-22"}  # 29
+  - {slide: slide:p02-not-in-registry, kind: knowledge, sha: "785f6447b106", reviewed_on: "2026-11-22"}  # 30
+  - {slide: slide:p02-saml-attributes, kind: design-decision, sha: "2e00460548e1", reviewed_on: "2026-11-22"}  # 31
+  - {slide: slide:p02-check-before-creating, kind: design-decision, sha: "ecd63fd5b70b", reviewed_on: "2026-11-22"}  # 32
+  - {slide: slide:p03-part, kind: structural, sha: "c97075e676c0", reviewed_on: "2026-11-22"}  # 33
+  - {slide: slide:p03-idp-comparison, kind: knowledge, sha: "e1a79a58f31c", reviewed_on: "2026-11-22"}  # 34
+  - {slide: slide:p03-entra-oid-tid, kind: design-decision, sha: "9344e0042706", reviewed_on: "2026-11-22"}  # 35
+  - {slide: slide:p03-entra-scp-roles-groups, kind: design-decision, sha: "6b0427ec88a2", reviewed_on: "2026-11-22"}  # 36
+  - {slide: slide:p03-keycloak-mappers, kind: design-decision, sha: "9990c65b9565", reviewed_on: "2026-11-22"}  # 37
+  - {slide: slide:p03-keycloak-aud-lightweight, kind: design-decision, sha: "cebddca3ba52", reviewed_on: "2026-11-22"}  # 38
+  - {slide: slide:p03-auth0-namespace, kind: design-decision, sha: "0cee2effa2c3", reviewed_on: "2026-11-22"}  # 39
+  - {slide: slide:p03-okta-custom-as, kind: design-decision, sha: "7438c5228163", reviewed_on: "2026-11-22"}  # 40
+  - {slide: slide:p03-cognito-token-use, kind: design-decision, sha: "fe81cced3624", reviewed_on: "2026-11-22"}  # 41
+  - {slide: slide:p03-cognito-pre-token-hook, kind: design-decision, sha: "7acb95bc42b3", reviewed_on: "2026-11-22"}  # 42
+  - {slide: slide:p03-recent-changes, kind: design-decision, sha: "2a5a9770b33f", reviewed_on: "2026-11-22"}  # 43
+  - {slide: slide:p03-custom-claim-injection, kind: design-decision, sha: "5147233b19ac", reviewed_on: "2026-11-22"}  # 44
+  - {slide: slide:p03-confusing-differences, kind: design-decision, sha: "9f995f59e659", reviewed_on: "2026-11-22"}  # 45
+  - {slide: slide:p03-absorb-idp-differences, kind: design-decision, sha: "4336f3ed21ce", reviewed_on: "2026-11-22"}  # 46
+  - {slide: slide:p04-part, kind: structural, sha: "8ea45e3d6324", reviewed_on: "2026-11-22"}  # 47
+  - {slide: slide:p04-token-is-snapshot, kind: design-decision, sha: "611999e055a1", reviewed_on: "2026-11-22"}  # 48
+  - {slide: slide:p04-carry-or-query, kind: design-decision, sha: "9a76ddeb782f", reviewed_on: "2026-11-22"}  # 49
+  - {slide: slide:p04-claim-names, kind: design-decision, sha: "da1053f4677d", reviewed_on: "2026-11-22"}  # 50
+  - {slide: slide:p04-namespace, kind: design-decision, sha: "b4413038ff9e", reviewed_on: "2026-11-22"}  # 51
+  - {slide: slide:p04-type, kind: design-decision, sha: "58f3fcef7923", reviewed_on: "2026-11-22"}  # 52
+  - {slide: slide:p04-shape, kind: design-decision, sha: "52c0ad55bf34", reviewed_on: "2026-11-22"}  # 53
+  - {slide: slide:p04-absent-null-false-empty, kind: design-decision, sha: "cd872c87d2a3", reviewed_on: "2026-11-22"}  # 54
+  - {slide: slide:p04-case-and-characters, kind: design-decision, sha: "732b0aca9bfa", reviewed_on: "2026-11-22"}  # 55
+  - {slide: slide:p04-immutable-identifiers, kind: design-decision, sha: "3ea54881d7ef", reviewed_on: "2026-11-22"}  # 56
+  - {slide: slide:p04-split-by-writer, kind: design-decision, sha: "920d34e01383", reviewed_on: "2026-11-22"}  # 57
+  - {slide: slide:p04-size-budget, kind: design-decision, sha: "7df8193bc3df", reviewed_on: "2026-11-22"}  # 58
+  - {slide: slide:p04-forward-compatibility, kind: design-decision, sha: "ab1912ad1dcc", reviewed_on: "2026-11-22"}  # 59
+  - {slide: slide:p04-reject-missing-required, kind: design-decision, sha: "beb721f96351", reviewed_on: "2026-11-22"}  # 60
+  - {slide: slide:p04-single-issuer, kind: design-decision, sha: "9d21519f9730", reviewed_on: "2026-11-22"}  # 61
+  - {slide: slide:p04-namespace-object-example, kind: design-decision, sha: "ad3987c49225", reviewed_on: "2026-11-22"}  # 62
+  - {slide: slide:p04-design-checklist, kind: design-decision, sha: "c2c908ead2b7", reviewed_on: "2026-11-22", review_required: true}  # 63
+  - {slide: slide:p05-part, kind: structural, sha: "7b01314faadc", reviewed_on: "2026-11-22"}  # 64
+  - {slide: slide:p05-three-principals, kind: design-decision, sha: "f3f1f9e98a4a", reviewed_on: "2026-11-22"}  # 65
+  - {slide: slide:p05-one-request-carries, kind: design-decision, sha: "5d89e92a0f85", reviewed_on: "2026-11-22"}  # 66
+  - {slide: slide:p05-authz-models, kind: design-decision, sha: "e00b04e8946d", reviewed_on: "2026-11-22"}  # 67
+  - {slide: slide:p05-pep-pdp, kind: design-decision, sha: "b937dd855b71", reviewed_on: "2026-11-22"}  # 68
+  - {slide: slide:p05-coarse-fine-layers, kind: design-decision, sha: "74043eb001f6", reviewed_on: "2026-11-22"}  # 69
+  - {slide: slide:p05-scope-vs-role, kind: design-decision, sha: "866bbf032557", reviewed_on: "2026-11-22"}  # 70
+  - {slide: slide:p05-role-explosion, kind: design-decision, sha: "8541cf1a7058", reviewed_on: "2026-11-22"}  # 71
+  - {slide: slide:p05-system-privileges, kind: design-decision, sha: "ffc819b980a7", reviewed_on: "2026-11-22"}  # 72
+  - {slide: slide:p05-multitenancy, kind: design-decision, sha: "56616e65c65f", reviewed_on: "2026-11-22"}  # 73
+  - {slide: slide:p05-cross-tenant, kind: design-decision, sha: "d09f1bceda6e", reviewed_on: "2026-11-22"}  # 74
+  - {slide: slide:p05-bola, kind: design-decision, sha: "aba0afe63b09", reviewed_on: "2026-11-22"}  # 75
+  - {slide: slide:p05-confused-deputy, kind: design-decision, sha: "4b6d2f78f6e6", reviewed_on: "2026-11-22"}  # 76
+  - {slide: slide:p06-part, kind: structural, sha: "7de4b57a7b12", reviewed_on: "2026-11-22"}  # 77
+  - {slide: slide:p06-stage-map, kind: design-decision, sha: "3cf0b99aa68d", reviewed_on: "2026-11-22"}  # 78
+  - {slide: slide:p06-issuance-hook, kind: design-decision, sha: "94e38ad76289", reviewed_on: "2026-11-22"}  # 79
+  - {slide: slide:p06-grant-types, kind: design-decision, sha: "989462b465f7", reviewed_on: "2026-11-22"}  # 80
+  - {slide: slide:p06-edge-exchange, kind: design-decision, sha: "803543037b90", reviewed_on: "2026-11-22"}  # 81
+  - {slide: slide:p06-transaction-tokens, kind: design-decision, sha: "99dea30d71c5", reviewed_on: "2026-11-22"}  # 82
+  - {slide: slide:p06-step-up-approval, kind: design-decision, sha: "fa748f7a13ad", reviewed_on: "2026-11-22"}  # 83
+  - {slide: slide:p06-narrow-downstream, kind: design-decision, sha: "971f55e82726", reviewed_on: "2026-11-22"}  # 84
+  - {slide: slide:p06-validation-split, kind: design-decision, sha: "7375315569dc", reviewed_on: "2026-11-22"}  # 85
+  - {slide: slide:p06-access-context, kind: design-decision, sha: "139ee4516ec7", reviewed_on: "2026-11-22"}  # 86
+  - {slide: slide:p06-header-forwarding, kind: design-decision, sha: "8635af0d1bd5", reviewed_on: "2026-11-22"}  # 87
+  - {slide: slide:p06-audit-trail, kind: design-decision, sha: "be38627520a1", reviewed_on: "2026-11-22"}  # 88
+  - {slide: slide:p06-return-results, kind: design-decision, sha: "d74c87dfb03e", reviewed_on: "2026-11-22"}  # 89
+  - {slide: slide:p06-flow-browser-to-db, kind: design-decision, sha: "d0738cf6519d", reviewed_on: "2026-11-22"}  # 90
+  - {slide: slide:p06-flow-multitenant-saas, kind: design-decision, sha: "e444732b8c0e", reviewed_on: "2026-11-22"}  # 91
+  - {slide: slide:p06-flow-partner-events, kind: design-decision, sha: "bec030213d27", reviewed_on: "2026-11-22"}  # 92
+  - {slide: slide:p06-flow-checklist, kind: design-decision, sha: "db5b4fa36c21", reviewed_on: "2026-11-22", review_required: true}  # 93
+  - {slide: slide:p07-part, kind: structural, sha: "072eae69cf53", reviewed_on: "2026-11-22"}  # 94
+  - {slide: slide:p07-three-db-paths, kind: design-decision, sha: "0f7e94474e55", reviewed_on: "2026-11-22"}  # 95
+  - {slide: slide:p07-row-level-security, kind: design-decision, sha: "b1af6d66f208", reviewed_on: "2026-11-22"}  # 96
+  - {slide: slide:p07-trust-boundary, kind: design-decision, sha: "7344df6fe71e", reviewed_on: "2026-11-22"}  # 97
+  - {slide: slide:p07-connection-pool, kind: design-decision, sha: "b69c243b956c", reviewed_on: "2026-11-22"}  # 98
+  - {slide: slide:p07-db-token-auth, kind: design-decision, sha: "5de6ef64a5f1", reviewed_on: "2026-11-22"}  # 99
+  - {slide: slide:p07-lifetime-mismatch, kind: design-decision, sha: "1be2ccd4c3bb", reviewed_on: "2026-11-22"}  # 100
+  - {slide: slide:p07-connect-as-whom, kind: design-decision, sha: "d868ebcad298", reviewed_on: "2026-11-22"}  # 101
+  - {slide: slide:p07-masking, kind: design-decision, sha: "ee5486d23914", reviewed_on: "2026-11-22"}  # 102
+  - {slide: slide:p07-cloud-attributes, kind: design-decision, sha: "aa6b0a975dc7", reviewed_on: "2026-11-22"}  # 103
+  - {slide: slide:p07-data-layer-checklist, kind: design-decision, sha: "42dc9b76c168", reviewed_on: "2026-11-22", review_required: true}  # 104
+  - {slide: slide:p08-part, kind: structural, sha: "bd6225ee3edf", reviewed_on: "2026-11-22"}  # 105
+  - {slide: slide:p08-four-lifetimes, kind: design-decision, sha: "e528577e3de4", reviewed_on: "2026-11-22"}  # 106
+  - {slide: slide:p08-token-types-lifetimes, kind: design-decision, sha: "31b5511fdbd8", reviewed_on: "2026-11-22"}  # 107
+  - {slide: slide:p08-choosing-lifetime, kind: design-decision, sha: "25c865bb8613", reviewed_on: "2026-11-22"}  # 108
+  - {slide: slide:p08-stale-claims, kind: design-decision, sha: "148f76b9ee79", reviewed_on: "2026-11-22"}  # 109
+  - {slide: slide:p08-refresh-reevaluation, kind: design-decision, sha: "ffc3dfecf2d2", reviewed_on: "2026-11-22"}  # 110
+  - {slide: slide:p08-reissue-triggers, kind: design-decision, sha: "6700360f4453", reviewed_on: "2026-11-22"}  # 111
+  - {slide: slide:p08-rotation, kind: design-decision, sha: "defd34a89569", reviewed_on: "2026-11-22"}  # 112
+  - {slide: slide:p08-revocation-propagation, kind: design-decision, sha: "32560e0fb0a5", reviewed_on: "2026-11-22"}  # 113
+  - {slide: slide:p08-logout, kind: design-decision, sha: "787a00bb581f", reviewed_on: "2026-11-22"}  # 114
+  - {slide: slide:p08-async-processing, kind: design-decision, sha: "293078cb8344", reviewed_on: "2026-11-22"}  # 115
+  - {slide: slide:p08-downstream-after-expiry, kind: design-decision, sha: "d31b7058bcd4", reviewed_on: "2026-11-22"}  # 116
+  - {slide: slide:p08-copies-outlive-token, kind: design-decision, sha: "bf8a55027889", reviewed_on: "2026-11-22"}  # 117
+  - {slide: slide:p08-decision-table, kind: design-decision, sha: "41d1cf4b38bf", reviewed_on: "2026-11-22"}  # 118
+  - {slide: slide:p09-part, kind: structural, sha: "9f06e6d87718", reviewed_on: "2026-11-22"}  # 119
+  - {slide: slide:p09-jws-is-readable, kind: design-decision, sha: "69c3cdf69df4", reviewed_on: "2026-11-22"}  # 120
+  - {slide: slide:p09-do-not-carry, kind: design-decision, sha: "4ebdbea4cdf4", reviewed_on: "2026-11-22"}  # 121
+  - {slide: slide:p09-minimize-derived, kind: design-decision, sha: "e833be77407f", reviewed_on: "2026-11-22"}  # 122
+  - {slide: slide:p09-pairwise-identifiers, kind: design-decision, sha: "40777fdadb8e", reviewed_on: "2026-11-22"}  # 123
+  - {slide: slide:p09-jwe-sd-jwt, kind: design-decision, sha: "001f93210dec", reviewed_on: "2026-11-22"}  # 124
+  - {slide: slide:p09-logs-traces, kind: design-decision, sha: "5de4e7c93822", reviewed_on: "2026-11-22"}  # 125
+  - {slide: slide:p09-url-browser, kind: design-decision, sha: "8227c4e27eb8", reviewed_on: "2026-11-22"}  # 126
+  - {slide: slide:p09-checklist, kind: design-decision, sha: "145630554108", reviewed_on: "2026-11-22", review_required: true}  # 127
+  - {slide: slide:p10-part, kind: structural, sha: "5fc656f10b86", reviewed_on: "2026-11-22"}  # 128
+  - {slide: slide:p10-agent-identity, kind: design-decision, sha: "030ac1e0fe9a", reviewed_on: "2026-11-22"}  # 129
+  - {slide: slide:p10-four-questions, kind: design-decision, sha: "6ac18e5f7a87", reviewed_on: "2026-11-22"}  # 130
+  - {slide: slide:p10-per-tool-scopes, kind: design-decision, sha: "1b29a7a899d2", reviewed_on: "2026-11-22"}  # 131
+  - {slide: slide:p10-human-approval-evidence, kind: design-decision, sha: "77c171ebcb26", reviewed_on: "2026-11-22"}  # 132
+  - {slide: slide:p10-mcp-authorization, kind: design-decision, sha: "4f11886fdf36", reviewed_on: "2026-11-22"}  # 133
+  - {slide: slide:p10-token-exchange-not-narrowing, kind: design-decision, sha: "8fb71138cb5d", reviewed_on: "2026-11-22"}  # 134
+  - {slide: slide:p10-delegation-chain-depth, kind: design-decision, sha: "1f4e9440f858", reviewed_on: "2026-11-22"}  # 135
+  - {slide: slide:p10-vendor-features, kind: design-decision, sha: "e8762f17863c", reviewed_on: "2026-11-22"}  # 136
+  - {slide: slide:p10-guidance-standards, kind: design-decision, sha: "5c130b1943a4", reviewed_on: "2026-11-22"}  # 137
+  - {slide: slide:p10-agent-checklist, kind: design-decision, sha: "f1a13072cf4f", reviewed_on: "2026-11-22", review_required: true}  # 138
+  - {slide: slide:p11-part, kind: structural, sha: "011c33ad342a", reviewed_on: "2026-11-22"}  # 139
+  - {slide: slide:p11-why-govern, kind: design-decision, sha: "bff947ea519d", reviewed_on: "2026-11-22"}  # 140
+  - {slide: slide:p11-registry-fields, kind: design-decision, sha: "4361481c7fe9", reviewed_on: "2026-11-22"}  # 141
+  - {slide: slide:p11-registry-example, kind: knowledge, sha: "6a78330df436", reviewed_on: "2026-11-22"}  # 142
+  - {slide: slide:p11-schema-contract-tests, kind: design-decision, sha: "5347e92725ab", reviewed_on: "2026-11-22"}  # 143
+  - {slide: slide:p11-contract-test-gaps, kind: design-decision, sha: "8a3d520e77f8", reviewed_on: "2026-11-22"}  # 144
+  - {slide: slide:p11-change-procedure, kind: design-decision, sha: "09f7f4c56496", reviewed_on: "2026-11-22"}  # 145
+  - {slide: slide:p11-reserved-names, kind: design-decision, sha: "9e53d434a14e", reviewed_on: "2026-11-22"}  # 146
+  - {slide: slide:p11-translation-layer, kind: design-decision, sha: "0d81804e32d0", reviewed_on: "2026-11-22"}  # 147
+  - {slide: slide:p11-ownership, kind: design-decision, sha: "1e56cf24743a", reviewed_on: "2026-11-22"}  # 148
+  - {slide: slide:p11-pre-add-questions-1, kind: design-decision, sha: "d010ebe6167e", reviewed_on: "2026-11-22", review_required: true}  # 149
+  - {slide: slide:p11-pre-add-questions-2, kind: design-decision, sha: "f2aa9796cb3b", reviewed_on: "2026-11-22", review_required: true}  # 150
+  - {slide: slide:p11-audit-metrics, kind: design-decision, sha: "9a499bcd5041", reviewed_on: "2026-11-22"}  # 151
+  - {slide: slide:p12-part, kind: structural, sha: "3fb7dec62413", reviewed_on: "2026-11-22"}  # 152
+  - {slide: slide:p12-antipatterns-1, kind: design-decision, sha: "4b7f8a6a8f2f", reviewed_on: "2026-11-22", review_required: true}  # 153
+  - {slide: slide:p12-antipatterns-2, kind: design-decision, sha: "e1c45fd300f1", reviewed_on: "2026-11-22", review_required: true}  # 154
+  - {slide: slide:p12-review-viewpoints, kind: design-decision, sha: "19153bd0c33b", reviewed_on: "2026-11-22", review_required: true}  # 155
+  - {slide: slide:p12-priorities-deferrals, kind: design-decision, sha: "6a709de2321a", reviewed_on: "2026-11-22"}  # 156
+  - {slide: slide:p12-claims-and-evidence, kind: structural, sha: "7662096f0156", reviewed_on: "2026-11-22"}  # 157
+  - {slide: slide:p12-references, kind: structural, sha: "4e9b32e2c476", reviewed_on: "2026-11-22"}  # 158
+  - {slide: slide:p12-summary, kind: knowledge, sha: "32f6613be989", reviewed_on: "2026-11-22"}  # 159
 
 # 設計判断のスライドの要件
 requirements:
@@ -452,7 +468,72 @@ requirements:
     planned_items: [test:negative_tests#typ-wrong, registry:token_types#typ]
     status: 未着手
     tier: core
-  # ---- 13 slide:p01-id-token-vs-access-token
+  # ---- 13 slide:p01-key-rotation-jwks
+  - id: p01-key-rotation-jwks.R1
+    slide: slide:p01-key-rotation-jwks
+    text: "検証の鍵は、設定した iss のメタデータの jwks_uri から取り、鍵がその発行者のものかを確かめる。jku・x5u はそのままたどらない（許可リストで SSRF を防ぐ）"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#issuers, registry:token_types#key_source, test:negative_tests#untrusted-key]
+    status: 未着手
+    tier: full
+  - id: p01-key-rotation-jwks.R2
+    slide: slide:p01-key-rotation-jwks
+    text: "JWKS を kid ごとにキャッシュし、キャッシュの寿命と更新の周期を決める"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#jwks_cache_ttl, template:modules/M_token_validation#jwks-cache]
+    status: 未着手
+    tier: core
+  - id: p01-key-rotation-jwks.R3
+    slide: slide:p01-key-rotation-jwks
+    text: "知らない kid では JWKS を取り直し、取り直しの間隔に下限を置き、取り直しに失敗したら最後に取れた鍵で続ける"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#unknown_kid, template:modules/M_token_validation#jwks-cache]
+    status: 未着手
+    tier: core
+  - id: p01-key-rotation-jwks.R4
+    slide: slide:p01-key-rotation-jwks
+    text: "新しい鍵は署名に使う前に公開し、古い鍵はその鍵で署名した最長の寿命のトークンが切れてから JWKS から外す"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#key_rotation, template:modules/M_token_validation#key-rotation, lint:L17]
+    status: 未着手
+    tier: core
+  - id: p01-key-rotation-jwks.R5
+    slide: slide:p01-key-rotation-jwks
+    text: "公開鍵をコードに埋め込まない。ローテーションの頻度が変わっても追従できるようにする"
+    owner_issue: "#5"
+    planned_items: [review:perspectives#role-operations]
+    status: 未着手
+    tier: full
+  # ---- 14 slide:p01-client-made-jwts
+  - id: p01-client-made-jwts.R1
+    slide: slide:p01-client-made-jwts
+    text: "クライアントの assertion（private_key_jwt）の aud は AS の issuer だけにし、AS はそれ以外の aud を拒否する"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#aud, catalog:token_kinds]
+    status: 未着手
+    tier: full
+  - id: p01-client-made-jwts.R2
+    slide: slide:p01-client-made-jwts
+    text: "DPoP の proof は作成から短い間だけ受け入れ、その間の jti の再送を拒む"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#jti_policy, registry:token_types#sender_constraint]
+    status: 未着手
+    tier: full
+  - id: p01-client-made-jwts.R3
+    slide: slide:p01-client-made-jwts
+    text: "クライアントが作る JWT（assertion・Request Object・DPoP の proof）は、種類ごとに typ と検証の規則を分け、互いに受け入れない"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#typ, test:negative_tests#typ-wrong]
+    status: 未着手
+    tier: full
+  - id: p01-client-made-jwts.R4
+    slide: slide:p01-client-made-jwts
+    text: "クライアントが作る JWT に、組織の独自クレームを載せない（筆者の推奨）"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#purpose]
+    status: 未着手
+    tier: full
+  # ---- 15 slide:p01-id-token-vs-access-token
   - id: p01-id-token-vs-access-token.R1
     slide: slide:p01-id-token-vs-access-token
     text: "API に渡すのはアクセストークンとし、ID トークンを API に送らない・受け入れない"
@@ -481,7 +562,7 @@ requirements:
     planned_items: [lint:L26, registry:claims#carried_in, registry:claims#consumers]
     status: 未着手
     tier: full
-  # ---- 14 slide:p01-self-contained-vs-reference
+  # ---- 16 slide:p01-self-contained-vs-reference
   - id: p01-self-contained-vs-reference.R1
     slide: slide:p01-self-contained-vs-reference
     text: "自己完結型（JWT）か参照型（イントロスペクション）かを、寿命と取り消しの要件で決める"
@@ -503,7 +584,7 @@ requirements:
     planned_items: [registry:claims#on_revoke, review:perspectives#q-revocation-delivery]
     status: 未着手
     tier: core
-  # ---- 15 slide:p01-library-defaults
+  # ---- 17 slide:p01-library-defaults
   - id: p01-library-defaults.R1
     slide: slide:p01-library-defaults
     text: "使う検証ライブラリと、aud・iss を確かめる明示の設定を書く（既定に任せない）"
@@ -539,7 +620,7 @@ requirements:
     planned_items: [template:modules/M_token_validation#library-config, registry:token_types#max_clock_skew]
     status: 未着手
     tier: core
-  # ---- 16 slide:p01-attack-patterns
+  # ---- 18 slide:p01-attack-patterns
   - id: p01-attack-patterns.R1
     slide: slide:p01-attack-patterns
     text: "alg の none や RS256→HS256 の混同を、許可リストと鍵ごとの固定で拒否する"
@@ -596,7 +677,7 @@ requirements:
     planned_items: [lint:L1b, registry:claims#issuers]
     status: 未着手
     tier: core
-  # ---- 18 slide:p02-registered-claims
+  # ---- 20 slide:p02-registered-claims
   - id: p02-registered-claims.R1
     slide: slide:p02-registered-claims
     text: "iss は完全一致で比べ、部分一致で受け入れない"
@@ -646,7 +727,7 @@ requirements:
     planned_items: [review:perspectives#q-registered-synonym, template:claim_request, registry:claims#registered_ref]
     status: 未着手
     tier: core
-  # ---- 19 slide:p02-name-categories
+  # ---- 21 slide:p02-name-categories
   - id: p02-name-categories.R1
     slide: slide:p02-name-categories
     text: "新しい名前は、IANA の登録名か、自分が管理する名前空間を含む公開名にする"
@@ -668,7 +749,7 @@ requirements:
     planned_items: [registry:claims#registered_ref, lint:L1a, review:perspectives#q-registered-synonym]
     status: 未着手
     tier: core
-  # ---- 21 slide:p02-user-identifier
+  # ---- 23 slide:p02-user-identifier
   - id: p02-user-identifier.R1
     slide: slide:p02-user-identifier
     text: "利用者の安定したキーは iss と sub の組か、組織が決めた変わらない ID だけにする"
@@ -704,7 +785,7 @@ requirements:
     planned_items: [registry:claims#usage, review:perspectives#q-identifier-choice]
     status: 未着手
     tier: core
-  # ---- 22 slide:p02-tenant-org
+  # ---- 24 slide:p02-tenant-org
   - id: p02-tenant-org.R1
     slide: slide:p02-tenant-org
     text: "テナントのクレームを作る前に、aud（RFC 8707）や iss をテナントごとに分けられないかを検討する"
@@ -733,7 +814,7 @@ requirements:
     planned_items: [lint:L9, registry:claims#upstream_issuer]
     status: 未着手
     tier: core
-  # ---- 23 slide:p02-roles-groups-entitlements
+  # ---- 25 slide:p02-roles-groups-entitlements
   - id: p02-roles-groups-entitlements.R1
     slide: slide:p02-roles-groups-entitlements
     text: "役割・グループ・資格の名前は roles・groups・entitlements を使う"
@@ -769,7 +850,7 @@ requirements:
     planned_items: [registry:claims#issuers, lint:L1b]
     status: 未着手
     tier: core
-  # ---- 24 slide:p02-scope
+  # ---- 26 slide:p02-scope
   - id: p02-scope.R1
     slide: slide:p02-scope
     text: "scope を利用者の全権限と読まない（クライアントに委ねた範囲として扱う）"
@@ -819,7 +900,7 @@ requirements:
     planned_items: [registry:claims#shape]
     status: 未着手
     tier: core
-  # ---- 25 slide:p02-auth-strength-session
+  # ---- 27 slide:p02-auth-strength-session
   - id: p02-auth-strength-session.R1
     slide: slide:p02-auth-strength-session
     text: "acr の値の語彙と、どの値がどの水準かを台帳で定める"
@@ -862,7 +943,7 @@ requirements:
     planned_items: [template:00_core#step-up]
     status: 未着手
     tier: full
-  # ---- 26 slide:p02-delegation-client
+  # ---- 28 slide:p02-delegation-client
   - id: p02-delegation-client.R1
     slide: slide:p02-delegation-client
     text: "認可に使うのは最上位のクレームと最も外側の act だけにする"
@@ -905,7 +986,7 @@ requirements:
     planned_items: [registry:token_types#required_claims, registry:claims#not_meaning]
     status: 未着手
     tier: core
-  # ---- 27 slide:p02-keys-events-identity-assurance
+  # ---- 29 slide:p02-keys-events-identity-assurance
   - id: p02-keys-events-identity-assurance.R1
     slide: slide:p02-keys-events-identity-assurance
     text: "端末・鍵への結び付けは cnf を使い、独自のクレームを作らない"
@@ -955,7 +1036,7 @@ requirements:
     planned_items: [registry:token_types#required_claims]
     status: 未着手
     tier: core
-  # ---- 29 slide:p02-saml-attributes
+  # ---- 31 slide:p02-saml-attributes
   - id: p02-saml-attributes.R1
     slide: slide:p02-saml-attributes
     text: "ブローカーでの SAML 属性からクレームへの写し方を組織で決め、上流の発行者と正規化の規則を書く"
@@ -991,7 +1072,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#broker-mapping]
     status: 未着手
     tier: full
-  # ---- 30 slide:p02-check-before-creating
+  # ---- 32 slide:p02-check-before-creating
   - id: p02-check-before-creating.R1
     slide: slide:p02-check-before-creating
     text: "IANA の登録簿・仕様の構造・IdP の文書・組織の台帳の順に探し、無いときだけ名前空間つきで作る"
@@ -1034,7 +1115,7 @@ requirements:
     planned_items: [lint:L2, template:modules/M_idp_keycloak#immutable-claims]
     status: 未着手
     tier: core
-  # ---- 33 slide:p03-entra-oid-tid
+  # ---- 35 slide:p03-entra-oid-tid
   - id: p03-entra-oid-tid.R1
     slide: slide:p03-entra-oid-tid
     text: "Entra ではサービス間で共有するキーを oid＋tid にし、tid をデータのキーに含める"
@@ -1070,7 +1151,7 @@ requirements:
     planned_items: [test:negative_tests#aud-wrong]
     status: 未着手
     tier: core
-  # ---- 34 slide:p03-entra-scp-roles-groups
+  # ---- 36 slide:p03-entra-scp-roles-groups
   - id: p03-entra-scp-roles-groups.R1
     slide: slide:p03-entra-scp-roles-groups
     text: "上限で消えうるクレーム（groups など）が無いことを「所属なし」と読まない"
@@ -1106,7 +1187,7 @@ requirements:
     planned_items: [deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 35 slide:p03-keycloak-mappers
+  # ---- 37 slide:p03-keycloak-mappers
   - id: p03-keycloak-mappers.R1
     slide: slide:p03-keycloak-mappers
     text: "属性をクレームにするプロトコルマッパーと、Default／Optional のクライアントスコープの割り当てを設計書に書く"
@@ -1142,7 +1223,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#mappers-scopes, registry:claims#shape]
     status: 未着手
     tier: core
-  # ---- 36 slide:p03-keycloak-aud-lightweight
+  # ---- 38 slide:p03-keycloak-aud-lightweight
   - id: p03-keycloak-aud-lightweight.R1
     slide: slide:p03-keycloak-aud-lightweight
     text: "API を aud に入れるために Audience マッパーを設定し、既定の account を API の宛先として扱わない"
@@ -1192,7 +1273,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#triggers, catalog:issue_events#lifetime_impact]
     status: 未着手
     tier: core
-  # ---- 37 slide:p03-auth0-namespace
+  # ---- 39 slide:p03-auth0-namespace
   - id: p03-auth0-namespace.R1
     slide: slide:p03-auth0-namespace
     text: "独自クレームは必ず組織の名前空間つきで足す"
@@ -1228,7 +1309,7 @@ requirements:
     planned_items: [deferred:idp-auth0-okta]
     status: 後回し
     tier: full
-  # ---- 38 slide:p03-okta-custom-as
+  # ---- 40 slide:p03-okta-custom-as
   - id: p03-okta-custom-as.R1
     slide: slide:p03-okta-custom-as
     text: "Okta の Org 認可サーバーの AT を自分の API で検証せず、Custom 認可サーバーを使う"
@@ -1264,7 +1345,7 @@ requirements:
     planned_items: [deferred:idp-auth0-okta]
     status: 後回し
     tier: full
-  # ---- 39 slide:p03-cognito-token-use
+  # ---- 41 slide:p03-cognito-token-use
   - id: p03-cognito-token-use.R1
     slide: slide:p03-cognito-token-use
     text: "API では種類を判別するクレーム（typ・token_use など）で AT だけを受け、ID トークンを拒否する"
@@ -1314,7 +1395,7 @@ requirements:
     planned_items: [deferred:idp-cognito]
     status: 後回し
     tier: full
-  # ---- 40 slide:p03-cognito-pre-token-hook
+  # ---- 42 slide:p03-cognito-pre-token-hook
   - id: p03-cognito-pre-token-hook.R1
     slide: slide:p03-cognito-pre-token-hook
     text: "Cognito で AT を変えるにはフックの版（V2 以上、M2M は V3）とプランを確かめ、設計書に書く"
@@ -1357,7 +1438,7 @@ requirements:
     planned_items: [deferred:idp-cognito]
     status: 後回し
     tier: full
-  # ---- 41 slide:p03-recent-changes
+  # ---- 43 slide:p03-recent-changes
   - id: p03-recent-changes.R1
     slide: slide:p03-recent-changes
     text: "IdP の挙動に関する社内の手順書・書籍の記述は、現行の公式文書で確かめ直し、確認日と見直しの期限を記録する"
@@ -1372,7 +1453,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#triggers, lint:L14]
     status: 未着手
     tier: core
-  # ---- 42 slide:p03-custom-claim-injection
+  # ---- 44 slide:p03-custom-claim-injection
   - id: p03-custom-claim-injection.R1
     slide: slide:p03-custom-claim-injection
     text: "受け手は、必要な独自クレームが無いトークンを拒否し、「無い」を既定の権限ありと読まない（fail-closed）"
@@ -1408,7 +1489,7 @@ requirements:
     planned_items: [deferred:idp-entra, deferred:idp-auth0-okta, deferred:idp-cognito]
     status: 後回し
     tier: full
-  # ---- 43 slide:p03-confusing-differences
+  # ---- 45 slide:p03-confusing-differences
   - id: p03-confusing-differences.R1
     slide: slide:p03-confusing-differences
     text: "共通の利用者のキーは入口で決め、IdP ごとに形の違う sub を各サービスのキーにしない"
@@ -1444,7 +1525,7 @@ requirements:
     planned_items: [template:modules/M_token_validation#typ, registry:token_types#typ]
     status: 未着手
     tier: core
-  # ---- 44 slide:p03-absorb-idp-differences
+  # ---- 46 slide:p03-absorb-idp-differences
   - id: p03-absorb-idp-differences.R1
     slide: slide:p03-absorb-idp-differences
     text: "IdP ごとの iss・aud・種類の検証は入口で 1 回だけ行う"
@@ -1480,7 +1561,7 @@ requirements:
     planned_items: [lint:L7, test:negative_tests#missing-required-claim]
     status: 未着手
     tier: core
-  # ---- 46 slide:p04-token-is-snapshot
+  # ---- 48 slide:p04-token-is-snapshot
   - id: p04-token-is-snapshot.R1
     slide: slide:p04-token-is-snapshot
     text: "載せたクレームは発行時点の写しで期限まで使われる前提で、値の変化が反映されるまでに許す時間を決める"
@@ -1502,7 +1583,7 @@ requirements:
     planned_items: [test:negative_tests#revocation-latency]
     status: 未着手
     tier: core
-  # ---- 47 slide:p04-carry-or-query
+  # ---- 49 slide:p04-carry-or-query
   - id: p04-carry-or-query.R1
     slide: slide:p04-carry-or-query
     text: "認可・ルーティングに使わないクレームは載せず、UserInfo・DB で取る"
@@ -1538,7 +1619,7 @@ requirements:
     planned_items: [review:decision_tree#carry-or-query, template:modules/M_authz_pdp#carry-or-query]
     status: 未着手
     tier: core
-  # ---- 48 slide:p04-claim-names
+  # ---- 50 slide:p04-claim-names
   - id: p04-claim-names.R1
     slide: slide:p04-claim-names
     text: "意味が足りる登録名（roles・groups・act・authorization_details など）があればその名前を使う"
@@ -1560,7 +1641,7 @@ requirements:
     planned_items: [lint:L34, template:modules/M_idp_keycloak#immutable-claims]
     status: 未着手
     tier: full
-  # ---- 49 slide:p04-namespace
+  # ---- 51 slide:p04-namespace
   - id: p04-namespace.R1
     slide: slide:p04-namespace
     text: "独自クレームの名前空間の形（1 つのオブジェクトにまとめるか、フラットな接頭辞か）を決めて台帳に書く"
@@ -1589,7 +1670,7 @@ requirements:
     planned_items: [registry:claims#flat_alias]
     status: 未着手
     tier: full
-  # ---- 50 slide:p04-type
+  # ---- 52 slide:p04-type
   - id: p04-type.R1
     slide: slide:p04-type
     text: "クレームごとに型を 1 つに固定して台帳に書き、実際のトークンの型と一致することを確かめる"
@@ -1632,7 +1713,7 @@ requirements:
     planned_items: [lint:L24, registry:claims#shape]
     status: 未着手
     tier: full
-  # ---- 51 slide:p04-shape
+  # ---- 53 slide:p04-shape
   - id: p04-shape.R1
     slide: slide:p04-shape
     text: "複数値を区切り文字で連結せず、文字列の配列にする"
@@ -1661,7 +1742,7 @@ requirements:
     planned_items: [review:perspectives#q-consumer-expression]
     status: 未着手
     tier: full
-  # ---- 52 slide:p04-absent-null-false-empty
+  # ---- 54 slide:p04-absent-null-false-empty
   - id: p04-absent-null-false-empty.R1
     slide: slide:p04-absent-null-false-empty
     text: "クレームごとに、無い・null・false・空配列の意味を決めて台帳に書く"
@@ -1697,7 +1778,7 @@ requirements:
     planned_items: [lint:L24, registry:claims#absent_semantics]
     status: 未着手
     tier: full
-  # ---- 53 slide:p04-case-and-characters
+  # ---- 55 slide:p04-case-and-characters
   - id: p04-case-and-characters.R1
     slide: slide:p04-case-and-characters
     text: "識別子の値は小文字の ASCII に限る"
@@ -1726,7 +1807,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#limits]
     status: 未着手
     tier: core
-  # ---- 54 slide:p04-immutable-identifiers
+  # ---- 56 slide:p04-immutable-identifiers
   - id: p04-immutable-identifiers.R1
     slide: slide:p04-immutable-identifiers
     text: "認可の条件は、改名や再利用で別の主体を指しうる名前ではなく、変わらない ID で書く"
@@ -1755,7 +1836,7 @@ requirements:
     planned_items: [deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 55 slide:p04-split-by-writer
+  # ---- 57 slide:p04-split-by-writer
   - id: p04-split-by-writer.R1
     slide: slide:p04-split-by-writer
     text: "発行者が確かめた値・呼び出し側の申告の値・本人が編集できる値を、別の名前（場所）に分ける"
@@ -1784,7 +1865,7 @@ requirements:
     planned_items: [template:profiles/P5_internal_propagation#txn-token, review:contrasts/act-txn-workload]
     status: 未着手
     tier: core
-  # ---- 56 slide:p04-size-budget
+  # ---- 58 slide:p04-size-budget
   - id: p04-size-budget.R1
     slide: slide:p04-size-budget
     text: "クレームごとに最大の長さと件数を決める"
@@ -1820,7 +1901,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#limits]
     status: 未着手
     tier: core
-  # ---- 57 slide:p04-forward-compatibility
+  # ---- 59 slide:p04-forward-compatibility
   - id: p04-forward-compatibility.R1
     slide: slide:p04-forward-compatibility
     text: "受け手は、別に求めない限り未知のクレームを無視し、未知のクレームで失敗しない"
@@ -1849,7 +1930,7 @@ requirements:
     planned_items: [template:00_core#definition-lifecycle, registry:claims#status, lint:L18]
     status: 未着手
     tier: core
-  # ---- 58 slide:p04-reject-missing-required
+  # ---- 60 slide:p04-reject-missing-required
   - id: p04-reject-missing-required.R1
     slide: slide:p04-reject-missing-required
     text: "誤拒否を避けるために必須の確認や宛先の確認を外さない"
@@ -1878,7 +1959,7 @@ requirements:
     planned_items: [test:negative_tests#legit-idp-variants-accepted, test:negative_tests#missing-required-claim, test:negative_tests#aud-wrong]
     status: 未着手
     tier: core
-  # ---- 59 slide:p04-single-issuer
+  # ---- 61 slide:p04-single-issuer
   - id: p04-single-issuer.R1
     slide: slide:p04-single-issuer
     text: "クレームを書くのは組織の発行者 1 か所（IdP か入口のトークン交換）に限る"
@@ -1914,7 +1995,7 @@ requirements:
     planned_items: [lint:L1b]
     status: 未着手
     tier: core
-  # ---- 60 slide:p04-namespace-object-example
+  # ---- 62 slide:p04-namespace-object-example
   - id: p04-namespace-object-example.R1
     slide: slide:p04-namespace-object-example
     text: "名前空間のオブジェクトに、構造の版（v）を持たせる"
@@ -1936,7 +2017,7 @@ requirements:
     planned_items: [lint:L31, lint:L6]
     status: 未着手
     tier: core
-  # ---- 61 slide:p04-design-checklist
+  # ---- 63 slide:p04-design-checklist
   - id: p04-design-checklist.R1
     slide: slide:p04-design-checklist
     text: "「載せるか」：認可に使い、寿命の間に変わらないかを答える"
@@ -2028,7 +2109,7 @@ requirements:
     planned_items: [lint:R1, registry:README#slide-61-map, review:perspectives#design-checklist]
     status: 未着手
     tier: core
-  # ---- 63 slide:p05-three-principals
+  # ---- 65 slide:p05-three-principals
   - id: p05-three-principals.R1
     slide: slide:p05-three-principals
     text: "主体を利用者・ワークロード・システム（基盤）の種類に分け、それぞれの表し方を設計書に書く"
@@ -2050,12 +2131,12 @@ requirements:
     planned_items: [lint:R6]
     status: 実装済み
     tier: core
-  # ---- 64 slide:p05-one-request-carries
+  # ---- 66 slide:p05-one-request-carries
   - id: p05-one-request-carries.R1
     slide: slide:p05-one-request-carries
     text: "誰の権限で（sub）と誰が実行しているか（act・req_wl・mTLS の相手）を、別々のクレーム・チャネルで運び、1 つに混ぜない"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-sub, registry:questions#q-actor, registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload, guide:split-slide-64]
+    planned_items: [registry:questions#q-sub, registry:questions#q-actor, registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload]
     status: 未着手
     tier: core
   - id: p05-one-request-carries.R2
@@ -2086,7 +2167,21 @@ requirements:
     planned_items: [template:profiles/P5_internal_propagation#edge-conversion]
     status: 未着手
     tier: core
-  # ---- 65 slide:p05-authz-models
+  - id: p05-one-request-carries.R6
+    slide: slide:p05-one-request-carries
+    text: "今の代理者は最も外側の act だけで判断し、入れ子の内側の act（過去の代理者）をアクセス制御に使わない（RFC 8693 §4.1）"
+    owner_issue: "#3"
+    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload]
+    status: 未着手
+    tier: core
+  - id: p05-one-request-carries.R7
+    slide: slide:p05-one-request-carries
+    text: "Txn-Token の req_wl（求めたワークロード）を直接の通信相手とみなさない。直接の相手は mTLS（SPIFFE など）で確かめる"
+    owner_issue: "#3"
+    planned_items: [registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload]
+    status: 未着手
+    tier: core
+  # ---- 67 slide:p05-authz-models
   - id: p05-authz-models.R1
     slide: slide:p05-authz-models
     text: "RBAC・ABAC・関係ベース（併用を含む）のどれで判定するかを判断表で決める"
@@ -2115,7 +2210,7 @@ requirements:
     planned_items: [template:modules/M_authz_pdp#model-choice]
     status: 未着手
     tier: core
-  # ---- 66 slide:p05-pep-pdp
+  # ---- 68 slide:p05-pep-pdp
   - id: p05-pep-pdp.R1
     slide: slide:p05-pep-pdp
     text: "PEP（ゲートウェイ・サービス）がトークンを検証し、判断は方針に従う PDP に任せる分担を決める"
@@ -2137,7 +2232,7 @@ requirements:
     planned_items: [review:perspectives#q-validity-not-authz]
     status: 未着手
     tier: full
-  # ---- 67 slide:p05-coarse-fine-layers
+  # ---- 69 slide:p05-coarse-fine-layers
   - id: p05-coarse-fine-layers.R1
     slide: slide:p05-coarse-fine-layers
     text: "粗い権限（scope・roles・groups）・取引単位（authorization_details）・オブジェクト単位（載せない）の 3 層に置き場所を分ける"
@@ -2173,7 +2268,7 @@ requirements:
     planned_items: [lint:L11, registry:claims#enforced_at]
     status: 未着手
     tier: core
-  # ---- 68 slide:p05-scope-vs-role
+  # ---- 70 slide:p05-scope-vs-role
   - id: p05-scope-vs-role.R1
     slide: slide:p05-scope-vs-role
     text: "scope はクライアントに委ねた範囲で利用者の全権限ではないとし、受け手は scope と role の両方を確かめる"
@@ -2195,7 +2290,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#client-scope, registry:claims#namespace]
     status: 未着手
     tier: core
-  # ---- 69 slide:p05-role-explosion
+  # ---- 71 slide:p05-role-explosion
   - id: p05-role-explosion.R1
     slide: slide:p05-role-explosion
     text: "役割 × テナント × 対象の組み合わせをロールの名前に焼き込まない"
@@ -2224,7 +2319,7 @@ requirements:
     planned_items: [registry:claims#typical_items, registry:claims#max_items, lint:R8]
     status: 未着手
     tier: core
-  # ---- 70 slide:p05-system-privileges
+  # ---- 72 slide:p05-system-privileges
   - id: p05-system-privileges.R1
     slide: slide:p05-system-privileges
     text: "夜間バッチはワークロード自身の権限（client credentials）でトークンを取り、利用者の権限を借りない"
@@ -2274,7 +2369,7 @@ requirements:
     planned_items: [template:00_core#system-privileges]
     status: 未着手
     tier: full
-  # ---- 71 slide:p05-multitenancy
+  # ---- 73 slide:p05-multitenancy
   - id: p05-multitenancy.R1
     slide: slide:p05-multitenancy
     text: "テナントの表し方（テナントごとの発行者・テナントのクレーム・テナントごとの宛先）を選んで宣言する"
@@ -2317,7 +2412,7 @@ requirements:
     planned_items: [test:negative_tests#tenant-mismatch]
     status: 未着手
     tier: core
-  # ---- 72 slide:p05-cross-tenant
+  # ---- 74 slide:p05-cross-tenant
   - id: p05-cross-tenant.R1
     slide: slide:p05-cross-tenant
     text: "複数のテナントに属する利用者は、テナント ID と主体 ID の複合キーで扱い、データアクセスのキーにテナントを含める"
@@ -2360,7 +2455,7 @@ requirements:
     planned_items: [test:negative_tests#aud-wrong]
     status: 未着手
     tier: core
-  # ---- 73 slide:p05-bola
+  # ---- 75 slide:p05-bola
   - id: p05-bola.R1
     slide: slide:p05-bola
     text: "認可をトークンの検証・機能の可否（BFLA）・オブジェクトとの関係（BOLA）の 3 段で行う"
@@ -2396,7 +2491,7 @@ requirements:
     planned_items: [test:negative_tests#bola-other-owner]
     status: 未着手
     tier: core
-  # ---- 74 slide:p05-confused-deputy
+  # ---- 76 slide:p05-confused-deputy
   - id: p05-confused-deputy.R1
     slide: slide:p05-confused-deputy
     text: "委任の連鎖は act のネストで記録して見せる"
@@ -2432,7 +2527,7 @@ requirements:
     planned_items: [registry:questions#q-via]
     status: 未着手
     tier: full
-  # ---- 76 slide:p06-stage-map
+  # ---- 78 slide:p06-stage-map
   - id: p06-stage-map.R1
     slide: slide:p06-stage-map
     text: "台帳に、クレームをどの段階（① 認証時〜⑥ 承認・同意）で書くかの列を持つ"
@@ -2482,7 +2577,7 @@ requirements:
     planned_items: [lint:L42]
     status: 未着手
     tier: full
-  # ---- 77 slide:p06-issuance-hook
+  # ---- 79 slide:p06-issuance-hook
   - id: p06-issuance-hook.R1
     slide: slide:p06-issuance-hook
     text: "フックで足すクレームが無いトークンは、受け手が「権限なし」として拒否する。既定の権限にしない"
@@ -2532,7 +2627,43 @@ requirements:
     planned_items: [catalog:issue_events#lifetime_impact, registry:claims#recompute_trigger]
     status: 未着手
     tier: core
-  # ---- 78 slide:p06-edge-exchange
+  - id: p06-issuance-hook.R8
+    slide: slide:p06-issuance-hook
+    text: "client credentials の発行で、利用者向けと同じフックが動くか（別のフックか、動かないか）を、発行イベントごとに明示する"
+    owner_issue: "#2"
+    planned_items: [catalog:issue_events#hook_invoked]
+    status: 未着手
+    tier: full
+  # ---- 80 slide:p06-grant-types
+  - id: p06-grant-types.R1
+    slide: slide:p06-grant-types
+    text: "利用者の発行は認可コードを使い、公開クライアントは PKCE を使う"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#client_type]
+    status: 未着手
+    tier: full
+  - id: p06-grant-types.R2
+    slide: slide:p06-grant-types
+    text: "ROPC を使わない。AT を認可応答で返す型（implicit・その種の hybrid）を使わない"
+    owner_issue: "#2"
+    planned_items: [catalog:issue_events, registry:token_types#transport]
+    status: 未着手
+    tier: full
+  - id: p06-grant-types.R3
+    slide: slide:p06-grant-types
+    text: "device flow を使うなら、user_code の試行を制限し、遠隔のフィッシングに備える（端末の情報を見せる）"
+    owner_issue: "#2"
+    planned_items: [catalog:issue_events]
+    status: 未着手
+    tier: full
+  - id: p06-grant-types.R4
+    slide: slide:p06-grant-types
+    text: "グラントを足すときは、そのグラントで発行時フックが動き、独自クレームが載るかを確かめる"
+    owner_issue: "#2"
+    planned_items: [catalog:issue_events#hook_invoked, test:negative_tests#missing-required-claim]
+    status: 未着手
+    tier: full
+  # ---- 81 slide:p06-edge-exchange
   - id: p06-edge-exchange.R1
     slide: slide:p06-edge-exchange
     text: "外部のトークンは入口で検証して終わらせ、内部専用のトークンに作り替える。内側のホップに外部のトークン種別を運ばない"
@@ -2554,7 +2685,7 @@ requirements:
     planned_items: [registry:claims#overflow_strategy, lint:R8]
     status: 未着手
     tier: core
-  # ---- 79 slide:p06-transaction-tokens
+  # ---- 82 slide:p06-transaction-tokens
   - id: p06-transaction-tokens.R1
     slide: slide:p06-transaction-tokens
     text: "Txn-Token は入口で TTS から取得し、サービス間は Txn-Token ヘッダーで改変せずに渡す"
@@ -2618,7 +2749,7 @@ requirements:
     planned_items: [lint:L11, test:negative_tests#tctx-mismatch]
     status: 未着手
     tier: core
-  # ---- 80 slide:p06-step-up-approval
+  # ---- 83 slide:p06-step-up-approval
   - id: p06-step-up-approval.R1
     slide: slide:p06-step-up-approval
     text: "高リスクの操作ごとに、受け手が要求する acr・max_age を決め、満たさなければ insufficient_user_authentication を返す"
@@ -2654,7 +2785,7 @@ requirements:
     planned_items: [deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 81 slide:p06-narrow-downstream
+  # ---- 84 slide:p06-narrow-downstream
   - id: p06-narrow-downstream.R1
     slide: slide:p06-narrow-downstream
     text: "「下流は aud・scope・寿命・独自クレームのどれでも上流を超えない」を規則として書き、静的に検査する（根拠は author-proposal）"
@@ -2697,7 +2828,7 @@ requirements:
     planned_items: [review:contrasts/act-txn-workload, review:contrasts/four-lifetimes]
     status: 未着手
     tier: core
-  # ---- 82 slide:p06-validation-split
+  # ---- 85 slide:p06-validation-split
   - id: p06-validation-split.R1
     slide: slide:p06-validation-split
     text: "入口で検証しても、各サービスが共通の検証部品で署名・iss・exp を再確認する"
@@ -2754,7 +2885,7 @@ requirements:
     planned_items: [review:perspectives#q-gateway-bypass-path, template:00_core#scope-boundary]
     status: 未着手
     tier: core
-  # ---- 83 slide:p06-access-context
+  # ---- 86 slide:p06-access-context
   - id: p06-access-context.R1
     slide: slide:p06-access-context
     text: "「今どこから来たか」（IP・ネットワーク・端末）の判断をトークンのクレームに頼らず、PEP が要求ごとに接続から得た値で行う"
@@ -2783,7 +2914,7 @@ requirements:
     planned_items: [review:perspectives#q-access-context-from-pep, review:perspectives#role-attacker]
     status: 未着手
     tier: core
-  # ---- 84 slide:p06-header-forwarding
+  # ---- 87 slide:p06-header-forwarding
   - id: p06-header-forwarding.R1
     slide: slide:p06-header-forwarding
     text: "クレームをヘッダーに転記する入口は、同名ヘッダーを除去してから検証・書き込みをし、サービスは入口が書いたヘッダーだけを読む"
@@ -2826,7 +2957,7 @@ requirements:
     planned_items: [registry:claims#shape, test:consumer_contract]
     status: 未着手
     tier: core
-  # ---- 85 slide:p06-audit-trail
+  # ---- 88 slide:p06-audit-trail
   - id: p06-audit-trail.R1
     slide: slide:p06-audit-trail
     text: "誰の権限で（sub）・誰が実行したか（act・req_wl・mTLS の相手）・何の承認で・どの取引か（txn）を別々の項目で記録する"
@@ -2869,7 +3000,7 @@ requirements:
     planned_items: [registry:token_types#log_policy, lint:L45]
     status: 未着手
     tier: full
-  # ---- 86 slide:p06-return-results
+  # ---- 89 slide:p06-return-results
   - id: p06-return-results.R1
     slide: slide:p06-return-results
     text: "処理結果を JWT（自己完結した主張）・HTTP メッセージ署名（本文）・参照型のどれで返すかを決める"
@@ -2898,7 +3029,7 @@ requirements:
     planned_items: [template:00_core#result-integrity]
     status: 未着手
     tier: full
-  # ---- 87 slide:p06-flow-browser-to-db
+  # ---- 90 slide:p06-flow-browser-to-db
   - id: p06-flow-browser-to-db.R1
     slide: slide:p06-flow-browser-to-db
     text: "ブラウザにはセッションの Cookie だけを置き、トークンは BFF が持つ"
@@ -2934,7 +3065,7 @@ requirements:
     planned_items: [lint:L9, template:modules/M_multitenancy#data-layer-filter]
     status: 未着手
     tier: core
-  # ---- 88 slide:p06-flow-multitenant-saas
+  # ---- 91 slide:p06-flow-multitenant-saas
   - id: p06-flow-multitenant-saas.R1
     slide: slide:p06-flow-multitenant-saas
     text: "入口で iss とテナントの対応と aud を確かめる"
@@ -2977,7 +3108,7 @@ requirements:
     planned_items: [lint:L3, registry:claims#usage]
     status: 未着手
     tier: core
-  # ---- 89 slide:p06-flow-partner-events
+  # ---- 92 slide:p06-flow-partner-events
   - id: p06-flow-partner-events.R1
     slide: slide:p06-flow-partner-events
     text: "ドメインをまたぐときは自社の AS で交換し、主体 ID の写像・最小化・絞り込みをして aud を相手の AS 1 つにする"
@@ -3027,7 +3158,7 @@ requirements:
     planned_items: [registry:token_types#revocation]
     status: 未着手
     tier: core
-  # ---- 90 slide:p06-flow-checklist
+  # ---- 93 slide:p06-flow-checklist
   - id: p06-flow-checklist.R1
     slide: slide:p06-flow-checklist
     text: "段階ごとに書き手を決め、フックには安定した属性だけを入れる（項目 1）"
@@ -3098,7 +3229,7 @@ requirements:
     planned_items: [lint:L45, template:modules/M_privacy_minimization#audit-log, review:perspectives#checklist-p06-flow]
     status: 未着手
     tier: full
-  # ---- 92 slide:p07-three-db-paths
+  # ---- 95 slide:p07-three-db-paths
   - id: p07-three-db-paths.R1
     slide: slide:p07-three-db-paths
     text: "経路を選ぶ前に「DB の文脈を設定するのは誰か」を図に書く"
@@ -3127,7 +3258,7 @@ requirements:
     planned_items: [registry:claims#provenance, lint:L31]
     status: 未着手
     tier: core
-  # ---- 93 slide:p07-row-level-security
+  # ---- 96 slide:p07-row-level-security
   - id: p07-row-level-security.R1
     slide: slide:p07-row-level-security
     text: "製品が DB ロールとして解釈するクレーム名（PostgREST の role など）と、組織の汎用名を衝突させない"
@@ -3156,7 +3287,7 @@ requirements:
     planned_items: [template:modules/M_data_layer#db-context-setter]
     status: 未着手
     tier: core
-  # ---- 94 slide:p07-trust-boundary
+  # ---- 97 slide:p07-trust-boundary
   - id: p07-trust-boundary.R1
     slide: slide:p07-trust-boundary
     text: "注入型の分離では、注入者以外が同じ接続・取引で任意の SQL を流せないようにする（RESET ROLE で戻せるため）"
@@ -3185,7 +3316,7 @@ requirements:
     planned_items: [registry:claims#privilege_level, lint:L48]
     status: 未着手
     tier: full
-  # ---- 95 slide:p07-connection-pool
+  # ---- 98 slide:p07-connection-pool
   - id: p07-connection-pool.R1
     slide: slide:p07-connection-pool
     text: "DB の文脈は取引単位で設定する（SET LOCAL・set_config(…, true)・サーバー側の SET LOCAL ROLE）"
@@ -3214,7 +3345,7 @@ requirements:
     planned_items: [review:perspectives#q-db-context-parameterized]
     status: 未着手
     tier: full
-  # ---- 96 slide:p07-db-token-auth
+  # ---- 99 slide:p07-db-token-auth
   - id: p07-db-token-auth.R1
     slide: slide:p07-db-token-auth
     text: "DB の主体との対応付けは、名前やメールでなく不変の ID で行う"
@@ -3243,7 +3374,7 @@ requirements:
     planned_items: [deferred:data-platform-modules]
     status: 後回し
     tier: full
-  # ---- 97 slide:p07-lifetime-mismatch
+  # ---- 100 slide:p07-lifetime-mismatch
   - id: p07-lifetime-mismatch.R1
     slide: slide:p07-lifetime-mismatch
     text: "プールの接続の最大寿命を、接続を開いたトークンの寿命以下にする"
@@ -3272,7 +3403,7 @@ requirements:
     planned_items: [template:00_core#lifecycle-db-connection]
     status: 未着手
     tier: core
-  # ---- 98 slide:p07-connect-as-whom
+  # ---- 101 slide:p07-connect-as-whom
   - id: p07-connect-as-whom.R1
     slide: slide:p07-connect-as-whom
     text: "DB に利用者の ID で接続するか、サービス ID＋文脈の注入か、サービス ID＋アプリの認可かを選び、理由を書く"
@@ -3301,7 +3432,7 @@ requirements:
     planned_items: [template:modules/M_data_layer#cloud-credentials]
     status: 未着手
     tier: full
-  # ---- 99 slide:p07-masking
+  # ---- 102 slide:p07-masking
   - id: p07-masking.R1
     slide: slide:p07-masking
     text: "マスキングを解除するロールを選ぶクレーム・scope を最も機微なクレームとし、その発行ポリシーを平文の閲覧権として管理する"
@@ -3323,7 +3454,7 @@ requirements:
     planned_items: [template:modules/M_data_layer#masking-rls-bypass]
     status: 未着手
     tier: core
-  # ---- 100 slide:p07-cloud-attributes
+  # ---- 103 slide:p07-cloud-attributes
   - id: p07-cloud-attributes.R1
     slide: slide:p07-cloud-attributes
     text: "セッションタグ・属性の元を、利用者が編集できる属性にしない"
@@ -3345,7 +3476,7 @@ requirements:
     planned_items: [deferred:data-platform-modules]
     status: 後回し
     tier: full
-  # ---- 101 slide:p07-data-layer-checklist
+  # ---- 104 slide:p07-data-layer-checklist
   - id: p07-data-layer-checklist.R1
     slide: slide:p07-data-layer-checklist
     text: "DB の文脈は、検証済みトークンを受けた注入者だけが設定する（項目 1）"
@@ -3423,7 +3554,22 @@ requirements:
     planned_items: [test:negative_tests#pool-context-leak, test:negative_tests#db-context-override, review:perspectives#checklist-p07-data-layer]
     status: 未着手
     tier: full
-  # ---- 103 slide:p08-token-types-lifetimes
+  # ---- 106 slide:p08-four-lifetimes
+  - id: p08-four-lifetimes.R1
+    slide: slide:p08-four-lifetimes
+    text: "独自クレームごとに、寿命の 4 つの層（トークン・値の鮮度・セッションと RT・定義）を別々に書く"
+    owner_issue: "#5"
+    planned_items: [review:contrasts/four-lifetimes, template:00_core#freshness, template:00_core#definition-lifecycle]
+    status: 未着手
+    tier: core
+  - id: p08-four-lifetimes.R2
+    slide: slide:p08-four-lifetimes
+    text: "セッションと RT の寿命がトークンの寿命より長いことを前提に、剥奪がどの手段で届くかを決める"
+    owner_issue: "#5"
+    planned_items: [review:perspectives#q-revocation-delivery]
+    status: 未着手
+    tier: full
+  # ---- 107 slide:p08-token-types-lifetimes
   - id: p08-token-types-lifetimes.R1
     slide: slide:p08-token-types-lifetimes
     text: "AT・ID トークン・RT・セッション・認可コード・Txn-Token の寿命を種類ごとに別々に宣言する"
@@ -3459,7 +3605,7 @@ requirements:
     planned_items: [template:00_core#token-inventory, catalog:token_kinds, registry:token_types#decision, lint:L21, lint:L22]
     status: 未着手
     tier: core
-  # ---- 104 slide:p08-choosing-lifetime
+  # ---- 108 slide:p08-choosing-lifetime
   - id: p08-choosing-lifetime.R1
     slide: slide:p08-choosing-lifetime
     text: "AT・ID トークンは 1 時間以内（IR 8587）など、種類ごとの上限を決め、宣言がそれを超えたら検出する"
@@ -3495,7 +3641,7 @@ requirements:
     planned_items: [template:CONTRIBUTING#evidence-types]
     status: 未着手
     tier: core
-  # ---- 105 slide:p08-stale-claims
+  # ---- 109 slide:p08-stale-claims
   - id: p08-stale-claims.R1
     slide: slide:p08-stale-claims
     text: "クレームを発行時点の写しとみなし、クレームごとに反映までに許す時間と載るトークンの寿命を並べる"
@@ -3524,7 +3670,7 @@ requirements:
     planned_items: [registry:claims#recompute_trigger, registry:claims#propagation_delay]
     status: 未着手
     tier: core
-  # ---- 106 slide:p08-refresh-reevaluation
+  # ---- 110 slide:p08-refresh-reevaluation
   - id: p08-refresh-reevaluation.R1
     slide: slide:p08-refresh-reevaluation
     text: "リフレッシュでクレームが計算し直されるかを IdP ごとに確かめて記録し、確かめずに前提にしない"
@@ -3553,7 +3699,43 @@ requirements:
     planned_items: [deferred:idp-auth0-okta, deferred:idp-cognito, deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 107 slide:p08-rotation
+  # ---- 111 slide:p08-reissue-triggers
+  - id: p08-reissue-triggers.R1
+    slide: slide:p08-reissue-triggers
+    text: "テナント・組織を切り替えたら新しいトークンを取り直し、BFF のテナントの文脈も置き換える。受け手は毎回テナントを照合する"
+    owner_issue: "#4"
+    planned_items: [template:modules/M_multitenancy#tenant-determination, test:negative_tests#tenant-mismatch]
+    status: 未着手
+    tier: full
+  - id: p08-reissue-triggers.R2
+    slide: slide:p08-reissue-triggers
+    text: "外部 IdP の属性の取り込み方式（初回だけか、毎回か）を決め、値の鮮度として書く"
+    owner_issue: "#4"
+    planned_items: [template:00_core#freshness]
+    status: 未着手
+    tier: full
+  - id: p08-reissue-triggers.R3
+    slide: slide:p08-reissue-triggers
+    text: "資格情報の変更（パスワード・MFA）の後に、ほかの端末のセッションと RT を失効させるかを決める"
+    owner_issue: "#2"
+    planned_items: [catalog:subject_state_matrix]
+    status: 未着手
+    tier: full
+  - id: p08-reissue-triggers.R4
+    slide: slide:p08-reissue-triggers
+    text: "再発行の契機（切り替え・初回ログイン・リンク・資格情報の変更・サイレント再認証）ごとに、発行時フックが動くかを確かめる"
+    owner_issue: "#2"
+    planned_items: [catalog:issue_events#hook_invoked]
+    status: 未着手
+    tier: full
+  - id: p08-reissue-triggers.R5
+    slide: slide:p08-reissue-triggers
+    text: "サイレント再認証では auth_time が変わらないことを前提に、認証の新しさは iat でなく auth_time で判断する"
+    owner_issue: "#5"
+    planned_items: [review:perspectives#q-auth-context-semantics]
+    status: 未着手
+    tier: full
+  # ---- 112 slide:p08-rotation
   - id: p08-rotation.R1
     slide: slide:p08-rotation
     text: "公開クライアントの RT は、ローテーション＋再利用の検知か送信者制約にする"
@@ -3610,7 +3792,7 @@ requirements:
     planned_items: [registry:token_types#rt_rotation, template:modules/M_idp_keycloak#refresh-token-settings]
     status: 未着手
     tier: core
-  # ---- 108 slide:p08-revocation-propagation
+  # ---- 113 slide:p08-revocation-propagation
   - id: p08-revocation-propagation.R1
     slide: slide:p08-revocation-propagation
     text: "トークン種別ごとに、失効を届ける手段（イントロスペクション・状態リスト・SSF/CAEP）を選び、届くまでの時間を書く"
@@ -3660,7 +3842,36 @@ requirements:
     planned_items: [deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 109 slide:p08-async-processing
+  # ---- 114 slide:p08-logout
+  - id: p08-logout.R1
+    slide: slide:p08-logout
+    text: "Logout Token は ID トークンと同じ手順で検証し、events・sub か sid・nonce の不在・typ を確かめ、ID トークンと取り違えない"
+    owner_issue: "#8"
+    planned_items: [test:negative_tests#typ-wrong, catalog:token_kinds]
+    status: 未着手
+    tier: full
+  - id: p08-logout.R2
+    slide: slide:p08-logout
+    text: "ログアウトと失効の要求で止まるのはセッションと RT で、手元で検証する JWT の AT は exp まで残ることを前提に、失効の手段を決める"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#revocation]
+    status: 未着手
+    tier: full
+  - id: p08-logout.R3
+    slide: slide:p08-logout
+    text: "Front-Channel Logout だけに頼らない（サードパーティのコンテンツを遮るブラウザでは届かない）"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#revocation]
+    status: 未着手
+    tier: full
+  - id: p08-logout.R4
+    slide: slide:p08-logout
+    text: "RP-Initiated Logout の戻り先は事前に登録し、完全一致で照合する"
+    owner_issue: "#2"
+    planned_items: [catalog:use_events]
+    status: 未着手
+    tier: full
+  # ---- 115 slide:p08-async-processing
   - id: p08-async-processing.R1
     slide: slide:p08-async-processing
     text: "キューやジョブの DB に利用者の AT・RT を入れない"
@@ -3696,7 +3907,7 @@ requirements:
     planned_items: [test:negative_tests#push-delivery-identity]
     status: 未着手
     tier: full
-  # ---- 110 slide:p08-downstream-after-expiry
+  # ---- 116 slide:p08-downstream-after-expiry
   - id: p08-downstream-after-expiry.R1
     slide: slide:p08-downstream-after-expiry
     text: "利用者の RT（offline_access）をジョブ側に保持して延命しない"
@@ -3725,7 +3936,36 @@ requirements:
     planned_items: [template:CONTRIBUTING#evidence-types]
     status: 未着手
     tier: core
-  # ---- 111 slide:p08-decision-table
+  # ---- 117 slide:p08-copies-outlive-token
+  - id: p08-copies-outlive-token.R1
+    slide: slide:p08-copies-outlive-token
+    text: "長い接続（WebSocket など）では、開いたときの exp を覚え、期限で切るか再認証させる（筆者の推奨）"
+    owner_issue: "#3"
+    planned_items: [registry:hops#connection_max_lifetime, lint:L49]
+    status: 未着手
+    tier: full
+  - id: p08-copies-outlive-token.R2
+    slide: slide:p08-copies-outlive-token
+    text: "認可の判断のキャッシュの寿命は、トークンの残りと剥奪の遅れの許容の短いほうにし、キーに主体・テナント・対象・操作・ポリシーの版を入れる（筆者の推奨）"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#introspection_cache_ttl]
+    status: 未着手
+    tier: full
+  - id: p08-copies-outlive-token.R3
+    slide: slide:p08-copies-outlive-token
+    text: "分析基盤にはトークンを複製せず、台帳で許した派生値を仮名化した ID で移し、取り込みの時刻と元の削除の伝達を持たせる（筆者の推奨）"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#log_policy, lint:L51]
+    status: 未着手
+    tier: full
+  - id: p08-copies-outlive-token.R4
+    slide: slide:p08-copies-outlive-token
+    text: "ブラウザの WebSocket のためにトークンを URL に載せない"
+    owner_issue: "#3"
+    planned_items: [registry:token_types#transport]
+    status: 未着手
+    tier: full
+  # ---- 118 slide:p08-decision-table
   - id: p08-decision-table.R1
     slide: slide:p08-decision-table
     text: "寿命の数字より先に「剥奪をどれだけ早く効かせたいか」を決め、数字をそこから導く"
@@ -3768,7 +4008,7 @@ requirements:
     planned_items: [lint:L47, review:decision_tree#lifetime-by-situation]
     status: 未着手
     tier: full
-  # ---- 113 slide:p09-jws-is-readable
+  # ---- 120 slide:p09-jws-is-readable
   - id: p09-jws-is-readable.R1
     slide: slide:p09-jws-is-readable
     text: "クレームを載せる前に、トークンが通るすべての場所（ブラウザ・ゲートウェイ・ログ・トレース）で誰が読めるかを問う"
@@ -3797,7 +4037,7 @@ requirements:
     planned_items: [review:contrasts/signed-vs-enforced]
     status: 未着手
     tier: core
-  # ---- 114 slide:p09-do-not-carry
+  # ---- 121 slide:p09-do-not-carry
   - id: p09-do-not-carry.R1
     slide: slide:p09-do-not-carry
     text: "認証の秘密（パスワード・API キー）をトークンに載せない"
@@ -3847,7 +4087,7 @@ requirements:
     planned_items: [template:claim_request]
     status: 未着手
     tier: core
-  # ---- 115 slide:p09-minimize-derived
+  # ---- 122 slide:p09-minimize-derived
   - id: p09-minimize-derived.R1
     slide: slide:p09-minimize-derived
     text: "受け手が値と判定のどちらを要するかを問い、判定で足りるなら元の値を明かさない派生値を載せる"
@@ -3876,7 +4116,7 @@ requirements:
     planned_items: [review:perspectives#q-minimal-per-recipient, registry:claims#consumers, registry:hops#custom_claims]
     status: 未着手
     tier: core
-  # ---- 116 slide:p09-pairwise-identifiers
+  # ---- 123 slide:p09-pairwise-identifiers
   - id: p09-pairwise-identifiers.R1
     slide: slide:p09-pairwise-identifiers
     text: "外部の受け手に出す sub をペアワイズにするかを、トークン種別ごとに決める"
@@ -3905,7 +4145,7 @@ requirements:
     planned_items: [deferred:idp-entra]
     status: 後回し
     tier: full
-  # ---- 117 slide:p09-jwe-sd-jwt
+  # ---- 124 slide:p09-jwe-sd-jwt
   - id: p09-jwe-sd-jwt.R1
     slide: slide:p09-jwe-sd-jwt
     text: "機微な値は「載せない→派生値→暗号化・選択的開示」の順で検討し、暗号は最後の手段とする"
@@ -3934,7 +4174,7 @@ requirements:
     planned_items: [lint:L53, registry:token_types#sender_constraint]
     status: 未着手
     tier: full
-  # ---- 118 slide:p09-logs-traces
+  # ---- 125 slide:p09-logs-traces
   - id: p09-logs-traces.R1
     slide: slide:p09-logs-traces
     text: "ログ・トレースにトークン全文と Authorization ヘッダーを残さない"
@@ -3970,7 +4210,7 @@ requirements:
     planned_items: [template:modules/M_privacy_minimization#audit-log-protection, review:perspectives#role-privacy]
     status: 未着手
     tier: core
-  # ---- 119 slide:p09-url-browser
+  # ---- 126 slide:p09-url-browser
   - id: p09-url-browser.R1
     slide: slide:p09-url-browser
     text: "AT を URI のクエリパラメータで渡さず、Authorization ヘッダーで送る"
@@ -3999,7 +4239,7 @@ requirements:
     planned_items: [template:profiles/P1_human_web#bff-vs-spa, registry:token_types#stored_at]
     status: 未着手
     tier: core
-  # ---- 120 slide:p09-checklist
+  # ---- 127 slide:p09-checklist
   - id: p09-checklist.R1
     slide: slide:p09-checklist
     text: "チェック：認証の秘密・平文の個人情報を載せていないか"
@@ -4063,7 +4303,7 @@ requirements:
     planned_items: [review:perspectives#q-audit-log-protected, template:modules/M_privacy_minimization#audit-log-protection]
     status: 未着手
     tier: full
-  # ---- 122 slide:p10-agent-identity
+  # ---- 129 slide:p10-agent-identity
   - id: p10-agent-identity.R1
     slide: slide:p10-agent-identity
     text: "エージェントを独立した主体として登録し、共有アカウントや利用者のトークンを使わない"
@@ -4099,7 +4339,7 @@ requirements:
     planned_items: [template:profiles/P4_ai_agent_delegation#audit-correlation, registry:questions#q-actor]
     status: 未着手
     tier: core
-  # ---- 123 slide:p10-four-questions
+  # ---- 130 slide:p10-four-questions
   - id: p10-four-questions.R1
     slide: slide:p10-four-questions
     text: "利用者は iss と sub の組で表す（Entra は tid＋oid）"
@@ -4149,7 +4389,7 @@ requirements:
     planned_items: [template:claim_request#q03, registry:claims#registered_ref]
     status: 未着手
     tier: core
-  # ---- 124 slide:p10-per-tool-scopes
+  # ---- 131 slide:p10-per-tool-scopes
   - id: p10-per-tool-scopes.R1
     slide: slide:p10-per-tool-scopes
     text: "ツールごとの最小スコープで始め、ワイルドカード・包括的なスコープを禁止する"
@@ -4185,7 +4425,7 @@ requirements:
     planned_items: [lint:L58, registry:token_types#max_lifetime, registry:token_types#refresh, template:00_core#token-inventory]
     status: 未着手
     tier: full
-  # ---- 125 slide:p10-human-approval-evidence
+  # ---- 132 slide:p10-human-approval-evidence
   - id: p10-human-approval-evidence.R1
     slide: slide:p10-human-approval-evidence
     text: "承認の有無をエージェントに判断させず、AS が本人に確かめた結果（CIBA など）だけを信じる"
@@ -4221,7 +4461,7 @@ requirements:
     planned_items: [template:profiles/P4_ai_agent_delegation#human-approval]
     status: 未着手
     tier: full
-  # ---- 126 slide:p10-mcp-authorization
+  # ---- 133 slide:p10-mcp-authorization
   - id: p10-mcp-authorization.R1
     slide: slide:p10-mcp-authorization
     text: "MCP クライアントは認可要求とトークン要求の両方に resource（MCP サーバーの正規 URI）を入れる"
@@ -4271,7 +4511,7 @@ requirements:
     planned_items: [deferred:p6-cross-domain]
     status: 後回し
     tier: full
-  # ---- 127 slide:p10-token-exchange-not-narrowing
+  # ---- 134 slide:p10-token-exchange-not-narrowing
   - id: p10-token-exchange-not-narrowing.R1
     slide: slide:p10-token-exchange-not-narrowing
     text: "トークン交換で範囲が絞られると仮定せず、交換結果の aud・scope を実際に確かめる"
@@ -4307,7 +4547,7 @@ requirements:
     planned_items: [template:modules/M_idp_keycloak#token-exchange-downscope, registry:questions#q-actor]
     status: 未着手
     tier: core
-  # ---- 128 slide:p10-delegation-chain-depth
+  # ---- 135 slide:p10-delegation-chain-depth
   - id: p10-delegation-chain-depth.R1
     slide: slide:p10-delegation-chain-depth
     text: "委任の連鎖の深さの上限を組織の規則として決め、宣言する"
@@ -4350,7 +4590,7 @@ requirements:
     planned_items: [review:escalation#delegation-depth]
     status: 未着手
     tier: core
-  # ---- 129 slide:p10-vendor-features
+  # ---- 136 slide:p10-vendor-features
   - id: p10-vendor-features.R1
     slide: slide:p10-vendor-features
     text: "製品の独自クレーム（xms_* など）を組織の契約にせず、入口で act・client_id など標準のクレームにそろえる"
@@ -4365,7 +4605,7 @@ requirements:
     planned_items: [lint:L14, registry:claims#spec_version, registry:claims#revisit_trigger]
     status: 未着手
     tier: core
-  # ---- 130 slide:p10-guidance-standards
+  # ---- 137 slide:p10-guidance-standards
   - id: p10-guidance-standards.R1
     slide: slide:p10-guidance-standards
     text: "規則の根拠には IR 8587・MCP 仕様・RFC を使い、白書と草案は方向性として示して必須とは書かない"
@@ -4380,7 +4620,7 @@ requirements:
     planned_items: [lint:L14, registry:claims#spec_version, registry:claims#revisit_trigger]
     status: 未着手
     tier: core
-  # ---- 131 slide:p10-agent-checklist
+  # ---- 138 slide:p10-agent-checklist
   - id: p10-agent-checklist.R1
     slide: slide:p10-agent-checklist
     text: "チェック：エージェントを独立した ID として登録したか"
@@ -4444,7 +4684,7 @@ requirements:
     planned_items: [review:perspectives#q-audit-correlation, template:profiles/P4_ai_agent_delegation#audit-correlation]
     status: 未着手
     tier: full
-  # ---- 133 slide:p11-why-govern
+  # ---- 140 slide:p11-why-govern
   - id: p11-why-govern.R1
     slide: slide:p11-why-govern
     text: "トークンの中身（クレームの名前・型・形）の変更を破壊的変更として扱い、受け手が先・発行者が後の順で変える"
@@ -4466,7 +4706,7 @@ requirements:
     planned_items: [registry:claims#consumers, test:consumer_contract]
     status: 未着手
     tier: core
-  # ---- 134 slide:p11-registry-fields
+  # ---- 141 slide:p11-registry-fields
   - id: p11-registry-fields.R1
     slide: slide:p11-registry-fields
     text: "名前：名前空間つきの完全な名前を決める"
@@ -4558,7 +4798,7 @@ requirements:
     planned_items: [lint:R1, registry:README#slide-134-map]
     status: 実装済み
     tier: core
-  # ---- 136 slide:p11-schema-contract-tests
+  # ---- 143 slide:p11-schema-contract-tests
   - id: p11-schema-contract-tests.R1
     slide: slide:p11-schema-contract-tests
     text: "台帳からトークン種別ごとのペイロードの JSON Schema を生成する"
@@ -4601,7 +4841,7 @@ requirements:
     planned_items: [lint:L18]
     status: 未着手
     tier: core
-  # ---- 137 slide:p11-contract-test-gaps
+  # ---- 144 slide:p11-contract-test-gaps
   - id: p11-contract-test-gaps.R1
     slide: slide:p11-contract-test-gaps
     text: "契約テストに、型が変わらない形式の変化（区切り文字・大文字化・null／false・真偽値の文字列化）のケースを入れる"
@@ -4630,7 +4870,7 @@ requirements:
     planned_items: [lint:L60, registry:claims#restrictive]
     status: 未着手
     tier: full
-  # ---- 138 slide:p11-change-procedure
+  # ---- 145 slide:p11-change-procedure
   - id: p11-change-procedure.R1
     slide: slide:p11-change-procedure
     text: "受け手を先に新旧両方を受け入れるよう直し、その後で発行者を変える"
@@ -4673,7 +4913,7 @@ requirements:
     planned_items: [registry:claims#consumers_migration]
     status: 未着手
     tier: full
-  # ---- 139 slide:p11-reserved-names
+  # ---- 146 slide:p11-reserved-names
   - id: p11-reserved-names.R1
     slide: slide:p11-reserved-names
     text: "IdP・受け手のプラットフォームの予約名・予約接頭辞と衝突する名前を使わない"
@@ -4702,7 +4942,7 @@ requirements:
     planned_items: [lint:L61, lint:L34]
     status: 未着手
     tier: full
-  # ---- 140 slide:p11-translation-layer
+  # ---- 147 slide:p11-translation-layer
   - id: p11-translation-layer.R1
     slide: slide:p11-translation-layer
     text: "受け手に IdP ごとの読み方をさせず、利用者キー・ロールの位置・aud の差を入口か共通部品で吸収する"
@@ -4745,7 +4985,7 @@ requirements:
     planned_items: [deferred:idp-entra, deferred:idp-auth0-okta, deferred:idp-cognito]
     status: 後回し
     tier: full
-  # ---- 141 slide:p11-ownership
+  # ---- 148 slide:p11-ownership
   - id: p11-ownership.R1
     slide: slide:p11-ownership
     text: "台帳・名前空間・Schema は中央の 1 チームが持ち、登録を承認する"
@@ -4797,7 +5037,7 @@ requirements:
     tier: full
     assumption: "台帳の持ち主（p11-ownership.R1 以降）と受け手の一覧（registry:claims#consumers）が決まっていれば、名前をそろえる関係者は受け手の一覧から特定でき、決め方は変更のレビューの場（同 R5）に従うので、別の欄を設けなくても関係者の特定と決め方が抜けることはない"
     breaks_when: "レビュー後の欠陥の記録（escaped_defects）に、関係者の合意が不足して採否が覆った事例が出た場合。その場合は #5 の観点か #4 の欄として扱う"
-  # ---- 142 slide:p11-pre-add-questions-1
+  # ---- 149 slide:p11-pre-add-questions-1
   - id: p11-pre-add-questions-1.R1
     slide: slide:p11-pre-add-questions-1
     text: "追加前の問い 1：受け手はこのクレームで何を決めるか"
@@ -4892,7 +5132,7 @@ requirements:
     planned_items: [template:claim_request#gate, registry:claims#status, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
-  # ---- 143 slide:p11-pre-add-questions-2
+  # ---- 150 slide:p11-pre-add-questions-2
   - id: p11-pre-add-questions-2.R1
     slide: slide:p11-pre-add-questions-2
     text: "追加前の問い 13：上限は。超えたら失敗か、欠落か"
@@ -4996,7 +5236,7 @@ requirements:
     planned_items: [template:claim_request, template:00_core#decisions, registry:claims#rationale, review:perspectives#pre-add-questions, lint:L72]
     status: 未着手
     tier: core
-  # ---- 144 slide:p11-audit-metrics
+  # ---- 151 slide:p11-audit-metrics
   - id: p11-audit-metrics.R1
     slide: slide:p11-audit-metrics
     text: "台帳に無いクレームの発行数を、発行ログと台帳の照合で測る"
@@ -5053,7 +5293,7 @@ requirements:
     planned_items: [lint:L45]
     status: 未着手
     tier: full
-  # ---- 146 slide:p12-antipatterns-1
+  # ---- 153 slide:p12-antipatterns-1
   - id: p12-antipatterns-1.R1
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：トークンの alg に従って検証しない。許可リストで鍵ごとに 1 つに固定する"
@@ -5110,7 +5350,7 @@ requirements:
     planned_items: [review:perspectives#ap-1-8, review:perspectives#role-consumer, lint:L27, test:negative_tests#expired]
     status: 未着手
     tier: core
-  # ---- 147 slide:p12-antipatterns-2
+  # ---- 154 slide:p12-antipatterns-2
   - id: p12-antipatterns-2.R1
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：グループ・ロールを全部トークンに詰めず、粗いロールだけにして細かい権限は PDP に置く"
@@ -5174,7 +5414,7 @@ requirements:
     planned_items: [review:perspectives#ap-2-9, review:perspectives#q-internal-delegation-token, lint:L17]
     status: 未着手
     tier: core
-  # ---- 148 slide:p12-review-viewpoints
+  # ---- 155 slide:p12-review-viewpoints
   - id: p12-review-viewpoints.R1
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 定義：既存のクレームで表せないか"
@@ -5308,7 +5548,7 @@ requirements:
     planned_items: [template:claim_request, review:perspectives#stage-definition]
     status: 未着手
     tier: core
-  # ---- 149 slide:p12-priorities-deferrals
+  # ---- 156 slide:p12-priorities-deferrals
   - id: p12-priorities-deferrals.R1
     slide: slide:p12-priorities-deferrals
     text: "共通の基準（受け入れの検証・必須の欠落の拒否・型の固定・不変の ID・組織の名前空間・ログにトークン全文と個人情報を残さない）を、どの組織でも外さない"
@@ -5363,24 +5603,24 @@ teaching:
   - slide: slide:p00-evidence-types  # 8
     use: [template:CONTRIBUTING#evidence-types]
     note: "根拠の 3 種類（仕様・指針・書籍）の説明。#13 の根拠の種類の背景"
-  - slide: slide:p02-claims-by-purpose  # 20
+  - slide: slide:p02-claims-by-purpose  # 22
     use: [review:decision_tree#existing-claim-first]
     note: "16 の用途と既存クレームの地図を、作る前に探す判断の木の入口に使う"
-  - slide: slide:p02-not-in-registry  # 28
+  - slide: slide:p02-not-in-registry  # 30
     use: [review:decision_tree#existing-claim-first]
     note: "テナント・同意・端末で、似た名前の登録クレームを流用しない分岐と、代わりの手段（aud・iss の分離、scope・authorization_details、PEP での評価）"
-  - slide: slide:p03-idp-comparison  # 32
+  - slide: slide:p03-idp-comparison  # 34
     use: [template:modules/M_idp_keycloak#catalog-defaults, deferred:idp-entra, deferred:idp-auth0-okta, deferred:idp-cognito]
     note: "IdP ごとのキー・aud・ロールの位置・独自クレームの入れ方の比較。各 IdP モジュールの見出しの出どころ"
-  - slide: slide:p10-vendor-features  # 129
+  - slide: slide:p10-vendor-features  # 136
     use: [template:modules/M_idp_keycloak#token-exchange-downscope, deferred:idp-entra, deferred:idp-auth0-okta, deferred:idp-cognito]
     note: "各社のエージェント向け機能とトークンでの表れ。Keycloak の欄と、後回しの IdP モジュールの下調べに使う"
-  - slide: slide:p11-why-govern  # 133
+  - slide: slide:p11-why-govern  # 140
     use: [template:00_core#definition-lifecycle, review:perspectives#q-change-order, lint:L10]
     note: "黙って壊れる変更の実例（Auth0 の予約名・Entra の groups 超過・GitLab・GitHub の sub）。変更の手順の観点の説明に使う"
-  - slide: slide:p11-registry-example  # 135
+  - slide: slide:p11-registry-example  # 142
     use: [registry:README#slide-134-map]
     note: "テナントのクレーム 1 件の記入例。台帳 README の 12 項目の説明の例に使う"
-  - slide: slide:p12-summary  # 152
+  - slide: slide:p12-summary  # 159
     use: [template:GETTING_STARTED, template:00_core#baseline]
     note: "6 つの原則のまとめ。入門の冒頭と共通の基準の説明に使う"

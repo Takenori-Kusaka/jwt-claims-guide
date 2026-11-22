@@ -11,7 +11,7 @@
 #   claims_read    このイベントで読む・確かめるクレーム。IANA JWT Claims の名前は seeds.yaml の項目にひもづく
 #   idp.<IdP>      occurs は、この利用に IdP が関わるか（イントロスペクション・リフレッシュなど）。hook_invoked は、この利用で IdP の
 #                  フックが呼ばれるか（受け手だけで完結する利用は no）
-# 件数：利用イベント 28 件。「ガイドの空白」4 件、一部だけ扱う 4 件
+# 件数：利用イベント 28 件。「ガイドの空白」0 件（#10 で 4 件を埋めた）、一部だけ扱う 0 件
 _refs:
   kc_introspect_aud: &kc_introspect_aud {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Token introspection audience validation」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
   kc_oidc_layers: &kc_oidc_layers {kind: spec, id: "Keycloak Securing Applications（26.8.2）「OpenID Connect」Introspection endpoint・Token Revocation endpoint", url: "https://www.keycloak.org/securing-apps/oidc-layers", verified_on: 2026-11-22}
@@ -143,7 +143,7 @@ events:
     claims_read: [sid]
     lifetime_impact: {issued: [], recomputed: [], revoked: [session_idp, session_rp, refresh_token], note: "SSO セッションと、そのセッションの RT を失効させる。発行済みの AT（JWT）は exp まで残る。IdP が I09 を起こすことがある"}
     seeds: [oidc-logout/rp-initiated, prior-catalogue/U09]
-    guide: {status: partial, slides: [p08-revocation-propagation, p08-decision-table], note: "ログアウト後のイントロスペクションの実測と「ログアウトで RT を失効」は扱う。RP-Initiated Logout の要求（id_token_hint など）はない"}
+    guide: {status: covered, slides: [p08-logout, p08-revocation-propagation], note: "RP-Initiated Logout の id_token_hint・post_logout_redirect_uri の登録（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: "yes"
@@ -170,8 +170,7 @@ events:
     claims_read: [iss, aud, iat, exp, jti, events, sid, sub]
     lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp], note: "RP（BFF）のセッションを消す。AT は exp まで残る"}
     seeds: [oidc-logout/back-channel, prior-catalogue/U09]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "ログアウトトークンの検証（events・nonce の禁止・jti の再送）と RP のセッションの終了を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json を Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ"}
+    guide: {status: covered, slides: [p08-logout], note: "Logout Token の検証の手順と応答（200・400）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
       auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での検証"}
@@ -214,8 +213,7 @@ events:
     claims_read: [iss]
     lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。古い鍵を JWKS から消すと、その鍵で署名された AT は exp の前でも検証できなくなる"}
     seeds: [prior-catalogue/I29]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "kid の扱い（slide:p01-dangerous-header-params）と DB の JWKS の設定（slide:p07-db-token-auth）はあるが、鍵のローテーションと JWKS のキャッシュ・取り直しを扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json をローテーション・JWKS・kid で検索し、ヒットした 26 件（p01-jwt-structure・p01-dangerous-header-params・p07-db-token-auth・p08-rotation ほか）を目で読んだ。p08-rotation は RT のローテーション"}
+    guide: {status: covered, slides: [p01-key-rotation-jwks], note: "鍵のローテーションの手順、JWKS のキャッシュ、知らない kid での取り直し（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
       auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
@@ -325,7 +323,7 @@ events:
     claims_read: []
     lifetime_impact: {issued: [], recomputed: [], revoked: [refresh_token, session_idp], note: "RT を失効させる。自己完結型の AT は、失効させても受け手がローカルで検証する限り exp まで通る（RFC 7009 §3。slide:p08-choosing-lifetime）"}
     seeds: [iana-token-type-hint/access_token, iana-token-type-hint/refresh_token, keycloak-settings/revocation-not-before, prior-catalogue/U08]
-    guide: {status: partial, slides: [p08-choosing-lifetime, p08-decision-table], note: "RFC 7009 は寿命の理由としてだけ出る。失効のエンドポイントと、管理の操作（セッションの削除・Not before）の効き方はない"}
+    guide: {status: covered, slides: [p08-logout, p08-choosing-lifetime], note: "RFC 7009 のエンドポイントと、管理の操作（Not before、Auth0 の /oauth/revoke）の効き方（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: "yes"
@@ -388,8 +386,7 @@ events:
     claims_read_note: iss・sid を読むが、JWT のクレームではなく、Front-Channel Logout の URL のクエリパラメータ（§2）なので claims_read に入れない
     lifetime_impact: {issued: [], recomputed: [], revoked: [session_rp], note: "ブラウザを通して RP のセッションを消す。サードパーティの Cookie が使えないと届かないことがある（推論）"}
     seeds: [oidc-logout/front-channel, keycloak-settings/frontchannel-logout, prior-catalogue/U09]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "Front-Channel Logout を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json を Back-Channel・バックチャネル・ログアウト・logout で検索し、ヒットした p08-revocation-propagation・p08-decision-table を目で読んだ"}
+    guide: {status: covered, slides: [p08-logout], note: "Front-Channel Logout の iss・sid と、サードパーティのコンテンツを遮るブラウザで働かないこと（§4.1）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak:
         occurs: conditional
@@ -450,7 +447,7 @@ events:
     claims_read: [exp, jti]
     lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。キャッシュの寿命が、剥奪の反映の遅れに足される"}
     seeds: [prior-catalogue/U14]
-    guide: {status: partial, slides: [p08-revocation-propagation, p04-token-is-snapshot], note: "イントロスペクションの応答のキャッシュ（exp を超えない）と、キャッシュと鮮度の指針だけ。認可の判断のキャッシュの寿命の決め方はない"}
+    guide: {status: covered, slides: [p08-copies-outlive-token, p08-revocation-propagation], note: "認可の判断のキャッシュの寿命とキーの決め方（筆者の推奨）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
       auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
@@ -486,7 +483,7 @@ events:
     claims_read: [exp]
     lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。接続を開いた時点の AT で、exp の後も接続が続きうる"}
     seeds: [prior-catalogue/U16]
-    guide: {status: partial, slides: [p07-lifetime-mismatch], note: "DB・ブローカーの接続の寿命とトークンの寿命のずれ（Kafka の再認証など）は扱う。利用者に向いた長時間の接続（WebSocket など）はない"}
+    guide: {status: covered, slides: [p08-copies-outlive-token, p07-lifetime-mismatch], note: "利用者に向いた長い接続（WebSocket など）の期限の扱い（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
       auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
@@ -578,8 +575,7 @@ events:
     claims_read: [sub, iss]
     lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。複製した値はトークンの寿命を超えて残り、元の値の変更・削除が届かない"}
     seeds: [prior-catalogue/U21]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "ログ（slide:p09-logs-traces）は扱うが、分析用のクレームの複製と、その鮮度・削除はない",
-            checked: "2026-11-22 に docs/slides.json を 分析・データウェアハウス・DWH・BigQuery・複製 で検索し、ヒットした p07-row-level-security・p07-masking（BigQuery の行の制御とマスキング）を目で読んだ"}
+    guide: {status: covered, slides: [p08-copies-outlive-token, p09-logs-traces], note: "分析基盤への複製の鮮度・仮名化・削除の伝達（筆者の推奨）（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
       keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
       auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手での処理"}
