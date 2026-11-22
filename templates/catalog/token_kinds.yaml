@@ -30,7 +30,7 @@ kinds:
       - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
       - {kind: guide-slide, id: p08-token-types-lifetimes}
     seeds: [slide103-kinds/access-token, iana-oauth-uri/token-type:access_token]
-    issued_by: [I01, I02, I03, I04, I05, I06, I07, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I24, I25, I26, I29]
+    issued_by: [I01, I02, I03, I04, I05, I06, I07, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I24, I25, I26, I29, I34]
     guide: {status: covered, slides: [p08-token-types-lifetimes, p01-id-token-vs-access-token, p01-self-contained-vs-reference]}
     verified_on: 2026-11-22
     review_by: 2027-02-20

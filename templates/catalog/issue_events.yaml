@@ -4,7 +4,7 @@
 # 種になる一覧（seeds.yaml・sources.md）の全項目が、このカタログ（issue_events・use_events・token_kinds・subject_state_matrix.md）の
 # どれかの行にひもづくか、「対象外」とされている（差集合 0 件。tools/catalog_check.py が確かめる）。一覧の外にある発行の場面は、
 # このカタログでは見つからない。設計書では「この列挙の外に契機はないか」の問い（#17 の R9）で探す。
-# カタログの IdP は Keycloak 26.8 と Auth0 の 2 つ（#2 の範囲）。Entra・Okta は契機の一覧を持たない（sources.md の「一覧なし」）。
+# カタログの IdP は Keycloak 26.8 と Auth0 の 2 つ（#2 の範囲）。Entra・Okta は契機の一覧を文書で確かめていない（sources.md の「文書で未確認」）。
 # ほかの IdP は #21。カタログには候補と事実だけを載せ、採否の理由の模範文は載せない（#4 の方針、unverified.md の V17）。
 #
 # 列（v0 の列を引き継ぎ、IdP ごとの列を idp の下に移した。変更点は templates/CHANGELOG.md）
@@ -19,7 +19,8 @@
 #                   するか。IdP による違いは idp の lifetime_note
 #   seeds           種になる一覧の項目（<一覧の id>/<項目の id>）
 #   guide           ガイドでの扱い。covered（扱っている）／partial（一部だけ。note に扱っていない点）／gap（「ガイドの空白」。
-#                   marker と、どう確かめたか checked）。キーワード検索だけで gap にせず、ヒットしたスライドの本文とノートを目で読んだ
+#                   marker と、どう確かめたか checked）／out-of-scope（「ガイドの範囲外」。ガイドの対象の外なので、スライドを求めない。
+#                   marker・assumption・breaks_when）。キーワード検索だけで gap にせず、ヒットしたスライドの本文とノートを目で読んだ
 #   idp.<IdP>       keycloak（26.8）と auth0 のそれぞれについて
 #     occurs          この IdP がこのイベントを起こすか：yes / no / conditional（設定・プランによる）。issuer が idp でない行では no
 #                     （IdP は発行者でない）。確かめていなければ unknown
@@ -28,6 +29,8 @@
 #                     推論しかなければ unknown（hook_note に理由）。hook_note に「推論」とある yes は catalog_check が error にする。
 #                     no の発行で独自クレームを運ぶ設計は #17 の R3b で落ちる。一覧表の「フック・式で可」をここに写さない（#13 の 6.）
 #     hook_note       条件と、確かめた方法（文書の記述か、推論か）
+#     lite_inherit    true なら、Lite の設計書でこの IdP の既定の回答（対象外）を引き継げる（#4 の改訂、gate1.md の 10.：クライアントの
+#                     スイッチ 1 つで止め、指摘が出ていないイベント。Keycloak の I03・I04・I05・I07）。無ければ引き継げない（#17 の R2）
 #     stop_setting    このイベントを 1 つの設定で止められるとき、その設定（setting）・効く範囲（scope：client / realm / tenant / api /
 #                     server）・既定（default）。#4 の「既定の回答を引き継げるのは、クライアントの設定のスイッチ 1 つで止めたイベント
 #                     だけ」の判定に使う。null は 1 つの設定では止まらない
@@ -38,7 +41,7 @@
 #
 # 文書に書かれていない既定値を、Keycloak 26.8.2 のソース（GitHub のタグ）の要約で補った箇所は「ソースの要約」と書いた。行は直接確かめて
 # いない（research/template-design/unverified.md の V31）。
-# 件数：発行イベント 33 件。「ガイドの空白」0 件（#10 で 10 件を埋めた）、一部だけ扱う 1 件（I20）
+# 件数：発行イベント 34 件。「ガイドの空白」0 件（#10 で 10 件を埋めた）、一部だけ扱う 1 件（I20）、ガイドの範囲外 1 件（I34。#17 で足した OID4VCI）
 # 対応表（templates/trace/）の要件への逆参照。catalog の部分を満たした要件だけを書く。要件の状態は、ほかの成果物
 # （registry:claims#recompute_trigger は #3）が揃うまで「未着手」のまま
 _trace:
@@ -102,7 +105,7 @@ events:
       recomputed: []
       revoked: []
       note: 新しいセッションとトークンを作る。② のフックの値はこの時点の利用者の属性・ロールで決まり、手元のトークンには exp まで残る（slide:p04-token-is-snapshot）
-    seeds: [rfc6749-grant/authorization_code, iana-response-type/code, iana-oauth-uri/request_uri, auth0-protocol/oidc-basic-profile,
+    seeds: [keycloak-grant-types/AuthorizationCodeGrantType, rfc6749-grant/authorization_code, iana-response-type/code, iana-oauth-uri/request_uri, auth0-protocol/oidc-basic-profile,
             auth0-trigger/post-login, auth0-grant/authorization_code, keycloak-settings/standard-flow, keycloak-settings/pkce-method,
             slide-stage-map/stage1-authentication, slide-stage-map/stage2-issuance-hook, prior-catalogue/I01, prior-catalogue/I23]
     guide: {status: covered, slides: [p06-stage-map, p06-issuance-hook, p06-flow-browser-to-db]}
@@ -142,7 +145,7 @@ events:
       recomputed: [access_token, id_token]
       revoked: [refresh_token]
       note: AT を出し直す。② のフックが再実行される IdP では値が計算し直される（slide:p08-refresh-reevaluation）。ローテーションする設定では古い RT が無効になり新しい RT が出る（revoked の refresh_token はその場合）
-    seeds: [rfc6749-grant/refresh_token, auth0-protocol/oauth2-refresh-token, auth0-grant/refresh_token, prior-catalogue/I05]
+    seeds: [keycloak-grant-types/RefreshTokenGrantType, rfc6749-grant/refresh_token, auth0-protocol/oauth2-refresh-token, auth0-grant/refresh_token, prior-catalogue/I05]
     guide: {status: covered, slides: [p08-refresh-reevaluation, p08-rotation]}
     idp:
       keycloak:
@@ -188,6 +191,7 @@ events:
         hook_invoked: conditional
         hook_note: マッパーの設定 Add to lightweight access token（既定 OFF）を ON にしたクレームだけが載る。exp・iat・jti・iss・typ・azp・sid・scope・cnf は外せない（文書）
         stop_setting: {setting: "Client policies：executor use-lightweight-access-token を適用しない", scope: realm, default: "適用しない（executor を置かなければ起きない）"}
+        lite_inherit: true
         source_refs: [*kc_lightweight]
         evidence: ["jwt-claims-casestudy@080b8da:A11", "jwt-claims-casestudy@080b8da:keycloak.lightweight"]
       auth0:
@@ -215,7 +219,7 @@ events:
       recomputed: []
       revoked: []
       note: I01 と同じ種類のトークンを、認可コードを経ずに出す。RFC 9700 §2.4 は ROPC を使ってはならないとしている（MUST NOT）
-    seeds: [rfc6749-grant/password, auth0-protocol/oauth2-password, auth0-protocol/oauth2-resource-owner, auth0-grant/password,
+    seeds: [keycloak-grant-types/ResourceOwnerPasswordCredentialsGrantType, rfc6749-grant/password, auth0-protocol/oauth2-password, auth0-protocol/oauth2-resource-owner, auth0-grant/password,
             auth0-grant/password-realm, auth0-grant/mfa-oob, auth0-grant/mfa-otp, auth0-grant/mfa-recovery-code, auth0-grant/passwordless-otp,
             keycloak-settings/direct-access-grants, prior-catalogue/I03]
     guide: {status: covered, slides: [p06-grant-types], note: "使ってはならない方式（RFC 9700 §2.4）として、発行の入口の表に載せた（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
@@ -226,6 +230,7 @@ events:
         hook_invoked: "yes"
         hook_note: ケーススタディの実験は Direct Access Grants で AT を得ており、マッパーで足したクレームが載っている
         stop_setting: {setting: "Capability config > Direct Access Grants", scope: client, default: "文書に記載なし。管理画面の新規作成では OFF、REST で項目を省くと ON（ソースの要約。V31）"}
+        lite_inherit: true
         source_refs: [*kc_capability]
         evidence: ["jwt-claims-casestudy@080b8da:A1"]
       auth0:
@@ -253,7 +258,7 @@ events:
       recomputed: []
       revoked: []
       note: AT だけを出す（利用者のセッションを作らない。RT は出さないのが普通）。sub はクライアントになる（slide:p05-system-privileges）
-    seeds: [rfc6749-grant/client_credentials, auth0-trigger/credentials-exchange, auth0-grant/client_credentials, keycloak-settings/service-account-roles,
+    seeds: [keycloak-grant-types/ClientCredentialsGrantType, rfc6749-grant/client_credentials, auth0-trigger/credentials-exchange, auth0-grant/client_credentials, keycloak-settings/service-account-roles,
             prior-catalogue/I08]
     guide: {status: covered, slides: [p06-issuance-hook, p06-grant-types, p05-system-privileges, p03-cognito-pre-token-hook], note: "Auth0 の credentials-exchange と Cognito の V3_0 を slide:p06-issuance-hook の表とノートに足した（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
@@ -263,6 +268,7 @@ events:
         hook_invoked: "yes"
         hook_note: 26.1.0 から、Service account roles を ON にしたクライアントに service_account の client scope が自動で付く（client_id・clientHost・clientAddress のマッパー）。Default client scopes のマッパーは常に適用される（文書）
         stop_setting: {setting: "Capability config > Service account roles", scope: client, default: "文書に記載なし。管理画面の新規作成では OFF（ソースの要約。V31）"}
+        lite_inherit: true
         source_refs: [*kc_capability, *kc_sa_scope, *kc_scopes]
       auth0:
         occurs: conditional
@@ -290,7 +296,7 @@ events:
       recomputed: []
       revoked: []
       note: 新しい AT を出す（issued_token_type が AT でなければ token_type は N_A。RFC 8693 §2.2.1）。交換で絞られるとは限らない（slide:p10-token-exchange-not-narrowing）。RT を出す設定では、元のトークンの期限を超えて続きうる（slide:p08-refresh-reevaluation）
-    seeds: [iana-oauth-uri/grant-type:token-exchange, iana-access-token-type/N_A, auth0-protocol/oauth2-token-exchange, auth0-trigger/custom-token-exchange,
+    seeds: [keycloak-grant-types/TokenExchangeGrantType, iana-oauth-uri/grant-type:token-exchange, iana-access-token-type/N_A, auth0-protocol/oauth2-token-exchange, auth0-trigger/custom-token-exchange,
             keycloak-settings/standard-token-exchange, prior-catalogue/I06, prior-catalogue/I17]
     guide: {status: covered, slides: [p10-token-exchange-not-narrowing, p02-delegation-client, p05-system-privileges]}
     idp:
@@ -329,7 +335,7 @@ events:
       recomputed: []
       revoked: []
       note: 別の端末で利用者が承認した後に、I01 と同じ種類のトークンを出す。トークンを受け取る端末と、認証した端末が違う
-    seeds: [iana-oauth-uri/grant-type:device_code, auth0-protocol/oauth2-device-code, auth0-grant/device_code, keycloak-settings/device-authorization-grant,
+    seeds: [keycloak-grant-types/DeviceGrantType, iana-oauth-uri/grant-type:device_code, auth0-protocol/oauth2-device-code, auth0-grant/device_code, keycloak-settings/device-authorization-grant,
             prior-catalogue/I09]
     guide: {status: covered, slides: [p06-grant-types], note: "device flow の流れ・user_code の試行の制限・遠隔のフィッシング・フックの実行が文書にないこと（#10 で追加。2026-11-22 に本文とノートを目で読んだ）"}
     idp:
@@ -339,6 +345,7 @@ events:
         hook_invoked: unknown
         hook_note: 文書で確かめていないので unknown（動くと見込む理由は次のとおりだが、既定の回答の根拠にしない）。文書は AT・RT・ID トークンを出すとだけ書く。マッパーの適用は、Default client scopes のマッパーが常に適用されるという一般の記述からの推論（V32）
         stop_setting: {setting: "Capability config > OAuth 2.0 Device Authorization Grant", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）"}
+        lite_inherit: true
         source_refs: [*kc_capability, *kc_scopes]
       auth0:
         occurs: conditional
@@ -544,7 +551,7 @@ events:
       recomputed: []
       revoked: []
       note: 利用者が別の端末で承認した結果として、クライアントにトークンを出す（poll・ping・push）
-    seeds: [oidf-grant/ciba, auth0-protocol/oidc-ciba, auth0-protocol/oidc-ciba-web-link, keycloak-settings/ciba-grant, slide-stage-map/stage6-approval,
+    seeds: [keycloak-grant-types/CibaGrantType, oidf-grant/ciba, auth0-protocol/oidc-ciba, auth0-protocol/oidc-ciba-web-link, keycloak-settings/ciba-grant, slide-stage-map/stage6-approval,
             prior-catalogue/I10]
     guide: {status: covered, slides: [p06-step-up-approval, p10-human-approval-evidence]}
     idp:
@@ -614,7 +621,7 @@ events:
       recomputed: []
       revoked: []
       note: 上流の JWT の主張を AS が写し替えて、短命の AT を出す（slide:p06-flow-partner-events）
-    seeds: [iana-oauth-uri/grant-type:jwt-bearer, keycloak-settings/jwt-authorization-grant, prior-catalogue/I11]
+    seeds: [keycloak-grant-types/JWTAuthorizationGrantType, iana-oauth-uri/grant-type:jwt-bearer, keycloak-settings/jwt-authorization-grant, prior-catalogue/I11]
     guide: {status: covered, slides: [p06-flow-partner-events]}
     idp:
       keycloak:
@@ -1150,3 +1157,42 @@ events:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+
+  - id: I34
+    name: OID4VCI の Pre-Authorized Code での発行（検証可能な資格情報の発行のための AT）
+    issuer: idp
+    standard_refs:
+      - {kind: spec, id: "OpenID for Verifiable Credential Issuance 1.0（Pre-Authorized Code Flow）", url: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html"}
+    stage: "②"
+    claims_produced: [iss, aud, exp]
+    tokens_issued: [access_token]
+    lifetime_impact:
+      issued: [access_token]
+      recomputed: []
+      revoked: []
+      note: 発行者が事前に渡した pre-authorized_code を、ウォレットがトークン端点で AT に替える。AT は資格情報の発行の端点（Credential Endpoint）を呼ぶためのもの
+    seeds: [keycloak-grant-types/PreAuthorizedCodeGrantType]
+    guide: {status: out-of-scope, marker: ガイドの範囲外, slides: [],
+            assumption: "検証可能な資格情報（VC）の発行は、ガイドの対象（OAuth・OIDC のトークンに載せる組織の独自クレーム）の外",
+            breaks_when: "組織が OID4VCI で社員証などの VC を発行し、そのクレームを API の認可に使う場合",
+            note: "2026-11-22 に docs/slides.json を OID4VC・Verifiable・検証可能・pre-authorized で検索し、ヒットが 0 件だった"}
+    idp:
+      keycloak:
+        occurs: conditional
+        hook_name: プロトコルマッパー
+        hook_invoked: unknown
+        hook_note: 文書で確かめていないので unknown（V37）。発行の端点は OAuth2GrantType の実装 PreAuthorizedCodeGrantType（javadoc 26.8.2）
+        stop_setting: {setting: "機能 oid4vc-vci を有効にしない", scope: server, default: "Preview の機能で、既定は無効（文書の Preview features。ページに版の表示はない。V37）"}
+        source_refs:
+          - *kc_features
+          - {kind: spec, id: "Keycloak（26.8.2）javadoc「OAuth2GrantType」All Known Implementing Classes", url: "https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html", verified_on: 2026-11-22}
+      auth0:
+        occurs: unknown
+        hook_name: なし
+        hook_invoked: unknown
+        hook_note: Auth0 の OID4VCI への対応を確かめていない（V37）
+        stop_setting: null
+        source_refs: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#17"

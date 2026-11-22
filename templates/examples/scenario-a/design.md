@@ -3,7 +3,7 @@
 
 > **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
 
-- 版：0.1.3（#16 の縦の一本。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
+- 版：0.1.4（#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
 - 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
@@ -12,10 +12,14 @@
 
 ```
 $ python tools/claim_lint templates/examples/scenario-a
-claim_lint v0  design=templates/examples/scenario-a  profile=full  claims=25  token_types=9  catalog_events=19
-R8    info      AT      最悪 1258 バイト（ヘッダーの行で 1280）／上限 8192（nginx-large-client-header-buffers）= 16%
-R8    info      C-iss   AT・IDT の両方に載る（重複の候補）  ほか info 3 件
-error 0, warn 0, info 5
+claim_lint  design=templates/examples/scenario-a  profile=full  claims=25  token_types=9  catalog_events=62
+R3    info      idp       IdP keycloak の一覧（keycloak-settings・keycloak-grant-types）とカタログの差集合は 0 件
+R3b   warn      I25       keycloak のこの発行で プロトコルマッパー が呼ばれるかは unknown（カタログ）。独自クレーム C-tenant-id・C-user-id・C-roles・C-v が載ることを確かめて hook_checked に書く
+R3b   warn      I26       （I25 と同じ）
+R6    info      pairwise  2 因子の組 13 個をすべて検討した（主体 1・発行イベント 4）
+R8    info      AT        最悪 1258 バイト（ヘッダーの行で 1280）／上限 8192（nginx-large-client-header-buffers）= 16%
+R8    info      C-iss     AT・IDT の両方に載る（重複の候補）  ほか info 3 件
+error 0, warn 2, info 7
 OK
 ```
 
@@ -152,7 +156,7 @@ sequenceDiagram
   BFF->>KC: RP-Initiated Logout（id_token_hint） [U06]
 ```
 
-カタログで「対象外」にしたイベント（49 件。v0 の I03〜I09・U05・U07・U08・U10 と、#2 で足した 38 件）は、この図に出さない。#2 で足した「該当」のうち、I25・I26 は I01 と同じ発行なので [I01] の矢印で表し、U14（ログ）・U27（401 の応答）は図を簡単にするため省いた。前提と崩れる条件は `catalog_answers.yaml` にある。
+カタログで「対象外」にしたイベント（50 件。v0 の I03〜I09・U05・U07・U08・U10 と、#2 で足した 38 件、#17 で足した I34）は、この図に出さない。#2 で足した「該当」のうち、I25・I26 は I01 と同じ発行なので [I01] の矢印で表し、U14（ログ）・U27（401 の応答）は図を簡単にするため省いた。前提と崩れる条件は `catalog_answers.yaml` にある。
 
 ## 8. ホップごとの表　〔縮小 Lite：生成（交換・作り直しのホップがあれば手で書く）〕
 
@@ -197,11 +201,23 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 
 ## 11. カタログへの回答　〔縮小 Lite：生成〕
 
-`catalog_answers.yaml`：全 61 件に回答。対象外 49 件／全 61 件（80%）。#2 でカタログを全体に広げる前の 19 件（v0）では、対象外 11 件／19 件（58%）だった。
+`catalog_answers.yaml`：全 62 件に回答。対象外 50 件／全 62 件（81%）。#2 でカタログを全体に広げる前の 19 件（v0）では、対象外 11 件／19 件（58%）だった。
+
+#17 の網羅の規則のために、同じファイルに次の節を足した（中身は `catalog_answers.yaml` の各節のコメント）。
+
+| 節 | 規則 | 中身 |
+| --- | --- | --- |
+| `idp` | R3・R3b | Keycloak 26.8。トークン端点の grant の一覧（`keycloak-grant-types`）とカタログの差集合を R3 が確かめる |
+| `subject_states` | R4 | 7 状態 × 5 層（AT・RT・ID・IdP のセッション・BFF のセッション）の 35 セル。内部トークンと Logout Token は使わない層として理由を書いた |
+| `pairwise` | R6 | 主体の種類は利用者だけが該当（ワークロード・システムは対象外）。該当の発行 I01・I02・I25・I26 と段階 ①② の組み合わせ 7 つ |
+| `outside_enumeration` | R9 | 境界の図・ライフサイクル表（Lite で手で書く節）・Keycloak の文書と grant の一覧・先行の一覧を探した。新しい契機はなく、発行の中身が変わる場面を 1 つ found に書いた |
+
+R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak の `hook_invoked` が unknown で、実物で確かめていないため（12. の自信のない点と同じ扱い）。
 
 ## 12. 書き手が自信のない点　〔縮小 Lite：手で書く〕
 
 - Keycloak の古い RT を再利用したときに、セッションまで失効させるか（再利用の検知）を確かめていない。
+- 初回ログイン（I25）とパスワードの変更の後の発行（I26）で、マッパーが呼ばれるかを確かめていない（カタログでも unknown。claim_lint の R3b の warn）。
 - jti の接頭辞（見本では onrtac）が、リフレッシュなど別の発行で同じ長さかを確かめていない。R8 の max_bytes 43 はこの前提による。
 - ID トークンは見本で発行していない。ID トークンのクレームの構成（name・email・email_verified のマッパー）は設計で、実物で確かめていない。
 - 認可コードの寿命 60 秒、SSO Session Max の既定値、ユーザープロファイルの属性の長さの上限は、Keycloak 26.8 の値を確かめていない。
@@ -212,6 +228,7 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 
 ## 13. 前の版との差分
 
+- 0.1.4：#17 の網羅の規則（R3・R3b・R4・R6・R9）が求める節（`idp`・`subject_states`・`pairwise`・`outside_enumeration`）を `catalog_answers.yaml` に足した。PR #33 の独立点検で、カタログに I34（OID4VCI）が足されたので対象外で答え、R9 の探した範囲から Full だけの節（シーケンス図）を外し、停止の RT の根拠を「拒否による実質の失効」と書き直した。1. の CI の結果と 11. を直した
 - 0.1.3：#2 でカタログが 19 件から 61 件（発行 33・利用 28）になったので、足した 42 件に回答した（該当 4 件：I25・I26・U14・U27、対象外 38 件）。11. の件数と 7. の注記を直した
 - 0.1.2：PR #28 の再点検の指摘を反映した（C-scope の根拠、JWKS のキャッシュの TTL と鍵の入れ替えの手順、受け入れの上限 330 秒の書き方、SECURITY DEFINER、SSO の採否、exp − iat の書き方）
 - 0.1.1：PR #28 の独立レビュー（Major 4・Minor 13）を反映した。テナントの管理者の権限の前提と API 側の強制（A01）、BOLA の鍵を sub に一本化（A02）、Back-Channel Logout の却下の理由と代わりの手段（A03）、RLS をすり抜ける主体（A04）、テナントを iss で決める（A05）、ほか 12 件。指摘ごとの直し方は `research/reviews/scenario-a-2026-11-22.md`

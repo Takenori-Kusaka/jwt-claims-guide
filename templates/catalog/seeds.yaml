@@ -394,6 +394,27 @@ seed_lists:
       - {id: "identity-assertion-jwt", value: "feature identity-assertion-jwt", note: "26.7.0 のリリースノートで experimental（features のページに状態の表示はない）"}
       - {id: "introspection-audience", value: "OpenID Connect Compatibility Modes > Allow token introspection without audience check"}
       - {id: "revocation-not-before", value: "Sessions > Revocation（Not before）"}
+  - id: keycloak-grant-types
+    name: "Keycloak 26.8 のトークン端点の grant（OAuth2GrantType の SPI の実装）"
+    kind: spec
+    idp: keycloak
+    url: "https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html"
+    mapping: "javadoc（Keycloak Docs Distribution 26.8.2 API）の All Known Implementing Classes。抽象の基底クラス OAuth2GrantTypeBase は数えない。フックの契機の一覧ではなく、トークン端点で発行を起こす grant の一覧（Auth0 の Application Grant Types に当たる）。#17 の R3 が差集合を確かめる"
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#17"
+    expected: {count: 10, source: "javadoc の OAuth2GrantType の All Known Implementing Classes 11 個から OAuth2GrantTypeBase を除いた数（26.8.2）", verified_on: 2026-11-22}
+    items:
+      - {id: "AuthorizationCodeGrantType"}
+      - {id: "RefreshTokenGrantType"}
+      - {id: "ClientCredentialsGrantType"}
+      - {id: "ResourceOwnerPasswordCredentialsGrantType"}
+      - {id: "TokenExchangeGrantType"}
+      - {id: "DeviceGrantType"}
+      - {id: "CibaGrantType"}
+      - {id: "JWTAuthorizationGrantType"}
+      - {id: "PermissionGrantType", note: "UMA 2.0 の RPT の発行（Authorization Services）", out_of_scope: {assumption: "Keycloak の Authorization Services（UMA・RPT）を使わない。認可は API と PDP で行う（slide:p05-pep-pdp）", breaks_when: "Keycloak の Authorization Services で権限を判定し、RPT をトークンとして受け渡すとき"}}
+      - {id: "PreAuthorizedCodeGrantType", note: "OID4VCI の Pre-Authorized Code Flow。I34"}
   - id: slide-stage-map
     name: "ガイドの段階の地図（slide:p06-stage-map）の 6 段階と代表的な仕組み"
     kind: guide-slide

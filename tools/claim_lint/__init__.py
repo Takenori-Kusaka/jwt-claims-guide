@@ -1,1 +1,1 @@
-"""claim_lint v0 (#16). See RULES.md."""
+"""claim_lint (#16, #17). See RULES.md."""

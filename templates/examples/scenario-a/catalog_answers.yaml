@@ -5,7 +5,91 @@
 # 手で書く（tools/count_lite_fields.py の STRUCTURAL）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
 # カタログ（templates/catalog/issue_events.yaml・use_events.yaml。#2 で全体に広げた）の全イベントへの回答。
-# 対象外 49 件／全 61 件（80%）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
+# 対象外 50 件／全 62 件（81%。I34 は PR #33 の独立点検で足した Keycloak の grant の一覧から）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
+# #17（網羅の規則）で足した節：idp（R3・R3b）、subject_states（R4）、pairwise（R6）、outside_enumeration（R9）。
+# どれも claim_lint の新しい規則が求める欄で、それまでの回答（answers）は変えていない。足した中身は design.md の 11. と 13.
+idp:
+  name: keycloak
+  version: "26.8"
+# ---------------------------------------------------------------- 主体の状態 × トークン・セッション（R4）
+# 行と列は templates/catalog/subject_state_matrix.md。結果は「発行・再計算・失効・影響なし」。カタログの結果は対策を入れる前の姿で、
+# ここはこの設計での姿。「影響なし」「再計算」には、許す遅れか対策を basis に書く
+subject_states:
+  unused_layers:
+    内部トークン: 入口での交換を置かない（design.md の 2.）。token_types に internal_token の行がなく、API は外部の AT をそのまま検証する
+    Logout Token: LOGOUT は却下（token_types）。IdP 側のセッションの終了は、BFF のリフレッシュの失敗で知る（最大 330 秒の遅れを許す）
+  states:
+    subject-states/invited:
+      AT: {result: 影響なし, basis: 利用者はテナントの管理者がレルムに作る。招待ではトークンを出さず、手元の AT も変わらない}
+      RT: {result: 影響なし, basis: 招待では RT を出さない。既存の RT は既存のセッションに結びついたまま}
+      ID: {result: 影響なし, basis: 招待では出さない。ID トークンは BFF がログインの時だけ使い、保存しない}
+      IdP のセッション: {result: 影響なし, basis: 招待はセッションを作らない。最初のログイン（I25）で作る}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF は招待を知らない。最初のログインの後にセッションを作る}
+    subject-states/active:
+      AT: {result: 発行, basis: 最初のログイン（I25）で I01 と同じ発行。ロールを付ける前なら roles は空で出て、API は空のロールで何も許さない}
+      RT: {result: 発行, basis: 認可コードの応答で BFF に出る（I01）。ローテーションあり}
+      ID: {result: 発行, basis: ログインの応答で出る。BFF が検証して nonce を照合する（U03）}
+      IdP のセッション: {result: 発行, basis: ログインで Keycloak の SSO セッションを作る（idle 1800 秒、最大 36000 秒）}
+      RP・BFF のセッション: {result: 発行, basis: ID トークンの検証の後に BFF のセッションを作る（U03）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: 手元の AT は exp まで API が受け入れる。最大 330 秒の遅れを許す（ライフサイクル表）。テナントの停止は DB で要求ごとに止める}
+      RT: {result: 失効, basis: 無効化した利用者のリフレッシュを Keycloak が拒む（カタログのソースの要約。V31）。RT そのものは残るが、使えないので実質の失効として扱う。実物では確かめていない}
+      ID: {result: 影響なし, basis: ID トークンはログインの時だけ使い、保存しない。停止の後に読まれることはない}
+      IdP のセッション: {result: 影響なし, basis: 無効化でセッションを消すかは確かめていない（カタログ。V31）。ログインとリフレッシュは拒まれるので、残っても使えない前提}
+      RP・BFF のセッション: {result: 失効, basis: 次のリフレッシュの失敗で BFF がセッションを終える。それまで最大 330 秒の遅れを許す}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 手元の AT は exp まで受け入れる（最大 330 秒）。API は sub で DB の行を引くので、消した利用者の行が残っていれば読める}
+      RT: {result: 失効, basis: 主体が無いので RT から AT を作れないと見込む（カタログでも推論。V36）。実物では確かめていない}
+      ID: {result: 影響なし, basis: ID トークンはログインの時だけ使い、保存しない}
+      IdP のセッション: {result: 失効, basis: 主体が無いセッションは使えないと見込む（カタログでも推論。V36）}
+      RP・BFF のセッション: {result: 失効, basis: 次のリフレッシュの失敗で BFF がセッションを終える。それまで最大 330 秒の遅れを許す}
+    subject-states/tenant-switch:
+      AT: {result: 発行, basis: テナントはレルムごとに分かれ、切替は別のレルムへのログイン（I01）。前のテナントの AT は exp まで残るが、iss が違うので API は前のテナントとして扱う}
+      RT: {result: 発行, basis: 新しいレルムのログインで出る。前のレルムの RT は、BFF がセッションごと捨てる}
+      ID: {result: 発行, basis: 新しいレルムのログインの応答で出る。BFF は iss と nonce を照合する（U03）}
+      IdP のセッション: {result: 発行, basis: レルムが違うので、新しいレルムの SSO セッションを作る。前のレルムのセッションは残る}
+      RP・BFF のセッション: {result: 再計算, basis: BFF はセッションのテナントの文脈を、新しいレルムのトークンで置き換える。レルムごとに redirect_uri を分けて取り違えを防ぐ（12.）}
+    subject-states/role-change:
+      AT: {result: 再計算, basis: 次のリフレッシュ（I02）でマッパーが再実行され、新しいロールが出る（ケーススタディの実測 keycloak.refresh_reevaluation）。剥奪の反映は最大 330 秒を許す}
+      RT: {result: 影響なし, basis: RT にロールは載らない。ローテーションで次のリフレッシュのときに替わる}
+      ID: {result: 再計算, basis: リフレッシュの応答にも出るが、BFF は認可に使わない。ロールは AT だけで運ぶ}
+      IdP のセッション: {result: 影響なし, basis: ロールの変更はセッションを終えない。次の発行で新しいロールが出る}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF はロールをセッションに写さない。ロールは API が AT から読む}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: 手元の AT は exp まで受け入れる（最大 330 秒）。資格情報の変更で AT を止める仕組みは置かない}
+      RT: {result: 影響なし, basis: Keycloak 26.3 からの既定では、ほかの端末の RT は残る（Sign out from other devices が未チェック）。残りを許すかは書き手が自信のない点（I26）}
+      ID: {result: 影響なし, basis: ID トークンはログインの時だけ使い、保存しない。amr は使わない}
+      IdP のセッション: {result: 影響なし, basis: 既定ではほかの端末のセッションも残る（Keycloak の文書。カタログの行列）。I26 の回答と同じ扱い}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF は資格情報の変更を知らない。IdP のセッションが残るので、リフレッシュも通る}
+# ---------------------------------------------------------------- 主体の種類 × 発行イベント × 段階（R6、warn だけ）
+# 主体の種類は slide:p05-three-principals の 3 つ。発行イベントは「該当」の発行（I01・I02・I25・I26）、段階はカタログの stage
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当}
+    ワークロード: {answer: 対象外, reason: サービス間の呼び出しも client credentials もない（I05 は対象外）。BFF は利用者の AT だけを API に送る}
+    システム: {answer: 対象外, reason: 運用者の横断作業とバッチはこの例の範囲外（design.md の 6.）。代理操作（I19）も対象外}
+  combinations:
+    - {subject: 利用者, event: I01, stage: ①, note: 認可コード＋PKCE のログイン。acr・amr は使わず、auth_time は載るが読まない}
+    - {subject: 利用者, event: I01, stage: ②, note: マッパーが tenant_id・user_id・roles・v を AT に足す（R3b：hook_invoked yes）}
+    - {subject: 利用者, event: I02, stage: ②, note: リフレッシュでもマッパーが再実行される。ロールの変更は次のリフレッシュで反映される}
+    - {subject: 利用者, event: I25, stage: ①, note: 初回ログインも I01 と同じ認証。必須のアクション（メールの確認など）は使わない}
+    - {subject: 利用者, event: I25, stage: ②, note: ロールを付ける前なら roles は空で出る。マッパーが呼ばれるかはカタログで unknown（R3b の warn）}
+    - {subject: 利用者, event: I26, stage: ①, note: パスワードの変更の後のログインは I01 と同じ認証。ほかの端末のセッションは既定で残る}
+    - {subject: 利用者, event: I26, stage: ②, note: 変更の後の発行は I01 と同じ中身を見込む。マッパーが呼ばれるかはカタログで unknown（R3b の warn）}
+# ---------------------------------------------------------------- この列挙の外に契機はないか（R9）
+outside_enumeration:
+  answer: カタログ（発行 33・利用 28）と keycloak-settings の外の契機を、境界の図・シーケンス図と Keycloak の文書で探した。新しい発行の契機は見つからなかったが、発行の中身が変わる場面を 1 つ見つけ、下の found に書いた
+  respondent: 記入例の書き手（作成者）
+  date: "2026-11-22"
+  searched:
+    - design.md の 2. 範囲と信頼の境界の図と 9. ライフサイクル表（矢印と層ごとに、カタログのどのイベントかを確かめた。7. シーケンス図は Full だけの節なので使っていない）
+    - Keycloak 26.8.2 の javadoc「OAuth2GrantType」の実装クラスの一覧（https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html。カタログの keycloak-grant-types）
+    - Keycloak Server Administration Guide 26.8.2 のクライアント・レルムの設定（Capability config、Client scopes、Sessions、Required actions、Impersonation）
+    - Keycloak の管理 REST API（master レルムの admin-cli の発行。saas-api を aud に持つ AT を出さないことを確かめた）
+    - research/template-design/notes/coverage_lifecycle.md の先行の一覧（I01〜I30・U01〜U21）
+  found:
+    - name: テナントの管理者が自分のレルムのマッパー・AT の寿命・ロールの割り当てを変えた後の発行
+      handled_as: 新しいイベントではなく I01・I02 の中身の変化として扱った。テナントの外に効く値は API が iss と設定で強制する（design.md の 2. の境界の要点）
 answers:
   # ---------------------------------------------------------------- 発行イベント（v0 の I01〜I09）
   - event: I01
@@ -141,6 +225,11 @@ answers:
     answer: 対象外
     assumption: イントロスペクションを使わない（U05 と同じ前提）ので、JWT 形式の応答も受けない
     breaks_when: U05 を該当にし、AS の判断を否認できない形で残す必要が出たとき
+  # ---------------------------------------------------------------- 発行イベント（#17 で足した I34）
+  - event: I34
+    answer: 対象外
+    assumption: Keycloak の機能 oid4vc-vci（Preview、既定は無効）を有効にしない。利用者に検証可能な資格情報を発行しない
+    breaks_when: 利用者やテナントにデジタルの資格情報（SD-JWT VC など）を発行する機能を足すとき
   # ---------------------------------------------------------------- 利用イベント（v0 の U01〜U10）
   - event: U01
     answer: 該当
