@@ -19,7 +19,8 @@
 #                   するか。IdP による違いは idp の lifetime_note
 #   seeds           種になる一覧の項目（<一覧の id>/<項目の id>）
 #   guide           ガイドでの扱い。covered（扱っている）／partial（一部だけ。note に扱っていない点）／gap（「ガイドの空白」。
-#                   marker と、どう確かめたか checked）。キーワード検索だけで gap にせず、ヒットしたスライドの本文とノートを目で読んだ
+#                   marker と、どう確かめたか checked）／out-of-scope（「ガイドの範囲外」。ガイドの対象の外なので、スライドを求めない。
+#                   marker・assumption・breaks_when）。キーワード検索だけで gap にせず、ヒットしたスライドの本文とノートを目で読んだ
 #   idp.<IdP>       keycloak（26.8）と auth0 のそれぞれについて
 #     occurs          この IdP がこのイベントを起こすか：yes / no / conditional（設定・プランによる）。issuer が idp でない行では no
 #                     （IdP は発行者でない）。確かめていなければ unknown
@@ -40,7 +41,7 @@
 #
 # 文書に書かれていない既定値を、Keycloak 26.8.2 のソース（GitHub のタグ）の要約で補った箇所は「ソースの要約」と書いた。行は直接確かめて
 # いない（research/template-design/unverified.md の V31）。
-# 件数：発行イベント 34 件。「ガイドの空白」1 件（I34。#10 で 10 件を埋めた後に #17 で足した）、一部だけ扱う 1 件（I20）
+# 件数：発行イベント 34 件。「ガイドの空白」0 件（#10 で 10 件を埋めた）、一部だけ扱う 1 件（I20）、ガイドの範囲外 1 件（I34。#17 で足した OID4VCI）
 # 対応表（templates/trace/）の要件への逆参照。catalog の部分を満たした要件だけを書く。要件の状態は、ほかの成果物
 # （registry:claims#recompute_trigger は #3）が揃うまで「未着手」のまま
 _trace:
@@ -1171,8 +1172,10 @@ events:
       revoked: []
       note: 発行者が事前に渡した pre-authorized_code を、ウォレットがトークン端点で AT に替える。AT は資格情報の発行の端点（Credential Endpoint）を呼ぶためのもの
     seeds: [keycloak-grant-types/PreAuthorizedCodeGrantType]
-    guide: {status: gap, marker: ガイドの空白, slides: [], note: "検証可能な資格情報（OID4VCI）の発行を扱うスライドがない",
-            checked: "2026-11-22 に docs/slides.json を OID4VC・Verifiable・検証可能・pre-authorized で検索し、ヒットが 0 件だった"}
+    guide: {status: out-of-scope, marker: ガイドの範囲外, slides: [],
+            assumption: "検証可能な資格情報（VC）の発行は、ガイドの対象（OAuth・OIDC のトークンに載せる組織の独自クレーム）の外",
+            breaks_when: "組織が OID4VCI で社員証などの VC を発行し、そのクレームを API の認可に使う場合",
+            note: "2026-11-22 に docs/slides.json を OID4VC・Verifiable・検証可能・pre-authorized で検索し、ヒットが 0 件だった"}
     idp:
       keycloak:
         occurs: conditional

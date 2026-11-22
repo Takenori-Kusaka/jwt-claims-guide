@@ -50,7 +50,8 @@ HOOK = ('yes', 'no', 'conditional', 'unknown')
 OCCURS = ('yes', 'no', 'conditional', 'unknown')
 ISSUERS = ('idp', 'gateway', 'tts', 'client', 'workload-platform', 'rp', 'resource-server', 'external-as')
 PHASES = ('伝搬', '検証', '認可', '運用')
-GUIDE_STATUS = ('covered', 'partial', 'gap')
+GUIDE_STATUS = ('covered', 'partial', 'gap', 'out-of-scope')
+GUIDE_OOS_MARK = 'ガイドの範囲外'
 GAP_MARK = 'ガイドの空白'
 STOP_SCOPES = ('client', 'realm', 'tenant', 'api', 'server')
 RESULTS = ('発行', '再計算', '失効', '影響なし')
@@ -261,6 +262,15 @@ def _check_guide(where, g, out, slides):
         out.append(err('GUIDE', where, f"guide.status {g['status']} にスライド ID がない"))
     if g['status'] in ('partial', 'gap') and _empty(g.get('note')):
         out.append(err('GUIDE', where, f"guide.status {g['status']} に note（扱っていない点）がない"))
+    if g['status'] == 'out-of-scope':
+        # outside the guide's subject (custom claims of an organization in OAuth / OIDC tokens): no slide is expected
+        if g.get('marker') != GUIDE_OOS_MARK:
+            out.append(err('GUIDE', where, f'ガイドの範囲外の行に marker「{GUIDE_OOS_MARK}」がない'))
+        for k in ('assumption', 'breaks_when'):
+            if _empty(g.get(k)) or _weak_reason(g.get(k), ()):
+                out.append(err('GUIDE', where, f'ガイドの範囲外の行の {k} がない、または {MIN_REASON} 字未満'))
+        if not _empty(g.get('assumption')) and g.get('assumption') == g.get('breaks_when'):
+            out.append(err('GUIDE', where, 'ガイドの範囲外の行の assumption と breaks_when が同じ文'))
     if g['status'] == 'gap':
         if g.get('marker') != GAP_MARK:
             out.append(err('GUIDE', where, f'ガイドにない行に marker「{GAP_MARK}」がない'))
@@ -437,6 +447,11 @@ def check_sources(docs, stats):
                 out.append(err('SOURCES', f"seeds.yaml:{sl['id']}", f'{k} がない'))
         if not _empty(sl.get('verified_on')):
             _check_dates(f"seeds.yaml:{sl['id']}", sl, out)
+    oos_rows = stats.get('guide_out_of_scope')
+    if oos_rows is not None:
+        want_g = f"**ガイドの範囲外の行 {len(oos_rows)} 件**"
+        if want_g not in head:
+            out.append(err('SOURCES', 'sources.md', f'冒頭の「ガイドの範囲外」の件数が計算と合わない（計算：{want_g}）'))
     pct = round(100 * stats['out_of_scope_ratio'])
     want = f"**対象外 {stats['out_of_scope']} 件／全 {stats['seed_items']} 件（{pct}%）**"
     if want not in head:
@@ -457,15 +472,16 @@ def run(catalog_dir=CATALOG, root=ROOT, docs=None):
     m, mstats = check_matrix(docs)
     findings += m
     stats.update(mstats)
-    findings += check_sources(docs, stats)
     ie = (docs.get('issue_events') or {}).get('events', []) or []
     ue = (docs.get('use_events') or {}).get('events', []) or []
     stats.update({'issue_events': len(ie), 'use_events': len(ue),
                   'token_kinds': len((docs.get('token_kinds') or {}).get('kinds', []) or []),
                   'guide_gaps': sorted(r['id'] for r in ie + ue if (r.get('guide') or {}).get('status') == 'gap'),
                   'guide_partial': sorted(r['id'] for r in ie + ue if (r.get('guide') or {}).get('status') == 'partial'),
+                  'guide_out_of_scope': sorted(r['id'] for r in ie + ue if (r.get('guide') or {}).get('status') == 'out-of-scope'),
                   'hook_unknown': sorted(f"{r['id']}:{n}" for r in ie + ue for n in IDPS
                                          if ((r.get('idp') or {}).get(n) or {}).get('hook_invoked') == 'unknown')})
+    findings += check_sources(docs, stats)
     errors = [x for x in findings if x['severity'] == 'error']
     return {'stats': stats, 'findings': findings + info, 'errors': len(errors)}
 
@@ -478,6 +494,7 @@ def format_table(res):
              f"({100 * s['out_of_scope_ratio']:.1f}%)  unmapped={s['unmapped']}",
              f"guide gaps ({len(s['guide_gaps'])}): {' '.join(s['guide_gaps']) or '-'}",
              f"guide partial ({len(s['guide_partial'])}): {' '.join(s['guide_partial']) or '-'}",
+             f"guide out-of-scope ({len(s['guide_out_of_scope'])}): {' '.join(s['guide_out_of_scope']) or '-'}",
              f"hook_invoked unknown ({len(s['hook_unknown'])}): {' '.join(s['hook_unknown']) or '-'}", '']
     for f in res['findings']:
         if f['severity'] == 'error':
