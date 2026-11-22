@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/token_types.schema.json/v0.1.0",
+  "$comment": "template_version: 0.1.0. Schema v0 (#16): token inventory, the minimal issuance_profile and the size inputs of rule R8, only as far as scenario A (Keycloak) needs them. Gaps are listed in research/template-design/v0-columns.md for #3.",
+  "title": "Token types and issuance profile v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["template_version", "issuance_profile", "token_types"],
+  "properties": {
+    "template_version": {"type": "string"},
+    "issuance_profile": {"$ref": "#/$defs/issuance_profile"},
+    "token_types": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/token_type"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["spec", "guidance", "research", "book", "incident", "guide-slide", "author-proposal"]},
+        "id": {"type": "string", "minLength": 1},
+        "url": {"type": "string"},
+        "verified_on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "tracking": {"type": "string", "pattern": "^#\\d+$"}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "author-proposal"}}}, "then": {"required": ["tracking"]}}
+      ]
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "rationale"],
+      "properties": {
+        "value": {},
+        "rationale": {"$ref": "#/$defs/text"},
+        "refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}}
+      }
+    },
+    "issuance_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["client_type", "client_auth", "grants", "sender_constraint", "at_format", "rt_strategy"],
+      "properties": {
+        "client_type": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["public", "confidential", "fapi"]}}}]},
+        "client_auth": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["private_key_jwt", "tls_client_auth", "client_secret_basic", "client_secret_post", "client_secret_jwt", "none"]}}}]},
+        "grants": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"type": "array", "items": {"enum": ["authorization_code_pkce", "client_credentials", "token_exchange", "ciba", "device_code", "refresh_token"]}}}}]},
+        "sender_constraint": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["none", "dpop", "mtls"]}}}]},
+        "at_format": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["jwt", "opaque_introspection", "phantom"]}}}]},
+        "rt_strategy": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["rotation_reuse_detection", "rotation", "sender_constrained", "none"]}}}]},
+        "request_protection": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"type": "array", "items": {"enum": ["par", "jar", "rar", "resource_indicators"]}}}}]},
+        "conformance_profile": {"allOf": [{"$ref": "#/$defs/choice"}, {"properties": {"value": {"enum": ["none", "fapi2_security", "oauth2_1"]}}}]}
+      }
+    },
+    "header_param": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "max_bytes"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"enum": ["string", "number"]},
+        "max_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "token_type": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "decision", "rationale", "format"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9_-]*$"},
+        "kind": {"enum": ["access_token", "id_token", "refresh_token", "authorization_code", "session", "logout_token", "txn_token", "dpop_proof", "internal_token"]},
+        "decision": {"enum": ["採用", "却下", "既定どおり"]},
+        "rationale": {"$ref": "#/$defs/text"},
+        "purpose": {"$ref": "#/$defs/text"},
+        "issuer": {"$ref": "#/$defs/text"},
+        "aud": {"type": "array", "items": {"type": "string"}},
+        "holder": {"$ref": "#/$defs/text"},
+        "format": {"enum": ["jwt", "opaque"]},
+        "typ": {"type": "string"},
+        "alg_allowlist": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "issuers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["iss", "jwks_uri"],
+            "properties": {"iss": {"type": "string"}, "jwks_uri": {"type": "string"}}
+          }
+        },
+        "required_claims": {"type": "array", "items": {"type": "string"}},
+        "max_clock_skew": {"type": "integer", "minimum": 0},
+        "max_lifetime": {"type": "integer", "minimum": 0, "description": "Seconds"},
+        "lifetime_refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}},
+        "refresh": {"$ref": "#/$defs/text"},
+        "revocation": {"$ref": "#/$defs/text"},
+        "stored_at": {"enum": ["browser", "bff_server", "idp", "rp_server", "none"]},
+        "transport": {"enum": ["authorization_bearer", "authorization_dpop", "cookie", "form_post_body", "token_response_body", "back_channel_post", "redirect_query"]},
+        "key_rotation": {"$ref": "#/$defs/text"},
+        "size": {"$ref": "#/$defs/size"},
+        "note": {"type": "string"}
+      }
+    },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signing", "header", "path"],
+      "description": "Inputs of rule R8. Only for JWT types that travel in an HTTP header",
+      "properties": {
+        "signing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["alg"],
+          "properties": {"alg": {"type": "string"}, "key_bits": {"type": "integer", "minimum": 1}}
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["params"],
+          "properties": {
+            "params": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/header_param"}},
+            "serializer_extra_bytes": {"type": "integer", "minimum": 0, "description": "Bytes the issuer's JSON serializer adds beyond compact JSON (whitespace). Measured per IdP and version"},
+            "serializer_extra_basis": {"type": "string"}
+          }
+        },
+        "path": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Limits on the way of this token, as IDs of tools/claim_lint/path_limits.yaml or inline declared limits",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "applies_to", "bytes", "basis"],
+                "properties": {
+                  "id": {"type": "string"},
+                  "applies_to": {"enum": ["header_field", "all_headers"]},
+                  "bytes": {"type": "integer", "minimum": 1},
+                  "basis": {"type": "string"}
+                }
+              }
+            ]
+          }
+        },
+        "other_headers_bytes": {"type": "integer", "minimum": 0, "description": "Reserve for the request line and the other headers, used against all_headers limits"}
+      }
+    }
+  }
+}

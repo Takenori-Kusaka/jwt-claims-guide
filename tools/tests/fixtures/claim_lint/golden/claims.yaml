@@ -1,0 +1,20 @@
+# R8 golden test (#16): declarations made from the concrete values of token.json (not a design; not schema-complete).
+# max_bytes is the byte length of the value in the golden token. For the array roles ["approver","tenant-admin"]
+# (8 + 12 = 20 bytes in 2 items), max_bytes is 10 so that max_bytes x max_items equals the 20 bytes of the token:
+# R8 sizes an array as items x max_bytes, so a per-item mean is what reproduces a concrete array exactly.
+claims:
+  - {id: C-exp, name: exp, namespace: null, decision: 採用, type: integer, shape: single, max_bytes: 10, carried_in: [AT]}
+  - {id: C-iat, name: iat, namespace: null, decision: 採用, type: integer, shape: single, max_bytes: 10, carried_in: [AT]}
+  - {id: C-auth-time, name: auth_time, namespace: null, decision: 既定どおり, type: integer, shape: single, max_bytes: 10, carried_in: [AT]}
+  - {id: C-jti, name: jti, namespace: null, decision: 採用, type: string, shape: single, max_bytes: 43, carried_in: [AT]}
+  - {id: C-iss, name: iss, namespace: null, decision: 採用, type: string, shape: single, max_bytes: 32, carried_in: [AT]}
+  - {id: C-aud, name: aud, namespace: null, decision: 採用, type: string, shape: single, max_bytes: 8, carried_in: [AT]}
+  - {id: C-sub, name: sub, namespace: null, decision: 採用, type: string, shape: single, max_bytes: 36, carried_in: [AT]}
+  - {id: C-typ-claim, name: typ, namespace: null, decision: 既定どおり, type: string, shape: single, max_bytes: 6, carried_in: [AT]}
+  - {id: C-azp, name: azp, namespace: null, decision: 既定どおり, type: string, shape: single, max_bytes: 10, carried_in: [AT]}
+  - {id: C-sid, name: sid, namespace: null, decision: 既定どおり, type: string, shape: single, max_bytes: 24, carried_in: [AT]}
+  - {id: C-scope, name: scope, namespace: null, decision: 既定どおり, type: string, shape: single, max_bytes: 6, carried_in: [AT]}
+  - {id: C-tenant-id, name: tenant_id, namespace: "https://claims.example.com/", decision: 採用, type: string, shape: single, max_bytes: 2, carried_in: [AT]}
+  - {id: C-user-id, name: user_id, namespace: "https://claims.example.com/", decision: 採用, type: string, shape: single, max_bytes: 36, carried_in: [AT]}
+  - {id: C-v, name: v, namespace: "https://claims.example.com/", decision: 採用, type: string, shape: single, max_bytes: 1, carried_in: [AT]}
+  - {id: C-roles, name: roles, namespace: "https://claims.example.com/", decision: 採用, type: string, shape: array, max_bytes: 10, max_items: 2, overflow_strategy: 上限で固定（超えない値域）, carried_in: [AT]}

@@ -1,4 +1,4 @@
-# CI dependencies for .github/workflows/trace.yml (Python 3.12 on ubuntu-latest).
+# CI dependencies for .github/workflows/trace.yml and claims.yml (Python 3.12 on ubuntu-latest).
 # Installed with: python -m pip install --require-hashes --no-deps -r tools/requirements-ci.txt
 # Hashes are the sha256 of the files on PyPI (the cp312 manylinux x86_64 wheel / pure wheel, and the sdist).
 pyyaml==6.0.2 \
@@ -16,3 +16,19 @@ packaging==24.2 \
 pluggy==1.5.0 \
     --hash=sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669 \
     --hash=sha256:2cffa88e94fdc978c4c574f15f9e59b7f4201d439195c3715ca9e2486f1d0cf1
+# jsonschema and its dependencies, for claim_lint (#16). rpds-py is compiled: the hash is of the cp312 manylinux x86_64 wheel.
+jsonschema==4.23.0 \
+    --hash=sha256:fbadb6f8b144a8f8cf9f0b89ba94501d143e50411a1278633f56a7acf7fd5566 \
+    --hash=sha256:d71497fef26351a33265337fa77ffeb82423f3ea21283cd9467bb03999266bc4
+attrs==24.2.0 \
+    --hash=sha256:81921eb96de3191c8258c199618104dd27ac608d9366f5e35d011eae1867ede2 \
+    --hash=sha256:5cfb1b9148b5b086569baec03f20d7b6bf3bcacc9a42bebf87ffaaca362f6346
+jsonschema-specifications==2024.10.1 \
+    --hash=sha256:a09a0680616357d9a0ecf05c12ad234479f549239d0f5b55f3deea67475da9bf \
+    --hash=sha256:0f38b83639958ce1152d02a7f062902c41c8fd20d558b0c34344292d417ae272
+referencing==0.35.1 \
+    --hash=sha256:eda6d3234d62814d1c64e305c1331c9a3a6132da475ab6382eaa997b21ee75de \
+    --hash=sha256:25b42124a6c8b632a425174f24087783efb348a6f1e0008e63cd4466fedf703c
+rpds-py==0.22.3 \
+    --hash=sha256:e67ba3c290821343c192f7eae1d8fd5999ca2dc99994114643e2f2d3e6138b15 \
+    --hash=sha256:e32fee8ab45d3c2db6da19a5323bc3362237c8b653c70194414b892fd06a080d

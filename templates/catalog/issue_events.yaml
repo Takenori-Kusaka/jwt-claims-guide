@@ -1,0 +1,186 @@
+template_version: 0.1.0
+# 発行イベントのカタログ（v0 の一部）
+#
+# v0 subset: #16（縦の一本）で、シナリオ A（Keycloak 26.8 のレルム t1・t2）に関係する Keycloak の発行イベントだけを載せた。
+# 全体への拡張と、種になる一覧（IANA OAuth Parameters など）との差集合の検査は #2 で行う。この一部には、種になる一覧との
+# 照合をまだしていない（「漏れがない」とは言えない）。
+#
+# 列（v0。名前は #2 で変わりうる）
+#   id              I01〜
+#   name            イベントの名前
+#   idp             対象の IdP と版
+#   standard_refs   標準の根拠（版付き。#13 の根拠の書式）
+#   stage           段階（slide:p06-stage-map の ①〜⑥）
+#   tokens_issued   このイベントで出るトークン種別（kind。#2 の token_kinds.yaml ができたらその ID に置き換える）
+#   hook_invoked    yes / no / conditional / unknown。Keycloak の「フック」はプロトコルマッパー
+#   hook_note       conditional・unknown のときの条件と、確かめた方法
+#   lifetime_impact このイベントで、どのトークンが発行・再計算・失効するか
+#   source_refs     IdP 側の出どころ（製品の文書は verified_on 必須）
+#   evidence        ケーススタディの実測（根拠の種類ではなく検証の記録。#13）
+#   verified_on / review_by / owner   出どころを確かめた日、見直しの期限、持ち主
+#
+# review_by は verified_on の 90 日後とした（筆者の提案。#2 の本文の例による。tracking: "#17"）。
+# 件数：発行イベント 9 件（Keycloak）
+events:
+  - id: I01
+    name: 認可コード＋PKCE でのログイン（アクセストークン・ID トークン・リフレッシュトークンの発行）
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6749 §4.1", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1"}
+      - {kind: spec, id: "RFC 7636 §4", url: "https://www.rfc-editor.org/rfc/rfc7636#section-4"}
+      - {kind: spec, id: "RFC 9068 §2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2"}
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.3", url: "https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse"}
+    stage: "①②"
+    tokens_issued: [access_token, id_token, refresh_token, authorization_code]
+    hook_invoked: "yes"
+    hook_note: クライアントとクライアントスコープのプロトコルマッパーが、AT・ID トークンのそれぞれの設定（Add to access token など）に従って適用される。2026-11-22 に Keycloak 26.8.0 で発行した AT に、マッパーで足した名前空間オブジェクトが載ったことで確かめた（research/template-design/gate1.md の見本トークン）
+    lifetime_impact: AT（accessTokenLifespan）・ID トークン・RT を新しく発行する。IdP のセッション（SSO セッション）を作る。マッパーの値はこの時点の利用者の属性とロールで決まる
+    source_refs:
+      - {kind: guide-slide, id: p06-stage-map}
+      - {kind: guide-slide, id: p06-issuance-hook}
+    evidence: ["jwt-claims-casestudy@080b8da:A1"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I02
+    name: リフレッシュトークンでの再発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6749 §6", url: "https://www.rfc-editor.org/rfc/rfc6749#section-6"}
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+    stage: "②"
+    tokens_issued: [access_token, id_token, refresh_token]
+    hook_invoked: "yes"
+    hook_note: ケーススタディの実測（Keycloak 26.8）で、リフレッシュ後の AT に変更後の属性とロールが出た。マッパーが再実行されたと読める
+    lifetime_impact: AT を再計算して発行する（属性・ロールはリフレッシュの時点の値）。Revoke Refresh Token を有効にしたレルムでは RT もローテーションされる。SSO セッションの idle の期限が延びる
+    source_refs:
+      - {kind: guide-slide, id: p08-refresh-reevaluation}
+      - {kind: guide-slide, id: p08-rotation}
+    evidence: ["jwt-claims-casestudy@080b8da:keycloak.refresh_reevaluation"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I03
+    name: 軽量アクセストークン（lightweight access token）での発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    stage: "②"
+    tokens_issued: [access_token]
+    hook_invoked: conditional
+    hook_note: 公式文書では、マッパーの設定 Add to lightweight access token（既定 OFF）を ON にしたクレームだけが載る。exp・iat・jti・iss・typ・azp・sid・scope・cnf は外せない。クライアントポリシーの executor（use-lightweight-access-token）で適用する
+    lifetime_impact: I01・I02 と同じ契機で AT を出すが、マッパーで足したクレームは既定では載らない。受け手が必要なクレームはイントロスペクションで取ることになり、鮮度の性質が変わる
+    source_refs:
+      - kind: spec
+        id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
+        url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token"
+        verified_on: 2026-11-22
+    evidence: ["jwt-claims-casestudy@080b8da:A11", "jwt-claims-casestudy@080b8da:keycloak.lightweight"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I04
+    name: Resource Owner Password Credentials（ROPC）での発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6749 §4.3", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.3"}
+      - {kind: spec, id: "RFC 9700 §2.4", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.4"}
+    stage: "①②"
+    tokens_issued: [access_token, id_token, refresh_token]
+    hook_invoked: "yes"
+    hook_note: ケーススタディの実験は、クライアントの Direct Access Grants（ROPC）で AT を得ており、マッパーで足したクレームが載っている
+    lifetime_impact: I01 と同じ（認可コードを経ない）
+    source_refs:
+      - {kind: guide-slide, id: p06-stage-map}
+    evidence: ["jwt-claims-casestudy@080b8da:A1"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I05
+    name: Client Credentials（サービスアカウント）での発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6749 §4.4", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.4"}
+    stage: "②"
+    tokens_issued: [access_token]
+    hook_invoked: unknown
+    hook_note: サービスアカウントのトークンにマッパーが適用されるかを、公式文書と実測で確かめていない
+    lifetime_impact: AT だけを発行する（利用者のセッションを作らない）
+    source_refs:
+      - {kind: guide-slide, id: p05-three-principals}
+    evidence: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I06
+    name: 標準トークン交換（Standard Token Exchange）での発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+    stage: "③"
+    tokens_issued: [access_token, refresh_token]
+    hook_invoked: unknown
+    hook_note: 交換で出た AT にどのマッパーが適用されるかを、この一部では確かめていない。ケーススタディの実測は宛先と範囲の挙動だけ
+    lifetime_impact: 新しい AT を出す。ケーススタディの実測では、元のトークンに無かった宛先のトークンが出た（絞るとは限らない）
+    source_refs:
+      - {kind: guide-slide, id: p10-token-exchange-not-narrowing}
+    evidence: ["jwt-claims-casestudy@080b8da:C.keycloak_exchange"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I07
+    name: Device Authorization Grant での発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      # V10: RFC 8628 の本文を読むまで節番号を書かない
+      - {kind: spec, id: "RFC 8628", url: "https://www.rfc-editor.org/rfc/rfc8628"}
+    stage: "①②"
+    tokens_issued: [access_token, id_token, refresh_token]
+    hook_invoked: unknown
+    hook_note: 確かめていない
+    lifetime_impact: I01 と同じ種類のトークンを、別の端末での認証の後に発行する
+    source_refs: []
+    evidence: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I08
+    name: オフラインアクセス（offline_access スコープ）でのオフライントークンの発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §11", url: "https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess"}
+    stage: "②"
+    tokens_issued: [refresh_token]
+    hook_invoked: unknown
+    hook_note: 確かめていない
+    lifetime_impact: SSO セッションより長く生きる RT を発行する。ログアウトで消えるかは確かめていない
+    source_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    evidence: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: I09
+    name: Back-Channel Logout のログアウトトークンの発行
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+    stage: "②"
+    tokens_issued: [logout_token]
+    hook_invoked: unknown
+    hook_note: ログアウトトークンにマッパーが適用されるかを確かめていない
+    lifetime_impact: IdP のセッションの終了を RP に伝える。発行済みの AT（JWT）は失効しない（exp までは残る）
+    source_refs:
+      - {kind: guide-slide, id: p08-revocation-propagation}
+    evidence: ["jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"

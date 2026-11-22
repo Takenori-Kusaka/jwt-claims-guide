@@ -13,7 +13,11 @@
 - レビュー観点書、判断の木、対比表、レビューレポートの様式（#5）
 - ガイドのスライドとの対応表（#22）
 
-いま入っているのは、共通の規約（[CONTRIBUTING.md](CONTRIBUTING.md)）と、ケーススタディとの対応表（[casestudy-mapping.md](casestudy-mapping.md)）だけです。
+いま入っているのは、共通の規約（[CONTRIBUTING.md](CONTRIBUTING.md)）と、ケーススタディとの対応表（[casestudy-mapping.md](casestudy-mapping.md)）と、#16（縦の一本）で作った仮の版です。仮の版は列や形が変わります。
+
+- カタログの一部（[catalog/](catalog/)）、台帳のスキーマ v0（[registry/](registry/)）
+- シナリオ A（Keycloak）の記入例（[examples/scenario-a/](examples/scenario-a/)）。推奨ではなく、ケーススタディの前提での一例
+- 検査：`python tools/claim_lint templates/examples/scenario-a`（規則は [tools/claim_lint/RULES.md](../tools/claim_lint/RULES.md)）
 
 ## ライセンス
 

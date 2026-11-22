@@ -43,7 +43,7 @@ TRACE_DIR = os.path.join('templates', 'trace')
 REQ_FILE = os.path.join(TRACE_DIR, 'requirements.yaml')
 ITEMS_FILE = os.path.join(TRACE_DIR, 'planned_items.yaml')
 NEW_ITEMS_FILE = os.path.join(TRACE_DIR, 'new_items.md')
-RULES_FILE = os.path.join('tools', 'claim-lint', 'RULES.md')
+RULES_FILE = os.path.join('tools', 'claim_lint', 'RULES.md')  # #16: a Python package, so _ not -
 SLIDES_FILE = os.path.join('docs', 'slides.json')
 
 KINDS = ('design-decision', 'knowledge', 'structural')

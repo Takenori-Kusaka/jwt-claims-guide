@@ -49,7 +49,7 @@ REQS = {
 }
 DONE_FILES = {
     'templates/00_core.md': '## ホップごとの表 <a id="hop-table"></a>\n<!-- req:p01-validate.R1 -->\n## 次 <a id="lifecycle"></a>\n',
-    'tools/claim-lint/RULES.md': '| ID | 内容 |\n|---|---|\n| L16 | 下流ほど絞る（req:p01-validate.R1） |\n| L17 | x |\n',
+    'tools/claim_lint/RULES.md': '| ID | 内容 |\n|---|---|\n| L16 | 下流ほど絞る（req:p01-validate.R1） |\n| L17 | x |\n',
 }
 
 
@@ -293,7 +293,7 @@ def test_implemented_with_artifacts_and_markers_passes(tmp_path, capsys):
 def test_implemented_without_reverse_reference_fails(tmp_path, capsys):
     files = dict(DONE_FILES)
     files['templates/00_core.md'] = '<a id="hop-table"></a>\n本文\n<a id="lifecycle"></a>\n<!-- req:p01-validate.R1 -->\n'
-    files['tools/claim-lint/RULES.md'] = '| L16 | x |\n| L17 | req:p01-validate.R1 |\n| L18 | req:p01-validate.R10 |\n'
+    files['tools/claim_lint/RULES.md'] = '| L16 | x |\n| L17 | req:p01-validate.R1 |\n| L18 | req:p01-validate.R10 |\n'
     code, out = run(build(tmp_path, reqs=with_req(done), files=files), capsys)
     assert code == 1
     assert 'template:00_core#hop-table does not contain the reverse reference req:p01-validate.R1' in out

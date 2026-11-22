@@ -11,8 +11,8 @@
 
 <!-- counts:begin -->
 - スライド 152 枚：設計判断 128 枚、知識 7 枚、構造 17 枚。教材の行 10 件（知識のスライドは全件）
-- 要件 718 件：未着手 675、実装済み 0、後回し 42、扱わない 1
-- 段階：core 445 件（未着手 445）、full 273 件（未着手 230・後回し 42・扱わない 1）
+- 要件 718 件：未着手 674、実装済み 1、後回し 42、扱わない 1
+- 段階：core 445 件（未着手 444・実装済み 1）、full 273 件（未着手 230・後回し 42・扱わない 1）
 - **扱わない 1 件／全 718 件（0.1%）**
 - 成果物 493 件：issue の本文にあるもの 254 件、対応表で足した提案 239 件（`new_items.md`）
 
@@ -25,7 +25,7 @@
 | #6 | 147 | 67 | 80 | 147 | 0 | 0 | 35 |
 | #8 | 49 | 36 | 13 | 49 | 0 | 0 | 32 |
 | #13 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
-| #16 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
+| #16 | 2 | 2 | 0 | 1（実装済み 1） | 0 | 0 | 0 |
 | #17 | 2 | 2 | 0 | 2 | 0 | 0 | 0 |
 | #18 | 17 | 14 | 3 | 17 | 0 | 0 | 3 |
 | #19 | 3 | 3 | 0 | 3 | 0 | 0 | 0 |
@@ -171,7 +171,7 @@ python tools/trace_check.py --tier core --require-done   # core に未着手が�
 | `registry` | `registry:claims#volatility`、`registry:token_types#alg_allowlist`、`registry:hops#aud`、`registry:questions#q-actor`、`registry:README#slide-134-map` | #3 | `templates/registry/<claims\|token_types\|hops>.schema.json` の、その名前のプロパティ。`questions` は `questions.yaml` のその `id` の項目。`README` は `README.md` のそのアンカーの節 |
 | `template` | `template:00_core#hop-table`、`template:modules/M_token_validation#jwks-cache`、`template:claim_request#q01` | #4（`CONTRIBUTING` は #13） | `templates/<パス>.md` の、アンカー `<a id="…"></a>`（または `{#…}`）から次のアンカーまで |
 | `review` | `review:perspectives#q-hop-lifetime`、`review:contrasts/four-lifetimes` | #5 | `templates/review/<パス>.md` のアンカーの節 |
-| `lint` | `lint:L16`、`lint:L1a`、`lint:R3b` | #6・#16・#17・#18（L10 は #21） | `tools/claim-lint/RULES.md` の、その ID の表の行（`\| L16 \|`）か見出しから、次の規則まで |
+| `lint` | `lint:L16`、`lint:L1a`、`lint:R3b` | #6・#16・#17・#18（L10 は #21） | `tools/claim_lint/RULES.md` の、その ID の表の行（`\| L16 \|`）か見出しから、次の規則まで |
 | `catalog` | `catalog:issue_events#hook_invoked`、`catalog:token_kinds` | #2 | `templates/catalog/<パス>.yaml` の、そのキーか `id` のノード（`.md` ならアンカーの節） |
 | `test` | `test:negative_tests#alg-none`、`test:consumer_contract#unknown-claim-ignored` | #8 | `templates/runtime/<パス>.md` のアンカーの節 |
 | `ci` | `ci:claims#secret-scan` | #16 | `.github/workflows/<パス>.yml` のそのジョブ |

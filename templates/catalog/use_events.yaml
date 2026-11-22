@@ -1,0 +1,185 @@
+template_version: 0.1.0
+# 利用イベントのカタログ（v0 の一部）
+#
+# v0 subset: #16（縦の一本）で、シナリオ A（Keycloak 26.8 のレルム t1・t2、Postgres の RLS）に関係する利用イベントだけを載せた。
+# 全体への拡張と、種になる一覧との差集合の検査は #2 で行う。
+#
+# 列は issue_events.yaml と同じ。ただし stage の代わりに phase（slide:p06-stage-map の上の帯の「伝搬・検証・認可・運用」）を持つ。
+# 利用イベントは、段階 ①〜⑥（クレームが生まれる場所）には当てはまらないため。
+# 件数：利用イベント 10 件
+events:
+  - id: U01
+    name: API が Authorization ヘッダーの Bearer で AT を受けて検証する
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6750 §2.1", url: "https://www.rfc-editor.org/rfc/rfc6750#section-2.1"}
+      - {kind: spec, id: "RFC 9068 §4", url: "https://www.rfc-editor.org/rfc/rfc9068#section-4"}
+    phase: 検証
+    tokens_used: [access_token]
+    hook_invoked: "no"
+    hook_note: 受け手での検証なので IdP のフックは動かない
+    lifetime_impact: なし（読むだけ）。AT は exp まで受理される
+    source_refs:
+      - {kind: guide-slide, id: p06-validation-split}
+    evidence: ["jwt-claims-casestudy@080b8da:A13", "jwt-claims-casestudy@080b8da:A14"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U02
+    name: API がテナントを決め、DB の文脈（SET LOCAL）を設定して行を絞る
+    idp: Keycloak 26.8.0
+    standard_refs: []
+    phase: 認可
+    tokens_used: [access_token]
+    hook_invoked: "no"
+    hook_note: 受け手での利用
+    lifetime_impact: なし。DB の接続の寿命はトークンの寿命と別（接続プール）
+    source_refs:
+      - {kind: guide-slide, id: p07-row-level-security}
+      - {kind: guide-slide, id: p07-connection-pool}
+      - {kind: guide-slide, id: p05-multitenancy}
+    evidence: ["jwt-claims-casestudy@080b8da:A5", "jwt-claims-casestudy@080b8da:A7"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U03
+    name: RP（BFF）がログインの応答で ID トークンを検証する
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+    phase: 検証
+    tokens_used: [id_token]
+    hook_invoked: "no"
+    hook_note: 受け手での検証
+    lifetime_impact: なし。BFF のセッションを作る
+    source_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    evidence: ["jwt-claims-casestudy@080b8da:A13"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U04
+    name: BFF がリフレッシュトークンを提示して AT を取り直す
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 6749 §6", url: "https://www.rfc-editor.org/rfc/rfc6749#section-6"}
+    phase: 運用
+    tokens_used: [refresh_token]
+    hook_invoked: "yes"
+    hook_note: 提示を受けた IdP が I02 を起こす
+    lifetime_impact: I02 を参照
+    source_refs:
+      - {kind: guide-slide, id: p08-rotation}
+    evidence: ["jwt-claims-casestudy@080b8da:keycloak.refresh_reevaluation"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U05
+    name: 受け手がトークンイントロスペクションで有効性とクレームを問い合わせる
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 7662 §2.1", url: "https://www.rfc-editor.org/rfc/rfc7662#section-2.1"}
+    phase: 検証
+    tokens_used: [access_token]
+    hook_invoked: conditional
+    hook_note: 応答に載るクレームはマッパーの Add to token introspection の設定に従う（公式文書「Using lightweight access token」の記述）
+    lifetime_impact: ログアウト後の初回の問い合わせで active=false になった（ケーススタディ）。JWT のローカル検証より剥奪が早く反映される
+    source_refs:
+      - kind: spec
+        id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」"
+        url: "https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token"
+        verified_on: 2026-11-22
+      - {kind: guide-slide, id: p08-revocation-propagation}
+    evidence: ["jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U06
+    name: RP が利用者のログアウトを IdP に送る（RP-Initiated Logout）
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect RP-Initiated Logout 1.0 §2", url: "https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout"}
+    phase: 運用
+    tokens_used: [id_token]
+    hook_invoked: "no"
+    hook_note: ログアウトの要求で、トークンの発行はない
+    lifetime_impact: SSO セッションと、そのセッションの RT を失効させる。発行済みの AT（JWT）は exp まで残る
+    source_refs:
+      - {kind: guide-slide, id: p08-revocation-propagation}
+    evidence: ["jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U07
+    name: RP が Back-Channel Logout のログアウトトークンを受けて検証する
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.6", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation"}
+    phase: 検証
+    tokens_used: [logout_token]
+    hook_invoked: "no"
+    hook_note: 受け手での検証
+    lifetime_impact: RP（BFF）のセッションを消す。AT は exp まで残る
+    source_refs:
+      - {kind: guide-slide, id: p08-revocation-propagation}
+    evidence: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U08
+    name: クライアントが AT で UserInfo を呼ぶ
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §5.3", url: "https://openid.net/specs/openid-connect-core-1_0.html#UserInfo"}
+    phase: 伝搬
+    tokens_used: [access_token]
+    hook_invoked: conditional
+    hook_note: 応答に載るクレームは、マッパーの Add to userinfo の設定に従う
+    lifetime_impact: なし。応答はその時点の値
+    source_refs:
+      - {kind: guide-slide, id: p04-carry-or-query}
+    evidence: []
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U09
+    name: 受け手が未知の kid を見て JWKS を取り直す（鍵のローテーション）
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §10.1.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys"}
+    phase: 運用
+    tokens_used: [access_token, id_token]
+    hook_invoked: "no"
+    hook_note: 受け手での処理
+    lifetime_impact: なし。古い鍵を消すと、その鍵で署名された AT は exp の前でも検証できなくなる
+    source_refs:
+      - {kind: guide-slide, id: p05-multitenancy}
+    evidence: ["jwt-claims-casestudy@080b8da:A9"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"
+
+  - id: U10
+    name: 受け手が AT をトークン交換の subject_token として提示する
+    idp: Keycloak 26.8.0
+    standard_refs:
+      - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+    phase: 伝搬
+    tokens_used: [access_token]
+    hook_invoked: unknown
+    hook_note: I06 を参照
+    lifetime_impact: I06 を参照
+    source_refs:
+      - {kind: guide-slide, id: p10-token-exchange-not-narrowing}
+    evidence: ["jwt-claims-casestudy@080b8da:C.keycloak_exchange"]
+    verified_on: 2026-11-22
+    review_by: 2027-02-20
+    owner: "#16"

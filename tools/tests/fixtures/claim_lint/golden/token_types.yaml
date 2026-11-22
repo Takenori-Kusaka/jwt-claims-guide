@@ -1,0 +1,16 @@
+# R8 golden test (#16): the token type of token.json. kid is 43 bytes in the golden token.
+token_types:
+  - id: AT
+    kind: access_token
+    decision: 採用
+    format: jwt
+    transport: authorization_bearer
+    size:
+      signing: {alg: RS256, key_bits: 2048}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 6}
+          - {name: kid, type: string, max_bytes: 43}
+        serializer_extra_bytes: 4
+      path: [nginx-large-client-header-buffers]

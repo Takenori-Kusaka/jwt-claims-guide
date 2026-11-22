@@ -1,0 +1,26 @@
+template_version: 0.1.0
+# 記入例の採否が、ケーススタディ（jwt-claims-casestudy）の判定と意図して違う行の一覧（templates/casestudy-mapping.md の 7.）。
+# ケーススタディの判定は変えない。ここにない食い違いは誤りとして扱う（照合の CI は #3。それまでは手で数える）。
+#
+# 数え方（#16 の手作業。research/template-design/gate1.md に実行の記録）
+#   - 記入例の行の catalog_refs ごとに、ケーススタディのシナリオの判定と比べる
+#   - ケーススタディの「必須（共通基準）・採用・条件付き採用」を「載せる」、「不採用・*」を「載せない」とする（casestudy-mapping.md の 4.）
+#   - 記入例の「採用・既定どおり」を「載せる」、「却下」を「載せない」とする
+#   - 載せる／載せないが違えば kind: carry、同じでも条件付き採用の条件（入口の正規化でのみ等）と違う使い方をしていれば kind: condition
+# シナリオ A：比べた参照 32 件、carry 7 件、condition 1 件（casestudy_commit: 080b8da）
+casestudy_commit: 080b8da
+scenario_premises:
+  - scenario: A
+    casestudy: 外部の IdP のトークンは入口でだけ検証し、組織の内部トークンに交換する（DECISION_POLICY.md の共通の前提）
+    example: 入口での交換をせず、API（saas-api）が Keycloak のテナントのレルムの AT を直接検証する（ケーススタディの cs/scen_a.py の実験の構成と同じ）
+    reason: 縦の一本（#16）では、Keycloak が実際に発行する AT の長さを R8 と照合するため、実物のトークンがそのまま API に届く構成にした。入口と内部トークンは、シナリオ B の記入例（#3）で扱う
+    effect: Keycloak が外せない、または既定で出すクレーム（auth_time・typ・sid・azp）が API に届く AT に残る。下の carry の 4 件はこの前提から生じた
+deviations:
+  - {scenario: A, id: CLM-0228, example_row: C-auth-time, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: Keycloak の basic スコープが sub と一緒に出す。外すには sub だけの独自のスコープが要り、API は読まないので既定のまま残した}
+  - {scenario: A, id: CLM-0229, example_row: C-auth-time, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: CLM-0228 と同じ（ID トークンの側）}
+  - {scenario: A, id: CLM-0198, example_row: C-typ-claim, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」で、外せないクレームとされている"}
+  - {scenario: A, id: CLM-0243, example_row: C-sid, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: 同上（sid も外せないクレーム）}
+  - {scenario: A, id: CLM-0405, example_row: C-client-id, kind: carry, casestudy: 採用, example: 却下, reason: Keycloak 26.8.0 が認可コードの発行で出した AT に client_id が無かった（2026-11-22 の見本トークン）。同じ情報を azp で読む}
+  - {scenario: A, id: ORG-06, example_row: C-idp, kind: carry, casestudy: 条件付き採用（BYO IdP の場合）, example: 却下, reason: 記入例は BYO IdP を前提にしない。ケーススタディの条件が成り立たない場合の判定で、判断そのものは一致している}
+  - {scenario: A, id: CLM-0291, example_row: C-realm-access, kind: carry, casestudy: 条件付き採用（入口の正規化でのみ読む）, example: 却下, reason: 入口が無い前提（scenario_premises）なので、入口で読む用途がない。内部トークンに載せない点は一致している}
+  - {scenario: A, id: CLM-0410, example_row: C-azp, kind: condition, casestudy: 条件付き採用（入口の正規化でのみ読む）, example: 既定どおり（API が読む）, reason: 入口が無い前提で、Keycloak の AT には client_id が無いため、API が呼び出し元のクライアントを azp で確かめる}
