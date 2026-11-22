@@ -19,7 +19,9 @@
 
 ### 変更
 
-- `catalog/issue_events.yaml`：`_trace` に `hook_invoked` の要件の逆参照を足した（#17）
+- `catalog/`（#17、PR #33 の独立点検）：種の一覧 `keycloak-grant-types` を足した。Keycloak 26.8.2 の `OAuth2GrantType` の実装 10 個で、`PermissionGrantType`（UMA）は対象外にした。あわせて、カタログに無かった OID4VCI の Pre-Authorized Code の発行を I34 として足した（Keycloak の機能 `oid4vc-vci` は Preview で既定は無効。`hook_invoked` は unknown、V37）。種は 355 項目、対象外は 138 件になった。Keycloak の I03・I04・I05・I07 の `idp.keycloak` には `lite_inherit: true` を付けた（Lite の引き継ぎの印。#4 の改訂）。`sources.md` では、Keycloak を「あり（grant の一覧）」に、Entra・Okta を「文書で未確認」に書き分けた
+- `registry/token_types.schema.json`：その場で宣言する上限（`size.path` のオブジェクト）に、任意の `verified_on`・`review_by` を足した（#17 の R10。任意の列の追加なのでマイナー）
+- `examples/scenario-a/catalog_answers.yaml`：I34 に対象外で答えた。停止の RT の根拠を「拒否による実質の失効」と書き直した。R9 の探した範囲から Full だけの節（シーケンス図）を外し、Keycloak の grant の一覧を足した（PR #33 の独立点検）
 - `catalog/issue_events.yaml`・`use_events.yaml`（#2）：v0 の I01〜I09・U01〜U10 の ID はそのまま。IdP ごとの列（`hook_invoked`・`hook_note`・`source_refs`・`evidence`）を `idp.keycloak`・`idp.auth0` の下に移し、`occurs`・`hook_name`・`stop_setting`・`lifetime_note` を足した。行の `idp`（文字列）を外し、`issuer`（利用イベントは `actor`）・`claims_produced`（利用イベントは `claims_read`）・`seeds`・`guide` を足した。`tokens_issued` を `token_kinds.yaml` の id とセッションの層（`session_idp`・`session_rp`）で書き、`lifetime_impact` を `issued`・`recomputed`・`revoked`・`note` の形にした。v0 の `unknown` の `hook_invoked` は、公式文書で確かめて I05・I06・I07・I08 を `yes` にした。列の削除・改名なので semver ではメジャーに当たるが、未リリースのため版は 0.1.0 のまま
 - `examples/scenario-a/catalog_answers.yaml`：足したイベント 42 件に回答した（#2）。`tools/count_lite_fields.py` は、関門 1 の記録を再現できるよう v0 の 19 件だけを数える
 - #16 の YAML（`catalog/`・`examples/scenario-a/`・`casestudy-deviations.yaml`）の `template_version` を、上の規約に合わせて 1 行目のコメントにした。`registry/*.schema.json` からキー `template_version` を外した（#16、関門 1 の PR）。スキーマは `additionalProperties: false` なので、キーを持つ既存のファイルは検証で落ちる。semver では列の削除はメジャーに当たるが、未リリースのため版は 0.1.0 のままにした

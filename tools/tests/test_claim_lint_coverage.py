@@ -114,11 +114,27 @@ def test_r2_lite_inherit_pass_for_a_client_switch(tmp_path):
     assert not [f for f in by(lint(tmp_path, docs, profile='lite'), 'R2') if f['target'] == 'I04']
 
 
-def test_r2_lite_inherit_fail_for_a_realm_setting(tmp_path):
+def test_r2_lite_inherit_pass_for_i03_marked_in_the_catalogue(tmp_path):
     docs = load_example()
-    _inherit(docs, 'I03')  # Keycloak: a client policy executor (scope realm), not one client switch
-    found = [f for f in by(lint(tmp_path, docs, profile='lite'), 'R2') if f['target'] == 'I03']
-    assert found and all(f['severity'] == 'warn' for f in found) and 'scope' in found[0]['message']
+    # #4 revised Lite (gate1.md section 10): I03 inherits although its stop_setting is a realm client policy
+    _inherit(docs, 'I03', checked='client policy の executor use-lightweight-access-token を saas-web に適用していないことを 2026-11-22 に確かめた')
+    assert not [f for f in by(lint(tmp_path, docs, profile='lite'), 'R2') if f['target'] == 'I03']
+
+
+@pytest.mark.parametrize('eid', ['I08', 'I06', 'I09', 'U05'])
+def test_r2_lite_inherit_fail_for_hand_written_rows(tmp_path, eid):
+    docs = load_example()
+    # I08 depends on Keycloak's default offline_access (scope client in the catalogue, but hand-written in #4);
+    # I06 / I09 had findings; use events have no client switch
+    _inherit(docs, eid, checked='offline_access を saas-web の Client scopes から外したことを 2026-11-22 に Direct に確かめた')
+    found = [f for f in by(lint(tmp_path, docs, profile='lite'), 'R2') if f['target'] == eid]
+    assert found and all(f['severity'] == 'warn' for f in found) and any('lite_inherit' in f['message'] for f in found)
+
+
+def test_r2_lite_inherit_fail_when_setting_checked_does_not_name_the_setting(tmp_path):
+    docs = load_example()
+    _inherit(docs, 'I04', checked='確認済み確認済み確認済み。管理画面で見た')
+    assert any('名前がない' in f['message'] for f in by(lint(tmp_path, docs, profile='lite'), 'R2', 'warn') if f['target'] == 'I04')
 
 
 def test_r2_lite_inherit_fail_without_setting_checked(tmp_path):
@@ -142,15 +158,39 @@ def test_r2_full_does_not_allow_inherit(tmp_path):
 
 
 # ------------------------------------------------------------------ R3
-def test_r3_pass_idp_without_list_keycloak(tmp_path):
+def test_r3_pass_idp_with_list_keycloak(tmp_path):
     res = lint(tmp_path, load_example())
-    assert not by(res, 'R3', 'error') and by(res, 'R3', 'info')
+    assert not by(res, 'R3', 'error')
+    assert any('keycloak-grant-types' in f['message'] and '差集合は 0 件' in f['message'] for f in by(res, 'R3', 'info'))
 
 
-def test_r3_fail_idp_without_list_needs_r9_search_of_the_idp(tmp_path):
+def test_r3_fail_idp_with_list_keycloak_grant_not_in_catalogue(tmp_path):
+    cat = copy_catalog(tmp_path)
+
+    def add(doc):
+        sl = next(s for s in doc['seed_lists'] if s['id'] == 'keycloak-grant-types')
+        sl['items'].append({'id': 'NewGrantType'})
+        sl['expected']['count'] += 1
+    edit_yaml(cat / 'seeds.yaml', add)
+    res = lint(tmp_path, load_example(), catalog_dir=str(cat))
+    assert [f['target'] for f in by(res, 'R3', 'error')] == ['keycloak-grant-types/NewGrantType']
+
+
+@pytest.mark.parametrize('searched', [['design.md の 2. と 9. の図'], ['entra'], ['Entra TODO']])
+def test_r3_fail_idp_unverified_needs_concrete_search_of_the_idp(tmp_path, searched):
     docs = load_example()
-    ca(docs)['outside_enumeration']['searched'] = ['design.md の 2. と 7. の図']
-    assert [f['target'] for f in by(lint(tmp_path, docs), 'R3', 'error')] == ['idp']
+    ca(docs)['idp'] = {'name': 'entra'}
+    ca(docs)['outside_enumeration']['searched'] = ['design.md の 2. 範囲と信頼の境界の図と 9. ライフサイクル表'] + searched
+    err = by(lint(tmp_path, docs), 'R3', 'error')
+    assert [f['target'] for f in err] == ['idp'] and '文書で未確認' in err[0]['message']
+
+
+def test_r3_pass_idp_unverified_with_search_of_the_idp(tmp_path):
+    docs = load_example()
+    ca(docs)['idp'] = {'name': 'entra'}
+    ca(docs)['outside_enumeration']['searched'].append('Microsoft Learn「Custom claims provider overview」（Entra のトークン発行のイベント）')
+    res = lint(tmp_path, docs)
+    assert not by(res, 'R3', 'error') and any('文書で未確認' in f['message'] for f in by(res, 'R3', 'info'))
 
 
 def test_r3_fail_idp_not_declared(tmp_path):
@@ -215,7 +255,11 @@ def test_r3_unknown_idp_must_declare_enumerable(tmp_path):
     assert any('enumerable' in f['message'] for f in by(lint(tmp_path, docs), 'R3', 'error'))
     ca(docs)['idp'] = {'name': 'someidp', 'enumerable': False}
     ca(docs)['outside_enumeration']['searched'].append('someidp の管理者ガイド（トークンのフックの節）')
-    assert not by(lint(tmp_path, docs), 'R3', 'error')
+    err = by(lint(tmp_path, docs), 'R3', 'error')
+    assert [f['target'] for f in err] == ['idp'] and 'enumerable_source' in err[0]['message']
+    ca(docs)['idp']['enumerable_source'] = 'https://someidp.example/docs/token-hooks（2026-11-22 に読んだ）'
+    res = lint(tmp_path, docs)
+    assert not by(res, 'R3', 'error') and any('一覧が存在しない' in f['message'] for f in by(res, 'R3', 'info'))
 
 
 # ------------------------------------------------------------------ R3b
@@ -262,6 +306,21 @@ def test_r3b_skips_issuers_other_than_the_idp(tmp_path):
     assert not [f for f in by(lint(tmp_path, docs), 'R3b') if f['target'] == 'I21']
 
 
+@pytest.mark.parametrize('how', ['drop', 'unknown_id'])
+def test_r3b_answer_must_name_token_types_of_the_inventory(tmp_path, how):
+    docs = load_example()
+    for e in ('I25', 'I26'):
+        if how == 'drop':
+            answer(docs, e).pop('token_types')
+        else:
+            answer(docs, e)['token_types'] = ['access']
+    res = lint(tmp_path, docs)
+    rule = 'R3b' if how == 'drop' else 'R2'
+    assert sorted(f['target'] for f in by(res, rule, 'error')) == ['I25', 'I26']
+    if how == 'drop':  # the catalogue's tokens_issued is used instead: the unknown hook is still reported
+        assert sorted(f['target'] for f in by(res, 'R3b', 'warn')) == ['I25', 'I26']
+
+
 def test_r3b_protocol_claim_of_the_idp_is_not_custom(tmp_path):
     res = lint(tmp_path, load_example())
     assert all('C-typ-claim' not in f['message'] for f in by(res, 'R3b'))
@@ -291,6 +350,17 @@ def test_r4_fail_missing_state_and_unused_layer_that_is_used(tmp_path):
     sm['unused_layers']['AT'] = 'この設計では AT を使わないことにした（テスト）'
     targets = {f['target'] for f in by(lint(tmp_path, docs), 'R4', 'error')}
     assert 'subject-states/invited' in targets and 'unused_layers:AT' in targets
+
+
+@pytest.mark.parametrize('layer,tid', [('IdP のセッション', 'SSO'), ('RP・BFF のセッション', 'BFFSESSION'), ('RT', 'RT')])
+def test_r4_fail_unused_layer_that_the_inventory_uses(tmp_path, layer, tid):
+    docs = load_example()
+    sm = ca(docs)['subject_states']
+    sm['unused_layers'][layer] = 'この設計では使わない層として扱う。'
+    for st in sm['states'].values():
+        st.pop(layer)
+    err = by(lint(tmp_path, docs), 'R4', 'error')
+    assert [f['target'] for f in err] == [f'unused_layers:{layer}'] and tid in err[0]['message']
 
 
 def test_r4_no_effect_needs_basis(tmp_path):
@@ -336,11 +406,27 @@ def test_r9_pass(tmp_path):
     assert not by(lint(tmp_path, load_example()), 'R9')
 
 
-@pytest.mark.parametrize('bare', ['なし', 'ない。', '特になし', 'None'])
+@pytest.mark.parametrize('bare', ['なし', 'ない。', '特になし', 'None', 'ありませんでした。', 'なし。なし。なし。', '見つかりませんでした',
+                                  'None found.', 'N/A', 'なし（特になし）', 'なし（特に見つからなかった）'])
 def test_r9_fail_bare_none(tmp_path, bare):
     docs = load_example()
     ca(docs)['outside_enumeration']['answer'] = bare
     assert by(lint(tmp_path, docs), 'R9', 'error')
+
+
+@pytest.mark.parametrize('field,value', [('respondent', 'TBD'), ('respondent', 'xxxx'), ('date', '2099-01-01'), ('date', '2026-99-99'),
+                                         ('date', '2026-02-30'), ('searched', ['TODO', 'xxxx']), ('searched', ['図', '資料']),
+                                         ('answer', 'TODO: あとで探して書く予定です')])
+def test_r9_fail_placeholders_and_dates(tmp_path, field, value):
+    docs = load_example()
+    ca(docs)['outside_enumeration'][field] = value
+    assert by(lint(tmp_path, docs), 'R9', 'error'), (field, value)
+
+
+def test_r9_date_tomorrow_is_allowed(tmp_path):
+    docs = load_example()
+    ca(docs)['outside_enumeration']['date'] = (TODAY + datetime.timedelta(days=1)).isoformat()
+    assert not by(lint(tmp_path, docs), 'R9')
 
 
 def test_r9_fail_missing_respondent_date_searched(tmp_path):
@@ -377,12 +463,37 @@ def test_r10_warn_after_review_by(tmp_path):
     assert res['counts']['error'] == 0
 
 
-def test_r10_inline_limit(tmp_path):
-    docs = load_example()
+def _inline(docs, **kw):
     at = next(t for t in docs['token_types']['token_types'] if t['id'] == 'AT')
-    at['size']['path'].append({'id': 'inline-proxy', 'applies_to': 'header_field', 'bytes': 8192, 'basis': 'test',
-                               'review_by': '2026-01-01'})
-    assert [f['target'] for f in by(lint(tmp_path, docs), 'R10')] == ['token_types AT']
+    at['size']['path'].append({'id': 'inline-proxy', 'applies_to': 'header_field', 'bytes': 8192, 'basis': 'test', **kw})
+
+
+def test_r10_inline_limit_expired_passes_the_schema(tmp_path):
+    docs = load_example()
+    _inline(docs, verified_on='2025-10-01', review_by='2026-01-01')
+    res = lint(tmp_path, docs)
+    assert not by(res, 'SCHEMA')
+    assert [f['target'] for f in by(res, 'R10', 'warn')] == ['token_types AT']
+
+
+def test_r10_inline_limit_without_review_by(tmp_path):
+    docs = load_example()
+    _inline(docs)
+    res = lint(tmp_path, docs)
+    assert not by(res, 'SCHEMA')
+    found = by(res, 'R10', 'warn')
+    assert [f['target'] for f in found] == ['token_types AT'] and '無い' in found[0]['message']
+
+
+def test_r10_limits_file_without_review_by(tmp_path):
+    lim = core.load_yaml(os.path.join(TOOLS, 'claim_lint', 'path_limits.yaml'))
+    lim['limits'][0].pop('review_by')
+    lim['limits'][1]['review_by'] = 'someday'
+    p = tmp_path / 'limits.yaml'
+    with open(p, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(lim, f, allow_unicode=True, sort_keys=False)
+    found = by(lint(tmp_path, load_example(), limits_path=str(p)), 'R10', 'warn')
+    assert [f['target'] for f in found] == ['limits.yaml'] and '2 件' in found[0]['message']
 
 
 # ------------------------------------------------------------------ --profile lite against Full

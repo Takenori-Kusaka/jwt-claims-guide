@@ -126,7 +126,7 @@ def rule_r1(claims, token_types):
 
 
 # ------------------------------------------------------------------ R2
-def rule_r2(answers_doc, catalog, profile):
+def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     """Every catalogue event has 該当 or 対象外. 対象外 needs assumption and breaks_when with substance (the same test
     as catalog_check's seed items: >= MIN_REASON characters, not one repeated character, not the event ID or name, not
     equal to each other). Lite may inherit the IdP default for an event that one client setting stops (coverage.py)."""
@@ -153,6 +153,10 @@ def rule_r2(answers_doc, catalog, profile):
             else:
                 out += coverage.r2_inherit(a, known[eid], idp, profile, sev)
             continue
+        if tt_ids is not None:
+            for t in a.get('token_types') or []:
+                if t not in tt_ids:
+                    out.append(Finding('R2', ERROR, eid, f'token_types の {t} がトークン目録（token_types.yaml）にない'))
         if ans == '該当':
             if _empty(a.get('token_types')) and _empty(a.get('note')):
                 out.append(Finding('R2', sev, eid, '該当の回答に、関係するトークン種別（token_types）か説明（note）がない'))
@@ -321,12 +325,12 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     for name in ('issue_events', 'use_events'):
         catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
     findings += rule_r1(claims, tts)
-    findings += rule_r2(docs['catalog_answers'], catalog, profile)
+    findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
     findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)
-    findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir)
+    findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir, tts)
     findings += coverage.rule_r4(docs['catalog_answers'], tts, catalog_dir, profile)
     findings += coverage.rule_r6(docs['catalog_answers'], catalog)
-    findings += coverage.rule_r9(docs['catalog_answers'])
+    findings += coverage.rule_r9(docs['catalog_answers'], today)
     r8_findings, reports = rule_r8(claims, tts, load_limits(limits_path))
     findings += r8_findings
     findings += coverage.rule_r10(catalog_dir, limits_path, tts, today)

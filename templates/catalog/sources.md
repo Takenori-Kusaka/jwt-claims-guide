@@ -3,12 +3,12 @@
 
 発行・利用イベントのカタログ（`issue_events.yaml`・`use_events.yaml`）、トークンの種類（`token_kinds.yaml`）、主体の状態の行列（`subject_state_matrix.md`）の行は、人の記憶ではなく、ここに挙げた外部の一覧（種になる一覧）から作りました（#2）。
 
-**対象外 137 件／全 345 件（40%）**
+**対象外 138 件／全 355 件（39%）**
 
-- 種になる一覧の全 345 項目のうち、208 項目がカタログのどれかの行にひもづき、137 項目が「対象外」です。差集合（どの行にもひもづかず、対象外でもない項目）は 0 件です。
-- カタログの全行（発行イベント 33 件、利用イベント 28 件、トークンの種類 17 件、行列の 7 状態）が、種の項目に 1 つ以上ひもづいています。
-- 対象外の 137 件のうち 109 件は IANA の JWT Claims の登録簿の項目です。電話（STIR・SIP）、機器の証明（EAT）、CDN、5G（3GPP）、OpenID Federation など、組織の API のトークンに載らない分野のクレームです。登録簿を除いた対象外は 28 件／182 件です。
-- 対象外の項目には、それぞれ「起きない前提」（`assumption`）と「崩れる条件」（`breaks_when`）があります（`seeds.yaml`）。137 件の理由の文は 40 通りです。同じ分野の項目（たとえば EAT のクレーム 22 件、STIR・SIP のクレーム 21 件）は、分野全体に当てはまる 1 つの理由を共有しています。分野ごとにまとめてよいのは、その理由が分野のすべての項目に当てはまるときだけです。
+- 種になる一覧の全 355 項目のうち、217 項目がカタログのどれかの行にひもづき、138 項目が「対象外」です。差集合（どの行にもひもづかず、対象外でもない項目）は 0 件です。
+- カタログの全行（発行イベント 34 件、利用イベント 28 件、トークンの種類 17 件、行列の 7 状態）が、種の項目に 1 つ以上ひもづいています。
+- 対象外の 137 件のうち 109 件は IANA の JWT Claims の登録簿の項目です。電話（STIR・SIP）、機器の証明（EAT）、CDN、5G（3GPP）、OpenID Federation など、組織の API のトークンに載らない分野のクレームです。登録簿を除いた対象外は 29 件／192 件です。
+- 対象外の項目には、それぞれ「起きない前提」（`assumption`）と「崩れる条件」（`breaks_when`）があります（`seeds.yaml`）。138 件の理由の文は 40 通りです（#17 で足した `keycloak-grant-types/PermissionGrantType` は、`keycloak-settings/authorization` と同じ理由）。同じ分野の項目（たとえば EAT のクレーム 22 件、STIR・SIP のクレーム 21 件）は、分野全体に当てはまる 1 つの理由を共有しています。分野ごとにまとめてよいのは、その理由が分野のすべての項目に当てはまるときだけです。
 - 検査は、理由が 10 字以上であること、同じ文字の繰り返しでないこと、項目の名前そのものでないこと、assumption と breaks_when が違う文であることだけを確かめます。理由が妥当かは機械では判定できず、抜き取りの点検（#13）に頼ります。
 - 件数は `python tools/catalog_check.py` が `seeds.yaml` から計算し、この節の太字の行と、下の表の「項目」「対象外」の列と照合します。各一覧の項目の数は、出どころの一覧の件数（`seeds.yaml` の `expected`。数え方と確かめた日つき）とも照合します。食い違うと CI が失敗します。
 
@@ -35,6 +35,7 @@
 | `auth0-trigger` | Auth0 の Actions のトリガー（Explore Triggers の 8 個） | https://auth0.com/docs/customize/actions/explore-triggers | 2026-11-22 | 2027-02-20 | #2 | 8 | 1 |
 | `auth0-grant` | Auth0 の Application Grant Types（仕様の grant・Auth0 の拡張・legacy） | https://auth0.com/docs/get-started/applications/application-grant-types | 2026-11-22 | 2027-02-20 | #2 | 16 | 5 |
 | `keycloak-settings` | Keycloak 26.8 のクライアント・レルムの設定のうち、発行・利用を起こす・止めるもの（Capability config ほか） | https://www.keycloak.org/docs/26.8.2/server_admin/index.html | 2026-11-22 | 2027-02-20 | #2 | 23 | 1 |
+| `keycloak-grant-types` | Keycloak 26.8 のトークン端点の grant（`OAuth2GrantType` の SPI の実装 10 個。#17 で足した） | https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html | 2026-11-22 | 2027-02-20 | #17 | 10 | 1 |
 | `slide-stage-map` | ガイドの段階の地図の 6 段階（slide:p06-stage-map） | `docs/slides.json` | 2026-11-22 | 2027-02-20 | #2 | 6 | 0 |
 | `slide103-kinds` | ガイドのトークンの種類（slide:p08-token-types-lifetimes の 6 種類） | `docs/slides.json` | 2026-11-22 | 2027-02-20 | #2 | 6 | 0 |
 | `guide-token-kinds` | ガイドで扱うトークンの種類（#2 の本文の一覧：Logout Token・内部トークン・ID-JAG・DPoP の proof・クライアントの assertion・JAR・JARM） | https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/2 | 2026-11-22 | 2027-02-20 | #2 | 7 | 0 |
@@ -43,6 +44,7 @@
 
 ### 一覧ごとの注意
 
+- **`keycloak-grant-types`**：Keycloak の javadoc（26.8.2）の `OAuth2GrantType` の実装クラスの一覧です（抽象の基底クラス `OAuth2GrantTypeBase` は数えない）。フックが呼ばれる契機の一覧ではなく、トークン端点で発行を起こす grant の一覧で、Auth0 の Application Grant Types に当たります。PR #33 の独立点検の指摘で足し、カタログに無かった `PreAuthorizedCodeGrantType`（OID4VCI）の行 I34 を足しました。
 - **`keycloak-settings`**：Keycloak には、Auth0 の `event.transaction.protocol` のような契機の値の一覧がありません。そこで、公式文書（Server Administration Guide 26.8.2 の Capability Config・Client scopes・Logout settings ほか、Securing Applications の Token exchange・JWT Authorization Grant・DPoP、Release Notes）から、発行・利用を起こす・止める設定を筆者が拾いました（`author-proposal`、tracking #2）。拾い漏れは、この一覧の外の漏れになります。
 - **`auth0-protocol`**：文書は値を並べるだけで、各値の説明がありません。`oauth2-resource-owner`・`oauth2-webauthn`・`oauth2-access-token`・`oauth2-resource-owner-jwt-bearer` がどのフローかは確かめていません（`research/template-design/unverified.md` の V35）。
 - **`iana-jwt-claims`**：登録簿の全 163 項目です。`...`（SD-JWT の配列の要素の digest）も 1 項目として数えています。
@@ -52,11 +54,11 @@
 
 | IdP | 契機の一覧 | このカタログでの扱い |
 | --- | --- | --- |
-| Keycloak 26.8 | なし（契機の値の一覧はない）。代わりにクライアント・レルムの設定の一覧（`keycloak-settings`）を種にした | カタログの IdP。各行の `idp.keycloak` |
+| Keycloak 26.8 | あり（grant の一覧）：トークン端点の grant（`keycloak-grant-types`、10 個）。フックが呼ばれる契機の値の一覧はないので、クライアント・レルムの設定の一覧（`keycloak-settings`）も種にした | カタログの IdP。各行の `idp.keycloak`。#17 の R3 が `idp: keycloak` の一覧の差集合を確かめる |
 | Auth0 | あり：post-login の `event.transaction.protocol` の 16 個、Actions のトリガーの 8 個、Application Grant Types | カタログの IdP。各行の `idp.auth0` |
 | Amazon Cognito | あり：pre token generation の `triggerSource` の 6 個（`research/template-design/notes/coverage_lifecycle.md` の Q1） | カタログの IdP にしない。#21 で扱う（#2 の範囲は 2 つの IdP） |
-| Microsoft Entra ID | **一覧なし**。custom claims provider がいつ呼ばれるか（リフレッシュのときなど）の列挙を、文書で確かめていない（`unverified.md` の V08） | #21。設計書では #17 の R9（列挙の外の契機の問い）の回答を必須にする |
-| Okta | **一覧なし**。token inline hook がリフレッシュや client credentials で動くかを、文書で確かめていない（`unverified.md` の V07） | #21。設計書では #17 の R9 の回答を必須にする |
+| Microsoft Entra ID | **文書で未確認**（一覧が無いとは確かめていない）。custom claims provider がいつ呼ばれるか（リフレッシュのときなど）の列挙を、文書で確かめていない（`unverified.md` の V08） | #21。設計書では #17 の R9（列挙の外の契機の問い）の回答を必須にする |
+| Okta | **文書で未確認**（一覧が無いとは確かめていない）。token inline hook がリフレッシュや client credentials で動くかを、文書で確かめていない（`unverified.md` の V07） | #21。設計書では #17 の R9 の回答を必須にする |
 
 ## 確かめ方
 

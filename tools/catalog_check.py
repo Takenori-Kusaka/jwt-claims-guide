@@ -338,6 +338,8 @@ def check_rows(docs, slides, reg_kinds):
                     info.append(note('COLUMNS', w, 'hook_invoked unknown（確かめていない）'))
                 _check_refs(w, b.get('source_refs'), out, slides)
                 ss = b.get('stop_setting')
+                if 'lite_inherit' in b and (b['lite_inherit'] is not True or not isinstance(ss, dict) or kind_name != 'issue_events'):
+                    out.append(err('COLUMNS', w, 'lite_inherit は true だけ。止める設定（stop_setting）を持つ発行イベントにだけ付ける（#4・#17）'))
                 if ss is not None:
                     if not isinstance(ss, dict) or _empty(ss.get('setting')) or ss.get('scope') not in STOP_SCOPES \
                             or _empty(ss.get('default')):

@@ -137,7 +137,9 @@
                   "id": {"type": "string"},
                   "applies_to": {"enum": ["header_field", "all_headers"]},
                   "bytes": {"type": "integer", "minimum": 1},
-                  "basis": {"type": "string"}
+                  "basis": {"type": "string"},
+                  "verified_on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "date the basis was checked"},
+                  "review_by": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "date by which the basis is checked again; claim_lint R10 warns when it is missing or has passed"}
                 }
               }
             ]

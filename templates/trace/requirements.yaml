@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 718
-  未着手: 670
-  実装済み: 5
+  未着手: 672
+  実装済み: 3
   後回し: 42
   扱わない: 1
-  core_未着手: 478
-  core_実装済み: 5
+  core_未着手: 480
+  core_実装済み: 3
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 192
@@ -1327,7 +1327,7 @@ requirements:
     text: "フックが呼ばれない発行（V2 以下での M2M など）で、独自クレームが載る前提にしない"
     owner_issue: "#17"
     planned_items: [lint:R3b, catalog:issue_events#hook_invoked]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p03-cognito-pre-token-hook.R3
     slide: slide:p03-cognito-pre-token-hook
@@ -2495,7 +2495,7 @@ requirements:
     text: "フックが呼ばれない発行・失敗する発行を、カタログのイベントごとに明示する"
     owner_issue: "#2"
     planned_items: [catalog:issue_events#hook_invoked, lint:R3b]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p06-issuance-hook.R3
     slide: slide:p06-issuance-hook

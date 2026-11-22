@@ -5,7 +5,7 @@
 - 基準日：2026-11-22
 - 作成方法：生成 AI（Claude）を使って作り、筆者が確認した。
 - 点検の状況：人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/template-design-report-2026-11-22.md`）。
-- 行の数：未確認 32 行（V01〜V36。V05・V02・V06・V09 は確認済みに移したので欠番。V01・V10・V12 は一部を確認済みに移した。V31〜V36 は #2 で足した）。「対象外」として閉じた行は 0 件（0%）。
+- 行の数：未確認 33 行（V01〜V37。V05・V02・V06・V09 は確認済みに移したので欠番。V01・V10・V12 は一部を確認済みに移した。V31〜V36 は #2、V37 は #17 で足した）。「対象外」として閉じた行は 0 件（0%）。
 - 根拠の書き方：「確認先」の列は、[templates/CONTRIBUTING.md](../../templates/CONTRIBUTING.md) の根拠の種類（`spec`・`guidance`・`research` など）と ID の書式に合わせた。製品の文書の版は、確かめたときに書き入れる（「版は確認時」と書いた箇所）。スライドは固定 ID（#15）が付くまで、番号と時点を併記した。
 
 ## 使い方
@@ -32,6 +32,7 @@
 | **V34** Auth0 の次の点を文書で確かめられなかった：リフレッシュで setCustomClaim が効くか、client credentials で post-login が動かないことの明文、device flow・CIBA で post-login が動くことの明文、Allow Offline Access の既定、SPA 以外の RT のローテーションの既定、パスワードの変更・ブロック・削除で RT が失効するか、/oidc/logout で RT が失効するか、Front-Channel Logout への対応、組織の切り替えの手順、DPoP・mTLS・PAR・JAR の成熟度とプラン、JARM・アクセストークンのイントロスペクション・RFC 7523 の grant・RAR・ID-JAG・アカウントのリンク・代理ログイン・acr_values での追加認証・SSF への対応、post-login で足したクレームが UserInfo に出るか（#2） | `spec`：`Auth0 Docs`（各ページ）。実測 | #2、#21 | カタログの Auth0 の列で、これらを「動く」「失効する」と確定しない。device flow・CIBA・資格情報の変更の後・送信者制約つきの発行（I07・I13・I26・I29）の Auth0 の `hook_invoked` を `unknown` から変えない |
 | **V35** Auth0 の `event.transaction.protocol` の `oauth2-resource-owner`・`oauth2-resource-owner-jwt-bearer`・`oauth2-webauthn`・`oauth2-access-token` がどのフローか（文書は値を並べるだけ）（#2） | `spec`：`Auth0 Docs「post-login - Event Object」`、実測（post-login のログ） | #2 | `oauth2-resource-owner` を I04 にひもづけたのは推論。ほか 3 つは「対象外」にし、崩れる条件を「ログにこの値が出たとき」とした。値の意味を確かめたら、行か対象外の理由を直す |
 | **V36** Keycloak 26.8 で、利用者を無効化・削除したときのセッション・イントロスペクション・Back-Channel Logout の扱い、パスワードの変更で「Sign out from other devices」を選んだときに Back-Channel Logout を送るか（文書は削除について「プロファイルとデータを消す」とだけ書く）（#2） | `spec`：`Keycloak Server Administration Guide（26.8.2）`、実測 | #2、#8 | 行列（`templates/catalog/subject_state_matrix.md`）の停止・削除・資格情報変更の行の Keycloak の列を、確かめたと書かない |
+| **V37** Keycloak 26.8 の OID4VCI（Pre-Authorized Code の grant。`PreAuthorizedCodeGrantType`）で、発行する AT にプロトコルマッパーが適用されるか。機能 `oid4vc-vci` が Preview で既定は無効なことは、機能の一覧のページ（https://www.keycloak.org/server/features、2026-11-22）で確かめたが、ページに版の表示がない。Auth0 の OID4VCI への対応も確かめていない（#17、PR #33 の独立点検） | `spec`：`Keycloak（26.8.2）「Enabling and disabling features」`、javadoc `OAuth2GrantType`。実測 | #17、#21 | カタログの I34 の `hook_invoked` を `unknown` から変えない |
 
 ## 効果・先行事例の未確認（研究・事例）
 

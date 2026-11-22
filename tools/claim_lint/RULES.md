@@ -14,14 +14,14 @@ error が 1 件でもあれば終了コード 1 です。error の規則は抑�
 | --- | --- | --- | --- |
 | SCHEMA | `templates/registry/claims.schema.json`・`token_types.schema.json` の検証（JSON Schema 2020-12）。YAML の日付は文字列として読む。同じキーを 2 回書くと失敗する（LOAD） | error | #3 |
 | R1 | 必須の列が空でない。下の「R1 の必須の列」。スライド 134 の 12 項目を載せる行の必須の列にし、欠ければ検出する（req:p11-registry-fields.R13） | error／error | slide:p11-registry-fields、#3 |
-| R2 | カタログ（`templates/catalog/`）の全イベントに「該当」か「対象外」の回答がある。「対象外」には `assumption`（起きない前提）と `breaks_when`（崩れる条件）があり、どちらも `tools/catalog_check.py` の種の項目と同じ中身の検査（10 字以上、同じ文字の繰り返しでない、イベントの ID・名前そのものでない）を通り、互いに同じでない。「該当」には関係するトークン種別か説明がある。Lite だけ、下の「Lite の既定の回答の引き継ぎ」を使える。カタログにない ID への回答と、同じイベントへの 2 つの回答は、どちらのプロファイルでも error | error／warn | `templates/CONTRIBUTING.md` の 2.「対象外の書き方」、report Q9 の R2、#4 の改訂（縮小 Lite）。10 字は筆者の提案（tracking #16） |
-| R3 | 設計書の `idp` で、IdP の契機の一覧を確かめる。**一覧を持つ IdP**（Auth0。`seeds.yaml` で `idp: auth0` の一覧 3 つ）は、`catalog_check.closure()` の結果のうち、その一覧の項目の差集合（どの行にもひもづかず、対象外でもない項目）と件数の食い違いを error にする。**一覧を持つがカタログにない IdP**（Cognito。#21）は、設計書の `idp.trigger_list` に一覧の全項目と、ひもづくイベントか対象外（前提と崩れる条件）を書き、`idp.trigger_list_source`（url・verified_on）を付ける。**一覧なしの IdP**（Keycloak・Entra・Okta。`sources.md` の「契機の一覧を持つ IdP と、持たない IdP」）は、R9 の回答の `searched` に、その IdP の文書を探したことを書く。一覧の有無が分からない IdP は `idp.enumerable` を宣言する。`idp` が無ければ error | error／error | #17、`templates/catalog/sources.md` |
-| R3b | 設計書の IdP の列（カタログの `idp.<IdP>`）で `hook_invoked: no` の発行イベントに「該当」と答え、その発行で独自クレームを運ぶ（クレームの `issue_events` にそのイベントがあるか、回答の `token_types` とクレームの `carried_in` が重なる）なら error。`unknown`・`conditional` は warn で、書き手が回答の `hook_checked` に確かめた方法を書けば info に下げる。独自クレームは、名前空間の付いたクレームと、IANA の JWT Claims にない名前で `usage` が protocol でないもの。発行者が IdP でない行（`issuer` が gateway・tts など）と、IdP が起こさない行（`occurs: no`）は見ない。カタログの IdP でない IdP は照合できないので warn（req:p03-cognito-pre-token-hook.R2 req:p06-issuance-hook.R2） | error（no）・warn（unknown・conditional）／同じ | slide:p03-cognito-pre-token-hook、slide:p06-issuance-hook、#2 の `hook_invoked` |
-| R4 | 設計書の `subject_states` に、カタログの行列（`subject_state_matrix.md`）の 7 状態 × 7 層の全セルがあり、結果が「発行・再計算・失効・影響なし」のどれかで、根拠（`basis`）が R2 と同じ中身の検査を通る（「影響なし」も根拠が要る）。使わない層は `unused_layers` に理由を書けば、その層のセルを省ける。ただし、その層の種類（AT・RT・ID・内部トークン・Logout Token）の採用の行が `token_types` にあれば error | error／warn | #17、#2 の行列、slide:p08-stale-claims |
+| R2 | カタログ（`templates/catalog/`）の全イベントに「該当」か「対象外」の回答がある。「対象外」には `assumption`（起きない前提）と `breaks_when`（崩れる条件）があり、どちらも `tools/catalog_check.py` の種の項目と同じ中身の検査（10 字以上、同じ文字の繰り返しでない、イベントの ID・名前そのものでない）と、仮の値（TODO・TBD・xxx・未定など）でないことの検査を通り、互いに同じでない。「該当」には関係するトークン種別か説明がある。回答の `token_types` は、トークン目録（`token_types.yaml`）の ID でなければならない（目録にない ID は、どちらのプロファイルでも error）。Lite だけ、下の「Lite の既定の回答の引き継ぎ」を使える。カタログにない ID への回答と、同じイベントへの 2 つの回答は、どちらのプロファイルでも error。**理由が妥当かは機械では判定しない**（「対象外です対象外です。」のような文は通る）。妥当性は抜き取りの点検（#13）で見る | error／warn | `templates/CONTRIBUTING.md` の 2.「対象外の書き方」、report Q9 の R2、#4 の改訂（縮小 Lite）。10 字は筆者の提案（tracking #16） |
+| R3 | 設計書の `idp` で、IdP の契機の一覧を確かめる。分類は `sources.md` の「契機の一覧を持つ IdP と、持たない IdP」による。**一覧あり・カタログの IdP**（Auth0：`auth0-protocol`・`auth0-trigger`・`auth0-grant`。Keycloak：トークン端点の grant の一覧 `keycloak-grant-types`（`OAuth2GrantType` の実装 10 個）と `keycloak-settings`）は、`seeds.yaml` で `idp: <IdP>` の一覧について、`catalog_check.closure()` の差集合（どの行にもひもづかず、対象外でもない項目）と件数の食い違いを error にする。Keycloak にはフックが呼ばれる契機の一覧はないが、grant の一覧は列挙できる（PR #33 の独立点検）。**一覧あり・カタログにない IdP**（Cognito。#21）は、設計書の `idp.trigger_list` に一覧の全項目と、ひもづくイベントか対象外（前提と崩れる条件）を書き、`idp.trigger_list_source`（url・verified_on）を付ける。**文書で未確認**（Entra・Okta：一覧があるかを文書で確かめていない。`unverified.md` の V07・V08）と、**一覧が存在しない**（設計書が `idp.enumerable: false` と宣言し、`idp.enumerable_source` に確かめた出どころを書いた IdP）は、R9 の `searched` に、その IdP の名前を含む具体的な出どころ（URL、ファイルのパス、15 字以上の文書の名前）を書く。2 つは別のメッセージを出す。一覧の有無が分からない IdP は `idp.enumerable` を宣言する。`idp` が無ければ error | error／error | #17、`templates/catalog/sources.md` |
+| R3b | 設計書の IdP の列（カタログの `idp.<IdP>`）で `hook_invoked: no` の発行イベントに「該当」と答え、その発行で独自クレームを運ぶ（クレームの `issue_events` にそのイベントがあるか、回答の `token_types` とクレームの `carried_in` が重なる）なら error。`unknown`・`conditional` は warn で、書き手が回答の `hook_checked` に確かめた方法を書けば info に下げる（`hook_checked` の中身が本当かは機械では確かめない）。発行イベントの「該当」に `token_types` が無ければ error（照合を外せないように。照合にはカタログの `tokens_issued` の種類に当たる目録の行を使う）。独自クレームは、名前空間の付いたクレームと、IANA の JWT Claims にない名前で `usage` が protocol でないもの（IdP 自身が書く Keycloak のペイロードの `typ` は数えない）。発行者が IdP でない行（`issuer` が gateway・tts など）と、IdP が起こさない行（`occurs: no`）は見ない。カタログの IdP でない IdP は照合できないので warn。この規則に結びつく要件 p03-cognito-pre-token-hook.R2（Cognito の V2_0 の M2M の検出がない）と p06-issuance-hook.R2（「失敗する発行」の欄がカタログにない）は、足りない部分があるので未着手のまま（PR #33 の独立点検） | error（no・token_types が無い）・warn（unknown・conditional）／同じ | slide:p03-cognito-pre-token-hook、slide:p06-issuance-hook、#2 の `hook_invoked` |
+| R4 | 設計書の `subject_states` に、カタログの行列（`subject_state_matrix.md`）の 7 状態 × 7 層の全セルがあり、結果が「発行・再計算・失効・影響なし」のどれかで、根拠（`basis`）が R2 と同じ中身の検査を通る（「影響なし」も根拠が要る）。使わない層は `unused_layers` に理由を書けば、その層のセルを省ける。ただし、その層の採用の行が `token_types` にあれば error。セッションの 2 つの層（どちらも `kind: session`）は `stored_at` で見分ける（`idp` なら IdP のセッション、それ以外は RP・BFF のセッション）。`stored_at` が無くて見分けられないときは warn。同じ根拠の文が多くのセルに並ぶことは検査しない（抜き取りの点検で見る） | error／warn | #17、#2 の行列、slide:p08-stale-claims |
 | R6 | 主体の種類（利用者・ワークロード・システム。slide:p05-three-principals）× 発行イベント（「該当」と答えたもの）× 段階（カタログのそのイベントの `stage`）について、2 因子ずつの組（主体×イベント、主体×段階、イベント×段階）が、`pairwise.combinations` のどれかの組み合わせ（`note` つき）に一度は出る。主体の種類には「該当」か「対象外＋理由」を答える。**pairwise を網羅の目標にするのは筆者の提案（author-proposal、tracking #17）** で、下の「R6 の証拠の状況」のとおり、拾える割合には幅がある（req:p05-three-principals.R3） | warn／warn | report の R6（NIST ACTS）、`research/template-design/notes/coverage_lifecycle.md` |
 | R8 | トークン種別ごとの最悪のサイズと、経路の上限。下の「R8 の計算」 | error／warn／info（Lite も同じ） | report Q9。しきい値は筆者の提案（tracking #16） |
-| R9 | 設計書の `outside_enumeration`（「この列挙の外に契機はないか」）に、回答（`answer`）・回答者（`respondent`）・日付（`date`）・探した範囲（`searched`：見た資料・図）がある。回答が「なし」「特になし」などだけなら error。見つかった契機（`found`）には扱い（`handled_as`）を書く | error／error | report の R9（Threat Modeling Manifesto の 4 つ目の問い）、#11 の約束の範囲 |
-| R10 | 出どころ・上限の `review_by` が過ぎている：`seeds.yaml` の一覧、カタログの行（`issue_events`・`use_events`・`token_kinds`）、`path_limits.yaml` の上限、`token_types` の `size.path` にその場で宣言した上限。ファイルごとに 1 件にまとめ、過ぎた ID を並べる（req:p03-recent-changes.R1） | warn／warn | slide:p03-recent-changes、`sources.md`（見直しの期限は確かめた日の 90 日後。筆者の提案、tracking #17） |
+| R9 | 設計書の `outside_enumeration`（「この列挙の外に契機はないか」）に、回答（`answer`）・回答者（`respondent`）・日付（`date`）・探した範囲（`searched`：見た資料・図）がある。回答が「なし」だけなら error。同じ意味の「ありませんでした」「見つかりませんでした」「特に見つからなかった」「None found」「N/A」と、その繰り返し・括弧の中の補足だけを足したもの（「なし（特になし）」）も「なし」とみなす（`coverage.py` の `NONE_WORDS`。列挙した語だけを落とす）。仮の値（TODO・TBD・xxx・未定など、同じ文字の繰り返し）は、回答・回答者・探した範囲のどれでも error。日付は実在の日で、実行した日の翌日より後でない。探した範囲の各項目は短すぎず、少なくとも 1 つは具体的な出どころ（URL、ファイルのパス、15 字以上の文書の名前）。見つかった契機（`found`）には扱い（`handled_as`）を書く | error／error | report の R9（Threat Modeling Manifesto の 4 つ目の問い）、#11 の約束の範囲 |
+| R10 | 出どころ・上限の `review_by` が過ぎている：`seeds.yaml` の一覧、カタログの行（`issue_events`・`use_events`・`token_kinds`）、`path_limits.yaml`（`--limits` で渡したファイル）の上限、`token_types` の `size.path` にその場で宣言した上限（スキーマに `verified_on`・`review_by` を足した）。上限のファイルとその場の宣言で `review_by` が無い・日付でないときも warn（カタログの行と一覧は `catalog_check` の COLUMNS・SOURCES が守る）。ファイルごとに 1 件にまとめ、ID を並べる。範囲はカタログと上限だけで、設計書が自分で書く IdP の挙動（design.md の「Keycloak 26.3 からの既定」など）の確認日は見ない（req:p03-recent-changes.R1） | warn／warn | slide:p03-recent-changes、`sources.md`（見直しの期限は確かめた日の 90 日後。筆者の提案、tracking #17） |
 | SLIDE | `refs` の `guide-slide` の ID と、入力のファイルの中の `slide:<id>` が、実在のスライドを指す（`tools/check_slide_refs.py` の解決を使う） | error | #15 |
 
 カタログそのものの検査（列、種になる一覧との差集合、主体の状態の行列、`sources.md` の件数）は、設計書ではなくカタログの検査なので `tools/catalog_check.py` に分けました（#2）。R3 はその `closure()` を、R2・R4 は `_weak_reason()` を、R4 は `seed_items()`・`STATES`・`LAYERS`・`RESULTS` を使います。
@@ -54,9 +54,19 @@ outside_enumeration:                          # R9
 
 ## Lite の既定の回答の引き継ぎ
 
-#4 の改訂（縮小 Lite。`research/template-design/gate1.md` の 10.）に合わせました。`--profile lite` のときだけ、「対象外」の回答に `inherit: idp-default` と `setting_checked`（どの設定を、どこで、いつ確かめたか）を書けば、`assumption`・`breaks_when` を省けます。引き継げるのは、設計書の IdP について、カタログの行の `idp.<IdP>.stop_setting` の `scope` が `client`（クライアントの設定 1 つで止まる）のイベントだけです。`realm`・`server` などの設定や、`stop_setting: null` の行、カタログの IdP でない IdP、利用イベントは引き継げません（利用イベントには `stop_setting` がない）。Full で `inherit` を書くと R2 の error です。
+#4 の改訂（縮小 Lite。`research/template-design/gate1.md` の 10.）に合わせました。`--profile lite` のときだけ、「対象外」の回答に `inherit: idp-default` と `setting_checked` を書けば、`assumption`・`breaks_when` を省けます。`setting_checked` には、どの設定を、どこで、いつ確かめたかを書きます。
 
-「指摘が出た行は手で書く」（#4）は、機械では判定できません。レビューで指摘が出た行は、書き手が `inherit` を外して手で書きます。
+- **引き継げるイベント**：カタログの行の `idp.<IdP>.lite_inherit: true` の印があるものだけです。Keycloak の I03・I04・I05・I07 に付けました。gate1.md の 10. の「引き継ぐ」4 件で、どれもクライアントの設定のスイッチ 1 つで止めていて、指摘が出ていません。I03 はクライアントポリシーの executor で、`stop_setting` の `scope` は realm です。それでも gate1.md の分類に合わせました。
+- **手で書くイベント**：印のないイベントは手で書きます。
+  - 指摘が出た行（I06・I09・U07・U10 など）
+  - レルム・クライアントの既定に依存する行（I08）
+  - 利用イベント（U05・U08 など）
+  - Auth0 の行（gate1.md の分類がない）
+  - カタログの IdP でない IdP
+- **`setting_checked` の検査**：カタログの `stop_setting.setting` の英字の語（6 字以上）のどれかを含むことを求めます。例：I04 なら Direct か Grants。
+- **Full では**：`inherit` を書くと R2 の error です。
+
+PR #33 の独立点検より前は、`stop_setting.scope == client` で判定していました。そのため I08 が引き継げ、I03 が引き継げない、という #4 と逆の結果になっていました。印は `catalog_check` が確かめます（`true` だけ、`stop_setting` のある発行イベントだけ）。新しく「指摘が出た行」が見つかったら、印を外します。「指摘が出たか」は機械では判定できません。
 
 ## R6 の証拠の状況
 
@@ -68,13 +78,13 @@ R6 の目標（2 因子の組をすべて一度は検討する）は、組み合
 
 | 規則 | 足した直後の指摘 | 誤検知 | 欄を足した後 | 重大度 | 理由 |
 | --- | --- | --- | --- | --- | --- |
-| R2（中身の検査を足した） | 0 | 0 | 0 | error（既存。下げない） | 対象外 49 件のすべてが新しい検査を通った |
-| R3 | error 1（`idp` がない） | 0 | info 1 | error | 正しい指摘。判定は宣言と種の一覧の照合だけで、解釈の余地がない |
-| R3b | warn 1（`idp` がない） | 0 | warn 2（I25・I26 が unknown） | error（no）・warn（unknown） | `no` の組はシナリオ A に無く、誤検知 0。unknown の 2 件は正しい指摘（カタログで確かめていない）。最初の実装は Keycloak の `typ`（IdP が書く protocol のクレーム）を独自クレームに数え、2 件の指摘の中のクレームの一覧に誤って入れた。独自クレームの定義を直し、0 件にした |
+| R2（中身の検査を足した） | 0 | 0 | 0 | error（既存。下げない） | 対象外 49 件のすべてが新しい検査を通った（I34 を足した後は 50 件） |
+| R3 | error 1（`idp` がない） | 0 | info 1 | error | 正しい指摘。シナリオ A で動いたのは Keycloak の分岐だけ。測ったときは一覧なしの分岐で、独立点検の後は一覧ありの分岐（`keycloak-grant-types`）。**Auth0・Cognito・文書で未確認・一覧が存在しないの分岐は、どの設計書でも測っていない**（テストの例だけ） |
+| R3b | warn 1（`idp` がない） | 0 | warn 2（I25・I26 が unknown） | error（no）・warn（unknown） | unknown の 2 件は正しい指摘（カタログで確かめていない）。**`no` の分岐はシナリオ A で一度も動いていないので、誤検知は測っていない**（機会が 0 回）。また、最初の実装は Keycloak の `typ`（IdP 自身が書く protocol のクレーム）を独自クレームに数え、2 件の指摘に並ぶクレームの一覧を誤らせた。指摘そのものは正しかったので誤検知には数えず、「指摘の中身の誤り 1 件」として記録する。定義は直した |
 | R4 | error 1（`subject_states` がない） | 0 | 0 | error | 正しい指摘。欄を足した後の 35 セル＋使わない層 2 つで誤検知 0 |
 | R6 | warn 1（`pairwise` がない） | 0 | info 1 | warn | 上の「R6 の証拠の状況」により上げない |
-| R9 | error 1（`outside_enumeration` がない） | 0 | 0 | error | 正しい指摘 |
-| R10 | 0（期限は 2027-02-20） | 0 | 0 | warn | 期限切れは出どころの見直しの合図で、設計書の誤りではない |
+| R9 | error 1（`outside_enumeration` がない） | 0 | 0 | error | 正しい指摘。独立点検の後に足した検査（日付、仮の値、具体的な出どころ）でも、シナリオ A の回答は通った |
+| R10 | 0 | — | 0 | warn | **測っていない**。測った日は、どの期限（2027-02-20）より前だった。期限切れは出どころの見直しの合図で、設計書の誤りではない |
 
 シナリオ A は 1 件だけなので、誤検知 0 件は弱い証拠です。ほかの設計書で誤検知が出たら、規則を直す PR を出します（error の抑止はしない）。
 

@@ -130,6 +130,21 @@ def test_stop_setting_needs_setting_scope_default(base):
     assert errors(run(docs), 'COLUMNS', 'stop_setting')
 
 
+def test_lite_inherit_needs_true_and_a_stop_setting(base):
+    docs = copy.deepcopy(base)
+    event(docs, 'I02')['idp']['keycloak']['lite_inherit'] = True  # I02 has stop_setting null for Keycloak
+    event(docs, 'I04')['idp']['keycloak']['lite_inherit'] = 'yes'
+    msgs = errors(run(docs), 'COLUMNS', 'lite_inherit')
+    assert len(msgs) == 2
+
+
+def test_keycloak_grant_types_are_closed(base):
+    # PR #33 check: the OAuth2GrantType implementations of Keycloak 26.8.2 are a seed list (#17's R3)
+    sl = next(s for s in base['seeds']['seed_lists'] if s['id'] == 'keycloak-grant-types')
+    assert sl['idp'] == 'keycloak' and len(sl['items']) == sl['expected']['count'] == 10
+    assert event(base, 'I34')['seeds'] == ['keycloak-grant-types/PreAuthorizedCodeGrantType']
+
+
 def test_gap_needs_marker_and_slide_ids_must_exist(base):
     docs = copy.deepcopy(base)
     del event(docs, 'I07')['guide']['marker']

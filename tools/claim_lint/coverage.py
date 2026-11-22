@@ -5,7 +5,7 @@ The inputs are the design's catalog_answers.yaml (the sections below) and the ca
 Rules and severities are described in tools/claim_lint/RULES.md.
 
 catalog_answers.yaml, sections read here (all top-level keys; `answers` is read by R2 in core.py too):
-  idp                     {name, version, enumerable?, trigger_list?, trigger_list_source?}         R3, R3b, R2 (Lite)
+  idp                     {name, version, enumerable?, enumerable_source?, trigger_list?, trigger_list_source?}  R3, R3b, R2
   answers[].inherit       `idp-default` with `setting_checked` (Lite only)                         R2
   answers[].hook_checked  how the author confirmed the hook runs for this issuance                  R3b
   subject_states          {unused_layers: {layer: reason}, states: {state: {layer: {result, basis}}}}  R4
@@ -20,24 +20,37 @@ import sys
 ERROR, WARN, INFO = 'error', 'warn', 'info'
 DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
-# R3: IdPs and whether they have an enumerable list of the occasions on which tokens are issued / hooks run.
-# The classification follows templates/catalog/sources.md (「契機の一覧を持つ IdP と、持たない IdP」). For an IdP of the
-# catalogue with a list (auth0), the seed lists of seeds.yaml that carry `idp: <name>` are its lists. keycloak-settings
-# (idp: keycloak) is a list of settings picked by the author, not the IdP's own list of occasions, so Keycloak is 一覧なし.
-ENUMERABLE = {'auth0': True, 'cognito': True, 'keycloak': False, 'entra': False, 'okta': False}
+# R3: IdPs and whether they have an enumerable list of the occasions on which tokens are issued. The classification
+# follows templates/catalog/sources.md (「契機の一覧を持つ IdP と、持たない IdP」):
+#   list        a list exists. For an IdP of the catalogue (auth0, keycloak) the seed lists of seeds.yaml with
+#               `idp: <name>` are checked against the catalogue (closure). Keycloak has no list of hook occasions, but its
+#               token endpoint grants are enumerable (keycloak-grant-types: the OAuth2GrantType implementations).
+#               For cognito (not in the catalogue, #21) the design maps the list itself (idp.trigger_list).
+#   unverified  whether a list exists was not checked in the documentation (Entra V08, Okta V07)
+#   none        the design declares that the IdP has no list (idp.enumerable: false, with idp.enumerable_source)
+ENUMERABLE = {'auth0': 'list', 'keycloak': 'list', 'cognito': 'list', 'entra': 'unverified', 'okta': 'unverified'}
 CATALOGUE_IDPS = ('keycloak', 'auth0')  # the idp.<name> blocks of the catalogue rows (catalog_check.IDPS)
 
 # R4: the layers of templates/catalog/subject_state_matrix.md and the token_types kind that each layer stands for.
-# The two session layers both map to `session`, so they are not cross-checked against token_types.
+# Both session layers are `session`; they are told apart by stored_at (idp: the IdP's session, otherwise RP / BFF).
 LAYER_KIND = {'AT': 'access_token', 'RT': 'refresh_token', 'ID': 'id_token', '内部トークン': 'internal_token',
-              'Logout Token': 'logout_token', 'IdP のセッション': None, 'RP・BFF のセッション': None}
+              'Logout Token': 'logout_token', 'IdP のセッション': 'session', 'RP・BFF のセッション': 'session'}
+SESSION_LAYER = {'IdP のセッション': lambda st: st == 'idp', 'RP・BFF のセッション': lambda st: st not in (None, 'idp')}
 
 # R6: the subject kinds of slide:p05-three-principals (agents are workloads there; operators and batch jobs are
 # システム・基盤). Pairwise over subject kind x issue event x stage is an author-proposal (tracking #17).
 SUBJECT_KINDS = ('利用者', 'ワークロード', 'システム')
 
-# R9: answers that say nothing but "none"
-NONE_WORDS = {'なし', 'ない', '無し', '無い', '特になし', '特にない', 'ありません', 'none', 'no', 'n/a', 'na', '-', '—'}
+# R9: answers that say nothing but "none" (compared after removing brackets, punctuation and spaces, lower case;
+# any concatenation of these words is still "none", e.g. 「なし。なし。」「特に見つからなかった」「None found.」)
+NONE_WORDS = ('ありませんでした', '見つかりませんでした', '見つからなかった', '見当たりませんでした', '見当たらなかった', '見当たらない',
+              '見つからない', 'ありません', '該当なし', '特に', 'なし', 'ない', '無し', '無い', 'なかった', 'nothingfound', 'nonefound',
+              'notfound', 'nothing', 'none', 'nil', 'na', 'no', '-', '—', 'ー')
+_NONE_RE = re.compile('(?:' + '|'.join(re.escape(w) for w in sorted(NONE_WORDS, key=len, reverse=True)) + ')+')
+# placeholders that are not an answer (R2, R4, R6, R9: weak())
+PLACEHOLDER_RE = re.compile(r'(?i)(?<![a-z])(?:todo|tbd|tbc|fixme|xxx+|wip)(?![a-z])|未定|未記入|要記入|あとで書|後で書|後ほど記入')
+# R9 / R3: a concrete source among `searched`: a URL, a file path, or a document title of this length or more
+CONCRETE_TITLE = 15
 
 INHERIT = 'idp-default'
 
@@ -61,8 +74,34 @@ def _cc():
 
 
 def weak(v, label=()):
-    """A reason that is too short, one repeated character, or the label itself (catalog_check._weak_reason)."""
-    return _empty(v) or _cc()._weak_reason(v, label)
+    """A reason that is too short, one repeated character, the label itself (catalog_check._weak_reason), or a
+    placeholder (TODO, TBD, xxx, 未定 ...). Whether the reason is sound is left to the sampled review (#13)."""
+    return _empty(v) or _cc()._weak_reason(v, label) or bool(PLACEHOLDER_RE.search(str(v)))
+
+
+def none_only(v):
+    """The answer says only "none" (in any of NONE_WORDS), with nothing about what was searched or found."""
+    t = re.sub(r'（[^）]*）|\([^)]*\)|「[^」]*」', '', str(v or '')).lower()
+    t = re.sub(r'[\s。、．.,，!！?？:：;；/・]', '', t)
+    return t == '' or bool(_NONE_RE.fullmatch(t))
+
+
+def concrete(v):
+    """A searched item that names a concrete source: a URL, a file path, or a document title (>= CONCRETE_TITLE)."""
+    t = str(v or '').strip()
+    if weak(t):
+        return False
+    return bool(re.search(r'https?://', t) or re.search(r'[\w.-]+/[\w./-]+', t)
+                or re.search(r'\.(?:md|ya?ml|json|html?|pdf)\b', t) or len(t) >= CONCRETE_TITLE)
+
+
+def parse_date(v):
+    if isinstance(v, datetime.date):
+        return v
+    try:
+        return datetime.date.fromisoformat(str(v or '').strip())
+    except ValueError:
+        return None
 
 
 def idp_name(answers_doc):
@@ -83,9 +122,15 @@ def _answers(answers_doc):
 
 
 # ------------------------------------------------------------------ R2: the Lite inheritance of 対象外
+def _setting_words(setting):
+    """Words of a stop_setting.setting that setting_checked must name (ASCII words of 6+ letters, e.g. Direct, Grants)."""
+    return {w.lower() for w in re.findall(r'[A-Za-z][A-Za-z0-9-]{5,}', str(setting or ''))}
+
+
 def r2_inherit(a, event, idp, profile, sev):
-    """An answer `inherit: idp-default`. Lite only, and only for an event that one client setting stops (the
-    stop_setting of the catalogue row for the design's IdP has scope client), with a 「設定を確かめた」 field."""
+    """An answer `inherit: idp-default`. Lite only, and only for an event that the catalogue marks with
+    `idp.<IdP>.lite_inherit: true` (#4 revised Lite, gate1.md section 10: Keycloak I03 I04 I05 I07), with a
+    「設定を確かめた」 field (setting_checked) that names the stop_setting."""
     eid = a.get('event')
     out = []
     if profile != 'lite':
@@ -93,20 +138,30 @@ def r2_inherit(a, event, idp, profile, sev):
     if a.get('answer') != '対象外':
         return [F('R2', sev, eid, '引き継げるのは「対象外」の回答だけ')]
     block = ((event or {}).get('idp') or {}).get(idp or '') if idp in CATALOGUE_IDPS else None
-    ss = (block or {}).get('stop_setting')
+    ss = (block or {}).get('stop_setting') or {}
     if not idp:
         out.append(F('R2', sev, eid, '引き継ぐには idp（設計書の IdP）を宣言する'))
     elif block is None:
         out.append(F('R2', sev, eid, f'IdP {idp} はカタログの IdP でない（{"・".join(CATALOGUE_IDPS)}）ので、既定の回答を引き継げない'))
-    elif not isinstance(ss, dict) or ss.get('scope') != 'client':
-        out.append(F('R2', sev, eid, f"このイベントは {idp} のクライアントの設定 1 つでは止まらない"
-                                     f"（stop_setting の scope が {(ss or {}).get('scope')!r}）。assumption と breaks_when を手で書く"))
-    if weak(a.get('setting_checked'), (eid,)):
+    elif block.get('lite_inherit') is not True:
+        out.append(F('R2', sev, eid, f'このイベントは {idp} の既定の回答を引き継げない（カタログに lite_inherit の印がない。#4 の改訂：'
+                                     '指摘が出た行・レルムやクライアントの既定に依存する行・利用イベントは手で書く）。assumption と breaks_when を書く'))
+    sc = a.get('setting_checked')
+    words = _setting_words(ss.get('setting'))
+    if weak(sc, (eid,)):
         out.append(F('R2', sev, eid, '引き継ぐ回答に「設定を確かめた」（setting_checked：どの設定を、どこで、いつ確かめたか）がない、または短い'))
+    elif words and not any(w in str(sc).lower() for w in words):
+        out.append(F('R2', sev, eid, f"setting_checked に、止める設定（{ss.get('setting')}）の名前がない"))
     return out
 
 
 # ------------------------------------------------------------------ R3
+def _idp_searched(doc, idp):
+    """The R9 searched items that name the IdP and a concrete source."""
+    r9 = doc.get('outside_enumeration') or {}
+    return [x for x in (r9.get('searched') or []) if idp in str(x).lower() and concrete(x)]
+
+
 def rule_r3(answers_doc, catalog_dir):
     out = []
     doc = answers_doc or {}
@@ -114,19 +169,32 @@ def rule_r3(answers_doc, catalog_dir):
     block = doc.get('idp') if isinstance(doc.get('idp'), dict) else {}
     if not idp:
         return [F('R3', ERROR, 'idp', 'catalog_answers.yaml に idp（設計書の IdP の name と version）がない')]
-    enumerable = ENUMERABLE.get(idp, block.get('enumerable'))
-    if enumerable is None:
-        return [F('R3', ERROR, 'idp', f'IdP {idp} の契機の一覧の有無が分からない。idp.enumerable（true／false）を宣言する')]
-    if not enumerable:
-        # 一覧なし: R9 is required (R9 checks it); here: the search must have covered the IdP's own documentation
-        r9 = doc.get('outside_enumeration') or {}
-        searched = ' '.join(str(s) for s in (r9.get('searched') or []) if s).lower()
-        if idp not in searched:
-            out.append(F('R3', ERROR, 'idp', f'IdP {idp} は契機の一覧を持たない（一覧なし）。outside_enumeration（R9）の searched に、'
-                                             f'{idp} の文書（フック・発行の契機）を探したことを書く'))
+    kind = ENUMERABLE.get(idp)
+    if kind is None:
+        e = block.get('enumerable')
+        if e is True:
+            kind = 'list'
+        elif e is False:
+            kind = 'none'
+            src = block.get('enumerable_source')
+            if weak(src) or not concrete(src):
+                out.append(F('R3', ERROR, 'idp', f'IdP {idp} を「一覧が存在しない」とするなら、確かめた出どころ（idp.enumerable_source：'
+                                                 '文書の URL か名前）を書く'))
         else:
-            out.append(F('R3', INFO, 'idp', f'IdP {idp} は一覧なし。列挙の外の契機は R9 の回答で探した'))
+            return [F('R3', ERROR, 'idp', f'IdP {idp} の契機の一覧の有無が分からない。idp.enumerable（true／false）を宣言する')]
+    if kind in ('unverified', 'none'):
+        # R9 is required in any case (R9 checks it); here the search must have covered the IdP's own documentation
+        if not _idp_searched(doc, idp):
+            why = ('契機の一覧があるかを文書で確かめていない（文書で未確認。sources.md）' if kind == 'unverified'
+                   else '契機の一覧を持たない（一覧が存在しない）')
+            out.append(F('R3', ERROR, 'idp', f'IdP {idp} は{why}。outside_enumeration（R9）の searched に、{idp} の文書（フック・発行の契機）'
+                                             'を探したことを、文書の URL か名前で書く'))
+        else:
+            out.append(F('R3', INFO, 'idp', f"IdP {idp} は{'文書で未確認' if kind == 'unverified' else '一覧が存在しない'}。"
+                                            '列挙の外の契機は R9 の回答で探した'))
         return out
+    if kind == 'list' and idp not in CATALOGUE_IDPS and idp not in ENUMERABLE and _empty(block.get('trigger_list')):
+        return out + [F('R3', ERROR, 'idp', f'IdP {idp} は一覧を持つと宣言したが、idp.trigger_list がない')]
     if idp in CATALOGUE_IDPS:
         cc = _cc()
         docs, load_err = cc.load(catalog_dir)
@@ -188,8 +256,22 @@ def custom_claims(claims, catalog_dir):
             and (c.get('namespace') or (c.get('name') not in iana and c.get('usage') != 'protocol'))]
 
 
-def rule_r3b(claims, answers_doc, catalog, catalog_dir):
+def _issued(a, event, token_types):
+    """Token type IDs that the answer says the event issues; without token_types, those of the design whose kind is
+    in the catalogue row's tokens_issued (session_idp / session_rp are `session`)."""
+    if not _empty(a.get('token_types')):
+        return set(a['token_types'])
+    kinds = {'session' if k in ('session_idp', 'session_rp') else k for k in (event.get('tokens_issued') or [])}
+    return {t.get('id') for t in token_types if t.get('kind') in kinds}
+
+
+def rule_r3b(claims, answers_doc, catalog, catalog_dir, token_types=()):
     out = []
+    events0 = _events(catalog)
+    for eid, a in _answers(answers_doc).items():
+        e = events0.get(eid)
+        if e and str(eid).startswith('I') and a.get('answer') == '該当' and e.get('tokens_issued') and _empty(a.get('token_types')):
+            out.append(F('R3b', ERROR, eid, '発行イベントの「該当」に token_types（出るトークン種別の ID）がない。R3b の照合に使う'))
     idp = idp_name(answers_doc)
     events = _events(catalog)
     answers = _answers(answers_doc)
@@ -197,7 +279,7 @@ def rule_r3b(claims, answers_doc, catalog, catalog_dir):
     if not customs:
         return out
     if idp not in CATALOGUE_IDPS:
-        return [F('R3b', WARN, 'idp', f"IdP {idp or '(未宣言)'} はカタログの IdP でないので、hook_invoked を照合できない。"
+        return out + [F('R3b', WARN, 'idp', f"IdP {idp or '(未宣言)'} はカタログの IdP でないので、hook_invoked を照合できない。"
                                       '独自クレームを載せる発行ごとに、フックが呼ばれることを確かめて hook_checked に書く')]
     for eid, a in answers.items():
         e = events.get(eid)
@@ -206,7 +288,7 @@ def rule_r3b(claims, answers_doc, catalog, catalog_dir):
         b = (e.get('idp') or {}).get(idp) or {}
         if b.get('occurs') == 'no':
             continue
-        issued = set(a.get('token_types') or [])
+        issued = _issued(a, e, token_types)
         hit = [c['id'] for c in customs if eid in (c.get('issue_events') or []) or issued & set(c.get('carried_in') or [])]
         if not hit:
             continue
@@ -238,15 +320,24 @@ def rule_r4(answers_doc, token_types, catalog_dir, profile):
                                                f'{len(cc.LAYERS)} 層）')]
     out = []
     unused = sm.get('unused_layers') or {}
-    adopted = {t.get('kind') for t in token_types if t.get('decision') in ('採用', '既定どおり')}
+    adopted = [t for t in token_types if t.get('decision') in ('採用', '既定どおり')]
     for layer, reason in unused.items():
         if layer not in cc.LAYERS:
             out.append(F('R4', sev, f'unused_layers:{layer}', f"層は {'・'.join(cc.LAYERS)} のどれか"))
             continue
         if weak(reason, (layer,)):
             out.append(F('R4', sev, f'unused_layers:{layer}', '使わない層に理由がない、または短い'))
-        if LAYER_KIND.get(layer) in adopted:
-            out.append(F('R4', sev, f'unused_layers:{layer}', f'使わないとしたが、token_types に {LAYER_KIND[layer]} の採用の行がある'))
+        kind = LAYER_KIND.get(layer)
+        rows = [t for t in adopted if t.get('kind') == kind]
+        if kind == 'session':
+            unknown = [t['id'] for t in rows if not t.get('stored_at')]
+            rows = [t for t in rows if t.get('stored_at') and SESSION_LAYER[layer](t.get('stored_at'))]
+            if unknown and not rows:
+                out.append(F('R4', WARN, f'unused_layers:{layer}', f"使わないとしたが、token_types に session の採用の行"
+                                                                   f"（{'・'.join(unknown)}。stored_at が無く層を見分けられない）がある"))
+        if rows:
+            out.append(F('R4', sev, f'unused_layers:{layer}', f"使わないとしたが、token_types にこの層の採用の行"
+                                                              f"（{'・'.join(t['id'] for t in rows)}）がある"))
     given = sm.get('states') or {}
     for s in given:
         if s not in states:
@@ -331,26 +422,37 @@ def rule_r6(answers_doc, catalog):
 
 
 # ------------------------------------------------------------------ R9
-def rule_r9(answers_doc):
+def rule_r9(answers_doc, today=None):
+    today = today or datetime.date.today()
     r = (answers_doc or {}).get('outside_enumeration')
     t = 'outside_enumeration'
     if not isinstance(r, dict):
         return [F('R9', ERROR, t, '「この列挙の外に契機はないか」の回答（outside_enumeration）がない')]
     out = []
     ans = str(r.get('answer') or '').strip()
-    bare = re.sub(r'[\s。、．.!！]', '', ans).lower()
     if not ans:
         out.append(F('R9', ERROR, t, 'answer がない'))
-    elif bare in NONE_WORDS or weak(ans):
-        out.append(F('R9', ERROR, t, '回答が「なし」だけ、または短い。何を探して、何が無かったか（見つかったか）を書く'))
-    if len(str(r.get('respondent') or '').strip()) < 2:
-        out.append(F('R9', ERROR, t, '回答者（respondent）がない'))
-    d = str(r.get('date') or '')
-    if not DATE_RE.match(d):
-        out.append(F('R9', ERROR, t, '日付（date、YYYY-MM-DD）がない'))
+    elif none_only(ans) or weak(ans):
+        out.append(F('R9', ERROR, t, '回答が「なし」（見つかりませんでした・None found なども同じ）だけ、仮の値、または短い。'
+                                     '何を探して、何が無かったか（見つかったか）を書く'))
+    resp = str(r.get('respondent') or '').strip()
+    if len(resp) < 2 or PLACEHOLDER_RE.search(resp) or len(set(resp)) <= 1:
+        out.append(F('R9', ERROR, t, '回答者（respondent）がない、または仮の値'))
+    d = parse_date(r.get('date'))
+    if d is None:
+        out.append(F('R9', ERROR, t, '日付（date、YYYY-MM-DD の実在の日）がない'))
+    elif d > today + datetime.timedelta(days=1):
+        out.append(F('R9', ERROR, t, f'日付（date）{d} が未来'))
     sr = r.get('searched')
-    if not isinstance(sr, list) or not [s for s in sr if not _empty(s) and len(str(s).strip()) >= 4]:
+    items = [x for x in sr if not _empty(x)] if isinstance(sr, list) else []
+    if not items:
         out.append(F('R9', ERROR, t, '探した範囲（searched：見た資料・図の一覧）がない'))
+    else:
+        for i, x in enumerate(items):
+            if weak(x):
+                out.append(F('R9', ERROR, f'{t}.searched[{i}]', f'探した範囲の項目 {x!r} が短い、または仮の値'))
+        if not any(concrete(x) for x in items):
+            out.append(F('R9', ERROR, t, f'探した範囲に、具体的な出どころ（URL、ファイルのパス、{CONCRETE_TITLE} 字以上の文書の名前）がない'))
     for i, f in enumerate(r.get('found') or []):
         if not isinstance(f, dict) or _empty(f.get('name')) or weak(f.get('handled_as'), (f.get('name'),)):
             out.append(F('R9', ERROR, f'{t}.found[{i}]', '見つかった契機には name と扱い（handled_as：カタログに戻した・設計に足した など）を書く'))
@@ -365,9 +467,15 @@ def rule_r10(catalog_dir, limits_path, token_types, today=None):
     today = today or datetime.date.today()
     groups = {}
 
-    def check(where, rid, row):
-        rb = str((row or {}).get('review_by') or '')
-        if DATE_RE.match(rb) and datetime.date.fromisoformat(rb) < today:
+    missing = {}
+
+    def check(where, rid, row, required=False):
+        rb = (row or {}).get('review_by')
+        d = parse_date(rb)
+        if d is None:
+            if required:
+                missing.setdefault(where, []).append(str(rid))
+        elif d < today:
             groups.setdefault(where, []).append(f'{rid}（{rb}）')
 
     seeds = load_yaml(os.path.join(catalog_dir, 'seeds.yaml')) or {}
@@ -377,10 +485,12 @@ def rule_r10(catalog_dir, limits_path, token_types, today=None):
         for r in (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get(key, []) or []:
             check(f'{name}.yaml', r.get('id'), r)
     for lim in (load_yaml(limits_path) or {}).get('limits', []) or []:
-        check(os.path.basename(limits_path), lim.get('id'), lim)
+        check(os.path.basename(limits_path), lim.get('id'), lim, required=True)
     for t in token_types:
         for p in ((t.get('size') or {}).get('path') or []):
             if isinstance(p, dict):
-                check(f"token_types {t.get('id')}", p.get('id'), p)
-    return [F('R10', WARN, where, f"見直しの期限（review_by）が過ぎている {len(ids)} 件：{'、'.join(ids)}。出どころを確かめ直し、"
+                check(f"token_types {t.get('id')}", p.get('id'), p, required=True)
+    out = [F('R10', WARN, where, f"見直しの期限（review_by、YYYY-MM-DD）が無い {len(ids)} 件：{'、'.join(ids)}。確かめた日"
+                                 '（verified_on）と見直しの期限を書く') for where, ids in missing.items()]
+    return out + [F('R10', WARN, where, f"見直しの期限（review_by）が過ぎている {len(ids)} 件：{'、'.join(ids)}。出どころを確かめ直し、"
                                   'verified_on と review_by を更新する') for where, ids in groups.items()]

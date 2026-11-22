@@ -5,7 +5,7 @@
 # 手で書く（tools/count_lite_fields.py の STRUCTURAL）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
 # カタログ（templates/catalog/issue_events.yaml・use_events.yaml。#2 で全体に広げた）の全イベントへの回答。
-# 対象外 49 件／全 61 件（80%）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
+# 対象外 50 件／全 62 件（81%。I34 は PR #33 の独立点検で足した Keycloak の grant の一覧から）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
 # #17（網羅の規則）で足した節：idp（R3・R3b）、subject_states（R4）、pairwise（R6）、outside_enumeration（R9）。
 # どれも claim_lint の新しい規則が求める欄で、それまでの回答（answers）は変えていない。足した中身は design.md の 11. と 13.
 idp:
@@ -33,7 +33,7 @@ subject_states:
       RP・BFF のセッション: {result: 発行, basis: ID トークンの検証の後に BFF のセッションを作る（U03）}
     subject-states/suspended:
       AT: {result: 影響なし, basis: 手元の AT は exp まで API が受け入れる。最大 330 秒の遅れを許す（ライフサイクル表）。テナントの停止は DB で要求ごとに止める}
-      RT: {result: 失効, basis: 無効化した利用者のリフレッシュを Keycloak が拒む（カタログのソースの要約。V31）。実物では確かめていない}
+      RT: {result: 失効, basis: 無効化した利用者のリフレッシュを Keycloak が拒む（カタログのソースの要約。V31）。RT そのものは残るが、使えないので実質の失効として扱う。実物では確かめていない}
       ID: {result: 影響なし, basis: ID トークンはログインの時だけ使い、保存しない。停止の後に読まれることはない}
       IdP のセッション: {result: 影響なし, basis: 無効化でセッションを消すかは確かめていない（カタログ。V31）。ログインとリフレッシュは拒まれるので、残っても使えない前提}
       RP・BFF のセッション: {result: 失効, basis: 次のリフレッシュの失敗で BFF がセッションを終える。それまで最大 330 秒の遅れを許す}
@@ -82,7 +82,8 @@ outside_enumeration:
   respondent: 記入例の書き手（作成者）
   date: "2026-11-22"
   searched:
-    - design.md の 2. 範囲と信頼の境界の図と 7. シーケンス図（矢印ごとに、カタログのどのイベントかを確かめた）
+    - design.md の 2. 範囲と信頼の境界の図と 9. ライフサイクル表（矢印と層ごとに、カタログのどのイベントかを確かめた。7. シーケンス図は Full だけの節なので使っていない）
+    - Keycloak 26.8.2 の javadoc「OAuth2GrantType」の実装クラスの一覧（https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html。カタログの keycloak-grant-types）
     - Keycloak Server Administration Guide 26.8.2 のクライアント・レルムの設定（Capability config、Client scopes、Sessions、Required actions、Impersonation）
     - Keycloak の管理 REST API（master レルムの admin-cli の発行。saas-api を aud に持つ AT を出さないことを確かめた）
     - research/template-design/notes/coverage_lifecycle.md の先行の一覧（I01〜I30・U01〜U21）
@@ -224,6 +225,11 @@ answers:
     answer: 対象外
     assumption: イントロスペクションを使わない（U05 と同じ前提）ので、JWT 形式の応答も受けない
     breaks_when: U05 を該当にし、AS の判断を否認できない形で残す必要が出たとき
+  # ---------------------------------------------------------------- 発行イベント（#17 で足した I34）
+  - event: I34
+    answer: 対象外
+    assumption: Keycloak の機能 oid4vc-vci（Preview、既定は無効）を有効にしない。利用者に検証可能な資格情報を発行しない
+    breaks_when: 利用者やテナントにデジタルの資格情報（SD-JWT VC など）を発行する機能を足すとき
   # ---------------------------------------------------------------- 利用イベント（v0 の U01〜U10）
   - event: U01
     answer: 該当
