@@ -29,11 +29,13 @@
     },
     "from": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "to": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "kind": {
      "enum": [
@@ -67,18 +69,20 @@
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 10,
      "uniqueItems": true,
      "description": "aud of the token on this hop (resource indicator, RFC 8707). Downstream does not widen it",
-     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-flow-browser-to-db.R3 req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
     },
     "scope": {
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 50,
      "uniqueItems": true,
@@ -91,7 +95,7 @@
       "null"
      ],
      "minimum": 0,
-     "description": "Seconds; lifetime of the token on this hop (null when no token). Downstream does not exceed upstream unless narrowing_exception says why (Txn-Token may outlive, draft-ietf-oauth-transaction-tokens-11 §13.6)",
+     "description": "Seconds; lifetime of the token on this hop (null when no token). Downstream does not exceed upstream unless narrowing_exception says why (a Txn-Token MAY outlive the presented token, draft-ietf-oauth-transaction-tokens-11 §6)",
      "$comment": "Trace: req:p06-narrow-downstream.R2"
     },
     "custom_claims": {
@@ -103,13 +107,14 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Registry rows of organization claims carried on this hop (or the values copied, for a DB hop)",
-     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
     },
     "authorization_details": {
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 20,
      "uniqueItems": true,
@@ -121,7 +126,7 @@
       "null"
      ],
      "description": "Service that exchanges or reissues the token for this hop (null when the token is passed as is)",
-     "$comment": "Trace: req:p06-edge-exchange.R2 req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
     },
     "validates": {
      "type": "object",
@@ -138,7 +143,8 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 20,
        "minItems": 1
@@ -167,7 +173,8 @@
       "properties": {
        "name": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "claim": {
         "type": "string",
@@ -178,11 +185,13 @@
        },
        "written_only_by": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "encoding": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        }
       },
       "required": [
@@ -196,7 +205,8 @@
     },
     "narrowing_exception": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "note": {
      "type": "string"

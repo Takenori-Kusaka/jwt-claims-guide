@@ -44,6 +44,7 @@ TT_COMMON = ['id', 'kind', 'decision', 'rationale', 'format']
 TT_ADOPTED = ['purpose', 'issuer', 'holder', 'max_lifetime', 'stored_at', 'transport', 'revocation', 'visible_to']
 TT_JWT = ['typ', 'alg_allowlist', 'issuers', 'key_rotation', 'jwe']
 HEADER_TRANSPORTS = {'authorization_bearer', 'authorization_dpop', 'cookie'}
+IDLE_KINDS = {'refresh_token', 'session'}  # idle and absolute lifetimes are separate columns (gate1.md 5., A14)
 
 
 class Finding(dict):
@@ -52,7 +53,12 @@ class Finding(dict):
 
 
 def _empty(v):
-    return v is None or v == '' or v == [] or v == {}
+    """None, an empty or whitespace-only string, an empty list or mapping (a list of blank strings is empty too)."""
+    if isinstance(v, str):
+        return v.strip() == ''
+    if isinstance(v, list):
+        return all(_empty(x) for x in v)
+    return v is None or v == {}
 
 
 class _Loader(yaml.SafeLoader):
@@ -119,6 +125,8 @@ def rule_r1(claims, token_types):
         need = list(TT_COMMON)
         if t.get('decision') in ('採用', '既定どおり'):
             need += TT_ADOPTED
+            if t.get('kind') in IDLE_KINDS:
+                need.append('idle_timeout')
             if t.get('format') == 'jwt':
                 need += TT_JWT
                 if t.get('transport') in HEADER_TRANSPORTS:
@@ -226,6 +234,14 @@ def rule_ref(claims_doc, token_types, hops_doc, questions):
             out.append(Finding('REF', ERROR, hid, 'ホップの id が重複している'))
         need(hid, 'token_type', h.get('token_type'), tids, 'トークン目録（token_types.yaml）')
         need(hid, 'upstream', h.get('upstream'), set(hids), ' hops.yaml')
+        seen, cur = [h.get('id')], h.get('upstream')
+        by_id = {x.get('id'): x for x in hops}
+        while cur is not None and cur in by_id:
+            if cur in seen:
+                out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(seen + [cur])}）"))
+                break
+            seen.append(cur)
+            cur = by_id[cur].get('upstream')
         for x in h.get('custom_claims') or []:
             need(hid, 'custom_claims', x, cids, '台帳')
         for fh in h.get('forwarded_headers') or []:

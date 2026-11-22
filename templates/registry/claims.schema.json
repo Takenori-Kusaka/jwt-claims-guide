@@ -27,7 +27,8 @@
     "properties": {
      "namespace": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "style": {
       "enum": [
@@ -37,7 +38,8 @@
      },
      "owner": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "namespace_version": {
       "type": "string",
@@ -47,7 +49,8 @@
      },
      "assignment": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      }
     },
     "required": [
@@ -55,6 +58,22 @@
      "style",
      "owner",
      "assignment"
+    ],
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "style": {
+         "const": "object"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "namespace_version"
+       ]
+      }
+     }
     ]
    },
    "maxItems": 10,
@@ -109,11 +128,13 @@
      },
      "description": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "owner": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      }
     },
     "required": [
@@ -158,7 +179,8 @@
     },
     "id": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "url": {
      "type": "string",
@@ -189,16 +211,30 @@
      }
     },
     {
-     "$comment": "ASVS belongs in asvs_ids, not in refs (templates/CONTRIBUTING.md 1., casestudy-mapping.md 8.)",
+     "$comment": "ASVS belongs in asvs_ids, not in refs (templates/CONTRIBUTING.md 1., casestudy-mapping.md 8.): an id that names ASVS in any spelling or is a bare ASVS requirement number (V8.3.2), or a url of the ASVS project",
      "not": {
-      "required": [
-       "id"
-      ],
-      "properties": {
-       "id": {
-        "pattern": "(?i)^\\s*(OWASP\\s+)?ASVS"
+      "anyOf": [
+       {
+        "required": [
+         "id"
+        ],
+        "properties": {
+         "id": {
+          "pattern": "(?i)ASVS|application\\s+security\\s+verification\\s+standard|^\\s*v\\d+(\\.\\d+){1,3}\\s*$|^\\s*v\\d+\\.\\d+\\.\\d+-"
+         }
+        }
+       },
+       {
+        "required": [
+         "url"
+        ],
+        "properties": {
+         "url": {
+          "pattern": "(?i)owasp/asvs|application-security-verification-standard"
+         }
+        }
        }
-      }
+      ]
      }
     }
    ]
@@ -214,8 +250,7 @@
     "name": {
      "type": "string",
      "minLength": 1,
-     "description": "Claim name as it appears in the JSON object, without the namespace. A value taken from the access context names the moment it was taken (e.g. auth_ip, not ip) and says in not_meaning what it does not mean",
-     "$comment": "Trace: req:p06-access-context.R2"
+     "description": "Claim name as it appears in the JSON object, without the namespace. A value taken from the access context names the moment it was taken (e.g. auth_ip, not ip) and says in not_meaning what it does not mean"
     },
     "namespace": {
      "type": [
@@ -234,6 +269,12 @@
      "maxItems": 10,
      "uniqueItems": true,
      "description": "Rows of the casestudy claim list (name and type are owned there; tools/casestudy_check.py compares the ORG rows). A list, because the list has one row per defining source"
+    },
+    "catalog_refs_reason": {
+     "type": "string",
+     "minLength": 1,
+     "pattern": "\\S",
+     "description": "Why a row has no row in the casestudy claim list (catalog_refs: [])"
     },
     "registered_ref": {
      "$ref": "#/$defs/ref"
@@ -264,7 +305,8 @@
      "properties": {
       "pattern": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "enum": {
        "type": "array",
@@ -308,7 +350,8 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 200,
        "minItems": 1,
@@ -316,11 +359,13 @@
       },
       "namespace": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "owner": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "extensible": {
        "type": "boolean"
@@ -336,13 +381,15 @@
     "description": {
      "type": "string",
      "minLength": 1,
+     "pattern": "\\S",
      "$comment": "Trace: req:p00-claims-are-contracts.R4 req:p02-check-before-creating.R2 req:p11-registry-fields.R3"
     },
     "not_meaning": {
      "type": "string",
      "minLength": 1,
+     "pattern": "\\S",
      "description": "What the claim does not mean (e.g. azp is not client_id; email_verified is not identity proofing)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R4 req:p02-check-before-creating.R2 req:p02-delegation-client.R6 req:p06-access-context.R2 req:p11-registry-fields.R3"
+     "$comment": "Trace: req:p00-claims-are-contracts.R4 req:p02-check-before-creating.R2 req:p11-registry-fields.R3"
     },
     "absent_semantics": {
      "type": "object",
@@ -350,34 +397,39 @@
      "properties": {
       "absent": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "null": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "false": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "empty_array": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "empty_string": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "minProperties": 1,
      "description": "Meaning of a missing claim, null, false, an empty array and an empty string. A claim that can disappear at a limit (Entra groups overage) is never read as \"no membership\"",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R5 req:p03-entra-scp-roles-groups.R1 req:p04-absent-null-false-empty.R1"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R5 req:p04-absent-null-false-empty.R1"
     },
     "flat_alias": {
      "type": "string",
      "minLength": 1,
-     "description": "Flat name with the same content, for IdPs that cannot nest (e.g. https://claims.example.com/tenant_id)",
-     "$comment": "Trace: req:p04-namespace-object-example.R2 req:p04-namespace.R4"
+     "pattern": "\\S",
+     "description": "Flat name with the same content, for IdPs that cannot nest (e.g. https://claims.example.com/tenant_id)"
     },
     "paired_id": {
      "type": "string",
@@ -393,22 +445,26 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 10,
        "minItems": 2
       },
       "separator": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "escape": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "published_at": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -448,7 +504,8 @@
       },
       "normalized_by": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -467,7 +524,8 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 20,
        "minItems": 1
@@ -476,13 +534,15 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 20
       },
       "not_used_because": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -525,20 +585,24 @@
       "properties": {
        "locale": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "label": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "description": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "dir": {
         "enum": [
          "ltr",
-         "rtl"
+         "rtl",
+         "auto"
         ]
        }
       },
@@ -549,7 +613,7 @@
      },
      "maxItems": 20,
      "minItems": 1,
-     "description": "SD-JWT VC claim metadata display (§5.6): label per locale. Same name and meaning"
+     "description": "SD-JWT VC claim metadata display (§5.6.2): label per locale; dir is ltr, rtl or auto (default auto, §5.5). Same name and meaning"
     },
     "decision": {
      "enum": [
@@ -588,15 +652,18 @@
     },
     "rationale": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "assumption": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "revisit_trigger": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "refs": {
      "type": "array",
@@ -642,7 +709,8 @@
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 50,
      "minItems": 1,
@@ -658,7 +726,8 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 20,
        "minItems": 1,
@@ -666,11 +735,13 @@
       },
       "source_attribute": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       },
       "normalization": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -700,7 +771,8 @@
        },
        "writer": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "configurable_by": {
         "type": "array",
@@ -747,7 +819,8 @@
        },
        "writer": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "action": {
         "enum": [
@@ -806,14 +879,15 @@
     "source_system": {
      "type": "string",
      "minLength": 1,
+     "pattern": "\\S",
      "description": "Authoritative source of the value (owned by the department responsible for its meaning)",
-     "$comment": "Trace: req:p03-keycloak-aud-lightweight.R3 req:p11-ownership.R2 req:p11-registry-fields.R10"
+     "$comment": "Trace: req:p11-registry-fields.R10"
     },
     "verification_method": {
      "type": "string",
      "minLength": 1,
-     "description": "How the source value is checked (e.g. organization membership from the HR system, not from the e-mail domain)",
-     "$comment": "Trace: req:p03-keycloak-aud-lightweight.R3"
+     "pattern": "\\S",
+     "description": "How the source value is checked (e.g. organization membership from the HR system, not from the e-mail domain)"
     },
     "last_verified": {
      "type": "string",
@@ -837,7 +911,8 @@
       },
       "basis": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -878,7 +953,8 @@
     },
     "on_revoke": {
      "type": "string",
-     "minLength": 1
+     "minLength": 1,
+     "pattern": "\\S"
     },
     "carried_in": {
      "type": "array",
@@ -894,7 +970,8 @@
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 50,
      "uniqueItems": true,
@@ -909,7 +986,8 @@
       "properties": {
        "consumer": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "via": {
         "enum": [
@@ -924,7 +1002,8 @@
        },
        "note": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        }
       },
       "required": [
@@ -943,15 +1022,18 @@
       "properties": {
        "consumer": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "from": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "to": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "state": {
         "enum": [
@@ -992,11 +1074,13 @@
       "properties": {
        "service": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "check": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        }
       },
       "required": [
@@ -1036,7 +1120,7 @@
       ]
      },
      "description": "What happens above max_bytes / max_items. Truncation is not a value (no silent loss)",
-     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p03-entra-scp-roles-groups.R1 req:p04-size-budget.R2 req:p06-edge-exchange.R3 req:p11-registry-fields.R7"
+     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p04-size-budget.R2 req:p06-edge-exchange.R3 req:p11-registry-fields.R7"
     },
     "confidential_from": {
      "type": "array",
@@ -1081,7 +1165,8 @@
       },
       "rationale": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -1108,11 +1193,13 @@
        },
        "target": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "trust_boundary": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        }
       },
       "required": [
@@ -1190,11 +1277,13 @@
       "properties": {
        "recipient": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "purpose": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        }
       },
       "required": [
@@ -1215,7 +1304,8 @@
        "type": "array",
        "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "pattern": "\\S"
        },
        "maxItems": 50,
        "minItems": 1,
@@ -1223,7 +1313,8 @@
       },
       "basis": {
        "type": "string",
-       "minLength": 1
+       "minLength": 1,
+       "pattern": "\\S"
       }
      },
      "required": [
@@ -1255,12 +1346,14 @@
     "owner": {
      "type": "string",
      "minLength": 1,
+     "pattern": "\\S",
      "description": "Department responsible for meaning, value and freshness (the authoritative source)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-ownership.R2 req:p11-registry-fields.R9"
+     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R9"
     },
     "change_controller": {
      "type": "string",
      "minLength": 1,
+     "pattern": "\\S",
      "description": "Who decides changes of the definition: the spec body for registered claims, the registry owner (README#namespace-owner) for organization claims",
      "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-ownership.R1"
     },
@@ -1288,7 +1381,8 @@
      "type": "array",
      "items": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\S"
      },
      "maxItems": 10,
      "minItems": 1,
@@ -1368,10 +1462,14 @@
      }
     },
     {
+     "$comment": "A multi-valued claim (JSON array or space-delimited string) has an upper bound on the number of values",
      "if": {
       "properties": {
        "shape": {
-        "const": "array"
+        "enum": [
+         "array",
+         "space_delimited"
+        ]
        },
        "decision": {
         "enum": [
@@ -1429,6 +1527,31 @@
      "then": {
       "required": [
        "confidentiality_measure"
+      ]
+     },
+     "else": {
+      "not": {
+       "required": [
+        "confidentiality_measure"
+       ]
+      }
+     }
+    },
+    {
+     "$comment": "catalog_refs: [] needs a reason (tools/casestudy_check.py requires every row of an example to declare catalog_refs)",
+     "if": {
+      "properties": {
+       "catalog_refs": {
+        "maxItems": 0
+       }
+      },
+      "required": [
+       "catalog_refs"
+      ]
+     },
+     "then": {
+      "required": [
+       "catalog_refs_reason"
       ]
      }
     }

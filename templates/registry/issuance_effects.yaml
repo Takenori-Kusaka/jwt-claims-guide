@@ -17,7 +17,7 @@ effects:
     when: [{field: sender_constraint, equals: dpop}]
     requires:
       - {id: E-dpop.1, target: claims, text: AT に cnf.jkt（DPoP の公開鍵の JWK Thumbprint）を載せる, check: {path: "claims[name=cnf].carried_in", op: includes, value: "kind:access_token"}}
-      - {id: E-dpop.2, target: enforced_at, text: AT の受け手すべてが DPoP proof（htm・htu・iat・jti・ath）を照合する, check: {path: "claims[name=cnf].enforced_at", op: all_consumers, value: [htm, htu, iat, jti, ath]}}
+      - {id: E-dpop.2, target: enforced_at, text: "AT の受け手すべてが DPoP proof の htm・htu・iat を照合し（RFC 9449 §4.3）、AT と一緒に出された proof では ath も照合する（§4.3。保護リソースへの要求のとき）。jti は再送の拒否に使う（§11.1。受け手が jti を覚えておく）", check: {path: "claims[name=cnf].enforced_at", op: all_consumers, value: [htm, htu, iat, jti, ath]}}
       - {id: E-dpop.3, target: token_types, text: トークン目録で DPoP proof（typ は dpop+jwt）を採用し、jti の再送を拒む期間を決める, check: {path: "token_types[kind=dpop_proof]", op: equals, value: {decision: 採用, typ: dpop+jwt}}}
       - {id: E-dpop.4, target: size, text: サイズの予算に cnf を含める（AT に載るので R8 の計算に入る）, check: {path: "claims[name=cnf].max_bytes", op: present}}
       - {id: E-dpop.5, target: token_types, text: Authorization ヘッダーの方式は DPoP（Bearer ではない）, check: {path: "token_types[kind=access_token].transport", op: equals, value: authorization_dpop}}
@@ -26,6 +26,7 @@ effects:
       - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
       - {kind: spec, id: "RFC 9449 §6.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-6.1"}
       - {kind: spec, id: "RFC 9449 §7.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-7.1"}
+      - {kind: spec, id: "RFC 9449 §11.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-11.1"}
     lint: [L62, L15]
 
   - id: E-mtls
@@ -45,8 +46,8 @@ effects:
       - {id: E-mtls-entry.1, target: issuance_profile, text: 証明書を下流へ渡すヘッダー（forwarded_cert_header）で、入口はクライアントから来た同名のヘッダーを捨てる（L8）, check: {path: issuance_profile.forwarded_cert_header.strip_inbound, op: equals, value: true}}
       - {id: E-mtls-entry.2, target: issuance_profile, text: そのヘッダーを書けるのは入口だけ、という信頼境界を宣言する（L64）, check: {path: issuance_profile.forwarded_cert_header.written_only_by, op: present}}
     refs:
-      - {kind: spec, id: "RFC 8705 §6.5", url: "https://www.rfc-editor.org/rfc/rfc8705#section-6.5"}
       - {kind: guide-slide, id: p06-header-forwarding}
+      - {kind: author-proposal, id: "入口で mTLS を終端するときは、証明書を渡すヘッダーの同名を捨て、入口だけが書く（RFC 8705 §6.5 は TLS の終端を認めるが、証明書の情報を下流へ安全に渡す方法を範囲外としている）", tracking: "#3"}
     lint: [L64, L8]
 
   - id: E-opaque
@@ -54,10 +55,11 @@ effects:
     requires:
       - {id: E-opaque.1, target: claims, text: クレームの carried_in はイントロスペクションの応答（トークン目録の別の行）で、AT そのものには載らない, check: {path: "claims[*].carried_in", op: includes, value: "kind:introspection_response_jwt|transport:introspection_response"}}
       - {id: E-opaque.2, target: size, text: AT は R8 のサイズの予算の対象外（size を書かない）, check: {path: "token_types[kind=access_token].size", op: absent}}
-      - {id: E-opaque.3, target: token_types, text: イントロスペクションの応答のキャッシュの TTL を宣言し、応答の exp を超えて使わない。TTL はクレームの volatility を超えない, check: {path: "token_types[kind=access_token].introspection_cache_ttl", op: present}}
+      - {id: E-opaque.3, target: token_types, text: "イントロスペクションの応答のキャッシュの TTL を宣言し、応答の exp を超えて使わない（RFC 7662 §4）。TTL がクレームの volatility を超えないことは、本ガイドの規則（slide:p08-revocation-propagation、筆者の提案）", check: {path: "token_types[kind=access_token].introspection_cache_ttl", op: present}}
     refs:
       - {kind: spec, id: "RFC 7662 §4", url: "https://www.rfc-editor.org/rfc/rfc7662#section-4"}
       - {kind: guide-slide, id: p08-revocation-propagation}
+      - {kind: author-proposal, id: "イントロスペクションの応答のキャッシュの TTL を、そのトークンで運ぶクレームの volatility 以下にする", tracking: "#3"}
     lint: [L62, L5]
 
   - id: E-phantom

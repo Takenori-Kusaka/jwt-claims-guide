@@ -68,10 +68,11 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `id` | 行の ID | `C-` で始まる台帳の行の ID。ほかのファイル（ホップ・トークン目録）から参照する | `id`（列なし。`catalog_refs` で参照） | author-proposal（#3） | 手で書く（却下の行も） |
 | `name` | 名前 | JSON に現れる名前（名前空間を除く）。接続元の値は、認証時の値と分かる名前にする | `name`（一部） | slide:p11-registry-fields、slide:p06-access-context | 手で書く（却下の行も） |
 | `namespace` | 名前空間 | 名前空間のオブジェクトの名前。最上位は `null`。運び方は最上位の `namespaces[].style` | `name`（一部。`.` で分ける） | slide:p04-namespace、slide:p04-namespace-object-example | 手で書く（却下の行も） |
-| `catalog_refs` | ケーススタディの行 | ケーススタディの一覧表の行（コミットつき）。名前と型の正はそちら | `id`（列なし） | `templates/casestudy-mapping.md` の 1.、v0-columns.md の 1. #1 | 手で書く（却下の行も） |
+| `catalog_refs` | ケーススタディの行 | ケーススタディの一覧表の行（コミットつき）。名前と型の正はそちら。記入例ではすべての行に書く（`tools/casestudy_check.py`）。同じ ID を 2 つの行から参照しない。組織の名前空間の行は ORG の行を参照する | `id`（列なし） | `templates/casestudy-mapping.md` の 1.、v0-columns.md の 1. #1、PR #37 の独立点検 | 手で書く（却下の行も） |
+| `catalog_refs_reason` | 一覧表に行が無い理由 | `catalog_refs: []` のときの理由（スキーマで必須） | なし | PR #37 の独立点検、author-proposal（#3） | 手で書く（却下の行も） |
 | `registered_ref` | 登録の参照 | IANA に登録された名前を使うときの登録の参照 | `source_kind`・`source`・`url`・`is_custom`（一部） | slide:p02-name-categories、IANA JWT Claims registry | 手で書く |
 | `type` | 型 | 1 つの値（配列なら要素）の JSON の型。1 つに固定する | `value_type`（同じ） | slide:p04-type、slide:p11-registry-fields | 手で書く（却下の行も） |
-| `shape` | 形 | 単一・配列・空白区切りの文字列（scope）。受け手が読み方をずらさない | `multiplicity`（一部） | slide:p04-shape、slide:p02-scope、RFC 9068 §2.2.3 | 手で書く |
+| `shape` | 形 | 単一・配列・空白区切りの文字列（scope）。受け手が読み方をずらさない。配列と空白区切りは `max_items` が必須（スキーマ）。空白区切りの `max_bytes` は文字列全体の上限 | `multiplicity`（一部） | slide:p04-shape、slide:p02-scope、RFC 9068 §2.2.3（scope の形は RFC 8693 §4.2 に委ねている）、RFC 8693 §4.2 | 手で書く |
 | `allowed_values` | 形式と許容値 | 正規表現・列挙・最小・最大・形式 | `comparison`・`vocabulary`（列なし） | slide:p11-registry-fields（「形式・許容値」）、NIST SP 800-162 §2.4.2（スライドの引用） | Full のみ |
 | `value_vocabulary` | 値の語彙 | 組織が持つ値の語彙（roles・groups・acr の値・authorization_details の type）と持ち主 | `vocabulary`（列なし） | slide:p02-roles-groups-entitlements、slide:p02-auth-strength-session、RFC 9396 §2 | Full のみ |
 | `description` | 意味 | 何を表すか | `purpose`（一部） | slide:p11-registry-fields、slide:p02-check-before-creating | 手で書く |
@@ -85,7 +86,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `path` | パス（SD-JWT VC） | SD-JWT VC のクレームのメタデータの `path`。同じ名前・同じ意味 | なし | draft-ietf-oauth-sd-jwt-vc-27 §5.6 | Full のみ |
 | `mandatory` | 必須（SD-JWT VC） | 同 `mandatory`（既定 false） | なし | draft-ietf-oauth-sd-jwt-vc-27 §5.6 | Full のみ |
 | `sd` | 選択的開示（SD-JWT VC） | 同 `sd`（always・allowed・never。既定 allowed） | なし | draft-ietf-oauth-sd-jwt-vc-27 §5.6 | Full のみ |
-| `display` | 表示ラベル（SD-JWT VC） | 同 `display`（locale・label・description・dir） | なし | draft-ietf-oauth-sd-jwt-vc-27 §5.6 | Full のみ |
+| `display` | 表示ラベル（SD-JWT VC） | 同 `display`（locale・label・description・dir。dir は ltr・rtl・auto で、省略時は auto） | なし | draft-ietf-oauth-sd-jwt-vc-27 §5.6.2・§5.5 | Full のみ |
 
 #### 判断
 
@@ -165,7 +166,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | 列 | 見出し | 意味 | ケーススタディの列（区分） | 根拠 | 縮小 Lite |
 | --- | --- | --- | --- | --- | --- |
 | `confidential_from` | 読まれてはいけない相手 | browser・client・gateway・`hop:<サービス>`・logs・analytics・external_rp など。`[]` なら改ざん防止だけで足りる | なし | slide:p09-jws-is-readable、RFC 7519 §11.2 | 手で書く |
-| `confidentiality_measure` | 落ち着いた手段 | 載せない・派生値・参照・JWE のどれかと理由（`confidential_from` が空でなければスキーマで必須） | なし | slide:p09-jwe-sd-jwt、slide:p09-minimize-derived | 手で書く |
+| `confidentiality_measure` | 落ち着いた手段 | 載せない・派生値・参照・JWE のどれかと理由（`confidential_from` が空でなければスキーマで必須、空なら書けない） | なし | slide:p09-jwe-sd-jwt、slide:p09-minimize-derived | 手で書く |
 | `integrity_until` | 署名の保護が外れる場所 | ヘッダー・DB のセッションの文脈・キュー・ログ・キャッシュに写した場所と、写した先の信頼境界 | なし | slide:p07-trust-boundary、slide:p06-header-forwarding、v0-columns.md の 1. #4 | 手で書く |
 
 #### 個人情報と「何のデータか」
@@ -197,7 +198,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | 項目 | 意味 | 根拠 |
 | --- | --- | --- |
 | `scenario`・`casestudy_commit` | 記入例のシナリオと、参照するケーススタディのコミット | `casestudy-mapping.md` の 1. |
-| `namespaces` | 名前空間ごとの運び方（object・flat_prefix）、持ち主、構造の版のクレーム（`namespace_version`）、名前の割り当て方 | slide:p04-namespace、slide:p04-namespace-object-example、slide:p11-reserved-names |
+| `namespaces` | 名前空間ごとの運び方（object・flat_prefix）、持ち主、構造の版のクレーム（`namespace_version`。object ならスキーマで必須）、名前の割り当て方 | slide:p04-namespace、slide:p04-namespace-object-example、slide:p11-reserved-names |
 | `data_category_vocabulary` | `data_category` の語彙の固定（fideslang、版・URL・CC BY 4.0・確かめた日） | 9. |
 | `data_category_extensions` | 組織の子カテゴリ（`key` は `parent` の子。claim_lint の REF が確かめる） | 9. |
 
@@ -245,7 +246,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `jwks_cache_ttl` | JWKS のキャッシュ TTL | 秒 | slide:p01-key-rotation-jwks | 手で書く |
 | `signing_key_scope` | 署名鍵のスコープ | テナントごと・共有・クライアントごと | slide:p05-multitenancy | 手で書く |
 | `stored_at` | 保存場所 | browser・bff_server・idp・rp_server・service_memory・none | #3 の本文、slide:p06-flow-browser-to-db | 手で書く |
-| `transport` | 運搬経路 | Authorization（Bearer・DPoP）・Cookie・応答の本文など。AT は URL で運べない（スキーマで拒む） | slide:p09-url-browser、slide:p08-copies-outlive-token | 手で書く |
+| `transport` | 運搬経路 | Authorization（Bearer・DPoP）・Cookie・応答の本文など。認可コードと JARM の応答のほかは URL（`redirect_query`）で運べない（スキーマで拒む） | slide:p09-url-browser、slide:p08-copies-outlive-token | 手で書く |
 | `visible_to` | 読める相手 | そのトークンを手にする・読める相手。`confidential_from` と突き合わせる（L65） | slide:p09-jws-is-readable、v0-columns.md の 1. #6 | 手で書く |
 | `jwe` | JWE | 使うか。使うなら署名してから暗号化、宛先ごとの鍵、復号できる相手（スキーマで必須） | slide:p09-jwe-sd-jwt、RFC 7519 §11.2 | 手で書く |
 | `log_policy` | トークンのログの方針 | 記録しない・jti だけ・ハッシュ・記録する | slide:p09-logs-traces | Full のみ |
@@ -260,11 +261,11 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | 列 | 見出し | 意味 | 根拠 | 縮小 Lite |
 | --- | --- | --- | --- | --- |
 | `client_type` | クライアントの種類 | public・confidential・fapi | slide:p08-rotation、slide:p06-grant-types | 生成 |
-| `client_auth` | クライアント認証 | private_key_jwt・tls_client_auth・client_secret_* など | slide:p01-client-made-jwts、RFC 8705 §2 | 生成 |
+| `client_auth` | クライアント認証 | private_key_jwt・tls_client_auth・client_secret_* など | slide:p01-client-made-jwts、OpenID Connect Core 1.0 §9（client_secret_basic・client_secret_post・client_secret_jwt・private_key_jwt・none）、RFC 8705 §2.1・§2.2（tls_client_auth・self_signed_tls_client_auth） | 生成 |
 | `grants` | grant | 認可コード＋PKCE・client credentials・token exchange・CIBA・device・refresh・JWT bearer | slide:p06-grant-types | 生成 |
 | `sender_constraint` | 送信者制約 | none・dpop・mtls | RFC 9449、RFC 8705、slide:p08-rotation | 生成 |
-| `tls_termination` | TLS の終端 | mTLS のとき、入口で終端するか端から端までか（mTLS ならスキーマで必須） | RFC 8705 §6.5 | 生成 |
-| `forwarded_cert_header` | 証明書を渡すヘッダー | 入口で終端するとき、同名のヘッダーを捨て、入口だけが書く（スキーマで必須） | slide:p06-header-forwarding、RFC 8705 §6.5 | 生成 |
+| `tls_termination` | TLS の終端 | mTLS のとき、入口で終端するか端から端までか（mTLS ならスキーマで必須） | RFC 8705 §6.5（終端してよいことを述べる） | 生成 |
+| `forwarded_cert_header` | 証明書を渡すヘッダー | 入口で終端するとき、同名のヘッダーを捨て、入口だけが書く（スキーマで必須）。組織の規則 | slide:p06-header-forwarding、author-proposal（#3）。RFC 8705 §6.5 は、証明書の情報を下流へ安全に渡す方法を範囲外としている | 生成 |
 | `at_format` | AT の形式 | JWT・不透明＋イントロスペクション・入口で作り直す phantom token | slide:p01-self-contained-vs-reference、slide:p06-edge-exchange | 生成 |
 | `rt_strategy` | RT の方式 | ローテーション＋再利用の検知・ローテーション・送信者制約・なし | RFC 9700 §4.14.2、slide:p08-rotation | 生成 |
 | `request_protection` | 要求の保護 | PAR・JAR・RAR・resource indicators | RFC 9396 §2、RFC 8707 §2、FAPI 2.0 Security Profile（Final）§5.3.2.2 | 生成 |
@@ -284,14 +285,14 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `token_type` | 運ぶトークン | トークン目録の ID（トークンを渡さないホップは null） | #3 の本文（ホップ） | 生成 |
 | `aud` | aud | そのホップのトークンの宛先（resource indicator で絞る） | slide:p06-narrow-downstream、RFC 8707 §2 | 生成（交換・作り直しのホップは手で書く） |
 | `scope` | scope | そのホップの scope | slide:p06-narrow-downstream | 生成（交換・作り直しのホップは手で書く） |
-| `max_lifetime` | 寿命 | そのホップのトークンの寿命。Txn-Token は元より長くてよい（仕様）ので、その場合は `narrowing_exception` に書く | slide:p06-narrow-downstream、draft-ietf-oauth-transaction-tokens-11 §13.6 | 生成（交換・作り直しのホップは手で書く） |
+| `max_lifetime` | 寿命 | そのホップのトークンの寿命。Txn-Token は元より長くてよい（仕様）ので、その場合は `narrowing_exception` に書く | slide:p06-narrow-downstream、draft-ietf-oauth-transaction-tokens-11 §6 | 生成（交換・作り直しのホップは手で書く） |
 | `custom_claims` | 運ぶ独自クレーム | 台帳の行の ID | slide:p06-narrow-downstream | 生成（交換・作り直しのホップは手で書く） |
 | `authorization_details` | 運ぶ authorization_details | 宛先に合わせて絞った type | RFC 9396 §9.1、slide:p05-coarse-fine-layers | 生成（交換・作り直しのホップは手で書く） |
 | `exchanger` | 交換を担うサービス | 交換・作り直しを担うサービス（そのまま渡すなら null） | slide:p06-narrow-downstream、slide:p06-edge-exchange | 生成（交換・作り直しのホップは手で書く） |
 | `validates` | 受け手の検証 | 手元で検証するか問い合わせるかと、確かめること | slide:p08-revocation-propagation、slide:p06-validation-split | 生成 |
 | `connection_max_lifetime` | 接続の寿命 | DB・ブローカーの接続の寿命（トークンより長く生きる） | slide:p07-lifetime-mismatch、v0-columns.md の 1. #13 | 手で書く |
 | `forwarded_headers` | 転記するヘッダー | ヘッダーに写すクレームと、入口で同名を捨てるか、書ける者、符号化（L8） | slide:p06-header-forwarding | 手で書く |
-| `narrowing_exception` | 絞り込みの例外 | 上流より広げる・長くする理由 | draft-ietf-oauth-transaction-tokens-11 §13.6、slide:p06-narrow-downstream | 手で書く |
+| `narrowing_exception` | 絞り込みの例外 | 上流より広げる・長くする理由 | draft-ietf-oauth-transaction-tokens-11 §6、slide:p06-narrow-downstream | 手で書く |
 | `note` | 注記 | | author-proposal（#3） | Full のみ |
 
 <a id="slide-134-map"></a>
@@ -349,7 +350,7 @@ slide:p08-four-lifetimes の 4 つの層を、どの列・宣言で表すかと�
 | セッションと RT の寿命（ローテーション・失効・ログアウト） | トークン目録の `kind: session`・`refresh_token` の行の `max_lifetime`（絶対）・`idle_timeout`・`rt_rotation`・`revocation`。DB の接続はホップの `connection_max_lifetime` | `token_types.yaml`：RT・BFFSESSION・SSO は idle 1800 秒・最大 36000 秒。RT はローテーションあり、再利用の検知は unverified。失効は RP-Initiated Logout とセッションの削除（0 秒）、リフレッシュの失敗（330 秒）。`hops.yaml`：H3 の接続の寿命は決めていない（null。設計書の 12. の自信のない点） |
 | クレームの定義の寿命（提案→有効→廃止予定→廃止） | 台帳の `status`・`sunset_on`・`owner`・`change_controller`・`consumers_migration`、最上位の `namespaces[].namespace_version`。変更履歴は Git | `claims.yaml`：すべて `active`。名前空間の構造の版は `C-v`（`namespaces[].namespace_version`）。廃止予定の行はないので、`sunset_on` と `consumers_migration` は書いていない（書ける形はスキーマにある） |
 
-定義の寿命の層で、廃止予定（deprecated）の行を記入例で示すのは、シナリオ B（#3 の残り）で行います。
+定義の寿命の層で、廃止予定（deprecated）の行を記入例で示すのは、#4 の Full の記入例（P1＋P4＋P5）で行います。
 
 ## 7. 発行方式の選択と、台帳で必要になるもの
 
@@ -398,7 +399,7 @@ SD-JWT VC の Type Metadata のクレームのメタデータ（draft-ietf-oauth
 | `path` | `path` | 文字列・整数・null の配列 | なし（必須） |
 | `mandatory` | `mandatory` | 真偽値 | false |
 | `sd` | `sd` | always・allowed・never | allowed |
-| `display` | `display` | locale・label・description・dir の配列 | なし |
+| `display` | `display` | locale・label・description・dir（ltr・rtl・auto）の配列 | dir は auto（§5.5） |
 
 記入例では `name` に `display`（日本語と英語のラベル）を書きました。
 
@@ -419,6 +420,8 @@ SD-JWT VC の Type Metadata のクレームのメタデータ（draft-ietf-oauth
 
 - **ORG 行の名前と型**：`catalog_refs` が ORG 行を指す台帳の行は、`namespace` + `.` + `name` と `type`・`shape` が `catalog/catalog.json` と同じでなければ失敗する
 - **採否と判定**：`catalog_refs` のすべての行（CLM・ORG）で、記入例の「載せる／載せない」とケーススタディのシナリオの判定が違えば、`templates/casestudy-deviations.yaml` に `kind: carry` で載っていなければ失敗する。載っているのに一致している行も失敗する。`kind: condition` は、ケーススタディが条件付き採用で記入例が載せる行だけに書ける。条件の使い方が違うかは文の読みなので、機械では確かめない
+- **漏れ**：ケーススタディがそのシナリオで「載せる」と判定した行は、記入例のどれかの行の `catalog_refs` にあるか、`casestudy-deviations.yaml` に `kind: not_in_example` で理由とともに載っていなければ失敗する（記入例から行や参照を消して食い違いを隠せないように）
+- **参照の書き方**：記入例の行はすべて `catalog_refs` を書く（一覧表に無い行は `[]` と `catalog_refs_reason`）。組織の名前空間の行は ORG の行を参照する。同じ ID を 2 つの行が参照すれば、両方の行を名指しして失敗する
 - ファイルはコミットの完全な SHA で raw.githubusercontent.com から取り、sha256 を確かめてから使う（同じ固定のまま中身が変わらない）
 
 ### `templates/casestudy-mapping.md` の 8.（#3 への引き継ぎ）への回答
@@ -426,7 +429,7 @@ SD-JWT VC の Type Metadata のクレームのメタデータ（draft-ietf-oauth
 | 項目 | 回答 |
 | --- | --- |
 | ORG 行の名前と型を、固定したコミットの `catalog.json` と照合する CI | **実装した**。`tools/casestudy_check.py` の ORG（上）。シナリオ A の ORG の参照 5 件で食い違い 0 件 |
-| 記入例の採否を、ケーススタディの判定と照合する CI と、`casestudy-deviations.yaml` の形式 | **実装した**。`tools/casestudy_check.py` の CARRY。形式は #16 で作った `casestudy-deviations.yaml` のまま（`kind: carry`・`condition`）。比べた参照 32 件、carry 7 件、condition 1 件で、#16 の手作業の数と一致した |
+| 記入例の採否を、ケーススタディの判定と照合する CI と、`casestudy-deviations.yaml` の形式 | **実装した**。`tools/casestudy_check.py` の CARRY と COVER。形式は #16 で作った `casestudy-deviations.yaml` に `kind: not_in_example` を足した。#16 の 32 件の参照では carry 7 件・condition 1 件で、#16 の手作業の数と一致した。PR #37 の独立点検の後、同じクレームの RFC 7519 などの行 9 件を参照に足し（41 件。carry は CLM-0404 を足して 8 件）、ケーススタディが載せるとした 54 件のうち記入例が参照しない 20 件を not_in_example に理由とともに載せた |
 | 一覧表の ID を参照する列（`catalog_ref`）を足すか | **足した**（#16 の v0 で配列の `catalog_refs` にした。v1 でも同じ）。一覧表は出典ごとに行が分かれるので、単数ではなく配列 |
 | `alt`、`comparison`・`uniqueness`・`vocabulary`、`synonym_group` を足すか | `alt` は**足した**（却下・代替ありの代わりの行）。`vocabulary` は `value_vocabulary`、`comparison` は `value_normalization.compare` として**足した**。`uniqueness` は**足さない**：一意性はトークン種別の `jti_policy`（jti）と `identifier_properties`（識別子）で表し、クレームごとの汎用の列にする用途がシナリオ A になかった。`synonym_group` は**足さない**：一覧表の分類で、台帳では `prior_art_search` に探した結果を書く。重なりの検査（#6）で入力に要れば、`catalog_refs` から一覧表を引く |
 | `decision` の値を細かくするか（代替あり・不要・禁止） | **別の列で持つ**ことにした。`decision` は 3 値のまま、却下の行に `rejection_kind`（代替あり・不要・禁止・IdP が出さない）をスキーマで必須にした。`decision` を細かくすると、R1 などの「載せる行」の判定が値の増加に引きずられるため |
@@ -437,4 +440,4 @@ SD-JWT VC の Type Metadata のクレームのメタデータ（draft-ietf-oauth
 
 本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。
 
-> 人による点検は未実施。作成とは別の LLM のセッションでの点検は未実施。点検のための事実の一覧を `research/reviews/registry-v1-facts.md` に置いた。
+> 人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/registry-v1-2026-11-23.md`。対応表の実装済みの見直しは `research/reviews/registry-v1-trace-review.md`）。

@@ -23,7 +23,7 @@
 | F11 | RFC 7519 §11.2 は署名と暗号化の順序（署名してから暗号化） | README 3.1 `confidential_from`、3.2 `jwe` | https://www.rfc-editor.org/rfc/rfc7519#section-11.2 |
 | F12 | RFC 8725 §3.1 はアルゴリズムの検証（許可リスト） | README 3.2 `alg_allowlist` | https://www.rfc-editor.org/rfc/rfc8725 |
 | F13 | OpenID Connect Core 1.0 §8 は Subject Identifier Types（public・pairwise） | README 3.2 `subject_type` | https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes |
-| F14 | FAPI 2.0 Security Profile（Final）§5.3.2.1 に「RT のローテーションを例外的な事情を除き使わない」「送信者制約の AT だけを出す」、§5.3.2.2 に PAR と PKCE（S256）の要求がある（2026-11-22 に WebFetch の要約で確かめた。本文を目で読んではいない） | E-fapi-no-rotation、E-fapi2 | https://openid.net/specs/fapi-security-profile-2_0-final.html |
+| F14 | FAPI 2.0 Security Profile（Final）§5.3.2.1 に「RT のローテーションを例外的な事情を除き使わない」「送信者制約の AT だけを出す」、§5.3.2.2 に PAR と PKCE（S256）の要求がある（PR #37 の独立点検が本文で確かめた） | E-fapi-no-rotation、E-fapi2 | https://openid.net/specs/fapi-security-profile-2_0-final.html |
 | F15 | draft-ietf-oauth-sd-jwt-vc-27（2026-11-16）が最新版で、§5.6 がクレームのメタデータ（path・display・mandatory・sd・svg_id）。sd は always・allowed・never で既定 allowed、mandatory の既定 false。§5.2 が「知らないプロパティを無視する（MUST）」 | claims.schema.json `path`・`mandatory`・`sd`・`display`、README 10. | https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/ （§5.2 の記述は `research/claims-as-code/report.md` からの引き写しで、作成者は本文で確かめていない） |
 | F16 | draft-ietf-oauth-transaction-tokens-11 §9.2 は `req_wl`・`txn` を定め、§13.6 は Txn-Token の寿命が元のトークンより長くてもよいとする | questions.yaml q-req-wl・q-txn、hops.schema.json `max_lifetime`、README 3.4 | https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt （#6 の本文の記述に合わせた。作成者は本文で確かめていない） |
 | F17 | fideslang の最新のリリースは 3.1.4（2026-08-18）、ライセンスは CC BY 4.0。3.1.4 の `data_files/data_categories.csv` に、記入例で使ったキー（`system.operations`・`system.authentication`・`user.unique_id`・`user.name`・`user.contact.email`・`user.authorization`）がある。`system.operations` の下にテナントの専用のキーはない | claims.yaml `data_category_vocabulary`・`data_category`・`data_category_extensions`、README 9. | https://github.com/ethyca/fideslang/tree/3.1.4 |
@@ -65,6 +65,8 @@
 | N09 | 記入例の値（寿命 300 秒、ずれ 30 秒、受け入れの上限 330 秒、idle 1800 秒、最大 36000 秒、JWKS の TTL 3600 秒、取り直しの最短 300 秒、公開から使用まで 3900 秒）は v0 の記入例から変えていない | `git diff main -- templates/examples/scenario-a/` |
 
 ## 5. 対応表（#22）の変更：要件を「実装済み」にした 67 件
+
+**追記（2026-11-23）**：PR #37 の独立点検を受けて 67 件すべてを見直し、13 件を未着手に戻した（実装済みは 54 件）。記録は `research/reviews/registry-v1-trace-review.md`。下は点検の時点の記述のまま残す。
 
 `templates/trace/requirements.yaml` で、#3 が担当の要件 152 件のうち 67 件（core 48・full 19）を `実装済み` にしました。`trace_check.py` が確かめるのは「成果物があり、その中に `req:<要件 ID>` がある」までで、**成果物が要件の中身を満たすかは確かめません**。点検では、下の各行について「列（や問い）があること」が要件の文を満たすと言えるかを見てください。満たさないものは `未着手` に戻します。
 

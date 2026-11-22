@@ -1,14 +1,19 @@
-# template_version: 0.1.0
+# template_version: 0.2.0
 # 記入例の採否が、ケーススタディ（jwt-claims-casestudy）の判定と意図して違う行の一覧（templates/casestudy-mapping.md の 7.）。
 # ケーススタディの判定は変えない。ここにない食い違いは誤りとして扱う。照合は tools/casestudy_check.py（CI。#3）で、
-# kind: carry の食い違いが過不足なくここに載っているかと、kind: condition の行がケーススタディで条件付き採用かを確かめる。
+# kind: carry の食い違いが過不足なくここに載っているか、kind: condition の行がケーススタディで条件付き採用か、
+# ケーススタディがそのシナリオで「載せる」と判定した行が、記入例のどれかの行の catalog_refs にあるか、ここに kind: not_in_example で
+# 理由とともに載っているか（記入例から行を消して食い違いを隠せないように。PR #37 の独立点検）を確かめる。
+# 記入例の行はすべて catalog_refs を書く（一覧表に無い行は catalog_refs: [] と catalog_refs_reason）。同じ ID を 2 つの行から参照しない。
 #
 # 数え方（#16 の手作業。research/template-design/gate1.md に実行の記録）
 #   - 記入例の行の catalog_refs ごとに、ケーススタディのシナリオの判定と比べる
 #   - ケーススタディの「必須（共通基準）・採用・条件付き採用」を「載せる」、「不採用・*」を「載せない」とする（casestudy-mapping.md の 4.）
 #   - 記入例の「採用・既定どおり」を「載せる」、「却下」を「載せない」とする
 #   - 載せる／載せないが違えば kind: carry、同じでも条件付き採用の条件（入口の正規化でのみ等）と違う使い方をしていれば kind: condition
-# シナリオ A：比べた参照 32 件、carry 7 件、condition 1 件（casestudy_commit: 080b8da）
+#   - kind: not_in_example は、ケーススタディが「載せる」と判定したのに、記入例のどの行も参照しない一覧表の行（reason が必須）
+# シナリオ A：比べた参照 41 件（#16 の 32 件に、同じクレームの RFC 7519 などの行 9 件を足した）、carry 8 件、condition 1 件、
+# not_in_example 20 件（ケーススタディが載せるとした 54 件のうち、記入例が参照しないもの）（casestudy_commit: 080b8da）
 casestudy_commit: 080b8da
 scenario_premises:
   - scenario: A
@@ -25,3 +30,30 @@ deviations:
   - {scenario: A, id: ORG-06, example_row: C-idp, kind: carry, casestudy: 条件付き採用（BYO IdP の場合）, example: 却下, reason: 記入例は BYO IdP を前提にしない。ケーススタディの条件が成り立たない場合の判定で、判断そのものは一致している}
   - {scenario: A, id: CLM-0291, example_row: C-realm-access, kind: carry, casestudy: 条件付き採用（入口の正規化でのみ読む）, example: 却下, reason: 入口が無い前提（scenario_premises）なので、入口で読む用途がない。内部トークンに載せない点は一致している}
   - {scenario: A, id: CLM-0410, example_row: C-azp, kind: condition, casestudy: 条件付き採用（入口の正規化でのみ読む）, example: 既定どおり（API が読む）, reason: 入口が無い前提で、Keycloak の AT には client_id が無いため、API が呼び出し元のクライアントを azp で確かめる}
+  - {scenario: A, id: CLM-0404, example_row: C-client-id, kind: carry, casestudy: 採用, example: 却下, reason: CLM-0405 と同じ（RFC 8693 §4.3 の client_id の行）。Keycloak 26.8.0 の AT は client_id を出さず、azp で読む}
+  # ---- ケーススタディが「載せる」と判定したが、記入例のどの行も参照しない一覧表の行（kind: not_in_example）
+  # 入口の正規化でのみ読む行：記入例は入口を置かない（scenario_premises）。同じクレームは RFC 9068 などの行で記入例の行が参照している
+  - {scenario: A, id: CLM-0047, kind: not_in_example, casestudy: 条件付き採用（入口の正規化でのみ読む）, reason: 入口が無い前提（scenario_premises）。sub は C-sub が RFC 7519・RFC 9068 の行で参照している}
+  - {scenario: A, id: CLM-0078, kind: not_in_example, casestudy: 条件付き採用（入口の正規化でのみ読む）, reason: 入口が無い前提。aud は C-aud が参照している}
+  - {scenario: A, id: CLM-0303, kind: not_in_example, casestudy: 条件付き採用（入口の正規化でのみ読む）, reason: 入口が無い前提。scope は C-scope が参照している}
+  - {scenario: A, id: CLM-0414, kind: not_in_example, casestudy: 条件付き採用（入口の正規化でのみ読む）, reason: 入口が無い前提。client_id は C-client-id（却下）が参照している}
+  - {scenario: A, id: CLM-0439, kind: not_in_example, casestudy: 条件付き採用（入口の正規化でのみ読む）, reason: 入口が無い前提。送信者制約も付けない（token_types の DPOP は却下）}
+  - {scenario: A, id: CLM-0143, kind: not_in_example, casestudy: 条件付き採用（外部のトークンに入っていれば入口で検証）, reason: 入口が無い前提。2026-11-22 の見本の Keycloak の AT に nbf は無かった（tools/tests/fixtures/claim_lint/golden/token.json）}
+  # DPoP と連携先（社外の API クライアント）の行：記入例は連携先に発行せず、送信者制約を付けない（I29・I30 は対象外、token_types の DPOP は却下）
+  - {scenario: A, id: CLM-0133, kind: not_in_example, casestudy: 条件付き採用（連携先の AT だけ。DPoP 証明の iat）, reason: 連携先に発行しない（I05 は対象外）。DPoP を使わない}
+  - {scenario: A, id: CLM-0179, kind: not_in_example, casestudy: 条件付き採用（連携先の AT だけ。DPoP 証明の jti）, reason: 同上}
+  - {scenario: A, id: CLM-0429, kind: not_in_example, casestudy: 条件付き採用（連携先の AT だけ）, reason: 同上（cnf）}
+  - {scenario: A, id: CLM-0431, kind: not_in_example, casestudy: 条件付き採用（連携先の AT だけ）, reason: 同上（cnf.jkt）}
+  - {scenario: A, id: CLM-0442, kind: not_in_example, casestudy: 条件付き採用（入口が DPoP 証明を検証するときだけ）, reason: 同上（ath）}
+  - {scenario: A, id: CLM-0443, kind: not_in_example, casestudy: 条件付き採用（入口が DPoP 証明を検証するときだけ）, reason: 同上（htm）}
+  - {scenario: A, id: CLM-0444, kind: not_in_example, casestudy: 条件付き採用（入口が DPoP 証明を検証するときだけ）, reason: 同上（htu）}
+  - {scenario: A, id: CLM-0486, kind: not_in_example, casestudy: 条件付き採用（DPoP-Nonce を返したときだけ）, reason: 同上（DPoP 証明の nonce）}
+  # ログアウトトークンの行：記入例は Back-Channel Logout を使わない（token_types の LOGOUT は却下。理由はその行）
+  - {scenario: A, id: CLM-0483, kind: not_in_example, casestudy: 条件付き採用（Back-Channel Logout を受けるとき）, reason: LOGOUT を却下した。IdP 側のセッションの終了は BFF のリフレッシュの失敗で知る（最大 330 秒）}
+  - {scenario: A, id: CLM-0489, kind: not_in_example, casestudy: 条件付き採用（ログアウトトークンの検証）, reason: 同上}
+  # ID トークンの表示の行：記入例の画面は name・email・email_verified だけを表示に使う
+  - {scenario: A, id: CLM-0547, kind: not_in_example, casestudy: 条件付き採用（ID トークンだけ。表示言語の初期値）, reason: 記入例の画面は表示言語を ID トークンから取らない（筆者の判断。表示言語を設定する要件を置いていない）}
+  - {scenario: A, id: CLM-0595, kind: not_in_example, casestudy: 条件付き採用（ID トークンだけ。タイムゾーンの初期値）, reason: 同上（タイムゾーン）}
+  # マッパーの行（クレームではなく、Keycloak の設定）：台帳では書き手として authoritative_writer に書いた
+  - {scenario: A, id: CLM-0083, kind: not_in_example, casestudy: 条件付き採用（Keycloak のクライアント設定で使う）, reason: Audience マッパーは C-aud の authoritative_writer（Audience マッパー aud-saas-api）に書いた。台帳の行はクレームごとなので、設定の行を参照しない}
+  - {scenario: A, id: CLM-0772, kind: not_in_example, casestudy: 条件付き採用（tenant_id を出す入力としてだけ使う）, reason: Hardcoded claim マッパーは C-tenant-id の authoritative_writer に書いた。同上}

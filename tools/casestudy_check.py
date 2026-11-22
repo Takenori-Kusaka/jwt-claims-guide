@@ -80,10 +80,17 @@ def check(claims_doc, deviations, catalog, decisions, pin):
     short = str(claims_doc.get('casestudy_commit') or '')
     if not short or not pin['commit'].startswith(short):
         out.append(('PIN', '(root)', f'casestudy_commit {short!r} is not the pinned commit {pin["commit"][:7]}'))
+    org_namespaces = {n.get('namespace') for n in claims_doc.get('namespaces') or []}
     seen = {}
     for c in claims_doc.get('claims') or []:
         cid = c.get('id')
         carried = c.get('decision') in ('採用', '既定どおり')
+        if 'catalog_refs' not in c:
+            out.append(('REFS', cid, 'catalog_refs is missing: list the casestudy rows, or write catalog_refs: [] with catalog_refs_reason'))
+        elif not c.get('catalog_refs') and not str(c.get('catalog_refs_reason') or '').strip():
+            out.append(('REFS', cid, 'catalog_refs: [] needs catalog_refs_reason'))
+        if c.get('namespace') in org_namespaces and not any(':ORG-' in r for r in c.get('catalog_refs') or []):
+            out.append(('ORG', cid, f"a claim in the organization namespace {c.get('namespace')} must refer to its ORG row"))
         for ref in c.get('catalog_refs') or []:
             commit, rid = _ref_id(ref)
             if not pin['commit'].startswith(commit):
@@ -91,6 +98,9 @@ def check(claims_doc, deviations, catalog, decisions, pin):
             row = rows.get(rid)
             if row is None:
                 out.append(('ORG' if rid.startswith('ORG') else 'CARRY', cid, f'{rid} is not in catalog.json'))
+                continue
+            if rid in seen:
+                out.append(('REFS', cid, f'{rid} is referred to by two rows: {seen[rid][0]} and {cid}'))
                 continue
             if rid.startswith('ORG'):
                 want_name = row['name']
@@ -106,6 +116,7 @@ def check(claims_doc, deviations, catalog, decisions, pin):
                     if c.get('type') != want_ts[0] or (c.get('shape') is not None and have[1] != want_ts[1]):
                         out.append(('ORG', cid, f'{rid}: type/shape {have} differs from the casestudy {row.get("value_type")!r} {want_ts}'))
             if rid.startswith('HDR'):
+                seen[rid] = (cid, carried, None)
                 continue
             d = (decisions.get(rid) or {}).get(scenario)
             if d is None:
@@ -115,6 +126,8 @@ def check(claims_doc, deviations, catalog, decisions, pin):
     devs = [x for x in (deviations.get('deviations') or []) if str(x.get('scenario')) == scenario]
     listed_carry = {x['id']: x for x in devs if x.get('kind') == 'carry'}
     for rid, (cid, carried, judgement) in sorted(seen.items()):
+        if judgement is None:
+            continue
         diverges = carried != (judgement in CARRY)
         if diverges and rid not in listed_carry:
             out.append(('CARRY', cid, f'{rid}: the example {"carries" if carried else "does not carry"} it, the casestudy judges '
@@ -126,15 +139,30 @@ def check(claims_doc, deviations, catalog, decisions, pin):
             out.append(('CARRY', x.get('example_row'), f'{rid}: listed as a deviation, but no row of the example refers to it'))
         elif seen[rid][0] != x.get('example_row'):
             out.append(('CARRY', x.get('example_row'), f'{rid}: example_row {x.get("example_row")} differs from the row {seen[rid][0]}'))
+    not_in_example = {}
     for x in devs:
-        if x.get('kind') == 'condition':
-            rid = x['id']
+        kind, rid = x.get('kind'), x.get('id')
+        if kind == 'condition':
             if rid not in seen:
                 out.append(('CARRY', x.get('example_row'), f'{rid}: condition deviation without a row of the example'))
             elif not (seen[rid][1] and seen[rid][2] == '条件付き採用'):
                 out.append(('CARRY', x.get('example_row'), f'{rid}: a condition deviation needs 条件付き採用 in the casestudy and a carried row'))
-        elif x.get('kind') not in ('carry', 'condition'):
-            out.append(('CARRY', x.get('example_row'), f"{x.get('id')}: kind must be carry or condition"))
+        elif kind == 'not_in_example':
+            not_in_example[rid] = x
+            judgement = ((decisions.get(rid) or {}).get(scenario) or {}).get('judgement')
+            if rid in seen:
+                out.append(('COVER', seen[rid][0], f'{rid}: listed as not_in_example, but the row {seen[rid][0]} refers to it'))
+            elif judgement not in CARRY:
+                out.append(('COVER', rid, f'{rid}: not_in_example is only for rows the casestudy carries (judgement {judgement})'))
+            if not str(x.get('reason') or '').strip():
+                out.append(('COVER', rid, f'{rid}: not_in_example needs a reason'))
+        elif kind != 'carry':
+            out.append(('CARRY', x.get('example_row'), f"{rid}: kind must be carry, condition or not_in_example"))
+    # every row the casestudy carries for this scenario is either in the example or listed with a reason
+    for rid, d in sorted(decisions.items()):
+        if ((d or {}).get(scenario) or {}).get('judgement') in CARRY and rid not in seen and rid not in not_in_example:
+            out.append(('COVER', rid, f"{rid}: the casestudy carries it in scenario {scenario} ({d[scenario]['judgement']}), but no row of the "
+                                      'example refers to it and casestudy-deviations.yaml has no not_in_example entry'))
     return out
 
 

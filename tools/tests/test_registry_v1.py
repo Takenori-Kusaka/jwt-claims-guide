@@ -139,6 +139,87 @@ def test_asvs_is_not_written_in_refs():
     assert not errors('claims', d['claims'])
 
 
+@pytest.mark.parametrize('ref', [
+    {'kind': 'guidance', 'id': 'OWASP-ASVS 5.0 8.3.2'},
+    {'kind': 'guidance', 'id': 'V8.3.2'},
+    {'kind': 'guidance', 'id': 'v5.0.0-8.3.2'},
+    {'kind': 'guidance', 'id': 'Application Security Verification Standard 5.0.0 8.3.2'},
+    {'kind': 'guidance', 'id': 'OWASP の検証標準', 'url': 'https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x17-V8.md'},
+    {'kind': 'guidance', 'id': 'OWASP の検証標準', 'url': 'https://owasp.org/www-project-application-security-verification-standard/'},
+])
+def test_asvs_in_any_spelling_is_not_written_in_refs(ref):
+    # PR #37 independent check: the first pattern only caught a leading "ASVS"
+    d = _base()
+    claim(d, 'C-sub')['refs'].append(ref)
+    assert errors('claims', d['claims'])
+
+
+def test_whitespace_only_reasons_are_empty():
+    # PR #37 independent check: minLength counted a space as text, and core._empty did not strip
+    d = _base()
+    c = claim(d, 'C-acr')
+    c['assumption'] = ' '
+    c['revisit_trigger'] = '　'
+    assert errors('claims', d['claims'])
+    assert core._empty('  ') and core._empty(['', ' ']) and not core._empty('x')
+
+
+def test_whitespace_only_reasons_fail_r1(tmp_path):
+    d = _base()
+    c = claim(d, 'C-acr')
+    c['assumption'] = ' '
+    c['revisit_trigger'] = ' '
+    res = lint(tmp_path, d)
+    assert any(f['target'] == 'C-acr' for f in by(res, 'R1'))
+
+
+def test_space_delimited_needs_max_items_and_scope_is_space_delimited():
+    d = _base()
+    assert claim(d, 'C-scope')['shape'] == 'space_delimited'
+    claim(d, 'C-scope').pop('max_items')
+    assert errors('claims', d['claims'])
+
+
+def test_measure_only_when_confidential_from_is_not_empty():
+    d = _base()
+    claim(d, 'C-sub')['confidentiality_measure'] = {'outcome': '載せない', 'rationale': 'x'}
+    assert errors('claims', d['claims'])
+
+
+def test_object_namespace_needs_namespace_version():
+    d = _base()
+    d['claims']['namespaces'][0].pop('namespace_version')
+    assert errors('claims', d['claims'])
+
+
+def test_display_dir_values_of_sd_jwt_vc():
+    d = _base()
+    claim(d, 'C-name')['display'][0]['dir'] = 'auto'
+    assert not errors('claims', d['claims'])
+    claim(d, 'C-name')['display'][0]['dir'] = 'up'
+    assert errors('claims', d['claims'])
+
+
+def test_no_token_but_the_code_in_the_url():
+    d = _base()
+    tt(d, 'RT')['transport'] = 'redirect_query'
+    assert errors('token_types', d['token_types'])
+    tt(d, 'RT')['transport'] = 'token_response_body'
+    assert tt(d, 'CODE')['transport'] == 'redirect_query' and not errors('token_types', d['token_types'])
+
+
+def test_r1_idle_timeout_for_rt_and_sessions(tmp_path):
+    d = _base()
+    tt(d, 'RT').pop('idle_timeout')
+    assert ('token_type RT', '必須の列 idle_timeout が空') in {(f['target'], f['message']) for f in by(lint(tmp_path, d), 'R1')}
+
+
+def test_ref_hop_upstream_cycle(tmp_path):
+    d = _base()
+    d['hops']['hops'][0]['upstream'] = 'H1'
+    assert any(f['target'] == 'hop H1' and '循環' in f['message'] for f in by(lint(tmp_path, d), 'REF'))
+
+
 def test_data_category_format_only_and_pinned_vocabulary():
     d = _base()
     claim(d, 'C-sub')['data_category'] = ['user.unique_id.employee_number']   # an org sub-category: format is enough
@@ -360,6 +441,42 @@ def test_casestudy_wrong_commit():
     d = _cs_doc()
     d['casestudy_commit'] = 'deadbee'
     assert any(k == 'PIN' for k, _, _ in cc.check(d, DEV, CATALOG, DECISIONS, PIN))
+
+
+def _cs_doc_ns():
+    d = _cs_doc()
+    d['namespaces'] = [{'namespace': 'https://claims.example.com/'}]
+    return d
+
+
+def test_casestudy_refs_must_be_declared_and_org_rows_must_refer():
+    # PR #37 independent check: dropping catalog_refs hid an ORG rename and a carry divergence
+    d = _cs_doc_ns()
+    d['claims'][0].pop('catalog_refs')
+    d['claims'][0]['name'] = 'tenant'
+    kinds = {(k, t) for k, t, _ in cc.check(d, DEV, CATALOG, DECISIONS, PIN)}
+    assert ('REFS', 'C-tenant-id') in kinds and ('ORG', 'C-tenant-id') in kinds
+    d = _cs_doc_ns()
+    d['claims'][2]['catalog_refs'] = []
+    msgs = [m for _, _, m in cc.check(d, DEV, CATALOG, DECISIONS, PIN)]
+    assert any('catalog_refs_reason' in m for m in msgs)
+
+
+def test_casestudy_carried_row_missing_from_the_example():
+    d = _cs_doc()
+    d['claims'] = d['claims'][:2]           # drop the acr row and its deviation: the casestudy still carries CLM-0206
+    out = cc.check(d, {'deviations': []}, CATALOG, DECISIONS, PIN)
+    assert [k for k, _, _ in out] == ['COVER']
+    dev = {'deviations': [{'scenario': 'A', 'id': 'CLM-0206', 'kind': 'not_in_example', 'reason': 'この例では使わない'}]}
+    assert cc.check(d, dev, CATALOG, DECISIONS, PIN) == []
+
+
+def test_casestudy_duplicate_ref_names_both_rows():
+    d = _cs_doc()
+    d['claims'].append({'id': 'C-acr2', 'name': 'acr', 'type': 'string', 'decision': '採用',
+                        'catalog_refs': ['jwt-claims-casestudy@080b8da:CLM-0206']})
+    out = cc.check(d, DEV, CATALOG, DECISIONS, PIN)
+    assert any(k == 'REFS' and 'C-acr' in m and 'C-acr2' in m for k, _, m in out)
 
 
 def test_casestudy_pin_file():

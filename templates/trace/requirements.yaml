@@ -8,16 +8,16 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 749
-  未着手: 636
-  実装済み: 70
+  未着手: 649
+  実装済み: 57
   後回し: 42
   扱わない: 1
-  core_未着手: 438
-  core_実装済み: 51
+  core_未着手: 447
+  core_実装済み: 42
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 198
-  full_実装済み: 19
+  full_未着手: 202
+  full_実装済み: 15
   full_後回し: 42
   full_扱わない: 1
 
@@ -984,7 +984,7 @@ requirements:
     text: "アクセストークンに client_id を入れ、azp（ID トークンの発行先）と区別して扱う"
     owner_issue: "#3"
     planned_items: [registry:token_types#required_claims, registry:claims#not_meaning]
-    status: 実装済み
+    status: 未着手
     tier: core
   # ---- 29 slide:p02-keys-events-identity-assurance
   - id: p02-keys-events-identity-assurance.R1
@@ -1157,7 +1157,7 @@ requirements:
     text: "上限で消えうるクレーム（groups など）が無いことを「所属なし」と読まない"
     owner_issue: "#3"
     planned_items: [registry:claims#absent_semantics, registry:claims#overflow_strategy]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p03-entra-scp-roles-groups.R2
     slide: slide:p03-entra-scp-roles-groups
@@ -1243,7 +1243,7 @@ requirements:
     text: "組織の所属は確かな情報源から付ける（メールのドメインの一致だけで付けない）"
     owner_issue: "#3"
     planned_items: [registry:claims#source_system, registry:claims#verification_method]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p03-keycloak-aud-lightweight.R4
     slide: slide:p03-keycloak-aud-lightweight
@@ -1668,7 +1668,7 @@ requirements:
     text: "ネストを扱えない IdP 向けに、同じ内容のフラットな名前も台帳に定義する"
     owner_issue: "#3"
     planned_items: [registry:claims#flat_alias]
-    status: 実装済み
+    status: 未着手
     tier: full
   # ---- 52 slide:p04-type
   - id: p04-type.R1
@@ -2008,7 +2008,7 @@ requirements:
     text: "ネストできない IdP 向けに、同じ内容のフラットな名前も台帳に定義する"
     owner_issue: "#3"
     planned_items: [registry:claims#flat_alias]
-    status: 実装済み
+    status: 未着手
     tier: full
   - id: p04-namespace-object-example.R3
     slide: slide:p04-namespace-object-example
@@ -2640,7 +2640,7 @@ requirements:
     text: "利用者の発行は認可コードを使い、公開クライアントは PKCE を使う"
     owner_issue: "#3"
     planned_items: [registry:token_types#client_type]
-    status: 実装済み
+    status: 未着手
     tier: full
   - id: p06-grant-types.R2
     slide: slide:p06-grant-types
@@ -2676,7 +2676,7 @@ requirements:
     text: "内部トークンには、正規化した主体 ID・認証レベル・内部の aud を入れ、サービスは内部の形だけを読む"
     owner_issue: "#3"
     planned_items: [registry:hops#aud, registry:hops#custom_claims, registry:hops#exchanger]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p06-edge-exchange.R3
     slide: slide:p06-edge-exchange
@@ -2898,7 +2898,7 @@ requirements:
     text: "アクセス元の値をトークンに入れるなら、認証時の値と分かる名前にし、意味しないことを書く"
     owner_issue: "#3"
     planned_items: [registry:claims#name, registry:claims#not_meaning]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p06-access-context.R3
     slide: slide:p06-access-context
@@ -3049,7 +3049,7 @@ requirements:
     text: "アクセストークンの宛先を resource（RFC 8707）で API に限る"
     owner_issue: "#3"
     planned_items: [registry:hops#aud]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p06-flow-browser-to-db.R4
     slide: slide:p06-flow-browser-to-db
@@ -3156,7 +3156,7 @@ requirements:
     text: "失効を SSF・CAEP の SET で受け、txn で同じ原因のものを相関する"
     owner_issue: "#3"
     planned_items: [registry:token_types#revocation]
-    status: 実装済み
+    status: 未着手
     tier: core
   # ---- 93 slide:p06-flow-checklist
   - id: p06-flow-checklist.R1
@@ -3748,7 +3748,7 @@ requirements:
     text: "クライアントの種類（公開／機密／FAPI 対象）を宣言し、FAPI 対象の機密クライアントは送信者制約付きでローテーションしない"
     owner_issue: "#3"
     planned_items: [registry:token_types#client_type, registry:token_types#sender_constraint]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p08-rotation.R3
     slide: slide:p08-rotation
@@ -3812,7 +3812,7 @@ requirements:
     text: "イントロスペクションの応答のキャッシュを、応答の exp を超えて使わない"
     owner_issue: "#3"
     planned_items: [registry:token_types#introspection_cache_ttl]
-    status: 実装済み
+    status: 未着手
     tier: full
   - id: p08-revocation-propagation.R4
     slide: slide:p08-revocation-propagation
@@ -4998,7 +4998,7 @@ requirements:
     text: "クレームの持ち主は、意味・値・鮮度に責任を持つ権威ある情報源の部門とする"
     owner_issue: "#3"
     planned_items: [registry:claims#owner, registry:claims#source_system]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p11-ownership.R3
     slide: slide:p11-ownership

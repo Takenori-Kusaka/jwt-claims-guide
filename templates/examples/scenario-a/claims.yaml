@@ -38,7 +38,7 @@ claims:
   - id: C-iss
     name: iss
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0092", "jwt-claims-casestudy@080b8da:CLM-0093"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0092", "jwt-claims-casestudy@080b8da:CLM-0091", "jwt-claims-casestudy@080b8da:CLM-0093"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
     type: string
     shape: single
@@ -84,7 +84,7 @@ claims:
   - id: C-sub
     name: sub
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0030", "jwt-claims-casestudy@080b8da:CLM-0033"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0030", "jwt-claims-casestudy@080b8da:CLM-0029", "jwt-claims-casestudy@080b8da:CLM-0033"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
     type: string
     shape: single
@@ -128,7 +128,7 @@ claims:
   - id: C-aud
     name: aud
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0071", "jwt-claims-casestudy@080b8da:CLM-0073"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0071", "jwt-claims-casestudy@080b8da:CLM-0070", "jwt-claims-casestudy@080b8da:CLM-0073"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
     type: string
     shape: single
@@ -171,7 +171,7 @@ claims:
   - id: C-exp
     name: exp
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0123", "jwt-claims-casestudy@080b8da:CLM-0124"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0123", "jwt-claims-casestudy@080b8da:CLM-0122", "jwt-claims-casestudy@080b8da:CLM-0124"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
     type: integer
     shape: single
@@ -214,7 +214,7 @@ claims:
   - id: C-iat
     name: iat
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0134", "jwt-claims-casestudy@080b8da:CLM-0136"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0134", "jwt-claims-casestudy@080b8da:CLM-0132", "jwt-claims-casestudy@080b8da:CLM-0136"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
     type: integer
     shape: single
@@ -254,7 +254,7 @@ claims:
   - id: C-jti
     name: jti
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0180"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0180", "jwt-claims-casestudy@080b8da:CLM-0178"]
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
     type: string
     shape: single
@@ -455,11 +455,11 @@ claims:
   - id: C-scope
     name: scope
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0300"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0300", "jwt-claims-casestudy@080b8da:CLM-0299"]
     registered_ref: {kind: spec, id: "RFC 9068 §2.2.3", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3"}
     type: string
-    shape: single
-    description: 付与したスコープ（空白区切り）。この例では openid だけ
+    shape: space_delimited
+    description: 付与したスコープ（空白区切りの 1 つの文字列）。この例では openid だけ
     not_meaning: 利用者の権限（ロール）ではない
     decision: 既定どおり
     rationale: 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない
@@ -483,6 +483,8 @@ claims:
     on_missing: 無視
     enforced_at: []
     max_bytes: 64
+    max_items: 4
+    note: shape は space_delimited（1 つの文字列に空白区切りで並べる。RFC 9068 §2.2.3 と RFC 8693 §4.2）。max_bytes は文字列全体の上限。max_items 4 は openid と、クライアントに付けうる任意のスコープの見積もり（筆者の提案）
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
@@ -497,7 +499,7 @@ claims:
   - id: C-nonce
     name: nonce
     namespace: null
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0488"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0488", "jwt-claims-casestudy@080b8da:CLM-0688"]
     registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
     type: string
     shape: single
@@ -654,6 +656,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
+    note: data_category は user.contact.email にした。fideslang 3.1.4 の user.contact.email はアドレスそのもので、email_verified はそのアドレスを確かめたかどうかの付随の状態。専用のキーがないので、アドレスの付随情報として同じキーに割り当てた（筆者の判断）
 
   # ------------------------------------------------------------ 組織のクレーム（名前空間 https://claims.example.com/）
   - id: C-tenant-id
@@ -834,7 +837,7 @@ claims:
   # ------------------------------------------------------------ 却下
   - id: C-client-id
     name: client_id
-    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0405"]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0405", "jwt-claims-casestudy@080b8da:CLM-0404"]
     decision: 却下
     rejection_kind: IdP が出さない
     alt: [C-azp]

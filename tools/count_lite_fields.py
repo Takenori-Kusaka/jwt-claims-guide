@@ -59,7 +59,10 @@ V0_CLAIM_COLUMNS = {'name', 'namespace', 'catalog_refs', 'registered_ref', 'type
 V0_TT_COLUMNS = {'id', 'kind', 'decision', 'rationale', 'purpose', 'issuer', 'aud', 'holder', 'format', 'typ', 'alg_allowlist',
                  'issuers', 'required_claims', 'max_clock_skew', 'max_lifetime', 'lifetime_refs', 'refresh', 'revocation',
                  'stored_at', 'transport', 'key_rotation', 'size', 'note'}
-V0_TT_IDS = {'AT', 'IDT', 'RT', 'CODE', 'BFFSESSION', 'SSO', 'LOGOUT', 'DPOP', 'TXN'}
+# v0 columns that the v1 migration filled in on rows that had them empty at gate 1 (PR #37 independent check:
+# C-scope became space_delimited with max_items; notes on C-scope and C-email-verified)
+V1_FILLED = {('C-scope', 'max_items'), ('C-scope', 'note'), ('C-email-verified', 'note')}
+V0_TT_IDS ={'AT', 'IDT', 'RT', 'CODE', 'BFFSESSION', 'SSO', 'LOGOUT', 'DPOP', 'TXN'}
 V0_PROFILE = {'client_type', 'client_auth', 'grants', 'sender_constraint', 'at_format', 'rt_strategy', 'request_protection',
               'conformance_profile'}
 
@@ -75,7 +78,7 @@ def count(example):
     rows = []
     groups = {'read': [0, 0, 0], 'unread': [0, 0, 0], 'rejected': [0, 0, 0]}
     for c in claims:
-        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS]
+        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS and (c['id'], k) not in V1_FILLED]
         if c['decision'] == '却下':
             g, after = 'rejected', f
         elif c['decision'] == '既定どおり' and c.get('consumers') == []:
