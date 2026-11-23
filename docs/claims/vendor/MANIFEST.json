@@ -1,0 +1,346 @@
+{
+ "format": "claims-editor-vendor/1",
+ "generator": "python tools/build_claims_viewer.py",
+ "note": "sha256 of the committed bytes. The files are served from this site only (no CDN).",
+ "components": [
+  {
+   "name": "editor-libs.js",
+   "files": [
+    "editor-libs.js",
+    "editor-libs.LICENSES.txt"
+   ],
+   "built_by": "tools/claims_editor_vendor/build.mjs (esbuild, from package-lock.json)",
+   "packages": [
+    {
+     "name": "@cfworker/json-schema",
+     "version": "4.1.6",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@cfworker/json-schema/-/json-schema-4.1.6.tgz",
+     "integrity": "sha512-YzVGTHXf4bzlyAL5KAvHYCdNbbt6zM5cYkAgxqxQPDQM6aZ4ShIIN5yJ+6q7YeonnevxT8k/LmD2tJi/jOiKkg=="
+    },
+    {
+     "name": "@codemirror/autocomplete",
+     "version": "6.20.4",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/autocomplete/-/autocomplete-6.20.4.tgz",
+     "integrity": "sha512-yF8RhOf2SXlg00+qtupzLhrglcas61boqaONiNcbPIebHCpJocpqTBA6dyrtUrQO47hqyTdeob/3XnYilT7TaQ=="
+    },
+    {
+     "name": "@codemirror/commands",
+     "version": "6.11.1",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/commands/-/commands-6.11.1.tgz",
+     "integrity": "sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg=="
+    },
+    {
+     "name": "@codemirror/lang-yaml",
+     "version": "6.1.3",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/lang-yaml/-/lang-yaml-6.1.3.tgz",
+     "integrity": "sha512-AZ8DJBuXGVHybpBQhmZtgew5//4hv3tdkXnr3vDmOUMJRuB6vn/uuwtmTOTlqEaQFg3hQSVeA90NmvIQyUV6FQ=="
+    },
+    {
+     "name": "@codemirror/language",
+     "version": "6.13.1",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/language/-/language-6.13.1.tgz",
+     "integrity": "sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw=="
+    },
+    {
+     "name": "@codemirror/lint",
+     "version": "6.9.8",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/lint/-/lint-6.9.8.tgz",
+     "integrity": "sha512-qNvtcE73xUto/D1RvtgSRI4A1Hg8ekxlvtZpjHpdpisLBnhyu82EUEJMEgaxkjuQCA8vqnrylENWKOsEDCOHcw=="
+    },
+    {
+     "name": "@codemirror/search",
+     "version": "6.7.2",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/search/-/search-6.7.2.tgz",
+     "integrity": "sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA=="
+    },
+    {
+     "name": "@codemirror/state",
+     "version": "6.7.6",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/state/-/state-6.7.6.tgz",
+     "integrity": "sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w=="
+    },
+    {
+     "name": "@codemirror/streamparser",
+     "version": "6.0.0",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/streamparser/-/streamparser-6.0.0.tgz",
+     "integrity": "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
+    },
+    {
+     "name": "@codemirror/view",
+     "version": "6.43.15",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@codemirror/view/-/view-6.43.15.tgz",
+     "integrity": "sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw=="
+    },
+    {
+     "name": "@lezer/common",
+     "version": "1.5.6",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@lezer/common/-/common-1.5.6.tgz",
+     "integrity": "sha512-NZxu3q49ck+YYbEJPuIPIyFP37XneBvzPIarBHEXBLBVfkZqQieZ/Y2boYnGNYtmjpOZLnAKs/lwqtmDpi365w=="
+    },
+    {
+     "name": "@lezer/highlight",
+     "version": "1.2.5",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@lezer/highlight/-/highlight-1.2.5.tgz",
+     "integrity": "sha512-O1GMVKgtf5YspFaRzpmqkVgMtIk2HG9uMAbH6wdAIdNh3TVzCsch/+cRi+6l2//UGDKe6NB9BW3cvuR5ezMQ0w=="
+    },
+    {
+     "name": "@lezer/lr",
+     "version": "1.4.12",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@lezer/lr/-/lr-1.4.12.tgz",
+     "integrity": "sha512-On9HU4oMMiHPMkQDgoTnGahjgG5n/MkN38CgG77sMraKLL+3JBbeQNi1FcCXV9QRqwF9/BUXP3caHyJC1fBOTQ=="
+    },
+    {
+     "name": "@lezer/yaml",
+     "version": "1.0.4",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@lezer/yaml/-/yaml-1.0.4.tgz",
+     "integrity": "sha512-2lrrHqxalACEbxIbsjhqGpSW8kWpUKuY6RHgnSAFZa6qK62wvnPxA8hGOwOoDbwHcOFs5M4o27mjGu+P7TvBmw=="
+    },
+    {
+     "name": "@marijn/find-cluster-break",
+     "version": "1.0.4",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/@marijn/find-cluster-break/-/find-cluster-break-1.0.4.tgz",
+     "integrity": "sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ=="
+    },
+    {
+     "name": "crelt",
+     "version": "1.0.7",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/crelt/-/crelt-1.0.7.tgz",
+     "integrity": "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="
+    },
+    {
+     "name": "fflate",
+     "version": "0.8.3",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz",
+     "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="
+    },
+    {
+     "name": "style-mod",
+     "version": "4.1.5",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/style-mod/-/style-mod-4.1.5.tgz",
+     "integrity": "sha512-WQ2llCZa9sZSkJA+aOwpg5DkfbAXFKGh//t3MRTBeruFiSBC+GXUmbBzrw3bXyboCWAbtCW9InDfBsXrRD/rAg=="
+    },
+    {
+     "name": "w3c-keyname",
+     "version": "2.2.8",
+     "license": "MIT",
+     "resolved": "https://registry.npmjs.org/w3c-keyname/-/w3c-keyname-2.2.8.tgz",
+     "integrity": "sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ=="
+    },
+    {
+     "name": "yaml",
+     "version": "2.9.1",
+     "license": "ISC",
+     "resolved": "https://registry.npmjs.org/yaml/-/yaml-2.9.1.tgz",
+     "integrity": "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="
+    }
+   ]
+  },
+  {
+   "name": "pyodide",
+   "version": "314.0.8",
+   "license": "MPL-2.0",
+   "python": "3.14.2",
+   "source": "https://github.com/pyodide/pyodide/releases/download/314.0.8/pyodide-core-314.0.8.tar.bz2",
+   "source_sha256": "ff3e5f9d9bc8e98ff30b99515535fc24d375994f47a978c61975d653e162ca37",
+   "files": [
+    "pyodide/LICENSE",
+    "pyodide/package.json",
+    "pyodide/pyodide-lock.json",
+    "pyodide/pyodide.asm.mjs",
+    "pyodide/pyodide.asm.wasm",
+    "pyodide/pyodide.js",
+    "pyodide/python_stdlib.zip"
+   ],
+   "packages": [
+    {
+     "name": "attrs",
+     "version": "26.1.0",
+     "file": "pyodide/attrs-26.1.0-py3-none-any.whl",
+     "sha256_in_lock": "0506ebb8e46c83017941a7239eecb2f74420d332cf1f341bddc43a217ab0bb66",
+     "license": "MIT",
+     "depends": [
+      "six"
+     ]
+    },
+    {
+     "name": "jsonschema",
+     "version": "4.26.0",
+     "file": "pyodide/jsonschema-4.26.0-py3-none-any.whl",
+     "sha256_in_lock": "7ce77bd37ad161555c166d815bf1bc84980fd388a74059c73c9bc9214faa0a6e",
+     "license": "MIT",
+     "depends": [
+      "attrs",
+      "pyrsistent",
+      "referencing",
+      "jsonschema_specifications"
+     ]
+    },
+    {
+     "name": "jsonschema-specifications",
+     "version": "2025.9.1",
+     "file": "pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl",
+     "sha256_in_lock": "8e4353ea148aca60a2ea2aabbc068a62cf8d3deab5ee3ef91cfb991ecdb61c1b",
+     "license": "MIT",
+     "depends": [
+      "referencing"
+     ]
+    },
+    {
+     "name": "pyrsistent",
+     "version": "0.20.0",
+     "file": "pyodide/pyrsistent-0.20.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     "sha256_in_lock": "6252303d76b705f83c68a78fd2d7860be5b39f84482fee8aced8b52d7fd5ae80",
+     "license": "MIT",
+     "depends": []
+    },
+    {
+     "name": "pyyaml",
+     "version": "6.0.3",
+     "file": "pyodide/pyyaml-6.0.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     "sha256_in_lock": "a05d2a48c13ed72a8c60c73b30b753a25c3a591bb66c15428b7e95e69a9e806f",
+     "license": "MIT",
+     "depends": []
+    },
+    {
+     "name": "referencing",
+     "version": "0.37.0",
+     "file": "pyodide/referencing-0.37.0-py3-none-any.whl",
+     "sha256_in_lock": "db67659fe2ec73040d2b9785f0c8a7c45b8c1ca03dc2cd8e8b1fbc6f752854d8",
+     "license": "MIT",
+     "depends": [
+      "attrs",
+      "rpds-py",
+      "typing-extensions"
+     ]
+    },
+    {
+     "name": "rpds-py",
+     "version": "0.30.0",
+     "file": "pyodide/rpds_py-0.30.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     "sha256_in_lock": "9997dcfaee4465d4e877397c0f95fb9ec1dddb0e9da6dac94e96ff9621cdcd05",
+     "license": "MIT",
+     "depends": []
+    },
+    {
+     "name": "six",
+     "version": "1.17.0",
+     "file": "pyodide/six-1.17.0-py2.py3-none-any.whl",
+     "sha256_in_lock": "228c50f73aa7addf2c2ccf2979c256802a59ab69cad8152b31b9443cc8140f42",
+     "license": "MIT",
+     "depends": []
+    },
+    {
+     "name": "typing-extensions",
+     "version": "4.15.0",
+     "file": "pyodide/typing_extensions-4.15.0-py3-none-any.whl",
+     "sha256_in_lock": "4fec68770a05408e668a4fa53d6bf4f0f684b9dacf820c7c5d6e97d3ad225e29",
+     "license": "PSF-2.0",
+     "depends": []
+    }
+   ],
+   "packages_source": "https://cdn.jsdelivr.net/pyodide/v314.0.8/full/<file name> (downloaded once at build time; each wheel's sha256 equals the sha256 of pyodide-lock.json, which Pyodide checks again when it loads the wheel)"
+  }
+ ],
+ "files": {
+  "editor-libs.LICENSES.txt": {
+   "bytes": 21547,
+   "sha256": "e93c3dac359aba81ae57b8a92e770e68e28e39758be4f4957a4f721e1a2bbbb5"
+  },
+  "editor-libs.js": {
+   "bytes": 528113,
+   "sha256": "c89073c02058c0e971a3ea1b1d8186b5bfed099c44a86b9c0a01b66142c33ab2"
+  },
+  "pyodide/LICENSE": {
+   "bytes": 16725,
+   "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+  },
+  "pyodide/attrs-26.1.0-py3-none-any.whl": {
+   "bytes": 67548,
+   "sha256": "0506ebb8e46c83017941a7239eecb2f74420d332cf1f341bddc43a217ab0bb66"
+  },
+  "pyodide/jsonschema-4.26.0-py3-none-any.whl": {
+   "bytes": 55406,
+   "sha256": "7ce77bd37ad161555c166d815bf1bc84980fd388a74059c73c9bc9214faa0a6e"
+  },
+  "pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl": {
+   "bytes": 17467,
+   "sha256": "8e4353ea148aca60a2ea2aabbc068a62cf8d3deab5ee3ef91cfb991ecdb61c1b"
+  },
+  "pyodide/package.json": {
+   "bytes": 2999,
+   "sha256": "cf0265c994f7de049944185538891e5d5c362ebef249e08b145ce64c3a562dd6"
+  },
+  "pyodide/pyodide-lock.json": {
+   "bytes": 119077,
+   "sha256": "5dc2fc119108bc148c7457dc86e7675b5c87e1cafd420b9c34c1eaef7b36c010"
+  },
+  "pyodide/pyodide.asm.mjs": {
+   "bytes": 1250259,
+   "sha256": "22514b8be6980e28a02c8b1d6387ce8dfe666fc4edf8d547cff5dce29ff4d972"
+  },
+  "pyodide/pyodide.asm.wasm": {
+   "bytes": 9597892,
+   "sha256": "e14d49ceca9b4a0e274ea918f3a898de2d3880b6e5573a6cfe1a2267ecc70329"
+  },
+  "pyodide/pyodide.js": {
+   "bytes": 18726,
+   "sha256": "d4e1e0f06c29162eadf0c3f323c746884242b257d1faa94760442a4ac929e9a1"
+  },
+  "pyodide/pyrsistent-0.20.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl": {
+   "bytes": 58223,
+   "sha256": "6252303d76b705f83c68a78fd2d7860be5b39f84482fee8aced8b52d7fd5ae80"
+  },
+  "pyodide/python_stdlib.zip": {
+   "bytes": 2545550,
+   "sha256": "2bd3394a145bfbbe5bbc9d9d6ab9136abbb986c6fef6c142b3a2962227aa5c28"
+  },
+  "pyodide/pyyaml-6.0.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl": {
+   "bytes": 112901,
+   "sha256": "a05d2a48c13ed72a8c60c73b30b753a25c3a591bb66c15428b7e95e69a9e806f"
+  },
+  "pyodide/referencing-0.37.0-py3-none-any.whl": {
+   "bytes": 16903,
+   "sha256": "db67659fe2ec73040d2b9785f0c8a7c45b8c1ca03dc2cd8e8b1fbc6f752854d8"
+  },
+  "pyodide/rpds_py-0.30.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl": {
+   "bytes": 115722,
+   "sha256": "9997dcfaee4465d4e877397c0f95fb9ec1dddb0e9da6dac94e96ff9621cdcd05"
+  },
+  "pyodide/six-1.17.0-py2.py3-none-any.whl": {
+   "bytes": 11050,
+   "sha256": "228c50f73aa7addf2c2ccf2979c256802a59ab69cad8152b31b9443cc8140f42"
+  },
+  "pyodide/typing_extensions-4.15.0-py3-none-any.whl": {
+   "bytes": 44613,
+   "sha256": "4fec68770a05408e668a4fa53d6bf4f0f684b9dacf820c7c5d6e97d3ad225e29"
+  }
+ },
+ "vulnerability_check": {
+  "date": "2026-11-23",
+  "method": [
+   "OSV querybatch (https://api.osv.dev/v1/querybatch) for every npm package of tools/claims_editor_vendor/package-lock.json (bundled and dev), npm pyodide 314.0.8, and the PyPI packages of the vendored wheels at their versions",
+   "npm audit on tools/claims_editor_vendor/package-lock.json",
+   "GitHub security advisories of pyodide/pyodide (gh api repos/pyodide/pyodide/security-advisories) and the GitHub advisory database for npm pyodide (gh api advisories?ecosystem=npm&affects=pyodide)"
+  ],
+  "result": "no known vulnerability: OSV returned no advisory for any of the 57 package versions (47 npm in the lock file, npm pyodide, 9 PyPI), npm audit found 0 vulnerabilities, and pyodide has no published security advisory",
+  "not_covered": "CPython 3.14.2 inside Pyodide (python_stdlib.zip) is not a package of OSV's PyPI ecosystem and was not checked by version; the editor runs only claim_lint on files the reader opened, in the browser sandbox, with no network beyond this site (CSP connect-src 'self')"
+ }
+}

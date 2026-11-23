@@ -1,26 +1,36 @@
 # -*- coding: utf-8 -*-
-"""Build the data of the design-document viewer (#36, GitHub Pages: docs/claims/).
+"""Build the data of the design-document editor (#49; was the viewer of #36, GitHub Pages: docs/claims/).
 
-  python tools/build_claims_viewer.py            # write docs/claims/data/*.js
-  python tools/build_claims_viewer.py --check    # exit 1 when docs/claims/data/ differs from the YAML (CI)
+  python tools/build_claims_viewer.py            # write docs/claims/data/* and docs/claims/vendor/MANIFEST.json
+  python tools/build_claims_viewer.py --check    # exit 1 when they differ from the YAML and the vendored files (CI)
 
-The viewer is static HTML and JS (docs/claims/index.html, app.js). It reads no network resource: the data are
-JavaScript files that assign JSON to window.CLAIMS_VIEWER_DATA, loaded with <script src> from the same directory,
-so the page works from file:// too and its CSP can say connect-src 'none'.
+The editor is static HTML and JS (docs/claims/index.html, editor.js, preview.js, lint-worker.js). It opens empty; the
+data below are loaded with <script src> from the same directory only when they are needed (the samples when the reader
+asks for one). claim_lint runs in the browser with Pyodide (docs/claims/vendor/pyodide/), reading its sources from
+data/claim_lint.zip; the page CSP allows connections to its own origin only (connect-src 'self').
 
 Files written (docs/claims/data/):
   meta.js          column headings of the registry (templates/registry/README.md 3.1-3.4, checked against the
                    *.schema.json properties), review questions that look at each column (templates/review/),
-                   questions, event and token-kind names, slide titles (docs/slide_ids.csv), the list of datasets
+                   questions, event and token-kind names, slide titles (docs/slide_ids.csv), the list of samples
   trace.js         tier x status counts of the trace table (templates/trace/requirements.yaml, #22)
-  <scenario>.js    the render bundle of each worked example (python tools/claim_lint render <dir> --format json, #19)
+  schemas.js       the registry JSON Schemas (templates/registry/*.schema.json) for the in-browser schema check
+  skeleton.js      the files of python tools/new_design.py (an empty design), for 「空の雛形から始める」
+  sample-<x>.js    the files of each worked example (YAML, claim_request_*.md, design.md), for 「サンプルを開く」
+  claim_lint.zip   tools/claim_lint and the files it reads (catalogue, registry, slide IDs), unpacked into Pyodide's
+                   file system (stored, not deflated: the bytes do not depend on the zlib version)
+and docs/claims/vendor/MANIFEST.json: version, license, source and sha256 of every vendored file, with the
+vulnerability check of tools/claims_editor_vendor/advisories.json.
 """
 import argparse
 import csv
+import hashlib
+import io
 import json
 import os
 import re
 import sys
+import zipfile
 from collections import Counter, OrderedDict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,10 +43,18 @@ from claim_lint import render  # noqa: E402
 import review_check  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, 'docs', 'claims', 'data')
-DATASETS = [  # (id, design dir, label)
-    ('scenario-a', 'templates/examples/scenario-a', 'シナリオ A（マルチテナント SaaS、Lite）'),
-    ('scenario-b', 'templates/examples/scenario-b', 'シナリオ B（社内の業務システムと AI エージェント、Full）'),
+VENDOR_DIR = os.path.join(ROOT, 'docs', 'claims', 'vendor')
+DATASETS = [  # (id, design dir, label, claim_lint profile of the design)
+    ('scenario-a', 'templates/examples/scenario-a', 'シナリオ A（マルチテナント SaaS、Lite）', 'lite'),
+    ('scenario-b', 'templates/examples/scenario-b', 'シナリオ B（社内の業務システムと AI エージェント、Full）', 'full'),
 ]
+DESIGN_FILES = ('claims.yaml', 'token_types.yaml', 'hops.yaml', 'catalog_answers.yaml')
+# the files claim_lint reads besides the design (found with an audit hook on open() while linting and rendering
+# scenarios A and B; whole directories are taken so that a new catalogue file needs no change here)
+LINT_FILES = [('tools/claim_lint', r'.+\.(py|yaml)$'), ('tools', r'^(catalog_check|check_slide_refs)\.py$'),
+              ('templates/registry', r'.+\.(json|yaml)$'), ('templates/catalog', r'.+\.(yaml|md)$'),
+              ('deck', r'^slide_ids\.json$')]
+SKELETON_DIR = 'my-design'  # the directory name the skeleton is made for ($schema comments: ../templates/registry/...)
 README = 'templates/registry/README.md'
 # README section -> (key in meta.columns, schema file, JSON pointer of the object whose properties are the columns)
 COLUMN_SECTIONS = [
@@ -180,60 +198,199 @@ def trace_counts():
                        for o in sorted({r['owner_issue'] for r in reqs}, key=lambda x: int(x.lstrip('#')))]}
 
 
-def bundle_of(design_rel):
-    design_dir = os.path.join(ROOT, design_rel)
-    d = render.load_design(design_dir)
-    lint = render.lint_result(design_dir, os.path.join(design_dir, render.DOC_NAME))
-    return render.bundle(design_dir, d, render.build_sections(d, lint))
+def sample_files(design_rel):
+    """{file name: text} of a worked example: the registry YAML, claim_request_*.md and design.md (claim_lint reads
+    them all: claim_request_*.md for L4, design.md for the slide references of --also-scan)."""
+    d = os.path.join(ROOT, design_rel)
+    names = [n for n in DESIGN_FILES if os.path.isfile(os.path.join(d, n))]
+    names += sorted(n for n in os.listdir(d) if re.match(r'^claim_request_[a-z0-9_]+\.md$', n))
+    if os.path.isfile(os.path.join(d, render.DOC_NAME)):
+        names.append(render.DOC_NAME)
+    return OrderedDict((n, _read(design_rel + '/' + n)) for n in names)
+
+
+def skeleton_files():
+    """The files of python tools/new_design.py, made for a directory next to templates/ (SKELETON_DIR)."""
+    import new_design
+    return OrderedDict(new_design.build(os.path.join(ROOT, SKELETON_DIR)))
+
+
+def schemas():
+    out = OrderedDict()
+    for name in ('claims', 'token_types', 'hops'):
+        with open(os.path.join(ROOT, 'templates', 'registry', name + '.schema.json'), encoding='utf-8') as f:
+            out[name] = json.load(f)
+    return out
+
+
+def lint_zip_entries():
+    out = []
+    for d, pat in LINT_FILES:
+        for n in sorted(os.listdir(os.path.join(ROOT, d))):
+            if re.match(pat, n) and os.path.isfile(os.path.join(ROOT, d, n)):
+                out.append(d + '/' + n)
+    return sorted(out)
+
+
+def lint_zip():
+    """tools/claim_lint and the files it reads, as a stored zip with fixed dates and modes (the same bytes on every
+    platform: text is LF, no compression)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as z:
+        for rel in lint_zip_entries():
+            with open(os.path.join(ROOT, rel), 'rb') as f:
+                data = f.read().replace(b'\r\n', b'\n')
+            zi = zipfile.ZipInfo(rel, date_time=(1980, 1, 1, 0, 0, 0))
+            zi.create_system = 3
+            zi.external_attr = 0o100644 << 16
+            zi.compress_type = zipfile.ZIP_STORED
+            z.writestr(zi, data)
+    return buf.getvalue()
+
+
+def _sha_bytes(b):
+    return hashlib.sha256(b).hexdigest()
+
+
+def _wheel_license(path):
+    with zipfile.ZipFile(path) as z:
+        meta = next(n for n in z.namelist() if n.endswith('.dist-info/METADATA'))
+        lines = z.read(meta).decode('utf-8').splitlines()
+    for prefix in ('License-Expression: ', 'License: '):
+        for line in lines:
+            if line.startswith(prefix):
+                return line[len(prefix):].strip()
+    return None
+
+
+def vendor_files():
+    out = []
+    for dirpath, _, files in os.walk(VENDOR_DIR):
+        for n in files:
+            rel = os.path.relpath(os.path.join(dirpath, n), VENDOR_DIR).replace(os.sep, '/')
+            if rel != 'MANIFEST.json':
+                out.append(rel)
+    return sorted(out)
+
+
+def manifest():
+    """docs/claims/vendor/MANIFEST.json: every vendored file with its sha256 (of the bytes as committed; .gitattributes
+    keeps docs/claims/vendor/ byte for byte), the packages inside each file with version, license and source, and the
+    vulnerability check (tools/claims_editor_vendor/advisories.json, written by hand when a version changes)."""
+    def load(rel):
+        with open(os.path.join(ROOT, rel), encoding='utf-8') as f:
+            return json.load(f)
+    lock = load('tools/claims_editor_vendor/package-lock.json')
+    adv = load('tools/claims_editor_vendor/advisories.json')
+    pyo_pkg = load('docs/claims/vendor/pyodide/package.json')
+    pyo_lock = load('docs/claims/vendor/pyodide/pyodide-lock.json')
+    files = OrderedDict()
+    for rel in vendor_files():
+        with open(os.path.join(VENDOR_DIR, rel), 'rb') as f:
+            data = f.read()
+        files[rel] = {'bytes': len(data), 'sha256': _sha_bytes(data)}
+    npm = [{'name': k[len('node_modules/'):], 'version': p['version'], 'license': p.get('license'),
+            'resolved': p.get('resolved'), 'integrity': p.get('integrity')}
+           for k, p in sorted(lock['packages'].items()) if k and not p.get('dev')]
+    by_file = {p['file_name']: (name, p) for name, p in pyo_lock['packages'].items()}
+    wheels, problems = [], []
+    for rel in files:
+        if not rel.endswith('.whl'):
+            continue
+        fn = rel.split('/')[-1]
+        if fn not in by_file:
+            problems.append(f'docs/claims/vendor/{rel}: not in pyodide-lock.json')
+            continue
+        name, p = by_file[fn]
+        if p['sha256'] != files[rel]['sha256']:
+            problems.append(f'docs/claims/vendor/{rel}: sha256 differs from pyodide-lock.json ({p["sha256"]})')
+        wheels.append({'name': name, 'version': p['version'], 'file': rel, 'sha256_in_lock': p['sha256'],
+                       'license': _wheel_license(os.path.join(VENDOR_DIR, rel)), 'depends': p['depends']})
+    if problems:
+        raise SystemExit('build_claims_viewer: ' + '\n  '.join(['vendored Pyodide packages:'] + problems))
+    return {
+        'format': 'claims-editor-vendor/1',
+        'generator': 'python tools/build_claims_viewer.py',
+        'note': 'sha256 of the committed bytes. The files are served from this site only (no CDN).',
+        'components': [
+            {'name': 'editor-libs.js', 'files': ['editor-libs.js', 'editor-libs.LICENSES.txt'],
+             'built_by': 'tools/claims_editor_vendor/build.mjs (esbuild, from package-lock.json)', 'packages': npm},
+            {'name': 'pyodide', 'version': pyo_pkg['version'], 'license': pyo_pkg['license'],
+             'python': pyo_lock['info']['python'], 'source': adv['pyodide']['source'],
+             'source_sha256': adv['pyodide']['source_sha256'],
+             'files': [r for r in files if r.startswith('pyodide/') and not r.endswith('.whl')],
+             'packages': wheels, 'packages_source': adv['pyodide']['packages_source']},
+        ],
+        'files': files,
+        'vulnerability_check': adv['check'],
+    }
 
 
 def js(name, obj):
     body = json.dumps(obj, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
-    return ('// Generated by tools/build_claims_viewer.py (#36). Do not edit: change the YAML and run the script.\n'
+    return ('// Generated by tools/build_claims_viewer.py (#36, #49). Do not edit: change the YAML and run the script.\n'
             'window.CLAIMS_VIEWER_DATA = window.CLAIMS_VIEWER_DATA || {};\n'
             f'window.CLAIMS_VIEWER_DATA[{json.dumps(name)}] = {body};\n')
 
 
 def expected():
+    """{path under docs/claims/: str (text, LF) or bytes}."""
     cols, problems = columns()
     if problems:
         raise SystemExit('build_claims_viewer: ' + '\n  '.join(['README column table does not match the schema:'] + problems))
     meta = {'format': 'claims-viewer-meta/1', 'generator': 'python tools/build_claims_viewer.py',
             'columns': cols, 'review': review_links(), 'names': names(),
-            'datasets': [{'id': i, 'design': rel, 'label': label} for i, rel, label in DATASETS],
+            'datasets': [{'id': i, 'design': rel, 'label': label, 'profile': prof} for i, rel, label, prof in DATASETS],
+            'skeleton_dir': SKELETON_DIR,
+            'lint_zip': {'file': 'data/claim_lint.zip', 'entries': lint_zip_entries()},
             'review_source': 'templates/review/*.md（見る欄の registry:<ファイル>#<列>）'}
     out = OrderedDict()
-    out['meta.js'] = js('meta', meta)
-    out['trace.js'] = js('trace', trace_counts())
-    for i, rel, _ in DATASETS:
-        out[f'{i}.js'] = js(i, bundle_of(rel))
+    out['data/meta.js'] = js('meta', meta)
+    out['data/trace.js'] = js('trace', trace_counts())
+    out['data/schemas.js'] = js('schemas', schemas())
+    out['data/skeleton.js'] = js('skeleton', {'dir': SKELETON_DIR, 'generator': 'python tools/new_design.py',
+                                              'files': skeleton_files()})
+    for i, rel, label, prof in DATASETS:
+        out[f'data/sample-{i[len("scenario-"):]}.js'] = js('sample-' + i[len('scenario-'):], {
+            'id': i, 'design': rel, 'label': label, 'profile': prof, 'files': sample_files(rel)})
+    out['data/claim_lint.zip'] = lint_zip()
+    out['vendor/MANIFEST.json'] = json.dumps(manifest(), ensure_ascii=False, indent=1) + '\n'
     return out
+
+
+VIEWER_DIR = os.path.dirname(OUT_DIR)
 
 
 def check(want):
     problems = []
-    have = sorted(n for n in os.listdir(OUT_DIR)) if os.path.isdir(OUT_DIR) else []
+    have = sorted('data/' + n for n in os.listdir(OUT_DIR)) if os.path.isdir(OUT_DIR) else []
     for n in have:
         if n not in want:
-            problems.append(f'docs/claims/data/{n}: not generated any more (remove it)')
-    for n, text in want.items():
-        p = os.path.join(OUT_DIR, n)
+            problems.append(f'docs/claims/{n}: not generated any more (remove it)')
+    for n, body in want.items():
+        p = os.path.join(VIEWER_DIR, *n.split('/'))
         if not os.path.isfile(p):
-            problems.append(f'docs/claims/data/{n}: missing')
+            problems.append(f'docs/claims/{n}: missing')
             continue
-        with open(p, encoding='utf-8') as f:
-            cur = f.read().replace('\r\n', '\n')
-        if cur != text:
+        with open(p, 'rb') as f:
+            raw = f.read()
+        if isinstance(body, bytes):
+            if raw != body:
+                problems.append(f'docs/claims/{n}: differs from what the sources generate '
+                                f'(sha256 {_sha_bytes(raw)[:16]}… / generated {_sha_bytes(body)[:16]}…)')
+            continue
+        cur = raw.decode('utf-8').replace('\r\n', '\n')
+        if cur != body:
             # the data are one long JSON line: show where they first differ, not a megabyte-long diff
-            k = next((j for j in range(min(len(cur), len(text))) if cur[j] != text[j]), min(len(cur), len(text)))
-            problems.append(f'docs/claims/data/{n}: differs from the YAML at character {k}: '
-                            f'committed {cur[max(0, k - 60):k + 60]!r} / generated {text[max(0, k - 60):k + 60]!r}')
+            k = next((j for j in range(min(len(cur), len(body))) if cur[j] != body[j]), min(len(cur), len(body)))
+            problems.append(f'docs/claims/{n}: differs from the YAML at character {k}: '
+                            f'committed {cur[max(0, k - 60):k + 60]!r} / generated {body[max(0, k - 60):k + 60]!r}')
     return problems
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--check', action='store_true', help='exit 1 when docs/claims/data/ differs from what the YAML generates')
+    ap.add_argument('--check', action='store_true', help='exit 1 when docs/claims/data/ or vendor/MANIFEST.json differ from what the sources generate')
     a = ap.parse_args(argv)
     want = expected()
     out = sys.stdout
@@ -245,13 +402,19 @@ def main(argv=None):
         return 1 if problems else 0
     os.makedirs(OUT_DIR, exist_ok=True)
     for n in os.listdir(OUT_DIR):
-        if n not in want:
+        if 'data/' + n not in want:
             os.remove(os.path.join(OUT_DIR, n))
             print('removed docs/claims/data/' + n)
-    for n, text in want.items():
-        with open(os.path.join(OUT_DIR, n), 'w', encoding='utf-8', newline='\n') as f:
-            f.write(text)
-        print(f'wrote docs/claims/data/{n} ({len(text.encode("utf-8"))} bytes)')
+    for n, body in want.items():
+        p = os.path.join(VIEWER_DIR, *n.split('/'))
+        if isinstance(body, bytes):
+            with open(p, 'wb') as f:
+                f.write(body)
+        else:
+            with open(p, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(body)
+            body = body.encode('utf-8')
+        print(f'wrote docs/claims/{n} ({len(body)} bytes)')
     return 0
 
 

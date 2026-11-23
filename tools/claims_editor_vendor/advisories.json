@@ -1,0 +1,21 @@
+{
+ "$comment": "Hand-written record of where the vendored files of docs/claims/vendor/ came from and of the vulnerability check (#49). tools/build_claims_viewer.py copies it into docs/claims/vendor/MANIFEST.json. Update it whenever a version changes.",
+ "pyodide": {
+  "source": "https://github.com/pyodide/pyodide/releases/download/314.0.8/pyodide-core-314.0.8.tar.bz2",
+  "source_sha256": "ff3e5f9d9bc8e98ff30b99515535fc24d375994f47a978c61975d653e162ca37",
+  "source_sha256_from": "the digest of the release asset (gh api repos/pyodide/pyodide/releases/tags/314.0.8), equal to the sha256 of the downloaded file",
+  "kept_from_the_core_archive": ["pyodide.js", "pyodide.asm.mjs", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json", "package.json"],
+  "license_file": "https://raw.githubusercontent.com/pyodide/pyodide/314.0.8/LICENSE",
+  "packages_source": "https://cdn.jsdelivr.net/pyodide/v314.0.8/full/<file name> (downloaded once at build time; each wheel's sha256 equals the sha256 of pyodide-lock.json, which Pyodide checks again when it loads the wheel)"
+ },
+ "check": {
+  "date": "2026-11-23",
+  "method": [
+   "OSV querybatch (https://api.osv.dev/v1/querybatch) for every npm package of tools/claims_editor_vendor/package-lock.json (bundled and dev), npm pyodide 314.0.8, and the PyPI packages of the vendored wheels at their versions",
+   "npm audit on tools/claims_editor_vendor/package-lock.json",
+   "GitHub security advisories of pyodide/pyodide (gh api repos/pyodide/pyodide/security-advisories) and the GitHub advisory database for npm pyodide (gh api advisories?ecosystem=npm&affects=pyodide)"
+  ],
+  "result": "no known vulnerability: OSV returned no advisory for any of the 57 package versions (47 npm in the lock file, npm pyodide, 9 PyPI), npm audit found 0 vulnerabilities, and pyodide has no published security advisory",
+  "not_covered": "CPython 3.14.2 inside Pyodide (python_stdlib.zip) is not a package of OSV's PyPI ecosystem and was not checked by version; the editor runs only claim_lint on files the reader opened, in the browser sandbox, with no network beyond this site (CSP connect-src 'self')"
+ }
+}

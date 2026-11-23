@@ -2,43 +2,60 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<!-- No network: connect-src 'none' for the whole page. Scripts, styles and data come from this directory only. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'">
+<!-- CSP (#49). Everything comes from this site; nothing is sent anywhere.
+     connect-src 'self': claim_lint runs in Pyodide, which GETs its wasm, standard library and wheels from vendor/pyodide/
+       and claim_lint from data/claim_lint.zip (same origin). No other origin can be reached by a script.
+     script-src 'wasm-unsafe-eval': lets WebAssembly be compiled (Pyodide is a wasm build of CPython). It does not allow
+       eval() or new Function() of JavaScript; without it Pyodide does not start (checked in tools/tests/test_claims_editor_ui.py).
+     worker-src blob:: the claim_lint worker is started from a blob: URL so that it inherits this policy. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:; object-src 'none'; frame-src 'none'; manifest-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>設計書のビューアー ― JWT クレーム設計ガイド</title>
-<meta name="description" content="YAML の設計書（クレームの台帳・トークン目録・発行方式・ホップ・カタログへの回答）を人が読むためのビューアー。外部と通信しない">
+<title>設計書のエディター ― JWT クレーム設計ガイド</title>
+<meta name="description" content="YAML の設計書（クレームの台帳・トークン目録・発行方式・ホップ・カタログへの回答）を書きながら、ブラウザの中で JSON Schema と claim_lint で検査するエディター。外部に送信しない">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <a class="skip" href="#main">本文へ移動</a>
 <header class="top">
   <div class="brand">
-    <a class="home" href="#/">設計書のビューアー</a>
+    <a class="home" href="#/" id="home">設計書のエディター</a>
     <span class="sub">JWT クレーム設計ガイド（<a href="../">スライドの Web 版</a>）</span>
   </div>
-  <div class="ds">
-    <label for="dataset">表示する設計書</label>
-    <select id="dataset"></select>
+  <div class="ws" id="ws-bar" hidden>
+    <span id="ws-name"></span>
+    <button type="button" id="btn-export-one">このファイルを書き出す</button>
+    <button type="button" id="btn-export-zip">zip で書き出す</button>
+    <label class="chk"><input type="checkbox" id="chk-autosave"> このブラウザに自動保存する</label>
+    <button type="button" id="btn-close">閉じる</button>
   </div>
-  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> データを外部に送信しません（リンクを押したときの移動は除く。CSP の <code>connect-src 'none'</code>）</p>
+  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> データを外部に送信しません（CSP の <code>connect-src 'self'</code>。読み込むのはこのサイトのファイルだけ）</p>
 </header>
-<div class="layout">
-  <nav class="side" aria-label="画面">
-    <ul id="nav"></ul>
-  </nav>
-  <main id="main" tabindex="-1">
-    <noscript><p>このビューアーは JavaScript で表を組み立てます。JavaScript を有効にしてください。データは <code>data/</code> にあります。</p></noscript>
-    <p id="loading">読み込んでいます…</p>
-  </main>
+<div id="start" class="start" hidden></div>
+<div id="split" class="split" hidden>
+  <section class="pane left" aria-label="YAML のエディター">
+    <div class="tabs" role="tablist" id="tabs" aria-label="ファイル"></div>
+    <div id="editor" class="editor"></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </section>
+  <div class="gutter-split" role="separator" aria-orientation="vertical" aria-label="左右の幅" tabindex="0" id="splitter"></div>
+  <section class="pane right" aria-label="プレビュー">
+    <div class="layout">
+      <nav class="side" aria-label="画面"><ul id="nav"></ul></nav>
+      <main id="main" tabindex="-1"></main>
+    </div>
+  </section>
 </div>
+<div id="drop-overlay" class="drop-overlay" hidden><p>ここにドロップして開く（ファイルでもフォルダでもよい）</p></div>
 <footer class="foot">
-  <p>正本は YAML（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/tree/main/templates/examples">templates/examples/</a>）です。このビューアーは閲覧だけで、編集はしません。データは <code>python tools/build_claims_viewer.py</code> で生成しています（#36）。</p>
-  <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE">LICENSE</a>）。YAML の読み取りに <a href="vendor/js-yaml-4.3.2.LICENSE.txt">js-yaml 4.3.2（MIT）</a> を同梱しています。作成方法：本ビューアーは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
+  <p>正本は YAML です。このエディターはブラウザの中だけで動き、開いたファイルをどこにも送りません。書き出したファイルを、自分のリポジトリにコミットしてください（#49）。</p>
+  <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE">LICENSE</a>）。同梱のライブラリ：CodeMirror 6・yaml・@cfworker/json-schema・fflate（<a href="vendor/editor-libs.LICENSES.txt">ライセンス</a>）、Pyodide 314.0.8（MPL-2.0、<a href="vendor/pyodide/LICENSE">LICENSE</a>）と PyYAML・jsonschema ほか。版と sha256 は <a href="vendor/MANIFEST.json">vendor/MANIFEST.json</a>。作成方法：本エディターは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
 </footer>
-<script src="vendor/js-yaml-4.3.2.min.js"></script>
+<script src="vendor/editor-libs.js"></script>
 <script src="data/meta.js"></script>
+<script src="data/schemas.js"></script>
 <script src="data/trace.js"></script>
-<script src="app.js"></script>
+<script src="preview.js"></script>
+<script src="editor.js"></script>
 </body>
 </html>
