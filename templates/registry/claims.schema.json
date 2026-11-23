@@ -342,7 +342,7 @@
      },
      "minProperties": 1,
      "description": "Format (regular expression) and permitted values of one value",
-     "$comment": "Trace: req:p11-registry-fields.R2"
+     "$comment": "Trace: req:p11-registry-fields.R2 req:p11-contract-test-gaps.R1"
     },
     "value_vocabulary": {
      "type": "object",
@@ -989,7 +989,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Services allowed to read the claim (the contract; [] when nobody reads it)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6 req:p04-forward-compatibility.R3 req:p11-change-procedure.R3 req:p09-minimize-derived.R4"
+     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6 req:p04-forward-compatibility.R3 req:p11-change-procedure.R3 req:p09-minimize-derived.R4 req:p00-claims-are-contracts.R7 req:p11-schema-contract-tests.R4"
     },
     "consumer_access_path": {
      "type": "array",

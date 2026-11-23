@@ -1,0 +1,930 @@
+{
+ "run": {
+  "env": "live",
+  "started_utc": "2026-11-23T07:05:25+00:00",
+  "environment": {
+   "python": "3.14.6",
+   "os": "Windows-11-10.0.26300-SP0",
+   "cryptography": "50.0.0",
+   "pyyaml": "6.0.4"
+  },
+  "live": {
+   "keycloak_image": "quay.io/keycloak/keycloak:26.8.0",
+   "keycloak_image_id": "sha256:27b3230fbabb8c9ff3c66c864cf09dcd8a41aca82e5100679d109ef0eeb05741",
+   "compose_project": "jcg-issue8-runtime",
+   "ports": {
+    "keycloak": 38080,
+    "postgres": 35432
+   },
+   "keycloak_boot_s": 32.1,
+   "containers_removed": true
+  }
+ },
+ "results": [
+  {
+   "id": "test:golden_tokens#scenario-a-at",
+   "env": "live",
+   "title": "実物の見本（シナリオ A）",
+   "expected": "Keycloak 26.8 がレルム t1 で発行した AT を参照の saas-api が受理する",
+   "requirements": [],
+   "lint": [],
+   "slides": [],
+   "ok": true,
+   "seconds": 0.235,
+   "checks": [
+    {
+     "name": "alice（t1）の AT で /t1 を一覧（Postgres の RLS つき）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "t1 の行だけ",
+     "expected": "tenant_id がすべて t1",
+     "observed": [
+      "t1",
+      "t1"
+     ],
+     "ok": true
+    },
+    {
+     "name": "ヘッダー",
+     "expected": "RS256・at+jwt",
+     "observed": {
+      "alg": "RS256",
+      "typ": "at+jwt"
+     },
+     "ok": true
+    },
+    {
+     "name": "ペイロードのクレーム名（記録）",
+     "expected": "台帳の AT の行",
+     "observed": [
+      "aud",
+      "azp",
+      "exp",
+      "https://claims.example.com/",
+      "iat",
+      "iss",
+      "jti",
+      "scope",
+      "sid",
+      "sub",
+      "typ"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#typ-wrong",
+   "env": "live",
+   "title": "実物の ID トークン",
+   "expected": "Keycloak の ID トークンを API に送ると typ-mismatch",
+   "requirements": [
+    "p01-attack-patterns.R4",
+    "p01-client-made-jwts.R3",
+    "p01-dangerous-header-params.R6",
+    "p01-id-token-vs-access-token.R1",
+    "p01-validation-order.R7",
+    "p03-cognito-token-use.R1",
+    "p06-flow-browser-to-db.R2",
+    "p06-return-results.R2",
+    "p08-logout.R1"
+   ],
+   "lint": [
+    "L17"
+   ],
+   "slides": [
+    "p01-attack-patterns",
+    "p01-client-made-jwts",
+    "p01-dangerous-header-params",
+    "p01-id-token-vs-access-token",
+    "p01-validation-order",
+    "p03-cognito-token-use",
+    "p06-flow-browser-to-db",
+    "p06-return-results",
+    "p08-logout"
+   ],
+   "ok": true,
+   "seconds": 0.163,
+   "checks": [
+    {
+     "name": "ID トークン（ヘッダーの typ='JWT'）を /t1 に送る",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#tenant-mismatch",
+   "env": "live",
+   "title": "実物のテナントの食い違い",
+   "expected": "実物のトークンで、別テナント・他テナントを名乗るマッパー・配列のテナントを拒否",
+   "requirements": [
+    "p00-incident-signature-valid.R2",
+    "p01-attack-patterns.R3",
+    "p02-tenant-org.R3",
+    "p05-multitenancy.R3",
+    "p05-multitenancy.R6",
+    "p06-flow-multitenant-saas.R2",
+    "p08-reissue-triggers.R1",
+    "p12-antipatterns-1.R4"
+   ],
+   "lint": [
+    "L9"
+   ],
+   "slides": [
+    "p00-incident-signature-valid",
+    "p01-attack-patterns",
+    "p02-tenant-org",
+    "p05-multitenancy",
+    "p06-flow-multitenant-saas",
+    "p08-reissue-triggers",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.303,
+   "checks": [
+    {
+     "name": "bob（t2）の AT で /t1",
+     "expected": "reject tenant-path-mismatch",
+     "observed": "tenant-path-mismatch",
+     "ok": true
+    },
+    {
+     "name": "t2 のマッパーが出した tenant_id（記録）",
+     "expected": "t1",
+     "observed": "t1",
+     "ok": true
+    },
+    {
+     "name": "t2 の管理者のマッパーで tenant_id=t1 にした AT で /t1（ケーススタディ A8）",
+     "expected": "reject tenant-iss-mismatch",
+     "observed": "tenant-iss-mismatch",
+     "ok": true
+    },
+    {
+     "name": "tenant_id が配列の AT（ケーススタディ A12）",
+     "expected": "reject claim-type",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "bob の AT で /t2（正規）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#missing-required-claim",
+   "env": "live",
+   "title": "実物の軽量アクセストークン",
+   "expected": "軽量アクセストークン（名前空間が落ちる）を missing-claim で拒否",
+   "requirements": [
+    "p03-absorb-idp-differences.R5",
+    "p03-custom-claim-injection.R1",
+    "p04-absent-null-false-empty.R3",
+    "p04-forward-compatibility.R2",
+    "p04-reject-missing-required.R4",
+    "p06-grant-types.R4"
+   ],
+   "lint": [
+    "L37",
+    "L7"
+   ],
+   "slides": [
+    "p03-absorb-idp-differences",
+    "p03-custom-claim-injection",
+    "p04-absent-null-false-empty",
+    "p04-forward-compatibility",
+    "p04-reject-missing-required",
+    "p06-grant-types"
+   ],
+   "ok": true,
+   "seconds": 0.146,
+   "checks": [
+    {
+     "name": "軽量アクセストークンのクレーム名（記録）",
+     "expected": "名前空間・aud・sub が無い",
+     "observed": [
+      "azp",
+      "exp",
+      "iat",
+      "iss",
+      "jti",
+      "scope",
+      "sid",
+      "typ"
+     ],
+     "ok": true
+    },
+    {
+     "name": "軽量アクセストークンで /t2、X-Tenant: t2（ケーススタディ A11）",
+     "expected": "reject missing-claim|aud-mismatch",
+     "observed": "missing-claim",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#untrusted-key",
+   "env": "live",
+   "title": "実物の鍵の分離",
+   "expected": "レルム t1 の署名鍵は t2 の JWKS に無い（テナント単位の鍵）",
+   "requirements": [
+    "p00-incident-signature-valid.R1",
+    "p01-key-rotation-jwks.R1",
+    "p01-validation-order.R3",
+    "p12-antipatterns-1.R5"
+   ],
+   "lint": [],
+   "slides": [
+    "p00-incident-signature-valid",
+    "p01-key-rotation-jwks",
+    "p01-validation-order",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.069,
+   "checks": [
+    {
+     "name": "t1 の AT の kid",
+     "expected": "t1 の JWKS にあり、t2 の JWKS に無い",
+     "observed": {
+      "in_t1": true,
+      "in_t2": false
+     },
+     "ok": true
+    },
+    {
+     "name": "t1 と t2 の JWKS の共通の kid",
+     "expected": "0 件",
+     "observed": [],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#bola-other-owner",
+   "env": "live",
+   "title": "実物の BOLA",
+   "expected": "Postgres で持ち主（owner_sub = sub）を照合し、同じテナントの他人の請求書は not-found",
+   "requirements": [
+    "p05-bola.R5",
+    "p06-validation-split.R5",
+    "p12-review-viewpoints.R13"
+   ],
+   "lint": [],
+   "slides": [
+    "p05-bola",
+    "p06-validation-split",
+    "p12-review-viewpoints"
+   ],
+   "ok": true,
+   "seconds": 0.161,
+   "checks": [
+    {
+     "name": "alice が自分の請求書 2",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "alice が carol の請求書 3（同じ t1）",
+     "expected": "reject not-found",
+     "observed": "not-found",
+     "ok": true
+    },
+    {
+     "name": "alice が t2 の請求書 1",
+     "expected": "reject not-found",
+     "observed": "not-found",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#issued-claims-present",
+   "env": "live",
+   "title": "実物の黙った欠落",
+   "expected": "実物の AT に、台帳で AT に載ると宣言した採用の独自クレームが全部ある",
+   "requirements": [
+    "p03-auth0-namespace.R2",
+    "p03-entra-scp-roles-groups.R4"
+   ],
+   "lint": [],
+   "slides": [
+    "p03-auth0-namespace",
+    "p03-entra-scp-roles-groups"
+   ],
+   "ok": true,
+   "seconds": 0.2,
+   "checks": [
+    {
+     "name": "saas-web の AT",
+     "expected": "欠落 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "saas-light（軽量アクセストークン）の AT",
+     "expected": "欠落を検出",
+     "observed": [
+      "C-sub (sub)",
+      "C-aud (aud)",
+      "C-tenant-id (https://claims.example.com/tenant_id)",
+      "C-user-id (https://claims.example.com/user_id)",
+      "C-v (https://claims.example.com/v)"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#type-shape-match",
+   "env": "live",
+   "title": "実物の型と形",
+   "expected": "実物の AT が issuer 適合のスキーマに合う",
+   "requirements": [
+    "p04-type.R1"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-type"
+   ],
+   "ok": true,
+   "seconds": 0.044,
+   "checks": [
+    {
+     "name": "saas-web の AT と AT.issuer.schema.json",
+     "expected": "スキーマの誤り 0",
+     "observed": [],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#exchange-narrowing",
+   "env": "live",
+   "title": "交換で絞られているか（Keycloak 26.8）",
+   "expected": "Keycloak 26.8 の交換で、元のトークンに無い orders 宛てが出ることを再現し、検査が指摘する。invoices だけへの交換は aud・scope・独自クレームの指摘 0、exp の延長は指摘する",
+   "requirements": [
+    "p03-keycloak-aud-lightweight.R4",
+    "p06-narrow-downstream.R3",
+    "p10-delegation-chain-depth.R2",
+    "p10-token-exchange-not-narrowing.R1",
+    "p10-token-exchange-not-narrowing.R4"
+   ],
+   "lint": [
+    "L16"
+   ],
+   "slides": [
+    "p03-keycloak-aud-lightweight",
+    "p06-narrow-downstream",
+    "p10-delegation-chain-depth",
+    "p10-token-exchange-not-narrowing"
+   ],
+   "ok": true,
+   "seconds": 3.152,
+   "checks": [
+    {
+     "name": "元のトークン（subject_token）",
+     "expected": "記録",
+     "observed": {
+      "aud": [
+       "mcp-tools",
+       "account"
+      ],
+      "scope": "openid profile aud-mcp email",
+      "exp": 1795417863,
+      "iat": 1795417563,
+      "azp": "portal",
+      "act": null,
+      "https://claims.example.com/": {
+       "department": "sales"
+      }
+     },
+     "ok": true
+    },
+    {
+     "name": "交換 narrow_to_invoices（{'audience': 'invoices', 'scope': 'aud-invoices'}）",
+     "expected": "記録",
+     "observed": {
+      "status": 200,
+      "aud": "invoices",
+      "scope": "profile email aud-invoices",
+      "has_act": false,
+      "exp_minus_subject_exp": 3,
+      "error": null,
+      "findings": [
+       "exp extended by 3 s beyond the upstream exp"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "交換 audience_not_in_scope（{'audience': 'invoices'}）",
+     "expected": "記録",
+     "observed": {
+      "status": 400,
+      "aud": null,
+      "scope": null,
+      "has_act": false,
+      "exp_minus_subject_exp": null,
+      "error": "Requested audience not available: invoices",
+      "findings": []
+     },
+     "ok": true
+    },
+    {
+     "name": "交換 audience_not_configured（{'audience': 'orders-admin'}）",
+     "expected": "記録",
+     "observed": {
+      "status": 400,
+      "aud": null,
+      "scope": null,
+      "has_act": false,
+      "exp_minus_subject_exp": null,
+      "error": "Audience not found",
+      "findings": []
+     },
+     "ok": true
+    },
+    {
+     "name": "交換 scope_not_granted（{'scope': 'aud-orders'}）",
+     "expected": "記録",
+     "observed": {
+      "status": 200,
+      "aud": [
+       "orders",
+       "account"
+      ],
+      "scope": "aud-orders profile email",
+      "has_act": false,
+      "exp_minus_subject_exp": 3,
+      "error": null,
+      "findings": [
+       "aud ['orders', 'account'] is not the declared single replacement ['invoices'] (added ['orders', 'account'])",
+       "scope aud-orders carries audience orders, which is neither upstream nor the declared target",
+       "exp extended by 3 s beyond the upstream exp"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "交換 no_audience_no_scope（{}）",
+     "expected": "記録",
+     "observed": {
+      "status": 200,
+      "aud": "account",
+      "scope": "profile email",
+      "has_act": false,
+      "exp_minus_subject_exp": 3,
+      "error": null,
+      "findings": [
+       "aud ['account'] is not the declared single replacement ['invoices'] (added ['account'])",
+       "exp extended by 3 s beyond the upstream exp"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "ケーススタディと同じ条件（scope=aud-orders）で orders 宛てが出る",
+     "expected": "aud に orders を含む（再現）",
+     "observed": [
+      "orders",
+      "account"
+     ],
+     "ok": true
+    },
+    {
+     "name": "その交換を検査が「上流を超えた」と指摘する",
+     "expected": "指摘あり",
+     "observed": [
+      "aud ['orders', 'account'] is not the declared single replacement ['invoices'] (added ['orders', 'account'])",
+      "scope aud-orders carries audience orders, which is neither upstream nor the declared target",
+      "exp extended by 3 s beyond the upstream exp"
+     ],
+     "ok": true
+    },
+    {
+     "name": "invoices だけへの交換（aud・scope・独自クレーム）",
+     "expected": "指摘 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "invoices だけへの交換の exp（元のトークンの 3 秒後に交換）",
+     "expected": "寿命の延長を指摘する（交換の時刻から 300 秒の新しい exp）",
+     "observed": {
+      "exp_minus_subject_exp": 3,
+      "findings": [
+       "exp extended by 3 s beyond the upstream exp"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "元のトークンに act が無く、交換の結果にも act が無い（標準の交換 V2 の既定）",
+     "expected": "act なし",
+     "observed": false,
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#disabled-subject-exchange",
+   "env": "live",
+   "title": "無効にした利用者の交換",
+   "expected": "無効にした利用者のトークンを交換しても新しいトークンが出ない",
+   "requirements": [
+    "p03-keycloak-aud-lightweight.R5"
+   ],
+   "lint": [],
+   "slides": [
+    "p03-keycloak-aud-lightweight"
+   ],
+   "ok": true,
+   "seconds": 0.472,
+   "checks": [
+    {
+     "name": "無効にする前の交換",
+     "expected": "200",
+     "observed": 200,
+     "ok": true
+    },
+    {
+     "name": "dave を無効にした後、同じ subject_token で交換",
+     "expected": "400 番台（トークンが出ない）",
+     "observed": {
+      "status": 400,
+      "error": "invalid_request",
+      "description": "Invalid token"
+     },
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#revoked-token-rejected",
+   "env": "live",
+   "title": "IdP 側の失効と BFF のセッション",
+   "expected": "IdP 側でセッションを消した・利用者を無効にした後、BFF の次のリフレッシュが失敗して BFF のセッションが終わる（縮めた上限 22 秒以内）。盗まれた AT も exp＋ずれの後は拒否",
+   "requirements": [
+    "p08-revocation-propagation.R2"
+   ],
+   "lint": [],
+   "slides": [
+    "p08-revocation-propagation"
+   ],
+   "ok": true,
+   "seconds": 46.895,
+   "checks": [
+    {
+     "name": "admin_logout：取り消しから BFF のセッションが終わるまで",
+     "expected": "22 秒以内",
+     "observed": {
+      "seconds": 17.08,
+      "events": [
+       [
+        14.07,
+        "ok",
+        2
+       ],
+       [
+        15.07,
+        "ok",
+        2
+       ],
+       [
+        16.08,
+        "ok",
+        2
+       ],
+       [
+        17.08,
+        "bff-session-ended",
+        "refresh failed: 400 invalid_grant: Session not active"
+       ]
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "admin_logout：盗まれた AT（BFF の外）を exp の前に使う＝exp_only の残り",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "admin_logout：盗まれた AT を発行から 23 秒後に使う",
+     "expected": "reject expired",
+     "observed": "expired",
+     "ok": true
+    },
+    {
+     "name": "user_disabled：取り消しから BFF のセッションが終わるまで",
+     "expected": "22 秒以内",
+     "observed": {
+      "seconds": 17.08,
+      "events": [
+       [
+        14.07,
+        "ok",
+        2
+       ],
+       [
+        15.07,
+        "ok",
+        2
+       ],
+       [
+        16.08,
+        "ok",
+        2
+       ],
+       [
+        17.08,
+        "bff-session-ended",
+        "refresh failed: 400 invalid_grant: User disabled"
+       ]
+      ]
+     },
+     "ok": true
+    },
+    {
+     "name": "user_disabled：盗まれた AT（BFF の外）を exp の前に使う＝exp_only の残り",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "user_disabled：盗まれた AT を発行から 23 秒後に使う",
+     "expected": "reject expired",
+     "observed": "expired",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#revocation-latency",
+   "env": "live",
+   "title": "剥奪から拒否までの時間（Keycloak・Postgres）",
+   "expected": "ロールの剥奪は縮めた上限（22 秒）以内に新しい AT に反映。テナントの停止は次の要求で拒否（0 秒、AT の exp を待たない）",
+   "requirements": [
+    "p04-token-is-snapshot.R3",
+    "p08-revocation-propagation.R2",
+    "p08-stale-claims.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-token-is-snapshot",
+    "p08-revocation-propagation",
+    "p08-stale-claims"
+   ],
+   "ok": true,
+   "seconds": 33.265,
+   "checks": [
+    {
+     "name": "approver を外してから、API が見るロールから approver が消えるまで",
+     "expected": "22 秒以内（本番の値では 330 秒）",
+     "observed": 18.12,
+     "ok": true
+    },
+    {
+     "name": "停止の前の要求",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "tenants.status を suspended にした直後の要求（同じ AT）",
+     "expected": "reject tenant-suspended",
+     "observed": "tenant-suspended",
+     "ok": true
+    },
+    {
+     "name": "停止から拒否までの時間",
+     "expected": "次の要求（AT の exp を待たない）",
+     "observed": "2.8 ms",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#rt-reuse",
+   "env": "live",
+   "title": "RT の再提示",
+   "expected": "ローテーション後の古い RT は拒否される。系列の新しい RT が失効するか（再利用の検知）を記録する",
+   "requirements": [
+    "p08-rotation.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p08-rotation"
+   ],
+   "ok": true,
+   "seconds": 0.094,
+   "checks": [
+    {
+     "name": "使い終えた RT1 を再提示",
+     "expected": "拒否（invalid_grant）",
+     "observed": "400 invalid_grant: Maximum allowed refresh token reuse exceeded",
+     "ok": true
+    },
+    {
+     "name": "再提示の後の、系列の新しい RT2",
+     "expected": "RT2 も失効する（p08-rotation.R3）",
+     "observed": "RT2 も失効（400 invalid_grant: Session doesn't have required client）",
+     "ok": true
+    }
+   ],
+   "notes": [
+    "シナリオ A の token_types.yaml は RT の reuse_detection を unverified としている。この観測（Keycloak 26.8.0、refreshTokenMaxReuse 0）で失効を確かめた"
+   ],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#pool-context-leak",
+   "env": "live",
+   "title": "接続プールの文脈の残り（A12・A13）",
+   "expected": "文脈はトランザクションごとに set_config(…, true) で設定し、コミットで消える。SET LOCAL はパラメータにできない。文脈なしは 0 行。セッション単位の設定は漏れる（検出できる）",
+   "requirements": [
+    "p07-connection-pool.R2",
+    "p07-connection-pool.R3",
+    "p07-data-layer-checklist.R11",
+    "p07-data-layer-checklist.R2"
+   ],
+   "lint": [],
+   "slides": [
+    "p07-connection-pool",
+    "p07-data-layer-checklist"
+   ],
+   "ok": true,
+   "seconds": 0.252,
+   "checks": [
+    {
+     "name": "A12：SET LOCAL app.tenant = $1（パラメータ）",
+     "expected": "Postgres がエラーを返す",
+     "observed": "SyntaxError: syntax error at or near \"$1\"",
+     "ok": true
+    },
+    {
+     "name": "set_config('app.tenant', $1, true) で t2 を設定",
+     "expected": "t2 の 1 行だけ見える",
+     "observed": 1,
+     "ok": true
+    },
+    {
+     "name": "A7・A13：次のトランザクション（同じ接続）で文脈を設定し忘れ、条件も書き忘れた集計",
+     "expected": "文脈は空、0 行",
+     "observed": {
+      "app.tenant": "",
+      "rows": []
+     },
+     "ok": true
+    },
+    {
+     "name": "A13：文脈が空文字",
+     "expected": "0 行",
+     "observed": 0,
+     "ok": true
+    },
+    {
+     "name": "誤り：セッション単位（第 3 引数 false）で t2 を設定した接続を、次の t1 の要求が使う",
+     "expected": "漏れを検出（t2 の行が見える）",
+     "observed": [
+      [
+       1,
+       "t2"
+      ]
+     ],
+     "ok": true
+    },
+    {
+     "name": "参照の saas-api：同じプールの接続で bob（t2）の後に alice（t1）",
+     "expected": "t1 の行だけ",
+     "observed": [
+      "t1",
+      "t1"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [
+    "PgBouncer の transaction pooling は試していない（接続は psycopg の 1 本を使い回した）"
+   ],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#db-context-override",
+   "env": "live",
+   "title": "DB の文脈の上書き・すり抜け（A04）",
+   "expected": "アプリのロールで RLS をすり抜ける主体が 0 件。弱い設定では各項目を検出する。SET ROLE で所有者になれない",
+   "requirements": [
+    "p07-data-layer-checklist.R11",
+    "p07-trust-boundary.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p07-data-layer-checklist",
+    "p07-trust-boundary"
+   ],
+   "ok": true,
+   "seconds": 0.057,
+   "checks": [
+    {
+     "name": "A04：設計どおりの app スキーマ（app_rls で照会）",
+     "expected": "すべての項目で 0 件",
+     "observed": {
+      "app role is superuser or BYPASSRLS": [],
+      "app role owns a table of the schema": [],
+      "table without RLS or without FORCE": [],
+      "SECURITY DEFINER function": [],
+      "view without security_invoker": []
+     },
+     "ok": true
+    },
+    {
+     "name": "SET ROLE migrator（所有者・superuser になって RLS を外す）",
+     "expected": "権限エラー",
+     "observed": "InsufficientPrivilege: permission denied to set role \"migrator\"",
+     "ok": true
+    },
+    {
+     "name": "SET ROLE owner（所有者・superuser になって RLS を外す）",
+     "expected": "権限エラー",
+     "observed": "InsufficientPrivilege: permission denied to set role \"owner\"",
+     "ok": true
+    },
+    {
+     "name": "SET SESSION AUTHORIZATION owner（所有者・superuser になって RLS を外す）",
+     "expected": "権限エラー",
+     "observed": "InsufficientPrivilege: permission denied to set session authorization \"owner\"",
+     "ok": true
+    },
+    {
+     "name": "弱い設定：app_rls が security_invoker の無いビューと SECURITY DEFINER の関数を通して数える（文脈は t1）",
+     "expected": "t2 の行まで見える（すり抜けの実例）",
+     "observed": {
+      "view_rows": 2,
+      "definer_count": 2
+     },
+     "ok": true
+    },
+    {
+     "name": "A04：弱い設定の broken スキーマ（BYPASSRLS のアプリのロールで照会）",
+     "expected": "5 項目すべてで検出",
+     "observed": {
+      "app role is superuser or BYPASSRLS": [
+       "app_bypass"
+      ],
+      "app role owns a table of the schema": [
+       "invoices"
+      ],
+      "table without RLS or without FORCE": [
+       "invoices"
+      ],
+      "SECURITY DEFINER function": [
+       "count_all"
+      ],
+      "view without security_invoker": [
+       "all_invoices"
+      ]
+     },
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  }
+ ]
+}

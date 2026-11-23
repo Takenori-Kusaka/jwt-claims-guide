@@ -6,6 +6,7 @@
 
 ### 追加
 
+- `runtime/`（#8）：拒否のテスト `negative_tests.md`（32 件）、受け手の契約テスト `consumer_contract.md`（5 件）、見本のトークン `golden_tokens.md`、寿命と失効のテスト `lifetime_revocation.md`。実行するコードは `tools/runtime_tests/`（シナリオ A・B の設計どおりの参照の受け手、試験用の鍵をその場で作るトークンの作り方、Keycloak 26.8.0・Postgres 16 の live の環境）。オフラインの 34 件は CI で動かす。対応表に `test:consumer_contract#declared-reads` を足し、#8 の要件 42 件を実装済みにした。台帳のスキーマ（`registry/*.schema.json`・`questions.yaml`）、`modules/M_token_validation.md`、`tools/claim_lint/RULES.md` には `req:` の印を足した（中身は変えていない）。`modules/M_token_validation.md` の「検証ライブラリと明示の設定」に「同名のメンバー」の行を足した。観点書の問いの「つながり」から、作ったテストの「（未実装）」を外し、データ層の問い（cd-06・cd-10・q-db-context-parameterized）などにテストを足した
 - `CONTRIBUTING.md`：根拠の種類と書式、完了の定義、点検者の取り決め、公開物の取り扱い、題材（#13）
 - `casestudy-mapping.md`：ケーススタディ（コミット `080b8da`）との対応表と、正とする側の決定（#13）
 - `README.md`：準備中の入口

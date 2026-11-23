@@ -524,13 +524,13 @@
      ]
     },
     "typ": {
-     "$comment": "Trace: req:p03-confusing-differences.R5",
+     "$comment": "Trace: req:p03-confusing-differences.R5 req:p01-validation-order.R7 req:p01-dangerous-header-params.R6",
      "type": "string",
      "minLength": 1,
      "pattern": "\\S"
     },
     "alg_allowlist": {
-     "$comment": "Trace: req:p01-library-defaults.R3",
+     "$comment": "Trace: req:p01-library-defaults.R3 req:p01-dangerous-header-params.R2 req:p01-attack-patterns.R1",
      "type": "array",
      "items": {
       "type": "string",
@@ -543,7 +543,7 @@
      "description": "Allowed alg values; one per key"
     },
     "issuers": {
-     "$comment": "Trace: req:p05-multitenancy.R2",
+     "$comment": "Trace: req:p05-multitenancy.R2 req:p01-validation-order.R3 req:p01-validation-order.R4 req:p02-registered-claims.R1 req:p02-tenant-org.R3",
      "type": "array",
      "items": {
       "type": "object",
@@ -590,7 +590,7 @@
      ]
     },
     "required_claims": {
-     "$comment": "Trace: req:p03-keycloak-aud-lightweight.R2",
+     "$comment": "Trace: req:p03-keycloak-aud-lightweight.R2 req:p01-validation-order.R8 req:p01-library-defaults.R2 req:p03-confusing-differences.R4",
      "type": "array",
      "items": {
       "type": "string",
@@ -605,7 +605,7 @@
     "max_clock_skew": {
      "type": "integer",
      "minimum": 0,
-     "$comment": "Trace: req:p01-attack-patterns.R5 req:p01-library-defaults.R5"
+     "$comment": "Trace: req:p01-attack-patterns.R5 req:p01-library-defaults.R5 req:p01-validation-order.R6"
     },
     "max_lifetime": {
      "type": "integer",

@@ -1,0 +1,2049 @@
+{
+ "run": {
+  "env": "offline",
+  "started_utc": "2026-11-23T07:07:39+00:00",
+  "environment": {
+   "python": "3.14.6",
+   "os": "Windows-11-10.0.26300-SP0",
+   "cryptography": "50.0.0",
+   "pyyaml": "6.0.3"
+  }
+ },
+ "results": [
+  {
+   "id": "test:golden_tokens#scenario-a-at",
+   "env": "offline",
+   "title": "見本のトークン（シナリオ A の AT）",
+   "expected": "見本の AT を参照の saas-api が受理する",
+   "requirements": [],
+   "lint": [],
+   "slides": [],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "t1 の見本の AT で t1 の請求書を一覧する",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "t1 の行だけが返る",
+     "expected": "tenant_id がすべて t1",
+     "observed": [
+      "t1",
+      "t1"
+     ],
+     "ok": true
+    },
+    {
+     "name": "t2 の見本の AT で t2 を一覧する",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "iss に example を含む",
+     "expected": "example を含む",
+     "observed": "https://idp.example.com/realms/t1",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:golden_tokens#scenario-b-tokens",
+   "env": "offline",
+   "title": "見本のトークン（シナリオ B）",
+   "expected": "見本の TXN・TASK_AT を参照の ledger・invoices が受理する",
+   "requirements": [],
+   "lint": [],
+   "slides": [],
+   "ok": true,
+   "seconds": 0.542,
+   "checks": [
+    {
+     "name": "TXN を Txn-Token ヘッダーで ledger に送る",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "TASK_AT で承認どおりの支払い",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "iss に example を含む",
+     "expected": "example を含む",
+     "observed": [
+      "https://corp.example.com",
+      "https://sts.corp.example.com"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#alg-none",
+   "env": "offline",
+   "title": "alg=none",
+   "expected": "alg-not-allowed で拒否",
+   "requirements": [
+    "p01-attack-patterns.R1",
+    "p01-dangerous-header-params.R1",
+    "p01-validation-order.R2",
+    "p12-antipatterns-1.R1"
+   ],
+   "lint": [
+    "L17"
+   ],
+   "slides": [
+    "p01-attack-patterns",
+    "p01-dangerous-header-params",
+    "p01-validation-order",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.102,
+   "checks": [
+    {
+     "name": "alg=none（署名なし）",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "alg=None（署名なし）",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "alg=NONE（署名なし）",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "alg の欠落",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#alg-confusion",
+   "env": "offline",
+   "title": "RS256 と HS256 の混同",
+   "expected": "alg-not-allowed で拒否（HS256 は許可リストに無い）",
+   "requirements": [
+    "p01-attack-patterns.R1",
+    "p01-dangerous-header-params.R2",
+    "p12-antipatterns-1.R1"
+   ],
+   "lint": [],
+   "slides": [
+    "p01-attack-patterns",
+    "p01-dangerous-header-params",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.102,
+   "checks": [
+    {
+     "name": "t1 の公開鍵（PEM）を HMAC の鍵にした HS256",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "t1 の公開鍵（JWK の JSON）を HMAC の鍵にした HS256",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "許可リストに無い ES256（kid は t1 の鍵）",
+     "expected": "reject alg-not-allowed",
+     "observed": "alg-not-allowed",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#jku-x5u",
+   "env": "offline",
+   "title": "jku・x5u",
+   "expected": "header-key-param で拒否し、URL を 1 回も取得しない",
+   "requirements": [
+    "p01-dangerous-header-params.R4"
+   ],
+   "lint": [
+    "L25"
+   ],
+   "slides": [
+    "p01-dangerous-header-params"
+   ],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "jku で攻撃者の鍵の場所を指し、攻撃者の鍵で署名",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    },
+    {
+     "name": "正しい t1 の署名に jku を足したもの",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    },
+    {
+     "name": "x5u で攻撃者の鍵の場所を指し、攻撃者の鍵で署名",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    },
+    {
+     "name": "正しい t1 の署名に x5u を足したもの",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    },
+    {
+     "name": "検証の間に URL を取得した回数",
+     "expected": 0,
+     "observed": 0,
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#embedded-jwk",
+   "env": "offline",
+   "title": "ヘッダーの jwk・x5c",
+   "expected": "header-key-param で拒否",
+   "requirements": [
+    "p01-dangerous-header-params.R5"
+   ],
+   "lint": [
+    "L25"
+   ],
+   "slides": [
+    "p01-dangerous-header-params"
+   ],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "ヘッダーの jwk に自前の公開鍵を入れ、その鍵で署名",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの x5c に自前の証明書を入れたもの",
+     "expected": "reject header-key-param",
+     "observed": "header-key-param",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#untrusted-key",
+   "env": "offline",
+   "title": "設定外の鍵・別の発行者の鍵",
+   "expected": "unknown-kid・bad-signature で拒否。未知の kid での JWKS の取り直しは 300 秒に 1 回まで",
+   "requirements": [
+    "p00-incident-signature-valid.R1",
+    "p01-key-rotation-jwks.R1",
+    "p01-validation-order.R3",
+    "p12-antipatterns-1.R5"
+   ],
+   "lint": [],
+   "slides": [
+    "p00-incident-signature-valid",
+    "p01-key-rotation-jwks",
+    "p01-validation-order",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.206,
+   "checks": [
+    {
+     "name": "t1 の kid を名乗り、攻撃者の鍵で署名",
+     "expected": "reject bad-signature",
+     "observed": "bad-signature",
+     "ok": true
+    },
+    {
+     "name": "iss=t1 を t2 の鍵（t2 の kid）で署名（Storm-0558 の型、ケーススタディ A9）",
+     "expected": "reject unknown-kid",
+     "observed": "unknown-kid",
+     "ok": true
+    },
+    {
+     "name": "未知の kid rotated-1（0 秒後）",
+     "expected": "reject unknown-kid",
+     "observed": "unknown-kid",
+     "ok": true
+    },
+    {
+     "name": "未知の kid rotated-2（10 秒後）",
+     "expected": "reject unknown-kid",
+     "observed": "unknown-kid",
+     "ok": true
+    },
+    {
+     "name": "未知の kid rotated-3（20 秒後）",
+     "expected": "reject unknown-kid",
+     "observed": "unknown-kid",
+     "ok": true
+    },
+    {
+     "name": "300 秒の間の JWKS の取り直し",
+     "expected": "1 回",
+     "observed": "1 回",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#iss-mismatch",
+   "env": "offline",
+   "title": "iss の不一致",
+   "expected": "iss-not-allowed で拒否（完全一致だけを受ける）",
+   "requirements": [
+    "p01-validation-order.R4",
+    "p02-registered-claims.R1"
+   ],
+   "lint": [],
+   "slides": [
+    "p01-validation-order",
+    "p02-registered-claims"
+   ],
+   "ok": true,
+   "seconds": 0.107,
+   "checks": [
+    {
+     "name": "iss='https://idp.example.com/realms/t1/'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='http://idp.example.com/realms/t1'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://IDP.example.com/realms/t1'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com/realms/T1'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com/realms/t1x'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com/realms/t1/../t2'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com/realms/t1 '（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com.attacker.example.net/realms/t1'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss='https://idp.example.com'（t1 の鍵で正しく署名）",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "iss が配列",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#aud-wrong",
+   "env": "offline",
+   "title": "aud の誤り",
+   "expected": "aud-mismatch で拒否。文字列と配列の aud はどちらも受ける",
+   "requirements": [
+    "p01-attack-patterns.R2",
+    "p01-id-token-vs-access-token.R2",
+    "p01-library-defaults.R1",
+    "p01-validation-order.R5",
+    "p02-registered-claims.R3",
+    "p03-entra-oid-tid.R5",
+    "p03-keycloak-aud-lightweight.R1",
+    "p04-reject-missing-required.R4",
+    "p05-confused-deputy.R4",
+    "p05-cross-tenant.R6",
+    "p06-transaction-tokens.R6",
+    "p06-validation-split.R2",
+    "p10-mcp-authorization.R2",
+    "p12-antipatterns-1.R3"
+   ],
+   "lint": [
+    "L41"
+   ],
+   "slides": [
+    "p01-attack-patterns",
+    "p01-id-token-vs-access-token",
+    "p01-library-defaults",
+    "p01-validation-order",
+    "p02-registered-claims",
+    "p03-entra-oid-tid",
+    "p03-keycloak-aud-lightweight",
+    "p04-reject-missing-required",
+    "p05-confused-deputy",
+    "p05-cross-tenant",
+    "p06-transaction-tokens",
+    "p06-validation-split",
+    "p10-mcp-authorization",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.391,
+   "checks": [
+    {
+     "name": "aud='saas-web'",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud='account'",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud='https://graph.microsoft.com'",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud=['other-api']",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud=['saas-web', 'account']",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud='saas-api-admin'",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud='SAAS-API'",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "aud の型の誤り 7",
+     "expected": "reject claim-type|missing-claim",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "aud の型の誤り []",
+     "expected": "reject claim-type|missing-claim",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "aud の型の誤り ['saas-api', 7]",
+     "expected": "reject claim-type|missing-claim",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "aud の型の誤り None",
+     "expected": "reject claim-type|missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "aud が配列 [\"saas-api\",\"account\"]（正規）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "aud が文字列 \"saas-api\"（正規）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "シナリオ B：Txn-Token の aud が信頼ドメイン（https://corp.example.com）の外",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#typ-wrong",
+   "env": "offline",
+   "title": "typ の誤り",
+   "expected": "typ-mismatch で拒否。application/at+jwt は受ける",
+   "requirements": [
+    "p01-attack-patterns.R4",
+    "p01-client-made-jwts.R3",
+    "p01-dangerous-header-params.R6",
+    "p01-id-token-vs-access-token.R1",
+    "p01-validation-order.R7",
+    "p03-cognito-token-use.R1",
+    "p06-flow-browser-to-db.R2",
+    "p06-return-results.R2",
+    "p08-logout.R1"
+   ],
+   "lint": [
+    "L17"
+   ],
+   "slides": [
+    "p01-attack-patterns",
+    "p01-client-made-jwts",
+    "p01-dangerous-header-params",
+    "p01-id-token-vs-access-token",
+    "p01-validation-order",
+    "p03-cognito-token-use",
+    "p06-flow-browser-to-db",
+    "p06-return-results",
+    "p08-logout"
+   ],
+   "ok": true,
+   "seconds": 0.106,
+   "checks": [
+    {
+     "name": "ヘッダーの typ='JWT'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ='jwt'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ='logout+jwt'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ='txntoken+jwt'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ='dpop+jwt'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ='at+JWT+extra'",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの typ=None",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "ID トークンの形（typ JWT、aud saas-web）を API に送る（ケーススタディ A13）",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    },
+    {
+     "name": "typ=application/at+jwt（RFC 9068 §2.1 の別の書き方、正規）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#expired",
+   "env": "offline",
+   "title": "期限切れ",
+   "expected": "expired・lifetime-too-long で拒否。ずれ 30 秒の境界までは受ける",
+   "requirements": [
+    "p01-validation-order.R6",
+    "p12-antipatterns-1.R8"
+   ],
+   "lint": [
+    "L27"
+   ],
+   "slides": [
+    "p01-validation-order",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.106,
+   "checks": [
+    {
+     "name": "exp ちょうど＋30 秒（受け入れの上限 330 秒の境界）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "exp＋31 秒（発行から 331 秒）",
+     "expected": "reject expired",
+     "observed": "expired",
+     "ok": true
+    },
+    {
+     "name": "発行から 400 秒（ケーススタディ A14）",
+     "expected": "reject expired",
+     "observed": "expired",
+     "ok": true
+    },
+    {
+     "name": "exp − iat = 301 秒（テナントの管理者が寿命を延ばした）",
+     "expected": "reject lifetime-too-long",
+     "observed": "lifetime-too-long",
+     "ok": true
+    },
+    {
+     "name": "exp が文字列",
+     "expected": "reject claim-type",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "exp が真偽値",
+     "expected": "reject claim-type",
+     "observed": "claim-type",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#nbf-future",
+   "env": "offline",
+   "title": "nbf が未来・時刻のずれ",
+   "expected": "not-yet-valid・iat-in-future で拒否。ずれ 30 秒までは受ける",
+   "requirements": [
+    "p01-validation-order.R6"
+   ],
+   "lint": [],
+   "slides": [
+    "p01-validation-order"
+   ],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "nbf が 31 秒先",
+     "expected": "reject not-yet-valid",
+     "observed": "not-yet-valid",
+     "ok": true
+    },
+    {
+     "name": "nbf が 30 秒先（ずれの許容の内側）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "iat が 31 秒先（発行者の時計が進んでいる）",
+     "expected": "reject iat-in-future",
+     "observed": "iat-in-future",
+     "ok": true
+    },
+    {
+     "name": "iat が 30 秒先",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#missing-required",
+   "env": "offline",
+   "title": "必須クレームの欠落",
+   "expected": "missing-claim（iss は iss-not-allowed）で拒否。aud は文字列と配列の両方を受ける",
+   "requirements": [
+    "p01-library-defaults.R2",
+    "p01-validation-order.R8",
+    "p03-cognito-token-use.R3",
+    "p03-confusing-differences.R4"
+   ],
+   "lint": [
+    "L7"
+   ],
+   "slides": [
+    "p01-library-defaults",
+    "p01-validation-order",
+    "p03-cognito-token-use",
+    "p03-confusing-differences"
+   ],
+   "ok": true,
+   "seconds": 0.207,
+   "checks": [
+    {
+     "name": "iss を欠く",
+     "expected": "reject iss-not-allowed",
+     "observed": "iss-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "sub を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "aud を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "exp を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "iat を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "jti を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "azp を欠く",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "exp が null",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "aud が配列でも受ける",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#missing-required-claim",
+   "env": "offline",
+   "title": "必須の独自クレームの欠落",
+   "expected": "missing-claim で拒否（fail closed）。roles の欠落は「ロールなし」で受ける",
+   "requirements": [
+    "p03-absorb-idp-differences.R5",
+    "p03-custom-claim-injection.R1",
+    "p04-absent-null-false-empty.R3",
+    "p04-forward-compatibility.R2",
+    "p04-reject-missing-required.R4",
+    "p06-grant-types.R4"
+   ],
+   "lint": [
+    "L37",
+    "L7"
+   ],
+   "slides": [
+    "p03-absorb-idp-differences",
+    "p03-custom-claim-injection",
+    "p04-absent-null-false-empty",
+    "p04-forward-compatibility",
+    "p04-reject-missing-required",
+    "p06-grant-types"
+   ],
+   "ok": true,
+   "seconds": 0.107,
+   "checks": [
+    {
+     "name": "名前空間の tenant_id を欠く（マッパーやフックの打ち切りを模擬）",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間の tenant_id が null",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間の user_id を欠く（マッパーやフックの打ち切りを模擬）",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間の user_id が null",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間の v を欠く（マッパーやフックの打ち切りを模擬）",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間の v が null",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "名前空間のオブジェクトごと欠く（軽量アクセストークン、ケーススタディ A11）",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "同時に X-Tenant: t2 を付けても、ヘッダーで補わない",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "roles を欠く（on_missing: 既定値）",
+     "expected": "ロールなしで受理",
+     "observed": [],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#duplicate-claim",
+   "env": "offline",
+   "title": "同名のクレームの重複",
+   "expected": "duplicate-member で拒否",
+   "requirements": [
+    "p01-attack-patterns.R6"
+   ],
+   "lint": [],
+   "slides": [
+    "p01-attack-patterns"
+   ],
+   "ok": true,
+   "seconds": 0.103,
+   "checks": [
+    {
+     "name": "sub が 2 回（後勝ちのパーサーなら carol になる）",
+     "expected": "reject duplicate-member",
+     "observed": "duplicate-member",
+     "ok": true
+    },
+    {
+     "name": "名前空間の中の tenant_id が 2 回",
+     "expected": "reject duplicate-member",
+     "observed": "duplicate-member",
+     "ok": true
+    },
+    {
+     "name": "名前空間のオブジェクトが 2 回",
+     "expected": "reject duplicate-member",
+     "observed": "duplicate-member",
+     "ok": true
+    },
+    {
+     "name": "ヘッダーの alg が 2 回",
+     "expected": "reject duplicate-member",
+     "observed": "duplicate-member",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#case-variant",
+   "env": "offline",
+   "title": "大文字小文字の違い",
+   "expected": "大文字小文字だけが違う値は別の値として扱い、照合に通らない",
+   "requirements": [
+    "p04-case-and-characters.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-case-and-characters"
+   ],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "tenant_id=\"T1\"（iss は t1）",
+     "expected": "reject tenant-iss-mismatch",
+     "observed": "tenant-iss-mismatch",
+     "ok": true
+    },
+    {
+     "name": "パスのテナントが T1（トークンは t1）",
+     "expected": "reject tenant-path-mismatch",
+     "observed": "tenant-path-mismatch",
+     "ok": true
+    },
+    {
+     "name": "user_id が sub の大文字",
+     "expected": "reject user-id-mismatch",
+     "observed": "user-id-mismatch",
+     "ok": true
+    },
+    {
+     "name": "roles=[\"Approver\",\"TENANT-ADMIN\"]（語彙と大文字小文字が違う）",
+     "expected": "ロールとして数えない（[]）",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "aud=\"Saas-Api\"",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#tenant-mismatch",
+   "env": "offline",
+   "title": "別テナント・テナントの食い違い",
+   "expected": "tenant-iss-mismatch・tenant-path-mismatch・claim-type で拒否",
+   "requirements": [
+    "p00-incident-signature-valid.R2",
+    "p01-attack-patterns.R3",
+    "p02-tenant-org.R3",
+    "p05-multitenancy.R3",
+    "p05-multitenancy.R6",
+    "p06-flow-multitenant-saas.R2",
+    "p08-reissue-triggers.R1",
+    "p12-antipatterns-1.R4"
+   ],
+   "lint": [
+    "L9"
+   ],
+   "slides": [
+    "p00-incident-signature-valid",
+    "p01-attack-patterns",
+    "p02-tenant-org",
+    "p05-multitenancy",
+    "p06-flow-multitenant-saas",
+    "p08-reissue-triggers",
+    "p12-antipatterns-1"
+   ],
+   "ok": true,
+   "seconds": 0.106,
+   "checks": [
+    {
+     "name": "t2 のトークンでパス /t1 を一覧",
+     "expected": "reject tenant-path-mismatch",
+     "observed": "tenant-path-mismatch",
+     "ok": true
+    },
+    {
+     "name": "t2 のトークンでパス /t1、ヘッダー X-Tenant: t1（ケーススタディ A5）",
+     "expected": "reject tenant-path-mismatch",
+     "observed": "tenant-path-mismatch",
+     "ok": true
+    },
+    {
+     "name": "t2 の管理者が自分のレルムのマッパーで tenant_id=t1 を出させた（iss t2・t2 の鍵、ケーススタディ A8）",
+     "expected": "reject tenant-iss-mismatch",
+     "observed": "tenant-iss-mismatch",
+     "ok": true
+    },
+    {
+     "name": "tenant_id が配列 [\"t1\",\"t2\"]（ケーススタディ A12）",
+     "expected": "reject claim-type",
+     "observed": "claim-type",
+     "ok": true
+    },
+    {
+     "name": "tenant_id=''…（0 バイト）",
+     "expected": "reject claim-value",
+     "observed": "claim-value",
+     "ok": true
+    },
+    {
+     "name": "tenant_id='xxxxxxxx'…（33 バイト）",
+     "expected": "reject claim-value",
+     "observed": "claim-value",
+     "ok": true
+    },
+    {
+     "name": "t2 のトークンで /t2（正規）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#bola-other-owner",
+   "env": "offline",
+   "title": "BOLA：他人のオブジェクト",
+   "expected": "他人の請求書は not-found（他テナントと同じ答え）",
+   "requirements": [
+    "p05-bola.R5",
+    "p06-validation-split.R5",
+    "p12-review-viewpoints.R13"
+   ],
+   "lint": [],
+   "slides": [
+    "p05-bola",
+    "p06-validation-split",
+    "p12-review-viewpoints"
+   ],
+   "ok": true,
+   "seconds": 0.109,
+   "checks": [
+    {
+     "name": "alice が自分の請求書 2 を読む",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "alice が同じテナントの carol の請求書 3 を読む",
+     "expected": "reject not-found",
+     "observed": "not-found",
+     "ok": true
+    },
+    {
+     "name": "alice が t2 の請求書 1 を読む（ケーススタディ A6）",
+     "expected": "reject not-found",
+     "observed": "not-found",
+     "ok": true
+    },
+    {
+     "name": "user_id だけを carol にしたトークン（sub は alice）",
+     "expected": "reject user-id-mismatch",
+     "observed": "user-id-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#revocation-latency",
+   "env": "offline",
+   "title": "剥奪の反映（オフライン）",
+   "expected": "テナントの停止は次の要求で拒否（0 秒）。ロールの剥奪は受け入れの上限（330 秒）の後に効く",
+   "requirements": [
+    "p04-token-is-snapshot.R3",
+    "p08-revocation-propagation.R2",
+    "p08-stale-claims.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-token-is-snapshot",
+    "p08-revocation-propagation",
+    "p08-stale-claims"
+   ],
+   "ok": true,
+   "seconds": 0.109,
+   "checks": [
+    {
+     "name": "停止前の要求",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "テナントを停止した直後の要求（AT の exp を待たない、ケーススタディの volatility 0）",
+     "expected": "reject tenant-suspended",
+     "observed": "tenant-suspended",
+     "ok": true
+    },
+    {
+     "name": "ロールを外した後も、手元の AT は発行から 330 秒まで approver のまま",
+     "expected": "approver が残る（上限 330 秒の内側）",
+     "observed": [
+      "approver"
+     ],
+     "ok": true
+    },
+    {
+     "name": "発行から 331 秒で、その AT は使えない",
+     "expected": "reject expired",
+     "observed": "expired",
+     "ok": true
+    }
+   ],
+   "notes": [
+    "Keycloak を使う版（lifetime_revocation.md）で、剥奪からリフレッシュで新しい AT に替わるまでの時間を測る"
+   ],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#txn-token-as-at",
+   "env": "offline",
+   "title": "Txn-Token を AT として送る",
+   "expected": "Authorization ヘッダーの Txn-Token は txn-token-in-authorization、AT の受け手では typ-mismatch",
+   "requirements": [
+    "p06-transaction-tokens.R2"
+   ],
+   "lint": [
+    "L43"
+   ],
+   "slides": [
+    "p06-transaction-tokens"
+   ],
+   "ok": true,
+   "seconds": 0.553,
+   "checks": [
+    {
+     "name": "ledger に Authorization: Bearer <Txn-Token>",
+     "expected": "reject txn-token-in-authorization",
+     "observed": "txn-token-in-authorization",
+     "ok": true
+    },
+    {
+     "name": "orders（INT_AT の受け手）に Txn-Token を AT として送る",
+     "expected": "reject typ-mismatch",
+     "observed": "typ-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#txn-remint-immutable",
+   "env": "offline",
+   "title": "Txn-Token の作り直しで不変であるべきもの",
+   "expected": "txn・sub・aud・req_wl を変えた、または scope を広げた Txn-Token は txn-changed で拒否",
+   "requirements": [
+    "p06-transaction-tokens.R5"
+   ],
+   "lint": [
+    "L16",
+    "L44"
+   ],
+   "slides": [
+    "p06-transaction-tokens"
+   ],
+   "ok": true,
+   "seconds": 0.275,
+   "checks": [
+    {
+     "name": "TTS が作り直して txn を変えた（署名は正しい）",
+     "expected": "reject txn-changed|unknown-txn|aud-mismatch",
+     "observed": "unknown-txn",
+     "ok": true
+    },
+    {
+     "name": "TTS が作り直して sub を変えた（署名は正しい）",
+     "expected": "reject txn-changed|unknown-txn|aud-mismatch",
+     "observed": "txn-changed",
+     "ok": true
+    },
+    {
+     "name": "TTS が作り直して aud を変えた（署名は正しい）",
+     "expected": "reject txn-changed|unknown-txn|aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "TTS が作り直して scope を広げた（ledger.post）（署名は正しい）",
+     "expected": "reject txn-changed|unknown-txn|aud-mismatch",
+     "observed": "txn-changed",
+     "ok": true
+    },
+    {
+     "name": "作り直しで exp を延ばした（検査の関数）",
+     "expected": "指摘あり",
+     "observed": [
+      "exp extended"
+     ],
+     "ok": true
+    },
+    {
+     "name": "改変せずに渡した（正規）",
+     "expected": "指摘なし",
+     "observed": [],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#nested-act",
+   "env": "offline",
+   "title": "入れ子の act",
+   "expected": "入れ子の act だけを変えたトークンを拒否。今の代理者は最も外側の act.sub だけ",
+   "requirements": [
+    "p02-delegation-client.R1",
+    "p05-confused-deputy.R2",
+    "p06-audit-trail.R2",
+    "p10-delegation-chain-depth.R4",
+    "p10-four-questions.R6"
+   ],
+   "lint": [
+    "L12"
+   ],
+   "slides": [
+    "p02-delegation-client",
+    "p05-confused-deputy",
+    "p06-audit-trail",
+    "p10-delegation-chain-depth",
+    "p10-four-questions"
+   ],
+   "ok": true,
+   "seconds": 0.271,
+   "checks": [
+    {
+     "name": "入れ子の act.act.sub だけを admin-console に変えた（署名は正しい）",
+     "expected": "reject delegation-chain-mismatch",
+     "observed": "delegation-chain-mismatch",
+     "ok": true
+    },
+    {
+     "name": "最も外側を admin-console にし、invoice-mcp を内側に入れた（内側を読む受け手なら通る）",
+     "expected": "reject actor-mismatch",
+     "observed": "actor-mismatch",
+     "ok": true
+    },
+    {
+     "name": "委任の連鎖の深さ 4（組織の規則は 3 まで）",
+     "expected": "reject delegation-too-deep",
+     "observed": "delegation-too-deep",
+     "ok": true
+    },
+    {
+     "name": "最も外側の act.sub と mTLS の相手が違う",
+     "expected": "reject actor-mismatch",
+     "observed": "actor-mismatch",
+     "ok": true
+    },
+    {
+     "name": "act が無い（利用者のトークンを借りた形、ケーススタディ C12）",
+     "expected": "reject missing-claim",
+     "observed": "missing-claim",
+     "ok": true
+    },
+    {
+     "name": "正規の連鎖（invoice-mcp ← agent:expense）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#req-wl-changed",
+   "env": "offline",
+   "title": "req_wl だけを変えた",
+   "expected": "req_wl だけを変えたトークンを拒否",
+   "requirements": [
+    "p06-validation-split.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p06-validation-split"
+   ],
+   "ok": true,
+   "seconds": 0.28,
+   "checks": [
+    {
+     "name": "req_wl だけを書き換えた（署名はそのまま）",
+     "expected": "reject bad-signature",
+     "observed": "bad-signature",
+     "ok": true
+    },
+    {
+     "name": "TTS が req_wl=orders で発行した（入口以外が Txn-Token を求めた）",
+     "expected": "reject req-wl-not-allowed",
+     "observed": "req-wl-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "mTLS の相手が orders でない",
+     "expected": "reject peer-mismatch",
+     "observed": "peer-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#tctx-mismatch",
+   "env": "offline",
+   "title": "本文と tctx の食い違い",
+   "expected": "本文の操作が tctx と食い違う要求を拒否",
+   "requirements": [
+    "p06-transaction-tokens.R9"
+   ],
+   "lint": [
+    "L11"
+   ],
+   "slides": [
+    "p06-transaction-tokens"
+   ],
+   "ok": true,
+   "seconds": 0.267,
+   "checks": [
+    {
+     "name": "本文の operation=ledger.post、tctx は ledger.read",
+     "expected": "reject tctx-body-mismatch",
+     "observed": "tctx-body-mismatch",
+     "ok": true
+    },
+    {
+     "name": "tctx.operation=ledger.post（scope は ledger.read）",
+     "expected": "reject tctx-scope-mismatch",
+     "observed": "tctx-scope-mismatch",
+     "ok": true
+    },
+    {
+     "name": "tctx に語彙に無い項目（amount）",
+     "expected": "reject tctx-shape",
+     "observed": "tctx-shape",
+     "ok": true
+    }
+   ],
+   "notes": [
+    "シナリオ B の tctx の項目は operation だけ（claims.yaml C-tctx の value_vocabulary）。#8 の本文の「本文の数量」は、この記入例では承認の金額（approval-mismatch）で確かめる"
+   ],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#approval-mismatch",
+   "env": "offline",
+   "title": "承認の内容と要求の食い違い",
+   "expected": "承認と食い違う金額・相手先・対象、取り消した承認を拒否",
+   "requirements": [
+    "p10-agent-checklist.R7",
+    "p10-human-approval-evidence.R3"
+   ],
+   "lint": [
+    "L11"
+   ],
+   "slides": [
+    "p10-agent-checklist",
+    "p10-human-approval-evidence"
+   ],
+   "ok": true,
+   "seconds": 0.267,
+   "checks": [
+    {
+     "name": "金額を 1,200,000 に変えた（ケーススタディ C5）",
+     "expected": "reject approval-mismatch",
+     "observed": "approval-mismatch",
+     "ok": true
+    },
+    {
+     "name": "相手先の口座を変えた（C6）",
+     "expected": "reject approval-mismatch",
+     "observed": "approval-mismatch",
+     "ok": true
+    },
+    {
+     "name": "authorization_details が空",
+     "expected": "reject approval-missing",
+     "observed": "approval-missing",
+     "ok": true
+    },
+    {
+     "name": "承認を取り消した後（C7。トークンの exp を待たない）",
+     "expected": "reject approval-not-active",
+     "observed": "approval-not-active",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#passthrough-rejected",
+   "env": "offline",
+   "title": "トークンのパススルー",
+   "expected": "MCP サーバー宛ての AGENT_AT を上流の invoices に送ると aud-mismatch",
+   "requirements": [
+    "p10-mcp-authorization.R3"
+   ],
+   "lint": [
+    "L41"
+   ],
+   "slides": [
+    "p10-mcp-authorization"
+   ],
+   "ok": true,
+   "seconds": 0.275,
+   "checks": [
+    {
+     "name": "invoice-mcp が受けた AGENT_AT をそのまま invoices に送る（ケーススタディ C2）",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
+     "ok": true
+    },
+    {
+     "name": "宛先を複数にした広いトークン（C13。H14 は invoice-mcp だけ）",
+     "expected": "reject actor-mismatch|delegation-chain-mismatch",
+     "observed": "actor-mismatch",
+     "ok": true
+    }
+   ],
+   "notes": [
+    "2 つ目は aud には invoices を含むので aud の検査は通り、act（agent:expense が今の代理者）で落ちる。宛先を 1 つにする規則は発行者（sts）と L16 で守る"
+   ],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#rar-unknown-type",
+   "env": "offline",
+   "title": "知らない authorization_details",
+   "expected": "知らない type・フィールド・actions の authorization_details を sts が invalid_authorization_details で拒否",
+   "requirements": [
+    "p05-coarse-fine-layers.R3"
+   ],
+   "lint": [],
+   "slides": [
+    "p05-coarse-fine-layers"
+   ],
+   "ok": true,
+   "seconds": 0.0,
+   "checks": [
+    {
+     "name": "承認の形どおり",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "type が https://claims.example.com/rar/refund",
+     "expected": "reject invalid_authorization_details",
+     "observed": "invalid_authorization_details",
+     "ok": true
+    },
+    {
+     "name": "知らないフィールド maxAmount",
+     "expected": "reject invalid_authorization_details",
+     "observed": "invalid_authorization_details",
+     "ok": true
+    },
+    {
+     "name": "actions に refund",
+     "expected": "reject invalid_authorization_details",
+     "observed": "invalid_authorization_details",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#spoofed-identity-header",
+   "env": "offline",
+   "title": "ID 系ヘッダーの偽装",
+   "expected": "x-user-* はどの綴りでも除去、重複は duplicate-header で拒否。素朴な除去は変種を通す",
+   "requirements": [
+    "p06-header-forwarding.R1",
+    "p06-header-forwarding.R2",
+    "p06-header-forwarding.R3",
+    "p11-pre-add-questions-2.R5",
+    "p12-antipatterns-2.R5"
+   ],
+   "lint": [
+    "L72",
+    "L8"
+   ],
+   "slides": [
+    "p06-header-forwarding",
+    "p11-pre-add-questions-2",
+    "p12-antipatterns-2"
+   ],
+   "ok": true,
+   "seconds": 0.103,
+   "checks": [
+    {
+     "name": "'X-User-Id' を入口で除去",
+     "expected": "除去される",
+     "observed": [
+      "Authorization"
+     ],
+     "ok": true
+    },
+    {
+     "name": "'x-user-id' を入口で除去",
+     "expected": "除去される",
+     "observed": [
+      "Authorization"
+     ],
+     "ok": true
+    },
+    {
+     "name": "'X_USER_ID' を入口で除去",
+     "expected": "除去される",
+     "observed": [
+      "Authorization"
+     ],
+     "ok": true
+    },
+    {
+     "name": "'x-User_Roles' を入口で除去",
+     "expected": "除去される",
+     "observed": [
+      "Authorization"
+     ],
+     "ok": true
+    },
+    {
+     "name": "' X-User-Department' を入口で除去",
+     "expected": "除去される",
+     "observed": [
+      "Authorization"
+     ],
+     "ok": true
+    },
+    {
+     "name": "x-user-id が 2 回（大文字小文字違い）",
+     "expected": "reject duplicate-header",
+     "observed": "duplicate-header",
+     "ok": true
+    },
+    {
+     "name": "Authorization が 2 回",
+     "expected": "reject duplicate-header",
+     "observed": "duplicate-header",
+     "ok": true
+    },
+    {
+     "name": "X_User_Id と X-User-Id（_ と - の変種の重複）",
+     "expected": "reject duplicate-header",
+     "observed": "duplicate-header",
+     "ok": true
+    },
+    {
+     "name": "素朴な除去（X-User-Id の完全一致だけ）は変種を通す＝このテストが見つける誤り",
+     "expected": "4 件以上が残る",
+     "observed": [
+      "x-user-id",
+      "X_USER_ID",
+      "x-User_Roles",
+      " X-User-Department"
+     ],
+     "ok": true
+    },
+    {
+     "name": "シナリオ A の API は X-Tenant を読まない",
+     "expected": "t2 の行だけ",
+     "observed": [
+      "t2"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:negative_tests#exchange-narrowing",
+   "env": "offline",
+   "title": "交換で絞られているか（オフライン）",
+   "expected": "交換で出たトークンが上流を超えたら指摘する。正規の交換は指摘 0",
+   "requirements": [
+    "p03-keycloak-aud-lightweight.R4",
+    "p06-narrow-downstream.R3",
+    "p10-delegation-chain-depth.R2",
+    "p10-token-exchange-not-narrowing.R1",
+    "p10-token-exchange-not-narrowing.R4"
+   ],
+   "lint": [
+    "L16"
+   ],
+   "slides": [
+    "p03-keycloak-aud-lightweight",
+    "p06-narrow-downstream",
+    "p10-delegation-chain-depth",
+    "p10-token-exchange-not-narrowing"
+   ],
+   "ok": true,
+   "seconds": 0.0,
+   "checks": [
+    {
+     "name": "H14→H15 の正規の交換",
+     "expected": "指摘 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で scope に invoices.refund を足した",
+     "expected": "指摘あり",
+     "observed": [
+      "scope widened by ['invoices.refund'] (upstream ['invoices.pay', 'invoices.read'])"
+     ],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で aud に orders を足した",
+     "expected": "指摘あり",
+     "observed": [
+      "aud ['invoices', 'orders'] is not the declared single replacement ['invoices'] (added ['orders'])"
+     ],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で exp を上流より 600 秒延ばした",
+     "expected": "指摘あり",
+     "observed": [
+      "exp extended by 600 s beyond the upstream exp"
+     ],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で 承認の金額を変えた",
+     "expected": "指摘あり",
+     "observed": [
+      "authorization_details entry not upstream: {'type': 'https://claims.example.com/rar/payment', 'actions': ['pay'], 'identifier': 'inv-1', 'instructedAmount': 999999, 'creditorAccount': 'JP00-1234-5678'}"
+     ],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で 独自クレーム department を足した",
+     "expected": "指摘あり",
+     "observed": [
+      "custom claim department added"
+     ],
+     "ok": true
+    },
+    {
+     "name": "作った TASK_AT で tenant_id を変えた",
+     "expected": "指摘あり",
+     "observed": [
+      "custom claim tenant_id changed 'corp' -> 'other'"
+     ],
+     "ok": true
+    },
+    {
+     "name": "ケーススタディの実測 narrow_to_invoices（aud=invoices）",
+     "expected": "指摘 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "ケーススタディの実測 scope_not_granted（aud=['orders', 'account']）",
+     "expected": "指摘あり（orders が出た）",
+     "observed": [
+      "aud ['orders', 'account'] is not the declared single replacement ['invoices'] (added ['orders', 'account'])",
+      "scope aud-orders carries audience orders, which is neither upstream nor the declared target"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#declared-reads",
+   "env": "offline",
+   "title": "読むクレームの宣言",
+   "expected": "受け手が読むクレームはすべて台帳の consumers に受け手がある。consumers から外すと失敗する",
+   "requirements": [
+    "p00-claims-are-contracts.R7",
+    "p11-schema-contract-tests.R4"
+   ],
+   "lint": [],
+   "slides": [
+    "p00-claims-are-contracts",
+    "p11-schema-contract-tests"
+   ],
+   "ok": true,
+   "seconds": 0.212,
+   "checks": [
+    {
+     "name": "参照の saas-api が読んだメンバー",
+     "expected": "台帳のどれかの行",
+     "observed": [
+      "aud",
+      "azp",
+      "exp",
+      "https://claims.example.com/",
+      "https://claims.example.com/roles",
+      "https://claims.example.com/tenant_id",
+      "https://claims.example.com/user_id",
+      "https://claims.example.com/v",
+      "iat",
+      "iss",
+      "jti",
+      "sub"
+     ],
+     "ok": true
+    },
+    {
+     "name": "台帳のとおり（consumers に saas-api）",
+     "expected": "違反 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "読むクレームの型：台帳から生成した今の版の consumer のスキーマ（AT.consumer.schema.json）",
+     "expected": "スキーマの誤り 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "C-roles の consumers から saas-api を外す",
+     "expected": "契約テストが失敗する（違反 1 件以上）",
+     "observed": [
+      "https://claims.example.com/roles (C-roles): saas-api is not in consumers []"
+     ],
+     "ok": true
+    },
+    {
+     "name": "C-tenant-id の consumers から saas-api を外す",
+     "expected": "契約テストが失敗する（違反 1 件以上）",
+     "observed": [
+      "https://claims.example.com/tenant_id (C-tenant-id): saas-api is not in consumers []"
+     ],
+     "ok": true
+    },
+    {
+     "name": "C-azp の consumers から saas-api を外す",
+     "expected": "契約テストが失敗する（違反 1 件以上）",
+     "observed": [
+      "azp (C-azp): saas-api is not in consumers []"
+     ],
+     "ok": true
+    },
+    {
+     "name": "受け手が email を読まないこと（AT に載せない宣言と一致）",
+     "expected": "email を読まない",
+     "observed": false,
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#unknown-claim-ignored",
+   "env": "offline",
+   "title": "未知のクレームを無視する",
+   "expected": "未知のクレームを足しても受理する",
+   "requirements": [
+    "p04-forward-compatibility.R1"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-forward-compatibility"
+   ],
+   "ok": true,
+   "seconds": 0.105,
+   "checks": [
+    {
+     "name": "最上位に未知のクレーム 2 つ",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "名前空間に未知の department",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#issued-claims-present",
+   "env": "offline",
+   "title": "発行されたトークンの黙った欠落",
+   "expected": "発行されたトークンに、台帳で AT に載ると宣言した採用の独自クレームが全部ある",
+   "requirements": [
+    "p03-auth0-namespace.R2",
+    "p03-entra-scp-roles-groups.R4"
+   ],
+   "lint": [],
+   "slides": [
+    "p03-auth0-namespace",
+    "p03-entra-scp-roles-groups"
+   ],
+   "ok": true,
+   "seconds": 0.102,
+   "checks": [
+    {
+     "name": "Keycloak 26.8 が発行した見本（tools/tests/fixtures/claim_lint/golden/token.json）",
+     "expected": "欠落 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "軽量アクセストークンの形（ケーススタディ keycloak.lightweight の light_claims）",
+     "expected": "欠落を検出",
+     "observed": [
+      "C-sub (sub)",
+      "C-aud (aud)",
+      "C-tenant-id (https://claims.example.com/tenant_id)",
+      "C-user-id (https://claims.example.com/user_id)",
+      "C-v (https://claims.example.com/v)"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#type-shape-match",
+   "env": "offline",
+   "title": "型と形の一致",
+   "expected": "発行されたトークンが台帳から生成した issuer 適合のスキーマ（型・形）に合う",
+   "requirements": [
+    "p04-type.R1"
+   ],
+   "lint": [],
+   "slides": [
+    "p04-type"
+   ],
+   "ok": true,
+   "seconds": 0.002,
+   "checks": [
+    {
+     "name": "Keycloak 26.8 の見本",
+     "expected": "スキーマの誤り 0",
+     "observed": [],
+     "ok": true
+    },
+    {
+     "name": "見本を変えて roles が文字列",
+     "expected": "スキーマの誤りあり",
+     "observed": [
+      "https://claims.example.com//roles: 'approver' is not of type 'array'"
+     ],
+     "ok": true
+    },
+    {
+     "name": "見本を変えて tenant_id が配列",
+     "expected": "スキーマの誤りあり",
+     "observed": [
+      "https://claims.example.com//tenant_id: ['t1'] is not of type 'string'"
+     ],
+     "ok": true
+    },
+    {
+     "name": "見本を変えて v が数値",
+     "expected": "スキーマの誤りあり",
+     "observed": [
+      "https://claims.example.com//v: 1 is not of type 'string'"
+     ],
+     "ok": true
+    },
+    {
+     "name": "見本を変えて 知らないクレームを足した",
+     "expected": "スキーマの誤りあり",
+     "observed": [
+      "(root): Additional properties are not allowed ('x_new' was unexpected)"
+     ],
+     "ok": true
+    }
+   ],
+   "notes": [],
+   "error": null
+  },
+  {
+   "id": "test:consumer_contract#format-change-cases",
+   "env": "offline",
+   "title": "契約テストが見逃しやすい変更",
+   "expected": "形式の変化ごとに、どの検査が見つけるかを示す（型だけの契約の死角を含む）",
+   "requirements": [
+    "p11-contract-test-gaps.R1",
+    "p11-contract-test-gaps.R2"
+   ],
+   "lint": [
+    "L24"
+   ],
+   "slides": [
+    "p11-contract-test-gaps"
+   ],
+   "ok": true,
+   "seconds": 0.112,
+   "checks": [
+    {
+     "name": "区切り文字：roles を配列から空白区切りの文字列に",
+     "expected": "型だけの契約は見つける。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "detect",
+      "issuer_schema": "detect",
+      "reference_api": "claim-type"
+     },
+     "ok": true
+    },
+    {
+     "name": "区切り文字：roles の要素をカンマで連結した 1 要素に",
+     "expected": "型だけの契約は見逃す。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "miss",
+      "issuer_schema": "detect",
+      "reference_api": "accepted"
+     },
+     "ok": true
+    },
+    {
+     "name": "大文字化：tenant_id を T1 に",
+     "expected": "型だけの契約は見逃す。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "miss",
+      "issuer_schema": "miss",
+      "reference_api": "tenant-iss-mismatch"
+     },
+     "ok": true
+    },
+    {
+     "name": "2^53 を超える数値：user_id を数値 9007199254740993 に",
+     "expected": "型だけの契約は見つける。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "detect",
+      "issuer_schema": "detect",
+      "reference_api": "user-id-mismatch"
+     },
+     "ok": true
+    },
+    {
+     "name": "null：roles を null に",
+     "expected": "型だけの契約は見つける。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "detect",
+      "issuer_schema": "detect",
+      "reference_api": "claim-type"
+     },
+     "ok": true
+    },
+    {
+     "name": "false：tenant_id を false に",
+     "expected": "型だけの契約は見つける。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "detect",
+      "issuer_schema": "detect",
+      "reference_api": "claim-type"
+     },
+     "ok": true
+    },
+    {
+     "name": "真偽値の文字列化：v を \"true\" に（版の値の取り違え）",
+     "expected": "型だけの契約は見逃す。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "miss",
+      "issuer_schema": "miss",
+      "reference_api": "unknown-version"
+     },
+     "ok": true
+    },
+    {
+     "name": "制限のクレームの追加：名前空間に read_only: true",
+     "expected": "型だけの契約は見逃す。issuer 適合のスキーマか参照の受け手のどちらかが見つける",
+     "observed": {
+      "consumer_schema": "miss",
+      "issuer_schema": "detect",
+      "reference_api": "accepted"
+     },
+     "ok": true
+    },
+    {
+     "name": "2^53 を超える整数を倍精度で読む受け手（JavaScript の Number と同じ）",
+     "expected": "値が変わる",
+     "observed": 9007199254740992,
+     "ok": true
+    }
+   ],
+   "notes": [
+    "シナリオ A の AT に真偽値のクレームはない。真偽値の文字列化は、版の値 v（文字列の語彙）で代えた"
+   ],
+   "error": null
+  }
+ ]
+}
