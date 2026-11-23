@@ -65,9 +65,9 @@ claims:
     consumers: [saas-api, saas-web]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 許可リストと完全一致。鍵はその iss の JWKS だけから取る}
-      - {service: saas-api, check: iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う}
-      - {service: saas-api, check: iss のレルム名と tenant_id が一致するか}
+      - {service: saas-api, check: 許可リストと完全一致。鍵はその iss の JWKS だけから取る, against: [api_config]}
+      - {service: saas-api, check: iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う, against: [api_config]}
+      - {service: saas-api, check: iss のレルム名と tenant_id が一致するか, against: [other_claim], with: C-tenant-id}
     max_bytes: 63
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -111,8 +111,8 @@ claims:
     consumers: [saas-api, saas-web]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること}
-      - {service: saas-api, check: "BOLA：請求書の owner_sub = sub、かつ請求書の tenant_id = iss から引いたテナント"}
+      - {service: saas-api, check: 文字列であること, against: [format]}
+      - {service: saas-api, check: "BOLA：請求書の owner_sub = sub、かつ請求書の tenant_id = iss から引いたテナント", against: [data_layer, iss]}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
@@ -155,8 +155,8 @@ claims:
     consumers: [saas-api, saas-web]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: aud が saas-api と一致}
-      - {service: saas-web, check: ID トークンの aud が saas-web と一致}
+      - {service: saas-api, check: aud が saas-api と一致, against: [api_config]}
+      - {service: saas-web, check: ID トークンの aud が saas-web と一致, against: [api_config]}
     max_bytes: 8
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -399,7 +399,7 @@ claims:
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 許可したクライアント（saas-web）の一覧にあるか}
+      - {service: saas-api, check: 許可したクライアント（saas-web）の一覧にあるか, against: [api_config]}
     max_bytes: 32
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -416,6 +416,7 @@ claims:
     name: sid
     namespace: null
     catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0243"]
+    registered_ref: {kind: spec, id: "OpenID Connect Front-Channel Logout 1.0 §3", url: "https://openid.net/specs/openid-connect-frontchannel-1_0.html"}
     type: string
     shape: single
     description: Keycloak の SSO セッションの ID
@@ -687,12 +688,12 @@ claims:
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること（配列は拒否）。null・空文字・32 バイトを超える値は拒否}
-      - {service: saas-api, check: iss のレルム名と一致するか}
+      - {service: saas-api, check: 文字列であること（配列は拒否）。null・空文字・32 バイトを超える値は拒否, against: [format]}
+      - {service: saas-api, check: iss のレルム名と一致するか, against: [iss]}
       - {service: saas-api, check: パスのテナントと一致するか}
-      - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する"}
-      - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）"}
-      - {service: postgres, check: "app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止）"}
+      - {service: saas-api, check: "トランザクションごとに set_config('app.tenant', $1, true) をパラメータで呼ぶ（SET LOCAL は値をバインドできないので使わない）。すべての SQL にもテナントの条件を付け、RLS と併用する", against: [data_layer]}
+      - {service: postgres, check: "アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）", against: [data_layer]}
+      - {service: postgres, check: "app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止）", against: [data_layer]}
     integrity_until:
       - place: db_session
         target: Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02）
@@ -736,7 +737,7 @@ claims:
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
-      - {service: saas-api, check: 文字列であること。sub と一致しなければ拒否}
+      - {service: saas-api, check: 文字列であること。sub と一致しなければ拒否, against: [other_claim], with: C-sub}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
@@ -779,7 +780,7 @@ claims:
     on_missing: 既定値
     absent_semantics: {absent: ロールなし（何も許さない）, empty_array: ロールなし（何も許さない）, "null": 拒否（型の誤り。配列であることの照合で落とす）}
     enforced_at:
-      - {service: saas-api, check: 配列であること。2 件を超えたら拒否。approver・tenant-admin 以外の値は無視する（語彙は API 側で固定）}
+      - {service: saas-api, check: 配列であること。2 件を超えたら拒否。approver・tenant-admin 以外の値は無視する（語彙は API 側で固定）, against: [api_config]}
     max_bytes: 12
     max_items: 2
     typical_items: 1

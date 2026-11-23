@@ -1,0 +1,18 @@
+# Claims an IdP does not let the design rewrite (L2 of claim_lint, #6). One block per IdP; the key is the `idp.name` of
+# catalog_answers.yaml. Only lists read in a primary source are here, with the URL and the date it was read.
+#   immutable     names the IdP's hook cannot add, modify or suppress
+#   prefixes      name prefixes with the same restriction ("Any other claim with a cognito: prefix")
+#   suppress_only names the hook may suppress but not add or modify
+# An IdP without a block has no list here: L2 reports info and the IdP module of the template (#4) checks it by hand.
+idps:
+  cognito:
+    source:
+      title: "Amazon Cognito Developer Guide, Pre token generation Lambda trigger, Claims and scopes reference"
+      url: "https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html"
+      verified_on: "2026-11-23"
+      review_by: "2027-02-21"
+    immutable: [cognito:username, username, sub, identities, aud, client_id, event_id, device_key, version, acr, amr, at_hash,
+                auth_time, azp, exp, iat, iss, jti, nbf, nonce, origin_jti, token_use, sid]
+    prefixes: ["cognito:"]
+    prefix_exceptions: [cognito:groups, cognito:preferred_role, cognito:roles]
+    suppress_only_prefixes: ["dev:"]

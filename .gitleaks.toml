@@ -20,7 +20,11 @@ description = """Requirement IDs of the trace table (#22), e.g. p08-revocation-p
 req:<id> in schemas and docs (tools/trace_check.py). The default rule generic-api-key reads such an ID after "token"-like words
 (here "...transaction-tokens.R8 req:p08-revocation-propagation.R6") as a key: a false positive (first seen on 193f1dd).
 Only a secret that is exactly one requirement ID (slide ID p<NN>-<kebab> + .R<n>, the grammar of trace_check.REQ_ID_RE) is
-excluded; any other value on the same line is still reported. The secret-scan job self-tests that a random key is still found."""
+excluded; any other value on the same line is still reported. The secret-scan job self-tests that a random key is still found.
+Restricted by path (PR #40 independent check) to the files that hold reverse references: the templates (schemas, trace table,
+catalogue), the rule docs of claim_lint, its tests, and the workflow whose self-test writes such IDs."""
 targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)templates/.+\.(json|yaml|md)$''', '''(^|/)tools/claim_lint/[A-Za-z_]+\.md$''', '''(^|/)tools/tests/[a-z_]+\.py$''', '''(^|/)\.github/workflows/claims\.yml$''']
 regexTarget = "secret"
 regexes = ['''^p\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.R[1-9]\d*$''']

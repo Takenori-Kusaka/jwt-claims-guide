@@ -599,7 +599,8 @@
     },
     "max_clock_skew": {
      "type": "integer",
-     "minimum": 0
+     "minimum": 0,
+     "$comment": "Trace: req:p01-attack-patterns.R5"
     },
     "max_lifetime": {
      "type": "integer",

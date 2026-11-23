@@ -7,13 +7,13 @@ summary:
   design_decision_slides: 135
   knowledge_slides: 7
   structural_slides: 17
-  requirements: 749
-  未着手: 648
-  実装済み: 58
+  requirements: 750
+  未着手: 623
+  実装済み: 84
   後回し: 42
   扱わない: 1
-  core_未着手: 446
-  core_実装済み: 43
+  core_未着手: 421
+  core_実装済み: 69
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 202
@@ -38,6 +38,7 @@ tier_changes:
   - {id: "p05-one-request-carries.R6", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
   - {id: "p05-one-request-carries.R7", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
   - {id: "p08-four-lifetimes.R1", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
+  - {id: "p11-why-govern.R4", from: "full", to: "core", changed_on: "2026-11-23", reason: "新しい要件（#6 で足した。749 件から 750 件）。前の tier はなく、from の full は計画の項目 lint:L10（#21 の担当、MVP の外）の扱い。#6 のコメントで L10 を MVP に移したので core にする"}
 
 # 159 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
 classification:
@@ -301,7 +302,7 @@ requirements:
     text: "クレームをヘッダーに移すときの偽装の余地を塞ぐ"
     owner_issue: "#6"
     planned_items: [lint:L8]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 5 slide:p00-incident-signature-valid
   - id: p00-incident-signature-valid.R1
@@ -654,7 +655,7 @@ requirements:
     text: "exp を必須にし、時刻のずれの許容は数分までにする"
     owner_issue: "#6"
     planned_items: [lint:L27, registry:token_types#max_clock_skew]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-attack-patterns.R6
     slide: slide:p01-attack-patterns
@@ -675,7 +676,7 @@ requirements:
     text: "別の発行者が書いた同名のクレームを信じない"
     owner_issue: "#6"
     planned_items: [lint:L1b, registry:claims#issuers]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 20 slide:p02-registered-claims
   - id: p02-registered-claims.R1
@@ -733,14 +734,14 @@ requirements:
     text: "新しい名前は、IANA の登録名か、自分が管理する名前空間を含む公開名にする"
     owner_issue: "#6"
     planned_items: [lint:L1b, registry:claims#namespace]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-name-categories.R2
     slide: slide:p02-name-categories
     text: "私的名（名前空間なし）は避け、閉じた範囲で使うなら理由を書く"
     owner_issue: "#6"
     planned_items: [lint:L1b, registry:claims#rationale]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-name-categories.R3
     slide: slide:p02-name-categories
@@ -762,7 +763,7 @@ requirements:
     text: "email・preferred_username・name を一意のキーにしない"
     owner_issue: "#6"
     planned_items: [lint:L3]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-user-identifier.R3
     slide: slide:p02-user-identifier
@@ -812,7 +813,7 @@ requirements:
     text: "IdP のテナントのクレーム（tid・org_id・organization）を iss と突き合わせて検証する"
     owner_issue: "#6"
     planned_items: [lint:L9, registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 25 slide:p02-roles-groups-entitlements
   - id: p02-roles-groups-entitlements.R1
@@ -820,7 +821,7 @@ requirements:
     text: "役割・グループ・資格の名前は roles・groups・entitlements を使う"
     owner_issue: "#6"
     planned_items: [lint:L1a, registry:claims#registered_ref]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-roles-groups-entitlements.R2
     slide: slide:p02-roles-groups-entitlements
@@ -999,7 +1000,7 @@ requirements:
     text: "cnf を持つトークンの受け手は、DPoP・mTLS で鍵の保持を照合する"
     owner_issue: "#6"
     planned_items: [lint:L15]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-keys-events-identity-assurance.R3
     slide: slide:p02-keys-events-identity-assurance
@@ -1128,7 +1129,7 @@ requirements:
     text: "email・preferred_username・upn で認可しない"
     owner_issue: "#6"
     planned_items: [lint:L3]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-entra-oid-tid.R3
     slide: slide:p03-entra-oid-tid
@@ -1279,7 +1280,7 @@ requirements:
     text: "独自クレームは必ず組織の名前空間つきで足す"
     owner_issue: "#6"
     planned_items: [lint:L1b]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-auth0-namespace.R2
     slide: slide:p03-auth0-namespace
@@ -1372,7 +1373,7 @@ requirements:
     text: "利用者のキーは sub とし、一意とは限らない username をキーにしない"
     owner_issue: "#6"
     planned_items: [lint:L3, registry:claims#usage]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-cognito-token-use.R5
     slide: slide:p03-cognito-token-use
@@ -1415,14 +1416,14 @@ requirements:
     text: "フックで変えられないクレーム（sub・username・client_id・aud・acr・amr・cognito:*）を書き換える設計にしない"
     owner_issue: "#6"
     planned_items: [lint:L2]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-cognito-pre-token-hook.R4
     slide: slide:p03-cognito-pre-token-hook
     text: "本人が書き換えうる属性（読み取り専用でない custom:属性など）を源にしたクレームを認可に使わない"
     owner_issue: "#6"
     planned_items: [registry:claims#provenance, lint:L31]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-cognito-pre-token-hook.R5
     slide: slide:p03-cognito-pre-token-hook
@@ -1632,7 +1633,7 @@ requirements:
     text: "独自の名前には、自社が管理する URI を接頭辞にする"
     owner_issue: "#6"
     planned_items: [lint:L1b, registry:claims#namespace]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-claim-names.R3
     slide: slide:p04-claim-names
@@ -1849,7 +1850,7 @@ requirements:
     text: "認可には発行者が確かめた値だけを使い、申告の値は記録と参考に限る"
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#usage]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p04-split-by-writer.R3
     slide: slide:p04-split-by-writer
@@ -1993,7 +1994,7 @@ requirements:
     text: "同じ名前のクレームを、複数の発行者が別の意味で出さない（roles・groups の詐称に注意する）"
     owner_issue: "#6"
     planned_items: [lint:L1b]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 62 slide:p04-namespace-object-example
   - id: p04-namespace-object-example.R1
@@ -2540,7 +2541,7 @@ requirements:
     text: "段階ごとに書き手を 1 つに決める"
     owner_issue: "#6"
     planned_items: [registry:claims#authoritative_writer, lint:L4]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-stage-map.R3
     slide: slide:p06-stage-map
@@ -2561,7 +2562,7 @@ requirements:
     text: "入口では、クライアントが送ってきた同名のヘッダーの値を使わない"
     owner_issue: "#6"
     planned_items: [lint:L8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-stage-map.R6
     slide: slide:p06-stage-map
@@ -3256,7 +3257,7 @@ requirements:
     text: "STS のタグ・属性を、利用者が編集できる属性から作らない"
     owner_issue: "#6"
     planned_items: [registry:claims#provenance, lint:L31]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 96 slide:p07-row-level-security
   - id: p07-row-level-security.R1
@@ -3271,7 +3272,7 @@ requirements:
     text: "本人が書ける属性（Supabase の user_metadata など）を認可に使わない"
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#provenance]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-row-level-security.R3
     slide: slide:p07-row-level-security
@@ -3460,7 +3461,7 @@ requirements:
     text: "セッションタグ・属性の元を、利用者が編集できる属性にしない"
     owner_issue: "#6"
     planned_items: [lint:L31, registry:claims#provenance]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-cloud-attributes.R2
     slide: slide:p07-cloud-attributes
@@ -4064,7 +4065,7 @@ requirements:
     text: "変わりうる識別子（email・upn）を認可や保存のキーに使わない"
     owner_issue: "#6"
     planned_items: [lint:L3]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p09-do-not-carry.R5
     slide: slide:p09-do-not-carry
@@ -4201,7 +4202,7 @@ requirements:
     text: "クライアント・利用者の識別子はハッシュなどで難読化して記録する"
     owner_issue: "#6"
     planned_items: [registry:claims#log_policy, lint:L6]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p09-logs-traces.R5
     slide: slide:p09-logs-traces
@@ -4706,6 +4707,13 @@ requirements:
     planned_items: [registry:claims#consumers, test:consumer_contract]
     status: 未着手
     tier: core
+  - id: p11-why-govern.R4
+    slide: slide:p11-why-govern
+    text: "前の版と比べて、クレームの削除・改名・型と意味の変更・必須化を検出し、互換性を壊す変更を止める"
+    owner_issue: "#6"
+    planned_items: [lint:L10]
+    status: 実装済み
+    tier: core
   # ---- 141 slide:p11-registry-fields
   - id: p11-registry-fields.R1
     slide: slide:p11-registry-fields
@@ -4839,7 +4847,7 @@ requirements:
     text: "廃止予定のクレームを読む受け手に警告を出す"
     owner_issue: "#6"
     planned_items: [lint:L18]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 144 slide:p11-contract-test-gaps
   - id: p11-contract-test-gaps.R1

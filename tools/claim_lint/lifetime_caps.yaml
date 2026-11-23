@@ -1,0 +1,13 @@
+# Default upper bounds of max_lifetime per token kind (L23 of claim_lint, #6). These are the organization caps when the design
+# does not pass its own file (python tools/claim_lint DIR --lifetime-caps FILE). Above the cap, the token type needs
+# lifetime_exception (who approved, why, when). Each cap names its source; kinds without a numeric source are not listed
+# (templates/catalog/token_kinds.yaml, lifetime_hint).
+caps:
+  access_token: {max_seconds: 3600, basis: "NIST IR 8587 §5.3.1.1（1 時間以内とすべき。SHOULD）。slide:p08-choosing-lifetime"}
+  id_token: {max_seconds: 3600, basis: "NIST IR 8587 §5.3.1.1。slide:p08-token-types-lifetimes"}
+  refresh_token: {max_seconds: 86400, basis: "対話用の RT は再認証の期間を超えない。AAL2 の再認証は 24 時間（NIST SP 800-63B-4 §2.2.3）。slide:p08-token-types-lifetimes"}
+  session: {max_seconds: 86400, idle_max_seconds: 3600, basis: "AAL2 は 24 時間・無操作 1 時間（NIST SP 800-63B-4 §2.2.3）。slide:p08-token-types-lifetimes"}
+  authorization_code: {max_seconds: 600, basis: "最大 10 分を推奨（RFC 6749 §4.1.2、RECOMMENDED）"}
+  txn_token: {max_seconds: 600, basis: "分の単位（draft-ietf-oauth-transaction-tokens-11 §6 は寿命を短くとし、数値を定めない）。600 秒は筆者の提案（author-proposal、tracking #6）。slide:p06-transaction-tokens"}
+  logout_token: {max_seconds: 120, basis: "できれば 2 分以内（OpenID Connect Back-Channel Logout 1.0 §4。templates/catalog/token_kinds.yaml の lifetime_hint）"}
+  jarm_response: {max_seconds: 600, basis: "最大 10 分を推奨（JARM §2.1、RECOMMENDED）"}

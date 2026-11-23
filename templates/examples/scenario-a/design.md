@@ -4,7 +4,7 @@
 > **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
 
 - **生成の区間**：`<!-- render:<節>:begin -->` と `<!-- render:<節>:end -->` の間は、`python tools/claim_lint render templates/examples/scenario-a --write` が台帳から書き直す（#19、`tools/claim_lint/RENDER.md`）。手で直さず、台帳を直してから生成し直す。CI は `render --check` で、区間が台帳から生成し直したものと違えば失敗する。区間の外は手で書く
-- 版：0.2.1（#19 で生成の区間に置き換えた版。前の版は 0.2.0）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
+- 版：0.2.2（#6 の意味の規則が求める宣言を足した版）。0.2.1 は #19 で生成の区間に置き換えた版（前の版は 0.2.0）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
 - 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
@@ -12,7 +12,7 @@
 ## 1. CI の結果　〔縮小 Lite：生成〕
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 2、info 7**（claims 25・token_types 18・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 5、info 6**（claims 25・token_types 18・catalog_events 62）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -21,10 +21,12 @@
 | `R3b` | warn | `I26` | keycloak のこの発行で プロトコルマッパー が呼ばれるかは unknown（カタログ）。独自クレーム C-tenant-id・C-user-id・C-roles・C-v が載ることを確かめて hook_checked に書く |
 | `R6` | info | `pairwise` | 2 因子の組 13 個をすべて検討した（主体 1・発行イベント 4） |
 | `R8` | info | `AT` | 最悪 1258 バイト（ヘッダーの行で 1280）／上限 8192（nginx-large-client-header-buffers）= 16% |
-| `R8` | info | `C-iss` | AT・IDT の両方に載る（重複の候補） |
-| `R8` | info | `C-sub` | AT・IDT の両方に載る（重複の候補） |
-| `R8` | info | `C-aud` | AT・IDT の両方に載る（重複の候補） |
-| `R8` | info | `C-azp` | AT・IDT の両方に載る（重複の候補） |
+| `L1b` | info | `C-typ-claim` | IdP が既定で出す私的名 typ（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す |
+| `L2` | info | `idp` | IdP keycloak の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。L2 は確かめていない（IdP モジュール #4 で手で確かめる） |
+| `L27` | info | `token_type AT` | at+jwt の REQUIRED の client_id（RFC 9068 §2.2）が無いことを、台帳の却下の行で逸脱として記録している |
+| `L72` | warn | `C-user-id` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
+| `L72` | warn | `C-roles` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
+| `L72` | warn | `C-v` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
 
 R8 AT：ヘッダー 86・ペイロード 599・署名 256 バイト（ceil(4/3*86) + ceil(4/3*599) + ceil(4/3*256) + 2 = 115 + 799 + 342 + 2 = 1258; + 7 (Bearer) = 1265）。nginx-large-client-header-buffers 1280／8192 バイト、nodejs-max-http-header-size 3328／16384 バイト
 <!-- render:ci-result:end -->
@@ -108,7 +110,7 @@ flowchart LR
 | ID | 種類 | 採否 | 発行 → 宛先（aud） | 持ち手 | 形式 | 寿命 | 保存場所 | 運び方 | 読める相手 | JWE | 理由 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AT` | アクセストークン | 採用 | テナントのレルム（Keycloak） → saas-api | BFF（saas-web のサーバー） | jwt（at+jwt、RS256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`api`・`hop:nginx` | なし | API（saas-api）の認可に使う |
-| `IDT` | ID トークン | 採用 | テナントのレルム（Keycloak） → saas-web | BFF（saas-web のサーバー）。ブラウザには渡さない | jwt（JWT、RS256） | 300 秒 | BFF のサーバー | トークンの応答 | `bff` | なし | BFF がログインを確かめ、画面の表示名を得る |
+| `IDT` | ID トークン | 採用 | テナントのレルム（Keycloak） → saas-web | BFF（saas-web のサーバー）。ブラウザには渡さない | jwt（JWT、RS256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | トークンの応答 | `bff` | なし | BFF がログインを確かめ、画面の表示名を得る |
 | `RT` | リフレッシュトークン | 採用 | テナントのレルム（Keycloak） → テナントのレルム（自分自身） | BFF（saas-web のサーバー） | opaque | idle 1800 秒、最大 36000 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | AT を 300 秒にしたまま、SSO セッションの間は利用者に再ログインさせない |
 | `CODE` | 認可コード | 既定どおり | テナントのレルム（Keycloak） → — | ブラウザを経由して BFF へ | opaque | 60 秒 | なし | リダイレクトの query | `browser`・`bff`・`idp` | — | 認可コード＋PKCE の流れで Keycloak が出す |
 | `BFFSESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | BFF（saas-web） → — | ブラウザ（HttpOnly・Secure・SameSite=Lax の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | ブラウザ | Cookie | `browser`・`bff` | — | ブラウザは BFF のセッションの Cookie だけを持つ。トークンをブラウザに置かない |
@@ -270,7 +272,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | トークン | 寿命 | 時計のずれ | 寿命を変えられる主体 | ホップでの寿命 |
 | --- | --- | --- | --- | --- |
 | `AT` | 300 秒 | 30 秒 | `platform`・`tenant_admin` | H2 300 秒 |
-| `IDT` | 300 秒 | — | — | — |
+| `IDT` | 300 秒 | 30 秒 | — | — |
 | `CODE` | 60 秒 | — | — | — |
 
 **2. クレームの値の鮮度（受け手のいる行）**
@@ -284,10 +286,10 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `iat` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
 | `jti` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
 | `azp` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | クライアントを無効にしたら新しい発行が止まる |
-| `nonce` | `IDT` | 300 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
-| `name` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
-| `email` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
-| `email_verified` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけ |
+| `nonce` | `IDT` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
+| `name` | `IDT` | 330 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
+| `email` | `IDT` | 330 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
+| `email_verified` | `IDT` | 330 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけ |
 | `https://claims.example.com/.tenant_id` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない） |
 | `https://claims.example.com/.user_id` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | sub と同じ |
 | `https://claims.example.com/.roles` | `AT` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh` | — | — | ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6） |
@@ -498,6 +500,7 @@ R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak �
 
 ## 13. 前の版との差分
 
+- 0.2.2：claim_lint の意味の規則（#6）が求める宣言を足した。判断（採否・値）は変えていない。足したもの：`C-sid` の `registered_ref`（OpenID Connect Front-Channel Logout 1.0 §3。L1a）、`enforced_at` の `against`（何と照合するか。15 件）と `with`（`C-user-id` は `C-sub` と、`C-iss` の 3 つ目は `C-tenant-id` と照合する。L9・L31）、IDT の `max_clock_skew: 30`（L27）、`catalog_answers.yaml` の `lite_criteria`（Lite の判定の 5 問。multitenant が Yes なので `--profile lite` では L73 の warn が出る）。値の途中の「 #」から後ろがコメントとして消えていた 3 か所（C-auth-time の note、C-roles の on_revoke、AT の note）を引用符で囲んだ（#39 と同じ直し）。残した warn は L72 の 3 件（C-user-id・C-roles・C-v の追加前の 25 問がまだ無い。#4 で書く）。R8 の info から iss・sub・aud・azp の 4 件（ID トークンと AT の両方の仕様が定める登録名）が消えた
 - 0.2.1：#19 の `claim-lint render` で、縮小 Lite の〔生成〕の節（1. CI の結果、4. 発行方式の選択、5. トークン目録、8. ホップごとの表、10. 判断の行、11. カタログへの回答の集計）を、台帳から生成する区間（`<!-- render:<節>:begin -->`〜`end`）に置き換えた。8. に矢印ごとの表、10. にデータ源の表を足し、6. と 9. には手で書いた表の確かめ用の生成の表を足した。手で書いた要約の表（4. の理由の要約、5. の却下 9 種類をまとめた行、10. の理由の要点）は、台帳の全文の行に置き換わった。`claims.yaml`・`token_types.yaml` の 3 か所で、値の中の「 #」から後ろが YAML のコメントとして落ちていたので、引用符で囲んだ（生成の表で見つかった）。判断（採否・値）は変えていない
 - 0.2.0：台帳 v1（#3）に移し替えた。`claims.yaml` に `data_category`・`confidential_from`・`identifier_properties`・`rejection_kind` などを足し、`authoritative_writer` を段階ごとの配列（`configurable_by` つき）に、`integrity_until` を構造にした。`token_types.yaml` にカタログの残りの 9 種類の却下の行と `visible_to`・`jwe`・鍵の取り直しの規則などを足した。8. の表の中身を `hops.yaml` に宣言した。判断（採否・値）は変えていない
 - 0.1.4：#17 の網羅の規則（R3・R3b・R4・R6・R9）が求める節（`idp`・`subject_states`・`pairwise`・`outside_enumeration`）を `catalog_answers.yaml` に足した。PR #33 の独立点検で、カタログに I34（OID4VCI）が足されたので対象外で答え、R9 の探した範囲から Full だけの節（シーケンス図）を外し、停止の RT の根拠を「拒否による実質の失効」と書き直した。1. の CI の結果と 11. を直した
