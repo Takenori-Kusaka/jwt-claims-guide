@@ -101,8 +101,9 @@ jobs:
           jsonschema.Draft202012Validator.check_schema(json.load(open('templates/review/review.schema.json', encoding='utf-8')))
           print('valid schema: templates/review/review.schema.json')
           EOF
-          # stale approvals (a row changed after it was approved) are listed as "stale"; add --fail-on-stale to stop on them
-          python tools/review_record.py check templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b
+          # stale approvals (a row changed after it was approved) are listed as "stale" and shown as ::warning annotations on the
+          # PR; not fatal by default (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変えるとき); --fail-on-stale stops on them
+          python tools/review_record.py check templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --annotate
       - name: Review report of scenario B is what review.yaml generates (fix with python tools/review_record.py report ... -o ...) and follows report_template.md
         run: |
           python tools/review_record.py report templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --check templates/examples/scenario-b/review-report-2026-11-23.md

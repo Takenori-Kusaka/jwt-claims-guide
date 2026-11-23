@@ -46,10 +46,12 @@
   const KEY_ORDER = ['format', 'design', 'independent', 'reviews', 'reviewer', 'id', 'criterion', 'name', 'to', 'location', 'anchors',
     'questions', 'content', 'severity', 'origin', 'kind', 'model', 'confused_question', 'verdict', 'verdict_reason',
     'response', 'owner', 'due', 'state', 'ref', 'conclusion', 'self_declared', 'started', 'updated', 'submitted',
-    'target', 'commit', 'context', 'lite_full', 'steps', 'roles_order', 'materials', 'ci', 'error', 'warn', 'info',
-    'profile', 'matches_design', 'human_check', 'answers', 'answer', 'memo', 'rows', 'decision', 'hash', 'comment',
-    'at', 'findings', 'sampling', 'seed', 'count', 'picked', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6',
-    'RR7', 'pass', 'escalations', 'applies', 'not_applicable', 'feedback', 'note'];
+    'independence', 'mode', 'broken_at', 'viewed_others_at', 'target', 'commit', 'materials', 'perspectives',
+    'report_template', 'context', 'lite_full', 'steps', 'roles_order', 'ci', 'error', 'warn', 'info',
+    'profile', 'matches_design', 'human_check', 'answers', 'answer', 'memo', 'rows', 'decision', 'reviewer_kind',
+    'hash', 'comment', 'edited_after_viewing_others', 'at', 'findings', 'sampling', 'seed', 'count', 'picked',
+    'population', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7', 'pass', 'reason', 'previous',
+    'replaced_at', 'escalations', 'applies', 'not_applicable', 'feedback', 'note'];
   const HEADER = '# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。\n' +
     '# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。\n';
 
@@ -140,10 +142,39 @@
   function emptyFile(design) { return { format: FORMAT, design, independent: false, reviews: [] }; }
   function now() { return (RV.clock ? RV.clock() : new Date()).toISOString().slice(0, 19) + 'Z'; }
   function mine() { return st.me ? st.file.reviews.find((r) => r.reviewer.name === st.me) || null : null; }
-  // independent review (#5): until the reviewer has submitted, the other reviewers' records are not shown to them
-  function hiding() { const m = mine(); return !!st.file.independent && !(m && m.submitted); }
+  // independent review (#5): until the reviewer has submitted, the other reviewers' records are not shown to them.
+  // This is only a screen: anyone can open review.yaml. What the editor can do is make leaving it deliberate (a dialog)
+  // and recorded (independence.mode = broken, with when and why), and record when the reviewer first saw the others'
+  // records (viewed_others_at) and which records were changed after that (edited_after_viewing_others).
+  function broken(m) { return !!(m && m.independence && m.independence.mode === 'broken'); }
+  function hiding() { const m = mine(); return !!st.file.independent && !(m && (m.submitted || broken(m))); }
+  function locked() { const m = mine(); return !!st.file.independent && !!m && !m.submitted && !broken(m); }
   function visible() { if (!hiding()) return st.file.reviews; const m = mine(); return m ? [m] : []; }
   function hiddenCount() { return st.file.reviews.length - visible().length; }
+  function breakIndependence(reason) {
+    const m = mine();
+    if (!locked()) return Promise.resolve(true);
+    return CE.ask('独立レビューを外れる', `${m.reviewer.name} はまだ提出していません。この操作（${reason}）をすると、ほかのレビュアーの記録が見えるようになり、独立レビューを外れます。外れたことと理由・日時は review.yaml に記録され、レポートに出ます。`,
+      [['cancel', 'やめる（独立レビューを続ける）'], ['break', '外れる（記録する）']]).then((c) => {
+      if (c !== 'break') return false;
+      m.independence = Object.assign({}, m.independence || {}, { mode: 'broken', broken_at: now(), reason });
+      return true;
+    });
+  }
+  // the first time the others' records are on screen for a reviewer of an independent review
+  function noteViewing() {
+    const m = mine();
+    if (!m || hiding() || !(st.file.independent || m.independence) || (m.independence && m.independence.viewed_others_at)) return;
+    const others = st.file.reviews.filter((r) => r !== m && (Object.keys(r.answers).length || Object.keys(r.rows).length || r.findings.length));
+    if (!others.length) return;
+    m.independence = Object.assign({ mode: 'kept' }, m.independence || {}, { viewed_others_at: now() });
+    autosaveSoon();
+  }
+  function flagEdit(item) {
+    const m = mine();
+    if (m && m.independence && m.independence.viewed_others_at) item.edited_after_viewing_others = true;
+    return item;
+  }
   function unsaved() { return st.open && dump(st.file) !== st.savedText; }
   function changed(rerender) {
     const m = mine();
@@ -161,15 +192,21 @@
     if (!(set || anchorSet()).has(anchor) || cur === null) return 'missing';
     return cur === rec.hash ? 'current' : 'stale';
   }
-  function stateBadge(rec, anchor, who, set) {
+  // the badge of a decision always names the reviewer; an LLM's decision says that no person has checked it. The
+  // details (when, the hashes) are in the text for screen readers too, not only in the title
+  function stateBadge(rec, anchor, rv, set) {
     const s = rowState(rec, anchor, set);
     const d = DEC[rec.decision];
-    const name = who ? `（${who}）` : '';
-    if (s === 'stale') return h('span', { class: 'rvb', 'data-review-for': anchor, 'data-review-state': 'stale', 'data-review-by': who || '' },
-      badge(STALE, '再確認が要る' + name, `${d[2]} を記録した後に、行の内容が変わった（記録 ${rec.hash.slice(0, 12)}…、今 ${String(CE.rowHash(anchor)).slice(0, 12)}…）`));
-    if (s === 'missing') return h('span', { class: 'rvb', 'data-review-for': anchor, 'data-review-state': 'missing', 'data-review-by': who || '' }, badge(MISSING, '台帳に無い行' + name));
-    return h('span', { class: 'rvb', 'data-review-for': anchor, 'data-review-state': rec.decision, 'data-review-by': who || '' },
-      badge(d, d[2] + name, `${rec.at}${rec.comment ? '：' + rec.comment : ''}`));
+    const kind = rec.reviewer_kind || rv.reviewer.kind;
+    const who = `（${rv.reviewer.name}` + (kind === 'llm' ? '・LLM、人による点検は未実施' : '・名前は自己申告') + '）';
+    const attrs = (state) => ({ class: 'rvb', 'data-review-for': anchor, 'data-review-state': state, 'data-review-by': rv.reviewer.name, 'data-review-kind': kind });
+    if (s === 'stale') {
+      const why = `${d[2]} を記録した後に、行の内容が変わった（記録 ${rec.hash.slice(0, 12)}…、今 ${String(CE.rowHash(anchor)).slice(0, 12)}…）`;
+      return h('span', attrs('stale'), badge(STALE, '再確認が要る' + who, why), h('span', { class: 'vh' }, why));
+    }
+    if (s === 'missing') return h('span', attrs('missing'), badge(MISSING, '台帳に無い行' + who));
+    const why = `${rec.at}${rec.comment ? '：' + rec.comment : ''}`;
+    return h('span', attrs(rec.decision), badge(d, d[2] + who, why), h('span', { class: 'vh' }, why));
   }
   function record(anchor, decision, comment) {
     const m = mine();
@@ -177,7 +214,7 @@
     const hash = CE.rowHash(anchor);
     if (!hash) return false;
     if (!decision) { delete m.rows[anchor]; changed(true); return true; }
-    const rec = { decision, hash, at: now() };
+    const rec = flagEdit({ decision, reviewer_kind: m.reviewer.kind, hash, at: now() });
     const c = comment !== undefined ? comment : (m.rows[anchor] && m.rows[anchor].comment) || '';
     if (c) rec.comment = c;
     m.rows[anchor] = rec;
@@ -196,21 +233,43 @@
     const set = anchorSet();
     const recs = visible().filter((rv) => own(rv.rows, anchor)).map((rv) => [rv, rv.rows[anchor]]);
     const fs = findingsOf(anchor);
-    const multi = st.file.reviews.length > 1;
+    if (recs.some(([rv]) => rv !== mine())) noteViewing();
     if (where !== 'detail') {
       if (!recs.length && !fs.length) return null;
-      return h('span', { class: 'codes rvbadges' }, recs.map(([rv, r]) => stateBadge(r, anchor, multi ? rv.reviewer.name : null, set)),
-        fs.length ? badge(['info', '!', ''], `指摘 ${fs.length}`, fs.map(([, f]) => `${f.id} ${f.severity} ${f.content}`).join('\n')) : null);
+      const list = fs.map(([, f]) => `${f.id} ${f.severity} ${f.content}`).join('／');
+      return h('span', { class: 'codes rvbadges' }, recs.map(([rv, r]) => stateBadge(r, anchor, rv, set)),
+        fs.length ? [badge(['info', '!', ''], `指摘 ${fs.length}`, list), h('span', { class: 'vh' }, '：' + list)] : null);
     }
     return rowPanel(anchor, recs, fs, set);
   });
+  // rows the decision does not cover: the hash is of this row only (PR #52 check)
+  function dependents(anchor) {
+    const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
+    const out = [];
+    const r = CE.rowOf(anchor);
+    if (!r || !r.row) return out;
+    if (kind === 'claims') {
+      (Array.isArray(r.row.carried_in) ? r.row.carried_in : []).forEach((t) => out.push(['token_types:' + t, '載るトークン種別']));
+      CE.anchors().filter((a) => a.kind === 'hops' && a.row && Array.isArray(a.row.custom_claims) && a.row.custom_claims.includes(id)).forEach((a) => out.push([a.anchor, 'この行を運ぶホップ']));
+      paFiles().filter((f) => f.target === id).forEach((f) => out.push([f.name, '追加前の 25 問の回答']));
+    }
+    if (kind === 'hops') {
+      if (r.row.token_type) out.push(['token_types:' + r.row.token_type, 'ホップのトークン種別']);
+      if (r.row.upstream) out.push(['hops:' + r.row.upstream, '上流のホップ']);
+    }
+    if (kind === 'token_types') CE.anchors().filter((a) => a.kind === 'claims' && a.row && Array.isArray(a.row.carried_in) && a.row.carried_in.includes(id)).slice(0, 40).forEach((a) => out.push([a.anchor, '載る台帳の行']));
+    return out;
+  }
   function rowPanel(anchor, recs, fs, set) {
     const m = mine();
     const hash = CE.rowHash(anchor);
     const cur = m && m.rows[anchor];
+    const deps = dependents(anchor);
     const box = h('section', { class: 'rv-panel', 'aria-labelledby': 'rvp-h', 'data-review-panel': anchor },
       h('h2', { id: 'rvp-h' }, 'レビュー（#50）'),
-      h('p', { class: 'muted small' }, '判定は、この行の内容のハッシュ（', code(hash ? hash.slice(0, 16) + '…' : 'なし'), '）に結びつけます。行を変えると「再確認が要る」になります。名前は自己申告で、本当の承認は GitHub の PR のレビューです。'));
+      h('p', { class: 'muted small' }, '判定は、この行の内容のハッシュ（', code(hash ? hash.slice(0, 16) + '…' : 'なし'), '）に結びつけます。行を変えると「再確認が要る」になります。名前は自己申告で、本当の承認は GitHub の PR のレビューです。'),
+      deps.length ? h('details', { class: 'small', 'data-dependents': anchor }, h('summary', null, `依存する行 ${deps.length} 件（変えても、この判定は「再確認が要る」にならない）`),
+        h('ul', null, deps.map(([a, why]) => h('li', null, /^claim_request_/.test(a) ? code(a) : rowLink(a), `：${why}`)))) : null);
     if (!hash) box.append(h('p', { class: 'note warn' }, 'この行にはハッシュが無い（ID が 2 行以上にある、またはハッシュにできない値がある）ので、判定を記録できません。'));
     else if (!m) box.append(h('p', null, '判定を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前（自己申告）を決めてください。'));
     else {
@@ -231,7 +290,7 @@
         h('button', { type: 'button', onclick: () => { newFinding({ anchors: [anchor], location: anchor.replace(/^claims:/, '') }); } }, '指摘を足す'))));
     }
     if (recs.length) {
-      box.append(h('h3', null, '記録'), h('ul', { class: 'rv-recs' }, recs.map(([rv, r]) => h('li', null, stateBadge(r, anchor, rv.reviewer.name, set), ' ',
+      box.append(h('h3', null, '記録'), h('ul', { class: 'rv-recs' }, recs.map(([rv, r]) => h('li', null, stateBadge(r, anchor, rv, set), ' ',
         h('span', { class: 'muted' }, r.at, r.comment ? '：' : ''), r.comment ? H.inline(r.comment) : null))));
     }
     if (hiding() && hiddenCount()) box.append(h('p', { class: 'muted small', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の記録を隠しています。`));
@@ -243,12 +302,45 @@
   function slotKey() { return SLOT + st.designRel; }
   function readSlot() { try { const raw = localStorage.getItem(slotKey()); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
   function autosaveSoon() { clearTimeout(st.timer); st.timer = setTimeout(autosave, 800); }
+  // true when the records are in the slot. A failure keeps them counted as not saved (closing and leaving still ask)
+  // and leaves a warning on screen, as for the design files. While an autosaved version is waiting for a choice
+  // (slotHold), nothing is written over it.
   function autosave() {
     if (!st.open || !CE.autosaveEnabled() || !unsaved()) return false;
+    if (st.slotHold) { holdWarning(); return false; }
     try {
       localStorage.setItem(slotKey(), JSON.stringify({ savedAt: new Date().toISOString().replace('T', ' ').slice(0, 19), me: st.me, text: dump(st.file) }));
+      CE.saveWarning(null, 'review');
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      CE.saveWarning(`レビューの記録の自動保存に失敗しました（${e.name || 'Error'}：${e.message || e}）。今の記録はこのブラウザに保存されていません。「review.yaml を書き出す」で保存してください。`, 'review');
+      return false;
+    }
+  }
+  function holdWarning() {
+    CE.saveWarning('このブラウザに自動保存したレビューの記録が残っていて、どれを使うかが決まっていないので、レビューの記録の自動保存を止めています（上書きしない）。レビューの概要の「自動保存した記録」で選んでください。', 'review');
+  }
+  // the autosaved records of this design and the ones opened differ: asked; Esc or a slot that cannot be read leaves
+  // the slot as it is and stops autosaving the records until a choice is made (nothing is overwritten silently)
+  function askSlot(sv) {
+    const r = parseReview(sv.text, '自動保存した記録');
+    if (r.error) {
+      st.slotHold = sv;
+      holdWarning();
+      return CE.ask('自動保存した記録を読めません', r.error + '。自動保存した記録は消さずに残し、レビューの記録の自動保存を止めます。', [['ok', '閉じる']]).then(() => null);
+    }
+    return CE.ask('自動保存したレビューの記録があります', `この設計書（${st.designRel}）には、このブラウザに自動保存したレビューの記録（${sv.savedAt} に保存）があります。「開いた記録を使う」を選ぶと、自動保存した記録は次の保存で上書きされます。`,
+      [['saved', '自動保存した記録を開く'], ['opened', '開いた記録を使う（自動保存した記録は上書きされる）'], ['merge', '両方を合わせる'], ['cancel', 'あとで決める（自動保存を止める）']]).then((c) => {
+      if (c === 'saved') { st.slotHold = null; CE.saveWarning(null, 'review'); setFile(r.data, st.savedText, sv.me, sv.text); return null; }
+      if (c === 'opened') { st.slotHold = null; CE.saveWarning(null, 'review'); return null; }
+      if (c === 'merge') {
+        st.slotHold = null; CE.saveWarning(null, 'review');
+        return mergeIn([r.data]).then(() => { if (sv.me && st.file.reviews.some((x) => x.reviewer.name === sv.me)) st.me = sv.me; });
+      }
+      st.slotHold = sv;
+      holdWarning();
+      return null;
+    });
   }
   function setFile(data, savedText, me, text) {
     st.version = versionOf(text || savedText) || (R && R.template_version);
@@ -295,17 +387,12 @@
       } else setFile(r.data, extra[0].text.replace(/\r\n/g, '\n'), null);
     }
     p.then(() => {
-      const sv = readSlot();
-      if (sv && sv.text && sv.text !== dump(st.file)) {
-        return CE.ask('自動保存したレビューの記録があります', `この設計書（${info.designRel}）には、このブラウザに自動保存したレビューの記録（${sv.savedAt} に保存）があります。「開いた記録を使う」で記録すると、自動保存した記録は上書きされます。`,
-          [['saved', '自動保存した記録を開く'], ['opened', '開いた記録を使う'], ['merge', '両方を合わせる']]).then((c) => {
-          const r = parseReview(sv.text, '自動保存した記録');
-          if (r.error) return;
-          if (c === 'saved') setFile(r.data, st.savedText, sv.me);
-          else if (c === 'merge') return mergeIn([r.data]).then(() => { if (sv.me) st.me = st.file.reviews.some((x) => x.reviewer.name === sv.me) ? sv.me : st.me; });
-          return null;
-        });
-      }
+      st.slotHold = null;
+      CE.saveWarning(null, 'review');
+      let sv = null;
+      try { const raw = localStorage.getItem(slotKey()); sv = raw ? JSON.parse(raw) : null; } catch (e) { sv = { savedAt: '不明', text: '\u0000' }; }
+      if (sv && typeof sv.text !== 'string') sv = { savedAt: sv.savedAt || '不明', text: '\u0000' };
+      if (sv && sv.text !== dump(st.file)) return askSlot(sv);
       return null;
     }).then(() => { st.opening = false; CE.publish(); });
   }
@@ -352,6 +439,20 @@
       });
     });
   }
+  // writing every reviewer's records while the others are hidden is leaving the independent review: asked and recorded
+  function exportAll() {
+    if (!(hiding() && hiddenCount())) return Promise.resolve(exportReview(false));
+    return CE.ask('全員の記録を書き出す', `独立レビューの間は、ほかのレビュアー ${hiddenCount()} 人の記録を画面で隠しています。全員の記録を書き出すと、そのファイルで見えます。`,
+      [['mine', '自分の記録だけ書き出す'], ['all', '全員の記録を書き出す（独立レビューを外れたと記録する）'], ['cancel', 'やめる']]).then((c) => {
+      if (c === 'mine') return exportReview(true);
+      if (c !== 'all') return null;
+      const m = mine();
+      if (m) m.independence = Object.assign({}, m.independence || {}, { mode: 'broken', broken_at: now(), reason: '提出の前に全員の記録を書き出した' });
+      const t = exportReview(false);
+      changed(true);
+      return t;
+    });
+  }
   function exportReview(onlyMine) {
     const m = mine();
     const data = onlyMine && m ? Object.assign({}, st.file, { reviews: [m] }) : st.file;
@@ -369,7 +470,7 @@
     markSaved: () => { st.savedText = dump(st.file); },
     slotKey: () => (st.open ? slotKey() : null),
     onOpen: companionOpen,
-    onClose: () => { st.open = false; st.file = emptyFile(''); st.savedText = dump(st.file); st.me = null; st.base = null; },
+    onClose: () => { st.slotHold = null; CE.saveWarning(null, 'review'); st.open = false; st.file = emptyFile(''); st.savedText = dump(st.file); st.me = null; st.base = null; },
     onExtras: (extras) => {
       const r = extras.filter((e) => /^review/.test(e.name));
       if (r.length) importFiles(r.map((e) => ({ name: e.name, text: () => Promise.resolve(e.text) })));
@@ -432,6 +533,16 @@
     return h('div', { class: 'note warn', id: 'rv-self-declared' }, h('p', null, h('strong', null, 'レビュアーの名前は自己申告です。'),
       'このエディターにはログインが無く、名前は誰でも書けます。本当の承認は GitHub の PR のレビュー（Approve）で行います。ここでの記録は、その PR に review.yaml としてコミットし、Git の履歴を監査の記録にします。'));
   }
+  // switching the reviewer of this tab: to another name of the records, a deliberate act (a dialog), and while the
+  // current reviewer's independent review is not submitted, leaving it (recorded)
+  function switchTo(name, typed) {
+    if (!name || name === st.me) { if (!name) { st.me = null; changed(true); } return Promise.resolve(); }
+    const target = st.file.reviews.find((r) => r.reviewer.name === name);
+    const p = locked() ? breakIndependence(`提出の前に別のレビュアー「${name}」の記録に切り替えた`)
+      : CE.ask('既にあるレビュアーの記録で続ける', `「${name}」の記録（${target && target.submitted ? '提出済み' : '未提出'}）に切り替えます。名前は自己申告なので、この操作で、ほかの人の記録を自分のものとして直せてしまいます。${typed ? '同じ名前を打ちました。' : ''}本人のときだけ続けてください。`,
+        [['go', '続ける'], ['cancel', 'やめる']]).then((c) => c === 'go');
+    return p.then((ok) => { if (ok) st.me = name; changed(true); });
+  }
   function viewOverview() {
     const m = mine();
     const name = h('input', { type: 'text', id: 'rv-name', 'aria-describedby': 'rv-self-declared', autocomplete: 'off' });
@@ -453,29 +564,49 @@
       selfDeclared(),
       h('h2', null, '記録するレビュアー'),
       h('p', { 'data-me': st.me || '' }, m ? ['いま記録しているのは ', h('strong', null, m.reviewer.name), `（${m.reviewer.kind === 'llm' ? 'LLM' : '人'}、自己申告）`, m.submitted ? `。${m.submitted} に提出済み` : '。未提出'] : 'レビュアーが決まっていません（回答・判定・指摘の記録には、名前が要ります）。'),
-      st.file.reviews.length ? h('p', null, h('label', { for: 'rv-pick' }, '記録にあるレビュアーから選ぶ：'), pick, ' ', h('button', { type: 'button', id: 'rv-pick-go', onclick: () => { st.me = pick.value || null; changed(true); } }, 'このレビュアーで記録する')) : null,
+      st.file.reviews.length ? h('p', null, h('label', { for: 'rv-pick' }, '記録にあるレビュアーから選ぶ：'), pick, ' ', h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(pick.value || null) }, 'このレビュアーで記録する')) : null,
       h('form', { class: 'filters', id: 'rv-new', onsubmit: (e) => {
         e.preventDefault();
         const n = name.value.trim();
         if (!n) { name.focus(); return; }
-        if (st.file.reviews.some((r) => r.reviewer.name === n)) { st.me = n; changed(true); return; }
-        const rv = { reviewer: { name: n, kind: kind.value }, self_declared: true, started: now(), submitted: null, answers: {}, rows: {}, findings: [] };
-        if (model.value.trim()) rv.reviewer.model = model.value.trim();
-        st.file.reviews.push(rv);
-        st.me = n;
-        changed(true);
+        if (st.file.reviews.some((r) => r.reviewer.name === n)) { switchTo(n, true); return; }
+        const go = () => {
+          const rv = { reviewer: { name: n, kind: kind.value }, self_declared: true, started: now(), submitted: null,
+            materials: { perspectives: R.template_version, report_template: (R.versions || {})['templates/review/report_template.md'] || R.template_version, questions: R.questions.length },
+            answers: {}, rows: {}, findings: [] };
+          if (model.value.trim()) rv.reviewer.model = model.value.trim();
+          if (st.file.independent) rv.independence = { mode: 'kept' };
+          st.file.reviews.push(rv);
+          st.me = n;
+          changed(true);
+        };
+        // a new reviewer while I have not submitted: the new name would see nothing of mine, but I leave my review
+        if (locked()) breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => { if (ok) go(); else P.render(); }); else go();
       } }, h('label', null, '名前（自己申告）', name), h('label', null, '種類', kind), h('label', null, 'モデル（LLM のとき）', model),
       h('div', null, h('button', { type: 'submit', class: 'primary', id: 'rv-new-go' }, '新しいレビュアーとして始める'))),
       h('h2', null, '独立レビュー'),
-      h('p', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'rv-independent', checked: st.file.independent ? true : null, onchange: (e) => { st.file.independent = e.target.checked; changed(true); } }),
+      h('p', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'rv-independent', checked: st.file.independent ? true : null, onchange: (e) => {
+        const on = e.target.checked;
+        if (on) { st.file.independent = true; const me = mine(); if (me && !me.submitted && !me.independence) me.independence = { mode: 'kept' }; changed(true); return; }
+        e.target.checked = true;
+        breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) { st.file.independent = false; } changed(true); });
+      } }),
         ' 提出するまで、ほかのレビュアーの記録（回答・判定・指摘）を隠す'), h('span', { class: 'muted' }, '（templates/review/procedure.md の独立したレビュー。合わせて読み込んだ記録も、提出の後に見えます）')),
+      h('p', { class: 'note warn', id: 'rv-independence-limits' }, h('strong', null, '独立レビューは画面で隠すだけです。'),
+        'review.yaml を開けば、ほかのレビュアーの記録は誰でも読めます。このエディターにできるのは、提出の前に隠すのをやめる操作（ほかのレビュアーへの切り替え・設定を外す・全員の記録の書き出し）を確かめ、外れたことと日時・理由を review.yaml に記録すること、ほかの記録を初めて見た日時と、その後に直した記録に印を付けることだけです。守ったかどうかは、名前と同じく自己申告で、手順（procedure.md）で守ります。'),
+      m && m.independence ? h('p', { id: 'rv-independence', 'data-mode': m.independence.mode }, '自分の独立レビュー：', m.independence.mode === 'broken' ? `提出の前に外れた（${m.independence.broken_at}、${m.independence.reason || ''}）` : '続けている',
+        m.independence.viewed_others_at ? `。ほかの記録を初めて見た日時 ${m.independence.viewed_others_at}（その後に直した記録には印が付く）` : '') : null,
       hiding() && hiddenCount() ? h('p', { class: 'note', id: 'rv-hidden', 'data-hidden-others': String(hiddenCount()) }, `ほかのレビュアー ${hiddenCount()} 人の記録を隠しています（${m ? '提出すると見えます' : 'レビュアーを決めて提出すると見えます'}）。`) : null,
       m && !m.submitted ? h('p', null, h('button', { type: 'button', id: 'rv-submit', onclick: () => CE.ask('レビューを提出する', `${m.reviewer.name} のレビューを提出済みにします（日時を記録）。独立レビューなら、提出の後にほかのレビュアーの記録が見えます。提出の後も記録は直せます。`, [['submit', '提出する'], ['cancel', 'やめる']])
         .then((c) => { if (c === 'submit') { m.submitted = now(); changed(true); } }) }, '提出する')) : null,
+      st.slotHold ? h('div', { class: 'note warn', id: 'rv-slot-hold' }, h('p', null, `このブラウザに自動保存したレビューの記録（${st.slotHold.savedAt} に保存）が残っています。どれを使うかを選ぶまで、レビューの記録の自動保存を止めています。`),
+        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-slot-ask', onclick: () => askSlot(st.slotHold).then(() => changed(true)) }, '自動保存した記録をどうするか選ぶ'), ' ',
+          h('button', { type: 'button', id: 'rv-slot-forget', onclick: () => CE.ask('自動保存した記録を消す', 'このブラウザに自動保存したレビューの記録を消して、いま開いている記録を使います。', [['delete', '消す'], ['cancel', 'やめる']])
+            .then((c) => { if (c === 'delete') { try { localStorage.removeItem(slotKey()); } catch (e) { /* ignore */ } st.slotHold = null; CE.saveWarning(null, 'review'); changed(true); } }) }, '自動保存した記録を消す'))) : null,
       h('h2', null, 'review.yaml'),
       h('p', { id: 'rv-file-state', 'data-unsaved': unsaved() ? '1' : '0' }, unsaved() ? '書き出していない記録があります。' : '書き出していない記録はありません。', ` レビュアー ${st.file.reviews.length} 人。`),
       h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む（複数を選ぶと合わせる）'), imp, ' ',
-        h('button', { type: 'button', class: 'primary', id: 'rv-export', onclick: () => exportReview(false) }, 'review.yaml を書き出す（全員の記録）'), ' ',
+        h('button', { type: 'button', class: 'primary', id: 'rv-export', onclick: () => exportAll() }, 'review.yaml を書き出す（全員の記録）'), ' ',
         m ? h('button', { type: 'button', id: 'rv-export-mine', onclick: () => exportReview(true) }, '自分の記録だけ書き出す') : null),
       h('p', { class: 'muted' }, '「zip で書き出す」にも review.yaml が入ります。書き出していない記録があるときに、別の設計書を開く・閉じる・ページを離れると、設計書のファイルと同じように確かめます。自動保存を有効にしていれば、記録もこのブラウザに保存します。'),
       h('h2', null, 'レビュアーごとの記録'),
@@ -488,8 +619,8 @@
             h('td', { class: 'num' }, sN), h('td', { class: 'num' }, rv.findings.length), h('td', null, rv.submitted || '未提出'));
         })))) : h('p', { class: 'muted' }, '表示できる記録はありません。'),
       h('h2', null, '再確認が要る行・台帳に無い行の記録'),
-      stale.length || lost.length ? h('ul', { id: 'rv-attention' }, stale.map(([rv, a]) => h('li', { 'data-stale': a }, stateBadge(rv.rows[a], a, rv.reviewer.name, set), ' ', rowLink(a))),
-        lost.map(([rv, a]) => h('li', { 'data-missing': a }, stateBadge(rv.rows[a], a, rv.reviewer.name, set), ' ', code(a), ` ― 記録にある行が、今の台帳に無い（行が消えたか、ID が変わった）。記録は消さずに残しています。`))) : h('p', { class: 'muted', id: 'rv-attention' }, 'ありません。')];
+      stale.length || lost.length ? h('ul', { id: 'rv-attention' }, stale.map(([rv, a]) => h('li', { 'data-stale': a }, stateBadge(rv.rows[a], a, rv, set), ' ', rowLink(a))),
+        lost.map(([rv, a]) => h('li', { 'data-missing': a }, stateBadge(rv.rows[a], a, rv, set), ' ', code(a), ` ― 記録にある行が、今の台帳に無い（行が消えたか、ID が変わった）。記録は消さずに残しています。`))) : h('p', { class: 'muted', id: 'rv-attention' }, 'ありません。')];
   }
   function rowLink(anchor) {
     const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
@@ -505,8 +636,11 @@
     const q = new URLSearchParams(query || '');
     const m = mine();
     const stageSel = h('select', { id: 'rv-f-stage' }, h('option', { value: '' }, 'すべての段'), R.stages.map((s) => h('option', { value: s.id }, s.name)));
-    const roleSel = h('select', { id: 'rv-f-role' }, h('option', { value: '' }, 'すべての役割'), R.roles.map((r) => h('option', { value: r.id }, r.name + `（${r.questions.length} 問）`)),
-      h('option', { value: 'none' }, '役割の索引に無い問い'));
+    const indexed = new Set(R.roles.flatMap((r) => r.questions));
+    const unindexed = R.questions.filter((x) => !indexed.has(x.id)).length;
+    const roleSel = h('select', { id: 'rv-f-role' }, h('option', { value: '' }, 'すべての役割'), R.roles.map((r) => h('option', { value: r.id }, r.name + `（索引の ${r.questions.length} 問）`)),
+      h('option', { value: 'none' }, `役割の索引が未整備の問い（${unindexed} 問）— どの役割にも関わりうる`));
+    const roleNote = h('p', { class: 'note warn', id: 'rv-role-note', role: 'status', hidden: true });
     const ansSel = h('select', { id: 'rv-f-ans' }, h('option', { value: '' }, 'すべて'), h('option', { value: 'open' }, '未回答'), Object.keys(ANS).map((k) => h('option', { value: k }, ANS[k][2])));
     const text = h('input', { type: 'search', id: 'rv-f-q', placeholder: '問い ID・問いの文・見る欄で探す' });
     stageSel.value = q.get('stage') || ''; roleSel.value = q.get('role') || ''; ansSel.value = q.get('ans') || ''; text.value = q.get('q') || '';
@@ -537,6 +671,9 @@
         if (ok) n++;
       });
       list.querySelectorAll('.rv-stage').forEach((sec) => { sec.hidden = !sec.querySelector('.rv-q:not([hidden])'); });
+      const role = ROLE.get(roleSel.value);
+      roleNote.hidden = !role;
+      if (role) roleNote.textContent = `「${role.name}」で絞っています：観点書の 7. の索引で「${role.name}」に載っている問い ${role.questions.length} 問だけです。役割の索引が未整備の問い ${unindexed} 問にも、この役割に関わる問いがありえます（「役割の索引が未整備の問い」で絞ると見られます。全問に役割を付けるのは観点書の側の作業）。`;
       count.textContent = `${n} / ${R.questions.length} 問を表示（自分の回答 ${m ? Object.keys(m.answers).length : 0} 問）`;
       const hash = P.route('review', 'checklist', params);
       if (location.hash !== hash) history.replaceState(null, '', hash);
@@ -547,8 +684,8 @@
     return [h('h1', { tabindex: '-1' }, '観点のチェックリスト'),
       h('p', { class: 'lead' }, '問いはどれも Yes が「満たす」の向きです。見る欄が空で判定できないときは No にして、指摘にします（templates/review/procedure.md の段 3）。「見る欄」を押すと、その欄（台帳の列・設計書の節・25 問の回答）に移動します。'),
       m ? null : h('p', { class: 'note warn' }, '回答を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前（自己申告）を決めてください。'),
-      h('p', { class: 'muted small' }, '役割の索引（perspectives.md の 7.）に載っている問いは ', String(new Set(R.roles.flatMap((r) => r.questions)).size), ' 問です。ほかの問いは「役割の索引に無い問い」で絞り込めます。'),
-      form, count, list];
+      h('p', { class: 'muted small' }, `役割の索引（perspectives.md の 7.）に載っている問いは ${indexed.size} 問です。残りの ${unindexed} 問は、役割の索引が未整備の問いで、どの役割にも関わりえます（「役割の索引が未整備の問い」で絞り込めます）。`),
+      form, roleNote, count, list];
   }
   function questionItem(x, m) {
     const a = answerOf(m, x.id);
@@ -557,7 +694,7 @@
       const me = mine();
       if (!me) return;
       if (!v) delete me.answers[x.id];
-      else { const e = { answer: v, at: now() }; const mm = memo.value.trim(); if (mm) e.memo = mm; me.answers[x.id] = e; }
+      else { const e = flagEdit({ answer: v, at: now() }); const mm = memo.value.trim(); if (mm) e.memo = mm; me.answers[x.id] = e; }
       el.dataset.answer = v;
       el.querySelector('.rv-findbtn').hidden = v !== 'no';
       changed(false);
@@ -565,7 +702,7 @@
     let timer = null;
     memo.addEventListener('input', () => {
       clearTimeout(timer);
-      timer = setTimeout(() => { const me = mine(); if (me && me.answers[x.id]) { const mm = memo.value.trim(); if (mm) me.answers[x.id].memo = mm; else delete me.answers[x.id].memo; changed(false); } }, 250);
+      timer = setTimeout(() => { const me = mine(); if (me && me.answers[x.id]) { const mm = memo.value.trim(); if (mm) me.answers[x.id].memo = mm; else delete me.answers[x.id].memo; flagEdit(me.answers[x.id]); changed(false); } }, 250);
     });
     const name = 'rv-a-' + x.id;
     const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
@@ -575,7 +712,7 @@
       h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る欄：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
       h('details', null, h('summary', null, 'No なら・つながり・根拠'), h('dl', { class: 'obj' }, h('dt', null, 'No なら'), h('dd', null, H.inline(x.no)), h('dt', null, 'つながり'), h('dd', null, H.inline(x.links)),
         h('dt', null, '根拠'), h('dd', null, H.inline(x.evidence)), h('dt', null, '原文'), h('dd', null, h('a', { href: x.url }, 'perspectives.md の ' + x.id)))),
-      h('fieldset', { class: 'rv-ans', disabled: m ? null : true }, h('legend', null, m ? `回答（${m.reviewer.name}）` : '回答'),
+      h('fieldset', { class: 'rv-ans', disabled: m ? null : true }, h('legend', null, m ? `${x.id} の回答（${m.reviewer.name}）` : `${x.id} の回答`),
         [['', '未回答']].concat(Object.keys(ANS).map((k) => [k, ANS[k][2]])).map(([v, label]) => h('label', null,
           h('input', { type: 'radio', name, value: v, checked: a === v ? true : null, 'data-answer-for': x.id, onchange: () => setAns(v) }), ' ', v ? ANS[v][1] + ' ' : '', label)),
         h('label', { class: 'rv-memo-l', for: 'rv-memo-' + x.id }, 'メモ'), memo,
@@ -616,7 +753,7 @@
   }
   function rowBadges(anchor) {
     const set = anchorSet(); const multi = st.file.reviews.length > 1;
-    return visible().filter((rv) => own(rv.rows, anchor)).map((rv) => stateBadge(rv.rows[anchor], anchor, multi ? rv.reviewer.name : null, set));
+    return visible().filter((rv) => own(rv.rows, anchor)).map((rv) => stateBadge(rv.rows[anchor], anchor, rv, set));
   }
 
   // ---- per-row decisions
@@ -743,6 +880,7 @@
       if (v('rv-f-ref')) r.ref = v('rv-f-ref');
       x.response = r;
       x.at = now();
+      flagEdit(x);
       if (f._orig) m.findings[m.findings.indexOf(f._orig)] = x; else m.findings.push(x);
       st.editFinding = null;
       st.focus = 'rv-f-add';
@@ -929,11 +1067,26 @@
         e.preventDefault();
         if (!seed.value.trim()) { const r = new Uint8Array(4); crypto.getRandomValues(r); seed.value = Array.from(r).map((x) => x.toString(16).padStart(2, '0')).join(''); }
         const picked = draw(seed.value.trim(), Number(cnt.value));
-        const keep = sm && sm.seed === seed.value.trim() && sm.count === Number(cnt.value) ? sm.scores : undefined;
-        m.sampling = { seed: seed.value.trim(), count: Number(cnt.value), picked };
-        if (keep) m.sampling.scores = keep;
+        const pop = populationHash();
+        const same = sm && sm.seed === seed.value.trim() && sm.count === Number(cnt.value) && (!sm.population || sm.population === pop);
+        const next = { seed: seed.value.trim(), count: Number(cnt.value), picked, population: pop };
+        if (sm && same && sm.scores) next.scores = sm.scores;
+        if (sm && !same) {
+          // the earlier draw is kept, not replaced silently (tools/review_record.py sample --reseed does the same)
+          const old = { seed: sm.seed, count: sm.count, picked: sm.picked, replaced_at: now(), reason: 'エディターで引き直した' + (sm.population && sm.population !== pop ? '（抜き取りの母集団が変わった）' : '') };
+          if (sm.population) old.population = sm.population;
+          if (sm.scores) old.scores = sm.scores;
+          next.reason = old.reason;
+          next.previous = (sm.previous || []).concat([old]);
+          const kept = {}; Object.keys(sm.scores || {}).forEach((a) => { if (picked.includes(a)) kept[a] = sm.scores[a]; });
+          if (Object.keys(kept).length) next.scores = kept;
+        } else if (sm && sm.previous) { next.previous = sm.previous; if (sm.reason) next.reason = sm.reason; }
+        m.sampling = next;
         changed(true);
       } }, h('label', null, '乱数の種（空なら作る）', seed), h('label', null, '件数', cnt), h('div', null, h('button', { type: 'submit', id: 'rv-draw' }, '抜き取る')))];
+    if (sm && sm.population && sm.population !== populationHash()) {
+      out.push(h('p', { class: 'note warn', id: 'rv-pop-changed', role: 'status' }, '⚠ 抜き取りの母集団が変わった：記録した後に、却下の行か、その内容が変わりました。記録した抜き取りは、その時の台帳では正しいものです。引き直すなら「抜き取る」を押します（前の抜き取りは previous に残ります）。'));
+    }
     if (sm) {
       out.push(h('p', { id: 'rv-picked', 'data-picked': sm.picked.join(' ') }, `種 ${sm.seed} で選んだ行：`, h('span', { class: 'codes' }, sm.picked.map(rowLink))));
       sm.picked.forEach((a) => {
@@ -953,6 +1106,8 @@
     return out;
   }
   function rejectedAnchors() { return CE.anchors().filter((a) => a.kind === 'claims' && a.row && a.row.decision === '却下').map((a) => a.anchor).sort(); }
+  // sha256 of the population of the draw ('<anchor> <row hash>' per rejected row, sorted): tools/review_record.py population
+  function populationHash() { return CE.sha256(rejectedAnchors().map((a) => a + ' ' + (CE.rowHash(a) || '')).join('\n')); }
   function draw(seed, count) {
     return rejectedAnchors().map((a) => [CE.sha256(seed + ':' + a), a]).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)).slice(0, count).map((x) => x[1]);
   }
@@ -1012,22 +1167,41 @@
   }
 
   // ---- the report (the twin of tools/review_record.py report_text)
-  function cell(s) {
-    const t = (s === null || s === undefined ? '' : String(s)).replace(/\s*\n\s*/g, ' ').replace(/\|/g, '｜').trim();
-    return t || '—';
+  // every value of review.yaml is escaped for Markdown: & < > as entities (no raw HTML), \ ` * _ [ ] ~ with a backslash,
+  // | as a full-width bar, line breaks as spaces; a line that starts with a value is kept text (PR #52 check)
+  function md(s) {
+    return (s === null || s === undefined ? '' : String(s)).replace(/\s*\n\s*/g, ' ').trim()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/([\\`*_[\]~])/g, '\\$1').replace(/\|/g, '｜');
   }
+  function mdLine(s) { const t = md(s); return /^(?:[#>+\-=*]|\d+[.)])/.test(t) ? '\\' + t : t; }
+  function cell(s) { return md(s) || '—'; }
   function row(cells) { return '| ' + cells.join(' | ') + ' |'; }
   function date(t) { return String(t || '').slice(0, 10); }
   function short(a) { return a.startsWith('claims:') ? a.split(':').slice(1).join(':') : a; }
-  function reportText(data, rv, label) {
+  function independenceText(data, rv) {
+    const ind = rv.independence || {};
+    if (!data.independent && !rv.independence) return '';
+    const parts = [];
+    if (ind.mode === 'broken') parts.push(`独立レビュー：提出の前に外れた（${ind.broken_at || '日時不明'}。${ind.reason || '理由の記録なし'}）`);
+    else parts.push('独立レビュー：提出まで、ほかのレビュアーの記録を画面で隠した（画面で隠すだけで、review.yaml を開けば見える。守ったかは自己申告）');
+    if (ind.viewed_others_at) parts.push(`ほかのレビュアーの記録を初めて見た日時 ${ind.viewed_others_at}`);
+    const n = Object.values(rv.answers || {}).filter((x) => x.edited_after_viewing_others).length + Object.values(rv.rows || {}).filter((x) => x.edited_after_viewing_others).length +
+      (rv.findings || []).filter((x) => x.edited_after_viewing_others).length;
+    if (n) parts.push(`その後に直した記録 ${n} 件（回答・判定・指摘の edited_after_viewing_others）`);
+    if (rv.submitted && rv.updated && String(rv.updated) > String(rv.submitted)) parts.push(`提出（${rv.submitted}）の後に更新した（${rv.updated}）`);
+    return parts.join('。');
+  }
+  function reportText(data, rv, label, version) {
     const form = R.report;
     const heads = {}; form.sections.forEach((s) => { heads[s.heading.slice(0, 2)] = s; });
     const stageName = new Map(R.stages.map((s) => [s.id, s.name]));
     const qs = R.questions;
+    const qids = new Set(qs.map((x) => x.id));
     const ctx = rv.context || {};
     const who = rv.reviewer;
-    const lines = [`# レビューレポート：${label || data.design}`, '',
-      '> 設計書のエディターのレビューモード（#50）が `review.yaml` から生成した。レビュアーの名前は自己申告で、本当の承認は GitHub の PR のレビューで行う。', ''];
+    const llm = who.kind === 'llm';
+    const lines = [`# レビューレポート：${md(label || data.design)}`, '',
+      '> 設計書のエディターのレビューモード（#50）が `review.yaml` から生成した。レビュアーの名前は自己申告で、本当の承認は GitHub の PR のレビューで行う。' + (llm ? 'レビュアーは LLM で、人による点検は未実施。' : ''), ''];
     const head = (k) => { lines.push('## ' + heads[k].heading); lines.push(''); };
     const table = (k, rows) => {
       const hd = heads[k].header;
@@ -1040,8 +1214,7 @@
     const scores = (sm && sm.scores) || {};
     const scored = ((sm && sm.picked) || []).filter((a) => own(scores, a));
     const passed = scored.filter((a) => scores[a].pass).length;
-    const reg = H.registry();
-    const cand = (reg.claims && Array.isArray(reg.claims.claims) ? reg.claims.claims : []).filter((r) => isObj(r) && r.id !== undefined && r.id !== null && r.decision === '却下').length;
+    const cand = rejectedAnchors().length;
     const ans = rv.answers || {};
     const tot = { yes: 0, no: 0, na: 0 };
     const per = R.stages.map((s) => {
@@ -1051,51 +1224,68 @@
       return `${s.name.split(' ').slice(1).join(' ')} Yes ${c.yes}／No ${c.no}／該当なし ${c.na}`;
     });
     const answered = tot.yes + tot.no + tot.na;
+    const gone = Object.keys(ans).filter((q) => !qids.has(q));
     const ci = ctx.ci;
     const ciText = !ci ? '記録なし' : `claim_lint error ${ci.error}・warn ${ci.warn}・info ${ci.info}` + (ci.profile ? `（profile ${ci.profile}）` : '') +
       (!own(ci, 'matches_design') ? '' : '。設計書の 1. と' + (ci.matches_design ? '一致' : '一致しない')) + (ci.note ? `。${ci.note}` : '');
-    const samp = !sm ? '記録なし' : `乱数の種 \`${sm.seed}\`（claims.yaml の却下の行 ${cand} 行から ${sm.count} 行。sha256(種:行) の順）：` + sm.picked.map(short).join('・') +
-      `。${scored.length} 件を採点、合格 ${passed}・不合格 ${scored.length - passed}` + (scored.length < sm.picked.length ? `（未採点 ${sm.picked.length - scored.length}）` : '');
+    const samp = !sm ? '記録なし' : `乱数の種「${sm.seed}」（claims.yaml の却下の行 ${cand} 行から ${sm.count} 行。sha256(種:行) の順）：` + sm.picked.map(short).join('・') +
+      `。${scored.length} 件を採点、合格 ${passed}・不合格 ${scored.length - passed}` + (scored.length < sm.picked.length ? `（未採点 ${sm.picked.length - scored.length}）` : '') +
+      (sm.reason ? `。引き直した（${sm.reason}。前の抜き取り ${(sm.previous || []).length} 件）` : '');
     const versions = R.versions || {};
-    let mats = `templates/review（perspectives.md の template_version ${R.template_version}` + (own(versions, 'templates/review/report_template.md') ? '、report_template.md ' + versions['templates/review/report_template.md'] : '') + '）';
+    const nowP = R.template_version;
+    const nowR = versions['templates/review/report_template.md'];
+    const mt = rv.materials || {};
+    const recP = mt.perspectives || version;
+    const recR = mt.report_template;
+    let mats = 'templates/review（レビューした時の版：perspectives.md ' + (recP || '記録なし') + (recR ? `、report_template.md ${recR}` : '') +
+      (mt.questions !== undefined && mt.questions !== null ? `、問い ${mt.questions} 問` : '') + '）';
+    const differs = (recP && recP !== nowP) || (recR && nowR && recR !== nowR) || (mt.questions !== undefined && mt.questions !== null && mt.questions !== qs.length);
+    if (differs) mats += `。注意：今の教材は perspectives.md ${nowP}` + (nowR ? `・report_template.md ${nowR}` : '') + `・問い ${qs.length} 問で、レビューの後に変わった（この表の問いの数と 8. は今の観点書で数えた）`;
     if (ctx.materials) mats += '。' + ctx.materials;
-    const reviewer = `${who.name}（` + (who.kind === 'llm' ? 'LLM' + (who.model ? `：${who.model}` : '') : '人') + '。名前は自己申告）' + (ctx.roles_order ? `。${ctx.roles_order}` : '');
+    let reviewer = `${who.name}（` + (llm ? 'LLM' + (who.model ? `：${who.model}` : '') : '人') + '。名前は自己申告）' + (ctx.roles_order ? `。${ctx.roles_order}` : '');
+    const ind = independenceText(data, rv);
+    if (ind) reviewer += '。' + ind;
     const dt = date(rv.started) + (rv.submitted && date(rv.submitted) !== date(rv.started) ? `〜${date(rv.submitted)}` : '');
-    const values = { '対象': `\`${data.design}\`` + (tgt.commit ? `（版 ${tgt.commit}）` : '') + (tgt.note ? `。${tgt.note}` : ''),
+    const values = { '対象': `${data.design}` + (tgt.commit ? `（版 ${tgt.commit}）` : '') + (tgt.note ? `。${tgt.note}` : ''),
       'Lite／Full': ctx.lite_full || '記録なし', '実施した手順の段': ctx.steps || '記録なし', 'レビュアーと役割': reviewer, '実施日': dt, '使った教材の版': mats,
       'CI の結果': ciText, '抜き取りの結果': samp,
-      '問いの回答': `全 ${qs.length} 問のうち ${answered} 問に回答（未回答 ${qs.length - answered}）。` + per.join('。') + `。合計 Yes ${tot.yes}／No ${tot.no}／該当なし ${tot.na}` };
+      '問いの回答': `全 ${qs.length} 問のうち ${answered} 問に回答（未回答 ${qs.length - answered}）。` + per.join('。') + `。合計 Yes ${tot.yes}／No ${tot.no}／該当なし ${tot.na}` +
+        (gone.length ? `。今の観点書に無い問いへの回答 ${gone.length} 件` : '') };
     head('1.'); table('1.', heads['1.'].items.map((k) => [k, cell(values[k])]));
     const fs = rv.findings || [];
     head('2.');
-    table('2.', fs.map((f) => [cell(f.id), cell(f.location), cell(f.content + (f.verdict_reason ? `（判定の理由：${f.verdict_reason}）` : '')), f.severity, f.origin, f.kind,
-      cell(f.kind === MISMATCH ? f.confused_question : null), f.verdict]));
+    table('2.', fs.map((f) => [cell(f.id), cell(f.location), cell(f.content + (f.verdict_reason ? `（判定の理由：${f.verdict_reason}）` : '')), cell(f.severity), cell(f.origin), cell(f.kind),
+      cell(f.kind === MISMATCH ? f.confused_question : null), cell(f.verdict)]));
     head('3.');
-    table('3.', fs.map((f) => { const r = f.response || {}; return [cell(f.id), cell(r.owner), cell(r.due), r.state || '未着手', cell(r.ref)]; }));
+    table('3.', fs.map((f) => { const r = f.response || {}; return [cell(f.id), cell(r.owner), cell(r.due), cell(r.state || '未着手'), cell(r.ref)]; }));
     const esc = rv.escalations || {};
     head('4.');
     table('4.', (esc.applies || []).map((e) => [cell(e.criterion), cell(e.location), cell(e.to), cell(e.due), cell(e.conclusion)]));
     const na = esc.not_applicable;
-    lines.push('当てはまらなかった基準：' + (na && na.length ? na.map((x) => `\`${x}\``).join('・') : '（記録なし）'));
+    lines.push('当てはまらなかった基準：' + (na && na.length ? na.map(md).join('・') : '（記録なし）'));
     lines.push('');
     head('5.');
     table('5.', (rv.feedback || []).map((x) => [cell(x.to), cell(x.content), cell((x.findings || []).join('・')), cell(x.ref)]));
     head('6.');
-    table('6.', scored.map((a) => [cell(short(a)), 'rationale'].concat([1, 2, 3, 4, 5, 6, 7].map((i) => scores[a]['RR' + i] || '対象外'), [scores[a].pass ? '合格' : '不合格'])));
-    const notes = scored.filter((a) => scores[a].note).map((a) => `- ${short(a)}：${scores[a].note}`);
+    table('6.', scored.map((a) => [cell(short(a)), 'rationale'].concat([1, 2, 3, 4, 5, 6, 7].map((i) => cell(scores[a]['RR' + i] || '対象外')), [scores[a].pass ? '合格' : '不合格'])));
+    const notes = scored.filter((a) => scores[a].note).map((a) => `- ${md(short(a))}：${md(scores[a].note)}`);
     if (notes.length) { notes.forEach((x) => lines.push(x)); lines.push(''); }
     head('7.');
-    lines.push(ctx.human_check || ('人による点検は未実施。' + (who.kind === 'llm' ? 'レビュアーは LLM のセッションで、人のレビュアーの採否は未了。' : '')));
+    if (ctx.human_check) { lines.push(mdLine(ctx.human_check)); lines.push(''); }
+    lines.push(llm ? '人による点検は未実施（このレビューは LLM のセッションのもの。人のレビュアーの採否は未了）。'
+      : 'レビュアーは人（名前は自己申告）。templates/CONTRIBUTING.md の 3. の点検の取り決めによる点検かは、この記録からは分からない。');
     lines.push('');
     lines.push('レビュアーの名前は自己申告です（エディターにはログインが無い）。本当の承認は GitHub の PR のレビューで行います。');
     lines.push('');
     head('8.');
-    table('8.', qs.filter((x) => own(ans, x.id)).map((x) => [stageName.get(x.stage) || '—', `\`${x.id}\``, ANS[ans[x.id].answer][2], cell(ans[x.id].memo)]));
+    table('8.', qs.filter((x) => own(ans, x.id)).map((x) => [cell(stageName.get(x.stage) || '—'), x.id, ANS[ans[x.id].answer][2], cell(ans[x.id].memo)]));
     const left = qs.filter((x) => !own(ans, x.id)).map((x) => x.id);
-    if (left.length) { lines.push(`未回答：${left.length} 問（` + left.map((i) => `\`${i}\``).join('・') + '）'); lines.push(''); }
-    lines.push('## 9. 行ごとの記録（エディターのレビューモード、#50）');
+    if (left.length) { lines.push(`未回答：${left.length} 問（` + left.join('・') + '）'); lines.push(''); }
+    if (gone.length) { lines.push(`今の観点書に無い問いへの回答：${gone.length} 件（` + gone.map(md).join('・') + '）'); lines.push(''); }
+    lines.push('## 9. 行ごとの記録（エディターのレビューモード、#50。生成した時の台帳と比べた状態）');
     lines.push('');
-    lines.push('行の内容のハッシュ（RFC 8785 JCS の SHA-256、`tools/row_hash.py`）に結びつけた判定です。記録の後に行が変わると「再確認が要る」になります。');
+    lines.push('行の内容のハッシュ（RFC 8785 JCS の SHA-256、`tools/row_hash.py`）に結びつけた判定です。記録の後に行が変わると「再確認が要る」になります。' +
+      'ハッシュはその行の値だけを見ます（参照するトークン種別・ホップの行、25 問の回答、design.md の本文を変えても再確認にはなりません）。');
     lines.push('');
     const rows = rv.rows || {};
     const set = anchorSet();
@@ -1104,7 +1294,10 @@
     lines.push(row(['---', '---', '---', '---', '---']));
     const labelOf = { current: '一致（記録のときのまま）', stale: '再確認が要る（行が変わった）', missing: '台帳に無い行' };
     const keys = Object.keys(rows).sort();
-    keys.forEach((a) => { const r = rows[a]; lines.push(row([`\`${a}\``, DEC[r.decision][2], cell(r.at), labelOf[stOf[a]] + `（${r.hash.slice(0, 12)}）`, cell(r.comment)])); });
+    keys.forEach((a) => {
+      const r = rows[a]; const kind = r.reviewer_kind || who.kind;
+      lines.push(row([cell(a), DEC[r.decision][2] + (kind === 'llm' ? '（LLM）' : ''), cell(r.at), labelOf[stOf[a]] + `（${r.hash.slice(0, 12)}）`, cell(r.comment)]));
+    });
     if (!keys.length) lines.push('|' + ' |'.repeat(5));
     const c = {}; Object.keys(DEC).forEach((k) => { c[k] = keys.filter((a) => rows[a].decision === k).length; });
     lines.push('');
@@ -1124,7 +1317,7 @@
     if (!rv) { out.push(h('p', { class: 'muted' }, '表示できるレビューの記録がありません。')); return out; }
     out.push(h('p', null, h('label', { for: 'rv-rep-who' }, 'レビュアー：'), who));
     if (rv === m) out.push(contextForm(m));
-    const text = reportText(st.file, rv);
+    const text = reportText(st.file, rv, undefined, st.version);
     out.push(h('p', { class: 'buttons' }, h('button', { type: 'button', class: 'primary', id: 'rv-report-download', onclick: () => CE.download(`review-report-${date(rv.started) || 'draft'}.md`, new Blob([text], { type: 'text/markdown' })) }, 'レポートを書き出す（.md）')),
       h('pre', { id: 'rv-report', class: 'rv-report', tabindex: '0', 'aria-label': '生成したレポート' }, text));
     return out;
@@ -1190,6 +1383,7 @@
     },
     render: (parts, query) => {
       if (!st.open || !R) return needOpen();
+      noteViewing();
       const sub = parts[0] || '';
       if (sub === 'checklist') return viewChecklist(query);
       if (sub === 'rows') return viewRows(query);
@@ -1209,7 +1403,7 @@
     dump,
     me: () => st.me,
     unsaved,
-    reportText: (name, label) => { const rv = st.file.reviews.find((x) => x.reviewer.name === name) || visible()[0]; return rv ? reportText(st.file, rv, label) : null; },
+    reportText: (name, label) => { const rv = st.file.reviews.find((x) => x.reviewer.name === name) || visible()[0]; return rv ? reportText(st.file, rv, label, st.version) : null; },
     draw,
     visibleNames: () => visible().map((r) => r.reviewer.name),
     importTexts: (list) => importFiles(list.map((x) => ({ name: x.name, text: () => Promise.resolve(x.text) }))),

@@ -949,11 +949,15 @@
       return false;
     }
   }
-  function saveWarning(text) {
+  // the warnings that stay on screen until the save succeeds, one per source (the files; the review records of #50)
+  const saveWarnings = new Map();
+  function saveWarning(text, key) {
+    const k = key || 'files';
+    if (text) saveWarnings.set(k, text); else saveWarnings.delete(k);
     const el = $('#save-warn');
     if (!el) return;
-    el.hidden = !text;
-    el.textContent = text ? '⚠ ' + text : '';
+    el.hidden = !saveWarnings.size;
+    el.textContent = Array.from(saveWarnings.values()).map((t) => '⚠ ' + t).join(' ');
   }
   function keptByAutosave() {
     if (!autosaveEnabled()) return false;
@@ -1259,6 +1263,7 @@
     download,
     goto: (file, line) => { if (ws.files.has(file)) { switchTo(file, line); return true; } return false; },
     autosaveEnabled,
+    saveWarning,
     label: () => ws.label,
     publish: () => { if (ws.open) publish(false); },
     lintCounts: () => (lint.state === 'fresh' && lint.last ? Object.assign({ profile: lint.last.profile }, lint.last.lint.counts) : null),

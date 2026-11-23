@@ -5,159 +5,629 @@
   "description": "Written by the review mode of the design editor (docs/claims/) and read back by it; checked by python tools/review_record.py check. One file per design directory, next to claims.yaml. Each entry of reviews is one reviewer. The reviewer's name is self-declared: the approval that counts is the GitHub pull request review. A row decision is bound to the RFC 8785 JCS + SHA-256 hash of the row (tools/row_hash.py); when the row changes, the decision needs to be checked again. The vocabulary of findings is that of templates/review/report_template.md.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "design", "independent", "reviews"],
+  "required": [
+    "format",
+    "design",
+    "independent",
+    "reviews"
+  ],
   "properties": {
-    "format": { "const": "claims-review/1" },
-    "design": { "type": "string", "minLength": 1, "description": "The design directory the records are about (as in the editor: templates/examples/scenario-b, work/<name>)." },
-    "independent": { "type": "boolean", "description": "Independent review (procedure #5): while a reviewer has not submitted, the editor hides the other reviewers' records from that reviewer." },
-    "note": { "type": "string" },
-    "reviews": { "type": "array", "items": { "$ref": "#/$defs/review" } }
+    "format": {
+      "const": "claims-review/1"
+    },
+    "design": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The design directory the records are about (as in the editor: templates/examples/scenario-b, work/<name>)."
+    },
+    "independent": {
+      "type": "boolean",
+      "description": "Independent review (procedure #5): while a reviewer has not submitted, the editor hides the other reviewers' records from that reviewer."
+    },
+    "note": {
+      "type": "string"
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/review"
+      }
+    }
   },
   "$defs": {
-    "text": { "type": "string" },
-    "time": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?(Z|[+-]\\d{2}:\\d{2})?)?$", "description": "ISO 8601 date or date and time." },
-    "anchor": { "type": "string", "pattern": "^(claims|token_types|hops|catalog_answers|issuance_profile):.+$" },
-    "qid": { "type": "string", "pattern": "^(q|ap|pa|dc|cf|cd)-[a-z0-9-]+$" },
+    "text": {
+      "type": "string"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?(Z|[+-]\\d{2}:\\d{2})?)?$",
+      "description": "ISO 8601 date or date and time."
+    },
+    "anchor": {
+      "type": "string",
+      "pattern": "^(claims|token_types|hops|catalog_answers|issuance_profile):.+$"
+    },
+    "qid": {
+      "type": "string",
+      "pattern": "^(q|ap|pa|dc|cf|cd)-[a-z0-9-]+$"
+    },
     "review": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["reviewer", "self_declared", "started", "submitted", "answers", "rows", "findings"],
+      "required": [
+        "reviewer",
+        "self_declared",
+        "started",
+        "submitted",
+        "answers",
+        "rows",
+        "findings"
+      ],
       "properties": {
         "reviewer": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "kind"],
+          "required": [
+            "name",
+            "kind"
+          ],
           "properties": {
-            "name": { "type": "string", "minLength": 1, "description": "Self-declared. Not an authentication." },
-            "kind": { "enum": ["human", "llm"] },
-            "model": { "type": "string", "description": "For an LLM: the model and the session." },
-            "note": { "type": "string" }
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Self-declared. Not an authentication."
+            },
+            "kind": {
+              "enum": [
+                "human",
+                "llm"
+              ]
+            },
+            "model": {
+              "type": "string",
+              "description": "For an LLM: the model and the session."
+            },
+            "note": {
+              "type": "string"
+            }
           }
         },
-        "self_declared": { "const": true, "description": "Always true: the editor has no login; the real approval is the GitHub pull request review." },
-        "started": { "$ref": "#/$defs/time" },
-        "updated": { "$ref": "#/$defs/time" },
-        "submitted": { "anyOf": [{ "$ref": "#/$defs/time" }, { "type": "null" }], "description": "When the reviewer submitted (null: not yet). In independent mode the other records stay hidden until then." },
+        "self_declared": {
+          "const": true,
+          "description": "Always true: the editor has no login; the real approval is the GitHub pull request review."
+        },
+        "started": {
+          "$ref": "#/$defs/time"
+        },
+        "updated": {
+          "$ref": "#/$defs/time"
+        },
+        "submitted": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the reviewer submitted (null: not yet). In independent mode the other records stay hidden until then."
+        },
         "target": {
-          "type": "object", "additionalProperties": false,
-          "properties": { "commit": { "type": "string" }, "note": { "type": "string" } }
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
         },
         "context": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "description": "The basic information of report_template.md 1. that the rows and answers do not give.",
           "properties": {
-            "lite_full": { "type": "string" },
-            "steps": { "type": "string" },
-            "roles_order": { "type": "string" },
-            "materials": { "type": "string" },
+            "lite_full": {
+              "type": "string"
+            },
+            "steps": {
+              "type": "string"
+            },
+            "roles_order": {
+              "type": "string"
+            },
+            "materials": {
+              "type": "string"
+            },
             "ci": {
-              "type": "object", "additionalProperties": false, "required": ["error", "warn", "info"],
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "error",
+                "warn",
+                "info"
+              ],
               "properties": {
-                "error": { "type": "integer", "minimum": 0 }, "warn": { "type": "integer", "minimum": 0 },
-                "info": { "type": "integer", "minimum": 0 }, "profile": { "enum": ["full", "lite"] },
-                "matches_design": { "type": "boolean" }, "note": { "type": "string" }
+                "error": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "warn": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "info": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "profile": {
+                  "enum": [
+                    "full",
+                    "lite"
+                  ]
+                },
+                "matches_design": {
+                  "type": "boolean"
+                },
+                "note": {
+                  "type": "string"
+                }
               }
             },
-            "human_check": { "type": "string", "description": "report_template.md 7.: whether a person has checked (templates/CONTRIBUTING.md 3.)." }
+            "human_check": {
+              "type": "string",
+              "description": "report_template.md 7.: whether a person has checked (templates/CONTRIBUTING.md 3.)."
+            }
           }
         },
         "answers": {
           "type": "object",
-          "propertyNames": { "$ref": "#/$defs/qid" },
+          "propertyNames": {
+            "$ref": "#/$defs/qid"
+          },
           "additionalProperties": {
-            "type": "object", "additionalProperties": false, "required": ["answer"],
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "answer"
+            ],
             "properties": {
-              "answer": { "enum": ["yes", "no", "na"], "description": "yes: meets; no: does not meet or cannot be decided from the field; na: does not apply (write why in memo)." },
-              "memo": { "type": "string" },
-              "at": { "$ref": "#/$defs/time" }
+              "answer": {
+                "enum": [
+                  "yes",
+                  "no",
+                  "na"
+                ],
+                "description": "yes: meets; no: does not meet or cannot be decided from the field; na: does not apply (write why in memo)."
+              },
+              "memo": {
+                "type": "string"
+              },
+              "at": {
+                "$ref": "#/$defs/time"
+              },
+              "edited_after_viewing_others": {
+                "type": "boolean",
+                "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
+              }
             }
           }
         },
         "rows": {
           "type": "object",
-          "propertyNames": { "$ref": "#/$defs/anchor" },
+          "propertyNames": {
+            "$ref": "#/$defs/anchor"
+          },
           "additionalProperties": {
-            "type": "object", "additionalProperties": false, "required": ["decision", "hash", "at"],
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "decision",
+              "hash",
+              "at"
+            ],
             "properties": {
-              "decision": { "enum": ["approve", "request_changes", "hold"], "description": "承認 / 修正を求める / 保留" },
-              "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "ClaimsEditor.rowHash / tools/row_hash.py of the row when it was decided." },
-              "at": { "$ref": "#/$defs/time" },
-              "comment": { "type": "string" }
+              "decision": {
+                "enum": [
+                  "approve",
+                  "request_changes",
+                  "hold"
+                ],
+                "description": "承認 / 修正を求める / 保留"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "ClaimsEditor.rowHash / tools/row_hash.py of the row when it was decided."
+              },
+              "at": {
+                "$ref": "#/$defs/time"
+              },
+              "comment": {
+                "type": "string"
+              },
+              "edited_after_viewing_others": {
+                "type": "boolean",
+                "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
+              },
+              "reviewer_kind": {
+                "enum": [
+                  "human",
+                  "llm"
+                ],
+                "description": "The kind of the reviewer when the decision was recorded; an LLM decision is shown as such (no person has checked it)."
+              }
             }
           }
         },
-        "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
         "sampling": {
-          "type": "object", "additionalProperties": false, "required": ["seed", "count", "picked"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "seed",
+            "count",
+            "picked"
+          ],
           "description": "Rejection rationales drawn at random (procedure step 4): the rejected rows of claims.yaml ranked by sha256(seed + ':' + anchor), the first count.",
           "properties": {
-            "seed": { "type": "string", "minLength": 1 },
-            "count": { "type": "integer", "minimum": 2, "maximum": 3 },
-            "picked": { "type": "array", "items": { "$ref": "#/$defs/anchor" } },
+            "seed": {
+              "type": "string",
+              "minLength": 1
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 3
+            },
+            "picked": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/anchor"
+              }
+            },
             "scores": {
               "type": "object",
-              "propertyNames": { "$ref": "#/$defs/anchor" },
+              "propertyNames": {
+                "$ref": "#/$defs/anchor"
+              },
               "additionalProperties": {
-                "type": "object", "additionalProperties": false,
+                "type": "object",
+                "additionalProperties": false,
                 "properties": {
-                  "RR1": { "$ref": "#/$defs/rr" }, "RR2": { "$ref": "#/$defs/rr" }, "RR3": { "$ref": "#/$defs/rr" },
-                  "RR4": { "$ref": "#/$defs/rr" }, "RR5": { "$ref": "#/$defs/rr" }, "RR6": { "$ref": "#/$defs/rr" },
-                  "RR7": { "$ref": "#/$defs/rr" }, "pass": { "type": "boolean" }, "note": { "type": "string" }
+                  "RR1": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR2": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR3": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR4": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR5": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR6": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "RR7": {
+                    "$ref": "#/$defs/rr"
+                  },
+                  "pass": {
+                    "type": "boolean"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "population": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "sha256 of the rejected rows the draw was made from (anchor and row hash, one per line, sorted). When the registry changes, check reports that the population changed (a warning, not an error); sample --reseed draws again and keeps the old draw in previous."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why the draw was made again (sample --reseed --reason)."
+            },
+            "previous": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "seed",
+                  "picked"
+                ],
+                "properties": {
+                  "seed": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer"
+                  },
+                  "picked": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/anchor"
+                    }
+                  },
+                  "population": {
+                    "type": "string"
+                  },
+                  "replaced_at": {
+                    "$ref": "#/$defs/time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "scores": {
+                    "type": "object"
+                  }
                 }
               }
             }
           }
         },
         "escalations": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
             "applies": {
               "type": "array",
               "items": {
-                "type": "object", "additionalProperties": false, "required": ["criterion", "location"],
-                "properties": { "criterion": { "type": "string" }, "location": { "type": "string" }, "to": { "type": "string" },
-                  "due": { "type": "string" }, "conclusion": { "type": "string" } }
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "criterion",
+                  "location"
+                ],
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "due": {
+                    "type": "string"
+                  },
+                  "conclusion": {
+                    "type": "string"
+                  }
+                }
               }
             },
-            "not_applicable": { "type": "array", "items": { "type": "string" } }
+            "not_applicable": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "feedback": {
           "type": "array",
           "items": {
-            "type": "object", "additionalProperties": false, "required": ["to", "content"],
-            "properties": { "to": { "type": "string" }, "content": { "type": "string" },
-              "findings": { "type": "array", "items": { "type": "string" } }, "ref": { "type": "string" } }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "to",
+              "content"
+            ],
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "perspectives"
+          ],
+          "description": "The versions of the review materials when the review started (template_version of templates/review/perspectives.md and report_template.md) and the number of questions then. The report writes these, not the versions of today, and says so when today's differ.",
+          "properties": {
+            "perspectives": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "report_template": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "questions": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "independence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "description": "Independent review (#5) as it went for this reviewer. The editor only hides records on screen (anyone can open review.yaml). It records when the reviewer left the independent mode before submitting (broken, when, why) and when the reviewer first saw the others' records (viewed_others_at); items changed after that carry edited_after_viewing_others. Self-declared, like the name.",
+          "properties": {
+            "mode": {
+              "enum": [
+                "kept",
+                "broken"
+              ]
+            },
+            "broken_at": {
+              "$ref": "#/$defs/time"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "viewed_others_at": {
+              "$ref": "#/$defs/time"
+            }
           }
         }
       }
     },
-    "rr": { "enum": ["満", "否", "対象外"] },
+    "rr": {
+      "enum": [
+        "満",
+        "否",
+        "対象外"
+      ]
+    },
     "finding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "location", "content", "severity", "origin", "kind", "verdict"],
+      "required": [
+        "id",
+        "location",
+        "content",
+        "severity",
+        "origin",
+        "kind",
+        "verdict"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
-        "location": { "type": "string", "minLength": 1 },
-        "anchors": { "type": "array", "items": { "$ref": "#/$defs/anchor" } },
-        "questions": { "type": "array", "items": { "$ref": "#/$defs/qid" } },
-        "content": { "type": "string", "minLength": 1 },
-        "severity": { "enum": ["Blocker", "Major", "Minor"] },
-        "origin": { "enum": ["テンプレート項目", "観点", "カタログ外の質問", "テンプレート外", "LLM"] },
-        "kind": { "enum": ["理由の不備", "前提の誤り", "実装とのずれ", "候補の漏れ", "目的と仕組みの不一致"] },
-        "confused_question": { "type": "string", "minLength": 1, "description": "Required when kind is 目的と仕組みの不一致: which question was answered with the wrong mechanism." },
-        "verdict": { "enum": ["採用", "却下", "保留"] },
-        "verdict_reason": { "type": "string" },
-        "response": {
-          "type": "object", "additionalProperties": false,
-          "properties": { "owner": { "type": "string" }, "due": { "type": "string" },
-            "state": { "enum": ["未着手", "対応中", "直した", "直さない"] }, "ref": { "type": "string" } }
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
         },
-        "at": { "$ref": "#/$defs/time" }
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qid"
+          }
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "Blocker",
+            "Major",
+            "Minor"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "テンプレート項目",
+            "観点",
+            "カタログ外の質問",
+            "テンプレート外",
+            "LLM"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "理由の不備",
+            "前提の誤り",
+            "実装とのずれ",
+            "候補の漏れ",
+            "目的と仕組みの不一致"
+          ]
+        },
+        "confused_question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when kind is 目的と仕組みの不一致: which question was answered with the wrong mechanism."
+        },
+        "verdict": {
+          "enum": [
+            "採用",
+            "却下",
+            "保留"
+          ]
+        },
+        "verdict_reason": {
+          "type": "string"
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "due": {
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "未着手",
+                "対応中",
+                "直した",
+                "直さない"
+              ]
+            },
+            "ref": {
+              "type": "string"
+            }
+          }
+        },
+        "at": {
+          "$ref": "#/$defs/time"
+        },
+        "edited_after_viewing_others": {
+          "type": "boolean",
+          "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
+        }
       },
-      "if": { "properties": { "kind": { "const": "目的と仕組みの不一致" } }, "required": ["kind"] },
-      "then": { "required": ["confused_question"] }
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "目的と仕組みの不一致"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "confused_question"
+        ]
+      }
     }
   }
 }

@@ -47,10 +47,13 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 - 行ごとの判定：承認／修正を求める／保留 を、レビュアー・日時・コメントとともに記録する。判定は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると「再確認が要る」になる
 - 指摘は report_template.md の欄で記録する。分析の画面（網羅・lint との重ね合わせ・前の版との差分・25 問の回答・却下の理由の抜き取り）と、report_template.md の形のレポートの生成がある
 - **レビュアーの名前は自己申告です。** 本当の承認は GitHub の PR のレビューで行います
-- 独立レビュー：提出するまで、ほかのレビュアーの記録を隠す設定がある（[procedure.md](procedure.md)）
+- 独立レビュー：提出するまで、ほかのレビュアーの記録を隠す設定がある（[procedure.md](procedure.md)）。画面で隠すだけで、review.yaml を開けば見える。提出の前に隠すのをやめる操作は確かめて、外れたことを review.yaml に記録する（`independence`）。守ったかは自己申告で、手順で守る
+- 行の判定のハッシュは、その行の値だけを見る。参照する行・25 問の回答・design.md の本文を変えても「再確認が要る」にならない
+- 記録がある設計書を変える PR の手順（承認した行・却下の行・教材を変えたとき）は [../CONTRIBUTING.md](../CONTRIBUTING.md) の「レビューの記録がある設計書を変えるとき」
 
 ```
-python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale]   # スキーマ・問い ID・抜き取り・古くなった承認
+python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・抜き取り・古くなった承認
+python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"   # 母集団が変わった抜き取りを引き直す
 python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md
 python tools/review_check.py --report <レポート>                                          # report_template.md の様式どおりか
 ```

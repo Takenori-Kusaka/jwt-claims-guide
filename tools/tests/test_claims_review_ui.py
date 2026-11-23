@@ -494,6 +494,147 @@ class ReviewMode(unittest.TestCase):
         self.assertEqual([(x['line'], x['severity']) for x in d], [(3, 'warn')])
         self.assertEqual(pg.problems, [])
 
+    # ------------------------------------------------------------------ the PR #52 check
+    def test_leaving_independent_mode_is_asked_and_recorded(self):
+        pg = self.page()
+        self.sample(pg, 'b')
+        llm = pg.evaluate('() => ClaimsReview.visibleNames()[0]')
+        self.become(pg, '独立の X')
+        pg.check('#rv-independent')
+        self.poll(pg, '() => ClaimsReview.data().reviews.find(r => r.reviewer.name === "独立の X").independence.mode === "kept"')
+        self.assertTrue(pg.is_visible('#rv-independence-limits'))
+        # switching to the submitted LLM reviewer: asked; "やめる" keeps everything hidden
+        pg.select_option('#rv-pick', llm)
+        pg.click('#rv-pick-go')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('独立レビューを外れる', pg.inner_text('dialog#confirm'))
+        pg.keyboard.press('Escape')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        self.assertEqual(pg.evaluate('() => [ClaimsReview.me(), ClaimsReview.visibleNames()]'), ['独立の X', ['独立の X']])
+        # typing the existing name: asked too
+        pg.fill('#rv-name', llm)
+        pg.click('#rv-new-go')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.assertEqual(pg.evaluate('() => ClaimsReview.me()'), '独立の X')
+        # unchecking: asked
+        pg.click('#rv-independent')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.poll(pg, '() => ClaimsReview.data().independent === true')
+        # writing out every record: asked; "自分の記録だけ" writes only mine
+        self.go(pg, '#/review', 'レビューモード')
+        pg.click('#rv-export')
+        pg.wait_for_selector('dialog#confirm[open]')
+        with pg.expect_download() as dl:
+            pg.click('dialog#confirm [data-choice="mine"]')
+        mine = review_record.load_text(pathlib.Path(dl.value.path()).read_bytes().decode('utf-8'))
+        self.assertEqual([r['reviewer']['name'] for r in mine['reviews']], ['独立の X'])
+        self.assertEqual(pg.evaluate('() => ClaimsReview.visibleNames()'), ['独立の X'])
+        # leaving on purpose: recorded with when and why; the others' records then seen; later edits are marked
+        pg.click('#rv-independent')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.click('dialog#confirm [data-choice="break"]')
+        self.poll(pg, '() => ClaimsReview.visibleNames().length === 2')
+        self.go(pg, '#/review/findings', '指摘')
+        ind = self.poll(pg, '() => { const r = ClaimsReview.data().reviews.find(r => r.reviewer.name === "独立の X"); return r.independence.viewed_others_at ? r.independence : null; }')
+        self.assertEqual((ind['mode'], ind['reason']), ('broken', '独立レビューの設定を外した'))
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        pg.check('#q-dc-03 input[value="yes"]')
+        self.poll(pg, '() => ClaimsReview.data().reviews.find(r => r.reviewer.name === "独立の X").answers["dc-03"].edited_after_viewing_others === true')
+        rep = pg.evaluate('() => ClaimsReview.reportText("独立の X")')
+        self.assertIn('独立レビュー：提出の前に外れた', rep)
+        self.assertIn('その後に直した記録 1 件', rep)
+        self.assertEqual(review_check.check_report(ROOT, rep), [])
+        self.assertEqual(pg.problems, [])
+
+    def test_review_autosave_failure_is_shown_and_guarded(self):
+        pg = self.page()
+        self.sample(pg, 'a')
+        pg.check('#chk-autosave')
+        self.become(pg, '保存できない人')
+        pg.evaluate('''() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (String(k).startsWith('claims-editor:review:')) throw new DOMException('full', 'QuotaExceededError'); return orig.call(this, k, v); }; }''')
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        pg.check('#q-dc-01 input[value="no"]')
+        self.poll(pg, '() => (document.querySelector("#save-warn") || {}).textContent.includes("レビューの記録の自動保存に失敗")')
+        self.assertTrue(pg.is_visible('#save-warn'))
+        pg.click('#btn-close')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('レビューの記録', pg.inner_text('dialog#confirm'))
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
+        self.assertEqual(pg.problems, [])
+
+    def test_escape_on_the_autosave_question_never_overwrites_it(self):
+        pg = self.page()
+        self.sample(pg, 'a')
+        pg.check('#chk-autosave')
+        self.become(pg, '保存した人')
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        pg.check('#q-dc-01 input[value="yes"]')
+        key = 'claims-editor:review:v1:templates/examples/scenario-a'
+        saved = self.poll(pg, 'k => { const v = localStorage.getItem(k); return v && v.includes("保存した人") && v.includes("dc-01") ? v : null; }', arg=key, timeout=10)
+        pg.click('#btn-close')
+        self.poll(pg, '() => !ClaimsEditor.state().open')
+        pg.click('#btn-sample-a')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('自動保存したレビューの記録', pg.inner_text('dialog#confirm'))
+        pg.keyboard.press('Escape')
+        self.poll(pg, '() => ClaimsReview.ready() && !document.querySelector("dialog#confirm")')
+        self.assertIn('自動保存を止めています', pg.inner_text('#save-warn'))
+        # recording now does not write over the autosaved records
+        self.become(pg, '別の人')
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        pg.check('#q-dc-02 input[value="no"]')
+        pg.wait_for_timeout(1500)
+        self.assertEqual(pg.evaluate('k => localStorage.getItem(k)', key), saved)
+        self.go(pg, '#/review', 'レビューモード')
+        self.assertTrue(pg.is_visible('#rv-slot-hold'))
+        pg.click('#rv-slot-ask')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.click('dialog#confirm [data-choice="merge"]')
+        self.poll(pg, '() => ClaimsReview.data().reviews.map(r => r.reviewer.name).sort().join() === ["保存した人", "別の人"].sort().join()')
+        self.assertEqual(pg.problems, [])
+
+    def test_report_escaping_and_llm_labels_match_python(self):
+        pg = self.page()
+        self.sample(pg, 'b')
+        d = review_record.load(os.path.join(B, 'review.yaml'))
+        rv = d['reviews'][0]
+        rv['reviewer']['name'] = '<b>悪い名前</b> | `x`'
+        rv['context']['human_check'] = '# <!-- 7. を隠す'
+        rv['answers']['dc-01']['memo'] = '<!-- hide / <script>x</script> / </details> / a | b / `c` / > q'
+        rv['findings'][0]['content'] = '<img src=https://example.com/x.png> [l](https://example.com) *e* _e_ & ~~s~~'
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, 'evil.yaml')
+            pathlib.Path(p).write_text(review_record.dump(d), encoding='utf-8')
+            self.go(pg, '#/review', 'レビューモード')
+            pg.set_input_files('#rv-import', [p])
+            self.poll(pg, 'n => ClaimsReview.visibleNames().includes(n)', arg=rv['reviewer']['name'])
+        js = pg.evaluate('n => ClaimsReview.reportText(n)', rv['reviewer']['name'])
+        py = review_record.report(d, B, review_record.review_data(), reviewer=rv['reviewer']['name'], version='0.4.0')
+        self.assertEqual(js, py)
+        self.assertNotIn('<!--', js)
+        self.assertIn('人による点検は未実施', js.split('## 7. ')[1].split('## 8. ')[0])
+        # the badges name the reviewer and say an LLM's decision is not checked by a person
+        self.go(pg, '#/claims', 'クレームの一覧')
+        b = pg.inner_text('tr[data-anchor="claims:C-iss"] [data-review-kind="llm"]')
+        self.assertIn('人による点検は未実施', b)
+        self.assertIn('Claude', b)
+        # the checklist names each question in its answer group; a role filter says what it leaves out
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        self.assertIn('dc-01', pg.inner_text('#q-dc-01 legend'))
+        pg.select_option('#rv-f-role', 'role-attacker')
+        self.assertTrue(pg.is_visible('#rv-role-note'))
+        self.assertIn('役割の索引が未整備の問い', pg.inner_text('#rv-role-note'))
+        self.assertIn('役割の索引が未整備の問い（121 問）', pg.inner_text('#rv-f-role'))
+        # the rows a decision does not cover
+        self.go(pg, '#/claim/C-roles', '(C-roles)')
+        self.assertTrue(pg.is_visible('[data-dependents="claims:C-roles"]'))
+        self.assertIn('claim_request_roles.md', pg.text_content('[data-dependents="claims:C-roles"]'))
+        self.assertEqual(pg.problems, [])
+
 
 if __name__ == '__main__':
     unittest.main()

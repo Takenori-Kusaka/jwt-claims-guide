@@ -16,11 +16,15 @@ reviews:
     target:
       commit: "bd1747b"
       note: "main の bd1747b の作業ツリーの版（PR #44 の点検を反映した後の版）"
+    materials:
+      questions: 168
+      perspectives: "0.4.0"
+      report_template: "0.4.0"
     context:
+      materials: "レビュアーは templates/examples/scenario-b/review-report.md（前のレビュー）、perspectives.md の 9.（較正）、research/reviews/ を読んでいない。レビューに渡した指示の全文は research/reviews/scenario-b-editor-review-prompt-2026-11-23.md。「前のレビューを読んでいない」は自己申告で、24 件のうち約 11 件は主題が前のレビュー（review-report.md）と重なる（PR #52 の独立点検）。その約 11 件は独立に見つかった証拠に数えない"
       lite_full: "Full。catalog_answers.yaml の lite_criteria は crosses_boundary・delegation_or_exchange・new_issuer の 3 つが true で、README の「1 つでも Yes なら Full」と合う。ただし Full で使うと宣言した P1・P4・P5 とモジュールの欄が設計書に無く、書かない理由も 12. に無い（README の判定がずれるときの規則にも合わない。F01）"
       steps: "0〜7 を実施（0 受け付け・1 範囲と 12. を先に読む・2 判断の木と対比表で 6. の要る問いを照合・3 全 168 問・4 共有クレーム 9 件の 25 問と、指定の却下 3 行の理由の採点（採用の行の抜き取りは指定が無く未実施）・5 カタログ外の場面・6 専門家に回す基準・7 記録と戻す事項）。8 は対応が無いので未実施。引用元（RFC・製品文書）は開いていない（オフライン。q-evidence-attribution は No）。役割の切り替え順：攻撃者→受け手→発行者→運用→個人情報→クライアント"
       roles_order: "攻撃者 → 受け手 → 発行者 → 運用 → 個人情報 → クライアント（2026-11-23、1 つのセッションの中で切り替えた。日を分ける代わりに No の指摘を別のセッションで読み直すことは未実施）"
-      materials: "レビュアーは templates/examples/scenario-b/review-report.md（前のレビュー）、perspectives.md の 9.（較正）、research/reviews/ を読んでいない"
       ci:
         error: 0
         warn: 6
@@ -537,241 +541,289 @@ reviews:
     rows:
       "catalog_answers:I05":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "e46535975ee3892597be2a859a010374676ba83a1251f9f482770b7b13a54ad7"
         comment: "管理 API のサービスアカウントの発行と矛盾（F06）"
         at: "2026-11-23"
       "catalog_answers:I12":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "a7e80fb9c4c7c4b1d29de11c066aae5f7f2d26508a5d377e4a85de7256692ddb"
         comment: "マッパーの呼ばれ方が unknown（F18）"
         at: "2026-11-23"
       "claims:C-acr":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "2b24afb5def2c231c60ecafaa3ab5da5aa7c3b6f3cae7a5877efb2f48798e3be"
         comment: "組織の語彙への正規化、欠落は pwd（拒否側）"
         at: "2026-11-23"
       "claims:C-act":
         decision: "hold"
+        reviewer_kind: "llm"
         hash: "7a61f44d9afb633a079eef5faf172a018c473cffd1cac2180146a9a41c7c79bf"
         comment: "深さ 3 と一括失効は専門家の確認待ち（F22、delegation-depth）"
         at: "2026-11-23"
       "claims:C-approval-id":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "84464fd47e83fd846df5e5dfe9fff0365da5b2a3c3ffdae827bbbb9821767751"
         comment: "問 5 未確認（F09）、問 19 と consumers の食い違い（F11）"
         at: "2026-11-23"
       "claims:C-aud":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "d35d0b164c6d77cf6d3ec1777f087f073648c1444724f542617b2da5c08ff131"
         comment: "宛先ごとに 1 つ、KC_AT の 4 つは理由と入口の絞り込みあり"
         at: "2026-11-23"
       "claims:C-auth-time":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "2838819ade6c65a84a7f738f2a5403bf0d39978e99ff0d18fc98e6cf0bb30b74"
         comment: "ledger が max_age 900 で照合"
         at: "2026-11-23"
       "claims:C-authorization-details":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "372175d7a2d00bd40d3fea33ca3d58b719c880efa41b401535261fa4305bf77a"
         comment: "承認の内容と本文の照合、宛先ごとに type を絞る。載るトークンの注記の食い違いは目録側（F14）"
         at: "2026-11-23"
       "claims:C-client-id":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "3db2756a26681592e86b0548ace70ec2b14bc17ce66e79df8a9c53e153d5e477"
         comment: "sts が private_key_jwt で確かめた値、受け手ごとの照合あり"
         at: "2026-11-23"
       "claims:C-cnf":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "1015b4f63af06333e5124b4aaaf5eaf42c5dddf8d5b602f356b476717708d3f1"
-        comment: "DPoP の cnf.jkt と proof の照合が両受け手にある"
+        comment: "DPoP の cnf.jkt と proof の照合が両受け手にある（PR #52 の点検の後に追記：enforced_at の「jti を受け入れる期間の間覚えて」は、保留中の F15 の食い違いの片方。承認は cnf.jkt の照合の有無についてだけ）"
         at: "2026-11-23"
       "claims:C-department":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "f3e9e1cf39769a34ab65b46650bbaeffa8c02d660f7484f0bf2e8d9115342516"
         comment: "volatility が 1 時間の同期を含まない（F03）、問 5（F09）、編集権限（F10）、ログの個人情報（F13）、absent_semantics（F19）"
         at: "2026-11-23"
       "claims:C-dpop-ath":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "b4093cbd774b8e44ea64e5bca11619950bfe76f1f455ee57344ab759428c1b01"
         comment: "資源サーバーでの AT のハッシュの照合"
         at: "2026-11-23"
       "claims:C-dpop-htm":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "0c82c7eed30d11fa3f0c7122b2467fd29752b185f4ee7e80d1d0cd6b3872bfa7"
         comment: "要求のメソッドと照合"
         at: "2026-11-23"
       "claims:C-dpop-htu":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "df5cd0e41b82f443372cd4a178e0b05d88234c7327f4a36864163367e626637c"
         comment: "URI の比較の規則と書き換えの前提がある"
         at: "2026-11-23"
       "claims:C-dpop-nonce":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "08a18cf737755df3f69549aaee87a177fa468699fed8348e68abd29792af2f76"
         comment: "書き手を IDT の nonce と分けた"
         at: "2026-11-23"
       "claims:C-email":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "4b7c23b2ff5f2c246ff846db6ebe8e3037579b5c966f24cb1158df34b49488f8"
         comment: "表示だけで照合に使わない"
         at: "2026-11-23"
       "claims:C-employee-id":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "ef15ad92c67a16ce5f0c72b683637bfd86f5bbb48e9b371a93005b5d65bc7b6d"
         comment: "問 5 未確認（F09）、Keycloak の属性の編集権限（F10）"
         at: "2026-11-23"
       "claims:C-events":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "955bc7dd9c7be71b104cf7feb0c479b9d5354f6b46912d097cb3ce0ca61a2a81"
         comment: "ログアウトトークンの取り違えの防止"
         at: "2026-11-23"
       "claims:C-exp":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "ff6aaa5fba514f63c1d8cd76d0205e4282a211b3645b8bc9470ea3948a706b85"
         comment: "payment-worker が TXN を取り直す行が H12・H13 と矛盾（F04）"
         at: "2026-11-23"
       "claims:C-iat":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "79d2090266153a703d5e65c5916bc6a5de48b578b1eea3225ede7ac6d33875b3"
         comment: "DPoP の iat ±60 秒と jti の保持 90 秒の食い違い（F15）"
         at: "2026-11-23"
       "claims:C-idp":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "38abea532304b1406f35ded449a19fdabc26dbc9a55c1dde1557eec6ddc9ae07"
         comment: "問 9 と on_missing の食い違い、認可に使わないのに載せる理由（F11）"
         at: "2026-11-23"
       "claims:C-iss":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "f032ed2fb6a8026eed5831a0936069f79620f23da0370b8ca4567b406d2c04a1"
         comment: "payment-worker の enforced_at がトークンを持たない設計と矛盾、consumers にも無い（F04）"
         at: "2026-11-23"
       "claims:C-jti":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "d7a7fdb04727b458a5ea0aadee6a61f5235f5bfe21cbb85b2edd131dbb974878"
         comment: "DPoP の jti の保持期間が受け入れの窓より短い（F15）"
         at: "2026-11-23"
       "claims:C-name":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "57e51b652b9e372eb60f649a4804bb095da8c1c3f05a41a496318c0e046753a3"
         comment: "表示だけ、IDT は BFF に留める"
         at: "2026-11-23"
       "claims:C-nonce":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "999cb25cf0be31cfb6f0b8d0543bb926cf631845aa5dcdd26d391c9b64b27dfd"
         comment: "IDT の再送の拒否と LOGOUT の nonce の拒否"
         at: "2026-11-23"
       "claims:C-rctx":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "61d5542124b0236c8f0ec5ef97a246f86b8dac32e509823f4f7cf3dd82aaa322"
         comment: "理由の採点で合格"
         at: "2026-11-23"
       "claims:C-req-wl":
         decision: "hold"
+        reviewer_kind: "llm"
         hash: "0894fae2ef387e3b8dbd1a3537d7c26b18359d70dbbb85ab57a850e9557c1bbf"
         comment: "草案のクレーム・未登録の名前（draft-spec に回す）"
         at: "2026-11-23"
       "claims:C-rfc-roles":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "87e5c90ac974df51bc5f0682e2249125a2f3a1352484cbfa7222a9009fc75f85"
         comment: "revisit_trigger が無い（F20）"
         at: "2026-11-23"
       "claims:C-roles":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "71505e15b4ca56e5a180f76e11ce216ae023597c696795c94536eb23ca2e0c38"
         comment: "鮮度の計算が KC_AT の古さを含まない（F03）"
         at: "2026-11-23"
       "claims:C-scope":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "85bae016c79e893e434b6a6ebd527883736520b21766e2055f2f128db65e8dda"
         comment: "宛先・取引ごとに絞り、authorization_details との役割分担が not_meaning にある"
         at: "2026-11-23"
       "claims:C-sid":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "e4135d52d20fcb35a1ddcd358ea7b04764214125fe545cf53c218593b91bc955"
         comment: "引き直しに使うサービスアカウントの資格情報が目録・カタログに無い（F06）"
         at: "2026-11-23"
       "claims:C-sub":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "2b7bb978f728603046fe0607beeed6f114180d1def2d6756beaed2b7a8cf105f"
         comment: "持ち主の照合を user_id と二重にしている（F05）、payment-worker の行（F04）"
         at: "2026-11-23"
       "claims:C-task-id":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "26eee1cca938252b63e923dcc1e4c52ab3a425a09394506148259ed3ca4ac290"
         comment: "問 5 未確認（F09）"
         at: "2026-11-23"
       "claims:C-tctx":
         decision: "hold"
+        reviewer_kind: "llm"
         hash: "d9fb268c4398bcd0e13a6f291f63ae9b1d48ce4422c7ee76c5cb7b4da77b60a7"
         comment: "草案のクレーム（draft-spec に回す）"
         at: "2026-11-23"
       "claims:C-tenant-id":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "069a34e32cdf661427a9b9e626c0326336c39bbe157b1afc21a1318ff3dcad28"
         comment: "問 5 が未確認のまま共有クレームにした（F09）"
         at: "2026-11-23"
       "claims:C-txn":
         decision: "hold"
+        reviewer_kind: "llm"
         hash: "da218550403b8d92351f1ca452e1e3e4e932211a71a2ac3f6da22d2e5adeacd5"
         comment: "草案のクレーム（draft-spec に回す）"
         at: "2026-11-23"
       "claims:C-upn":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "106ea3a0a9d40f1d8e32e3b2c10dc5daa19714ecfa73085e852a1fa114e545d2"
         comment: "理由の採点で合格（禁止の行）"
         at: "2026-11-23"
       "claims:C-user-id":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "03ff833eb5e193251b0791e78edbd01d2b36334aefb22d7406e1406ccf3b0de3"
         comment: "sub との二重のキー（F05）、問 5 未確認（F09）、Keycloak の属性の編集権限の裏付け（F10）"
         at: "2026-11-23"
       "claims:C-v":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "d90a310249cec4cb354edc4f766ec4cfe2ef312cfd0dc0db0e2a6fd12aa63269"
         comment: "問 5 未確認（F09）、absent_semantics が無い（F19）"
         at: "2026-11-23"
       "hops:H11":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "b9d2bc7e23a4ce1945cc00a011646a3cf6e4a49b823afe0e7cad6fd18837c2f4"
         comment: "RLS のすり抜け・最小権限・試験（F02）、TXN の経路の文脈（F23）"
         at: "2026-11-23"
       "hops:H12":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "1ecbf87d713facdf224b9a755eb996a39a5dfcaa026892adef5e3a990fb9fadc"
         comment: "ledger が持たない approval の ID をイベントに入れる（F04）"
         at: "2026-11-23"
       "hops:H13":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "02b288834cebf2bf2bb7d6b35bdc64ca21eb27f815c0db0ecb45f23c3907e928"
         comment: "台帳の payment-worker の行と矛盾（F04）"
         at: "2026-11-23"
       "hops:H15":
         decision: "approve"
+        reviewer_kind: "llm"
         hash: "38877ac18095f36a6ac26dda931907c7844609a54835fb20a615207bbb685446"
-        comment: "aud の置き換えの例外に理由、scope・寿命・独自クレームは上流以下"
+        comment: "aud の置き換えの例外に理由、scope・寿命・独自クレームは上流以下（PR #52 の点検の後に追記：この交換は、保留中の Major の指摘 F22（委任の深さと一括失効）の対象。承認はホップの絞り込みについてだけ）"
         at: "2026-11-23"
       "token_types:AGENT_AT":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "ee31c2200bc1d5bff8915c9ba2ea007fd76005c53bf65946f9d48e85c0798cb1"
         comment: "承認の時の認証の強さ（F07）、jwe の注記（F14）、深さ（F22）"
         at: "2026-11-23"
       "token_types:DPOP":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "e7e807c55fa0900dd45ad15c55b2a26d34b821ab2325ad6e2329357b9fd1ba85"
         comment: "jti の保持期間と iat の窓（F15）"
         at: "2026-11-23"
       "token_types:EXT_AT":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "575a2fa05a669493f5ad326f5f2440b7038a3bf79d6f0b00afed9d7632edb1bd"
         comment: "利用者単位の停止の手段が無い（F08）"
         at: "2026-11-23"
       "token_types:RT":
         decision: "request_changes"
+        reviewer_kind: "llm"
         hash: "a7cfb402d4b03e79f109cd21c7d99c53ec6aed4eadd6f464a685cac37c394f5e"
         comment: "機密クライアントに公開クライアントの根拠（F16）"
         at: "2026-11-23"
       "token_types:TXN":
         decision: "hold"
+        reviewer_kind: "llm"
         hash: "94e30ff259a7fa1969fcc951548520a740d3143b3710cea36e4a126f4ee89981"
         comment: "草案のトークン（draft-spec）。log_policy と required_claims の jti（F14）"
         at: "2026-11-23"
@@ -1042,6 +1094,7 @@ reviews:
       seed: "20261123-b"
       count: 3
       picked: ["claims:C-rfc-roles", "claims:C-rctx", "claims:C-upn"]
+      population: "aa55d93e3d06011814f8569b0dd006dad76d361664c520c7c38dffe673437aa2"
       scores:
         "claims:C-rctx":
           RR1: "満"

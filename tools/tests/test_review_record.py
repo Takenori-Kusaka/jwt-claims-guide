@@ -72,8 +72,9 @@ def test_schema_and_vocabulary_errors():
     f.pop('confused_question', None)
     assert any('confused_question' in e for e in rr.check(d)[0])
     d = example()
-    d['reviews'][0]['answers']['q-no-such-question'] = {'answer': 'yes'}
-    assert any('q-no-such-question' in e for e in rr.check(d)[0])
+    d['reviews'][0]['answers']['q-no-such-question'] = {'answer': 'yes'}  # the materials changed: a warning, not an error
+    errs, notes = rr.check(d)
+    assert errs == [] and any('q-no-such-question' in n and '教材' in n for n in notes)
     d = example()
     d['reviews'][0]['self_declared'] = False  # the name is always self-declared
     assert rr.check(d)[0]
@@ -162,8 +163,8 @@ def _report():
     ('| 未着手 |', '| 終わった |', 'RP6'),
     ('当てはまらなかった基準：', '当てはまらない：', 'RP7'),
     ('| 合格 |', '| 可 |', 'RP8'),
-    ('| `dc-01` | No |', '| `dc-01` | いいえ |', 'RP10'),
-    ('| `dc-01` |', '| `dc-99` |', 'RP10'),
+    ('| dc-01 | No |', '| dc-01 | いいえ |', 'RP10'),
+    ('| dc-01 |', '| dc-99 |', 'RP10'),
 ])
 def test_report_form_errors(old, new, rule):
     text = _report()
@@ -203,3 +204,105 @@ def test_diff_lists_changed_rows(tmp_path, capsys):
     p.write_text(p.read_text(encoding='utf-8').replace('  - id: C-iss\n', '  - id: C-iss\n    x_changed: 1\n', 1), encoding='utf-8')
     assert rr.main(['diff', B, str(design)]) == 0
     assert capsys.readouterr().out.split('\n')[0] == 'changed  claims:C-iss'
+
+
+# ------------------------------------------------------------------ PR #52 check: escaping, versions, population, reseed
+EVIL = ['<!-- hide the rest', '<script>alert(1)</script>', '</details>', 'a | b | c', '`code` and ``x``', '# heading',
+        '> quote', '<img src=https://example.com/x.png>', '[link](https://example.com)', '*em* _em_ ~~s~~', 'a & b']
+
+
+def _evil_review():
+    d = example()
+    rv = d['reviews'][0]
+    rv['reviewer']['name'] = '<b>名前</b> | `x`'
+    rv['context']['human_check'] = '# <!-- 7. を隠す'
+    rv['answers']['dc-01']['memo'] = ' / '.join(EVIL)
+    f = rv['findings'][0]
+    f['location'], f['content'] = EVIL[0], ' '.join(EVIL)
+    f['response']['owner'] = '<script>'
+    sc = rv['sampling']['scores']
+    sc[next(iter(sc))]['note'] = '<!-- note'
+    rv['rows'][next(iter(rv['rows']))]['comment'] = '</td></tr><!--'
+    return d
+
+
+def test_report_escapes_every_value():
+    text = rr.report(_evil_review(), B, rr.review_data(), label='<!-- label', version='0.4.0')
+    for bad in ('<!--', '<script', '</details>', '<img', '<b>', '[link](', ' `code`'):
+        assert bad not in text, bad
+    assert '&lt;!-- hide the rest' in text and '&lt;script&gt;' in text and '\\`code\\`' in text and 'a &amp; b' in text
+    assert '\\[link\\]' in text and '\\*em\\*' in text
+    sec7 = text.split('## 7. ')[1].split('## 8. ')[0]
+    assert '\\# &lt;!-- 7. を隠す' in sec7  # a value that starts a line with "#" stays text
+    assert '人による点検は未実施' in sec7  # a fixed sentence: no value can hide it
+    assert review_check.check_report(ROOT, text) == []  # the tables are still the form
+
+
+def test_report_human_reviewer_is_not_called_unchecked_wrongly():
+    d = example()
+    rv = d['reviews'][0]
+    rv['reviewer'] = {'name': '人', 'kind': 'human'}
+    del rv['context']['human_check']
+    for r in rv['rows'].values():
+        r['reviewer_kind'] = 'human'
+    text = rr.report(d, B, rr.review_data())
+    assert 'レビュアーは人（名前は自己申告）' in text and '（LLM）' not in text
+
+
+def test_report_versions_are_those_of_the_review():
+    R = dict(rr.review_data(), template_version='9.9.9')
+    d = example()
+    text = rr.report_text(d, d['reviews'][0], R, row_hash.row_hashes(B)['hashes'], row_hash.load(B), version='0.4.0')
+    assert 'レビューした時の版：perspectives.md 0.4.0' in text and '今の教材は perspectives.md 9.9.9' in text
+    assert '今の教材' not in rr.report(d, B, rr.review_data(), version='0.4.0')
+
+
+def test_a_changed_population_is_a_warning_and_reseed_records_the_old_draw(tmp_path):
+    design = tmp_path / 'b'
+    shutil.copytree(B, design)
+    p = design / 'claims.yaml'
+    p.write_text(p.read_text(encoding='utf-8').replace('  - id: C-kc-client-id\n', '  - id: C-kc-client-id0\n', 1), encoding='utf-8')
+    errs, notes = rr.check(example(), str(design))
+    assert errs == [] and any('抜き取りの母集団が変わった' in n for n in notes)
+    y = tmp_path / 'review.yaml'
+    shutil.copy(EXAMPLE, y)
+    who = example()['reviews'][0]['reviewer']['name']
+    assert rr.main(['sample', str(design), '--reseed', '--file', str(y), '--reviewer', who, '--reason', '却下の行の ID が変わった']) == 0
+    d = rr.load(str(y))
+    sm = d['reviews'][0]['sampling']
+    assert sm['reason'] == '却下の行の ID が変わった' and sm['previous'][0]['picked'] == example()['reviews'][0]['sampling']['picked']
+    assert sm['picked'] == rr.sample(sm['seed'], sm['count'], row_hash.load(str(design)))
+    errs, notes = rr.check(d, str(design))
+    assert errs == [] and not any('母集団' in n for n in notes)
+    assert rr.main(['check', str(y), '--design', str(design)]) == 0
+
+
+def test_tampered_draw_from_the_same_rows_is_an_error():
+    d = example()
+    d['reviews'][0]['sampling']['picked'] = list(reversed(d['reviews'][0]['sampling']['picked']))
+    assert any('from the same rows' in e for e in rr.check(d, B)[0])
+
+
+def test_annotations_for_stale_approvals(tmp_path, capsys):
+    design = tmp_path / 'b'
+    shutil.copytree(B, design)
+    p = design / 'hops.yaml'
+    p.write_text(p.read_text(encoding='utf-8').replace('  - id: H15\n', '  - id: H15\n    x_changed: 1\n', 1), encoding='utf-8')
+    assert rr.main(['check', EXAMPLE, '--design', str(design), '--annotate']) == 0
+    out = capsys.readouterr().out
+    assert '::warning file=' in out and 'hops:H15' in out
+
+
+def test_independence_is_reported():
+    d = example()
+    rv = d['reviews'][0]
+    d['independent'] = True
+    rv['independence'] = {'mode': 'broken', 'broken_at': '2026-11-24T10:00:00Z', 'reason': '独立レビューの設定を外した',
+                          'viewed_others_at': '2026-11-24T10:00:00Z'}
+    rv['answers']['dc-01']['edited_after_viewing_others'] = True
+    rv['updated'] = '2026-11-25T00:00:00Z'
+    assert rr.check(d, B)[0] == []
+    text = rr.report(d, B, rr.review_data())
+    assert '提出の前に外れた（2026-11-24T10:00:00Z。独立レビューの設定を外した）' in text
+    assert 'その後に直した記録 1 件' in text and '提出（2026-11-23）の後に更新した' in text
+
