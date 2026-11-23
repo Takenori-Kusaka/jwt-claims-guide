@@ -51,7 +51,7 @@
 | `L1b` | warn | `C-tctx` | 未登録の名前 tctx は草案（draft-ietf-oauth-transaction-tokens-11 §9.2.3）が定める名前（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
 | `L1b` | info | `C-typ-claim` | IdP が既定で出す私的名 typ（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す |
 | `L2` | info | `idp` | IdP keycloak の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。L2 は確かめていない（IdP モジュール #4 で手で確かめる） |
-| `L16` | info | `hop H15` | aud を上流（H14）の invoice-mcp から 1 つの宛先 invoices に替える（aud_replacement。理由：MCP の認可は AGENT_AT の宛先を invoice-mcp だけにし、受け取ったトークンを上流に渡すことを禁じる。交換は宛先を invoices の 1 つに替える絞り込みで、宛先を足していない） |
+| `L16` | info | `hop H15` | aud を上流（H14）の invoice-mcp から、行き先の 1 つの宛先 invoices に替える（aud_replacement。理由：MCP の認可は AGENT_AT の宛先を invoice-mcp だけにし、受け取ったトークンを上流に渡すことを禁じる。交換は宛先を invoices の 1 つに替える絞り込みで、宛先を足していない） |
 | `L18` | warn | `C-employee-id` | 廃止予定（deprecated、sunset_on 2027-03-31）のクレームを読む受け手：gateway・payroll |
 | `L27` | info | `token_type KC_AT` | at+jwt の REQUIRED の client_id（RFC 9068 §2.2）が無いことを、台帳の却下の行で逸脱として記録している |
 
@@ -461,7 +461,7 @@ sequenceDiagram
 
 ## 8. ホップごとの表
 
-規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。超える場合は `narrowing_exception` に理由を書く。`upstream` を置いたホップ（H2・H4〜H7・H10〜H13・H15）は、#6 の L16 が確かめ、warn・error の指摘は 0 件です。H15 は aud を 1 つの別の宛先に替える交換で、`aud_replacement: true` と `narrowing_exception.aud` に理由を書いた（L16 は info で記録する）。scope・寿命・独自クレーム・`authorization_details` は上流の H14 以下です（承認の ID と内容を AGENT_AT に移した。PR #44 のレビュー B04・B05）。
+規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。例外は 2 つだけで、トークン交換で aud を行き先の 1 つの宛先に替える（`aud_replacement` と `narrowing_exception.aud`）ことと、Txn-Token の寿命（`narrowing_exception`）。scope・authorization_details・独自クレームには例外が無い。Txn-Token を渡す H10 の scope も H9 と比べる（B01 の守り：H10 に `ledger.post` を足すと L16 が出す）。`upstream` を置いたホップ（H2・H4〜H7・H10〜H13・H15）は、#6 の L16 が確かめ、warn・error の指摘は 0 件です。H15 は aud を行き先（invoices）の 1 つの宛先に替える交換で、上流の H14 の aud に交換を求める invoice-mcp があり、`aud_replacement: true` と `narrowing_exception.aud` に理由を書いた（L16 は info で記録する）。scope・寿命・独自クレーム・`authorization_details` は上流の H14 以下です（承認の ID と内容を AGENT_AT に移した。PR #44 のレビュー B04・B05）。
 
 `upstream` を置いていないホップとその理由：
 

@@ -204,24 +204,22 @@
      "description": "Claims copied into headers on this hop (L8: inbound headers of the same name are dropped)"
     },
     "narrowing_exception": {
-     "description": "Why this hop is allowed to go beyond its upstream. A string is the reason for max_lifetime (a Txn-Token may outlive the original token, draft-ietf-oauth-transaction-tokens-11 §6). An object gives a reason per dimension (aud, scope, max_lifetime, authorization_details); L16 then reports info with the reason. Extra custom_claims have no exception",
+     "description": "Why this hop goes beyond its upstream. A string (10 characters or more) is the reason for a longer max_lifetime, accepted only on a Txn-Token hop (draft-ietf-oauth-transaction-tokens-11 §6, §13.15). An object may give aud (with aud_replacement on a token-exchange hop) and max_lifetime (Txn-Token only). scope and authorization_details never widen (§13.6) and extra custom_claims have no exception (L16)",
      "oneOf": [
-      {"type": "string", "minLength": 1, "pattern": "\\S"},
+      {"type": "string", "minLength": 10, "pattern": "\\S"},
       {
        "type": "object",
        "additionalProperties": false,
        "minProperties": 1,
        "properties": {
         "aud": {"type": "string", "minLength": 10, "pattern": "\\S"},
-        "scope": {"type": "string", "minLength": 10, "pattern": "\\S"},
-        "max_lifetime": {"type": "string", "minLength": 10, "pattern": "\\S"},
-        "authorization_details": {"type": "string", "minLength": 10, "pattern": "\\S"}
+        "max_lifetime": {"type": "string", "minLength": 10, "pattern": "\\S"}
        }
       }
      ]
     },
     "aud_replacement": {
-     "description": "An exchange or reissue hop that replaces aud with a single different audience (narrowing by replacement, slide:p06-narrow-downstream). Needs one aud and narrowing_exception.aud (L16)",
+     "description": "A token-exchange hop (kind exchange) that replaces aud with one concrete audience equal to the hop's destination service, when the upstream token addressed the requesting service (narrowing by replacement, slide:p06-narrow-downstream). Needs narrowing_exception.aud. Not for reissue hops, which keep a subset of the upstream aud (L16)",
      "type": "boolean"
     },
     "note": {

@@ -703,42 +703,91 @@ def test_l5_db_lookup_note_matches_whole_id(tmp_path):
     assert [f['target'] for f in bad(lint(tmp_path, d), 'L5')] == ['C-roles']
 
 
-# ------------------------------------------------------------------ L16: aud replacement, per-dimension exceptions (#4)
-def _sev16(res, hid='hop H4'):
-    return sorted((f['severity'], f['message'][:12]) for f in res['findings'] if f['rule'] == 'L16' and f['target'] == hid)
+# ------------------------------------------------------------------ L16 on scenario B: regression tests of the PR #44 re-check
+EX_B = os.path.join(ROOT, 'templates', 'examples', 'scenario-b')
+R10 = '理由理由理由理由理由'
 
 
-def test_l16_declared_single_aud_replacement_is_info(tmp_path):
-    """slide:p06-narrow-downstream: an exchange may replace aud with one different audience; declared, it is not widening."""
-    d = base()
-    _exchange(d, ['invoices'], ['openid'], 120)
-    hop(d, 'H4').update(aud_replacement=True, narrowing_exception={'aud': '交換で次の 1 つの宛先に替える（MCP の素通しの禁止）'})
-    res = lint(tmp_path, d)
-    assert [f['severity'] for f in res['findings'] if f['rule'] == 'L16'] == ['info']
+def _b():
+    return {n: core.load_yaml(os.path.join(EX_B, n + '.yaml')) for n in ('claims', 'hops', 'token_types', 'catalog_answers')}
 
 
-def test_l16_aud_replacement_needs_one_aud_and_a_reason(tmp_path):
-    d = base()
-    _exchange(d, ['invoices', 'orders'], ['openid'], 120)
-    hop(d, 'H4').update(aud_replacement=True, narrowing_exception={'aud': '交換で次の宛先に替える（理由の例）'})
-    assert [f['severity'] for f in lint(tmp_path / 'a', d)['findings'] if f['rule'] == 'L16'] == ['warn']
-    d = base()
-    _exchange(d, ['invoices'], ['openid'], 120)
-    hop(d, 'H4').update(aud_replacement=True)
-    assert [f['severity'] for f in lint(tmp_path / 'b', d)['findings'] if f['rule'] == 'L16'] == ['warn']
+def _lint_b(tmp_path, d):
+    out = tmp_path / 'b'
+    shutil.copytree(EX_B, out)
+    for n, v in d.items():
+        with open(out / (n + '.yaml'), 'w', encoding='utf-8') as f:
+            yaml.safe_dump(v, f, allow_unicode=True, sort_keys=False)
+    return core.run(str(out), today=TODAY)
 
 
-def test_l16_per_dimension_exception_records_reason(tmp_path):
-    d = base()
-    _exchange(d, ['saas-api'], ['openid', 'admin'], 600)
-    hop(d, 'H4').update(narrowing_exception={'scope': '管理の操作だけを足す交換（理由の例）', 'max_lifetime': 'バッチの処理に合わせる（理由の例）'})
-    res = lint(tmp_path, d)
-    sev = [f['severity'] for f in res['findings'] if f['rule'] == 'L16']
-    assert sev == ['info', 'info'] and all('理由' in f['message'] for f in res['findings'] if f['rule'] == 'L16')
+def _l16(res, hid):
+    return sorted(f['severity'] for f in res['findings'] if f['rule'] == 'L16' and f['target'] == f'hop {hid}')
 
 
-def test_l16_extra_custom_claim_has_no_exception(tmp_path):
-    d = base()
-    _exchange(d, ['saas-api'], ['openid'], 120, ('C-tenant-id', 'C-email'))
-    hop(d, 'H4').update(narrowing_exception={'aud': 'この欄は独自クレームの例外にはならない'})
-    assert any('C-email' in f['message'] for f in bad(lint(tmp_path, d), 'L16'))
+def test_l16_scenario_b_h15_replacement_is_info(tmp_path):
+    assert _l16(_lint_b(tmp_path, _b()), 'H15') == ['info']
+
+
+@pytest.mark.parametrize('aud', [['*'], ['https://api.corp.example.com'], ['payroll']])
+def test_l16_aud_replacement_must_be_the_destination(tmp_path, aud):
+    """Re-check 1-3: a wildcard, a gateway-wide audience or an unrelated service is not a replacement by the destination."""
+    d = _b()
+    hop(d, 'H15')['aud'] = aud
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H15')
+
+
+def test_l16_aud_replacement_only_on_token_exchange(tmp_path):
+    """Re-check 4: a reissue hop cannot replace aud with a service the upstream token never addressed."""
+    d = _b()
+    h = hop(d, 'H5')
+    h.update(aud=['hr-admin'], aud_replacement=True, narrowing_exception={'aud': R10})
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H5')
+
+
+def test_l16_aud_replacement_needs_upstream_aud_of_the_requester(tmp_path):
+    d = _b()
+    hop(d, 'H14')['aud'] = ['other-mcp']
+    hop(d, 'H14')['custom_claims'] = hop(d, 'H15')['custom_claims']
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H15')
+
+
+@pytest.mark.parametrize('key,value', [('scope', ['invoices.pay', 'invoices.refund', 'admin']),
+                                       ('authorization_details', ['https://claims.example.com/rar/payment', 'https://claims.example.com/rar/any'])])
+def test_l16_scope_and_authorization_details_have_no_exception(tmp_path, key, value):
+    """Re-check 6-7: scope and authorization_details never widen (Txn-Token §13.6). The exception key is a schema error."""
+    d = _b()
+    hop(d, 'H15')[key] = value
+    hop(d, 'H15')['narrowing_exception'][key] = R10
+    res = _lint_b(tmp_path, d)
+    assert 'warn' in _l16(res, 'H15') and any(f['rule'] == 'SCHEMA' for f in res['findings'])
+
+
+def test_l16_lifetime_exception_only_for_txn_token(tmp_path):
+    """Re-check 8-9: a longer lifetime on a non-Txn-Token exchange stays warn, with or without a reason."""
+    d = _b()
+    hop(d, 'H15')['max_lifetime'] = 86400
+    hop(d, 'H15')['narrowing_exception']['max_lifetime'] = R10
+    assert 'warn' in _l16(_lint_b(tmp_path / 'a', d), 'H15')
+    d = _b()
+    h = hop(d, 'H15')
+    h.update(max_lifetime=86400, narrowing_exception='x', aud=['invoice-mcp'])
+    h.pop('aud_replacement')
+    res = _lint_b(tmp_path / 'b', d)
+    assert 'warn' in _l16(res, 'H15') and any(f['rule'] == 'SCHEMA' for f in res['findings'])
+
+
+def test_l16_txn_token_scope_is_compared(tmp_path):
+    """Re-check 10-11 (the B01 safeguard): the TXN hop H10 adding ledger.post to its upstream H9 is caught."""
+    d = _b()
+    hop(d, 'H10')['scope'] = ['ledger.read', 'ledger.post']
+    assert 'warn' in _l16(_lint_b(tmp_path, d), 'H10')
+
+
+@pytest.mark.parametrize('ref_id', ['draft-ietf-oauth-transaction-tokens-11 §1', 'draft-ietf-oauth-transaction-tokens-11'])
+def test_l1b_draft_section_must_match_the_pinned_section(tmp_path, ref_id):
+    """Re-check 20-21: the cited section must be the one draft_claims.yaml records for the name."""
+    d = _b()
+    claim(d, 'C-tctx')['registered_ref']['id'] = ref_id
+    res = _lint_b(tmp_path, d)
+    assert [f['severity'] for f in res['findings'] if f['rule'] == 'L1b' and f['target'] == 'C-tctx'] == ['error']

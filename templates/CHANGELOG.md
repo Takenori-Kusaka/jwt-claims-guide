@@ -39,7 +39,7 @@
 - `tools/variant_compare.py`：記入例に差分だけの上書きを当て、台帳・目録・ホップ・カタログへの回答・lint の結果の違いを表にする（`--write`・`--check`。#4）
 - `casestudy-deviations.yaml`：シナリオ B の前提（B＋C の組み合わせ）と、carry 21 件・not_in_example 30 件
 - claim_lint の L1b：草案が定める名前のうち、`tools/claim_lint/draft_claims.yaml` に固定したもの（Txn-Token の草案 -11 の `req_wl`・`tctx`・`rctx`）だけを warn にした。架空の草案・草案に無い名前・認可に使う名前は error のまま（#4、PR #44 の点検 B06）
-- claim_lint の L16：交換・作り直しで aud を 1 つの別の宛先に替えるホップ（`aud_replacement: true` と `narrowing_exception.aud` の理由）は info。`narrowing_exception` を項目ごと（aud・scope・max_lifetime・authorization_details）に書けるようにした。独自クレームの例外は設けない（#4、PR #44 の点検 B05。`hops.schema.json` に `aud_replacement` を足し、`narrowing_exception` を文字列かオブジェクトにした。任意の列の追加なのでマイナー）
+- claim_lint の L16：トークン交換のホップで、aud を行き先の 1 つの宛先に替えるもの（`aud_replacement: true`、上流の aud に交換を求めるサービス、`narrowing_exception.aud` の理由）は info。条件を欠けば error。寿命の例外は Txn-Token だけ。scope・authorization_details・独自クレームには例外を設けない。Txn-Token を渡すホップの scope も上流と比べる（PR #44 の再点検）（#4、PR #44 の点検 B05。`hops.schema.json` に `aud_replacement` を足し、`narrowing_exception` を文字列かオブジェクトにした。任意の列の追加なのでマイナー）
 
 ### 変更
 
