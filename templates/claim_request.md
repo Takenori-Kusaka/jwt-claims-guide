@@ -109,7 +109,7 @@
 ### 問 3　既存の標準クレームで表せないか
 
 項目 ID：`template:claim_request#q03`
-<!-- req:p11-pre-add-questions-1.R3 req:p10-four-questions.R7 -->
+<!-- req:p11-pre-add-questions-1.R3 req:p10-four-questions.R7 req:p02-registered-claims.R7 req:p02-scope.R3 req:p12-review-viewpoints.R1 -->
 
 - 対応：台帳の `registered_ref`・`prior_art_search`、lint は #6 の L1a（IANA の登録名の型・形の照合）
 - 検討の問い：IANA の JWT Claims の登録簿、仕様の構造（`act`・`authorization_details`・`cnf` など）、IdP の文書、組織の台帳の順に探したか

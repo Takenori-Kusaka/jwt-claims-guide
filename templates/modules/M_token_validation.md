@@ -40,7 +40,7 @@
 ## 2. 発行者（iss）〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#issuer`
-<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 -->
+<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 req:p12-review-viewpoints.R11 -->
 
 決めること：受け入れる発行者の許可リストと、発行者ごとの鍵の取得元。鍵がその発行者のものであることを確かめます（別の発行者の鍵で署名したトークンを、その発行者のものとして受けない）。
 
@@ -246,7 +246,7 @@
 ## 11. 組織共通の検証部品〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#shared-validator`
-<!-- req:p00-why-hard.R2 req:p00-incident-signature-valid.R5 req:p01-library-defaults.R4 req:p11-contract-test-gaps.R3 req:p11-translation-layer.R3 req:p11-pre-add-questions-2.R4 -->
+<!-- req:p00-why-hard.R2 req:p00-incident-signature-valid.R5 req:p01-library-defaults.R4 req:p11-contract-test-gaps.R3 req:p11-translation-layer.R3 req:p11-pre-add-questions-2.R4 req:p12-review-viewpoints.R10 -->
 
 決めること：検証と解析を各サービスに任せず、アルゴリズム・発行者・宛先・必須クレームを固定した組織共通の部品を配るか。配るなら、その部品だけを通してクレームを読ませる方法。
 

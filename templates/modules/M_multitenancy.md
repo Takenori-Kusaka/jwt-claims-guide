@@ -62,7 +62,7 @@
 ## 3. データ層での絞り込み〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_multitenancy#data-layer-filter`
-<!-- req:p05-multitenancy.R4 req:p05-bola.R2 -->
+<!-- req:p05-multitenancy.R4 req:p05-bola.R2 req:p12-review-viewpoints.R14 -->
 
 決めること：トークンのテナントと、保存データのテナントが一致することを、データの側でどう確かめるか。トークンの検証だけでは、保存データのテナントは確かめられません（slide:p05-bola）。DB の文脈を誰が設定するかは `template:modules/M_data_layer#db-context-setter` で決めます。
 
@@ -87,7 +87,7 @@
 ## 4. テナントをまたぐ場面〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_multitenancy#cross-tenant`
-<!-- req:p05-cross-tenant.R1 -->
+<!-- req:p05-cross-tenant.R1 req:p05-cross-tenant.R2 -->
 
 決めること：テナントをまたぐ主体ごとに、識別子と権限をどう出すか。テナントをまたいだ暗黙の名寄せはしない前提で、場面ごとに決めます（slide:p05-cross-tenant）。
 

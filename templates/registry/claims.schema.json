@@ -29,7 +29,7 @@
       "type": "string",
       "minLength": 1,
       "pattern": "\\S",
-      "$comment": "Trace: req:p02-name-categories.R1 req:p04-claim-names.R2 req:p05-scope-vs-role.R3"
+      "$comment": "Trace: req:p02-name-categories.R1 req:p04-claim-names.R2 req:p05-scope-vs-role.R3 req:p12-review-viewpoints.R2"
      },
      "style": {
       "enum": [
@@ -279,7 +279,7 @@
     },
     "registered_ref": {
      "$ref": "#/$defs/ref",
-     "$comment": "Trace: req:p02-roles-groups-entitlements.R1 req:p10-four-questions.R7"
+     "$comment": "Trace: req:p02-roles-groups-entitlements.R1 req:p10-four-questions.R7 req:p02-registered-claims.R7"
     },
     "type": {
      "enum": [
@@ -290,7 +290,7 @@
       "object"
      ],
      "description": "JSON type of one value (of each element when shape is array). Exactly one type",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R2"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R2 req:p12-antipatterns-2.R3 req:p12-review-viewpoints.R2"
     },
     "shape": {
      "enum": [
@@ -299,7 +299,7 @@
       "space_delimited"
      ],
      "description": "single value, JSON array, or one string of space-delimited values (scope). Declared so that consumers do not read the form differently",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R3 req:p02-scope.R7 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R5"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R3 req:p02-scope.R7 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R5 req:p12-antipatterns-2.R3"
     },
     "allowed_values": {
      "type": "object",
@@ -391,7 +391,7 @@
      "minLength": 1,
      "pattern": "\\S",
      "description": "What the claim does not mean (e.g. azp is not client_id; email_verified is not identity proofing)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R4 req:p02-check-before-creating.R2 req:p11-registry-fields.R3"
+     "$comment": "Trace: req:p00-claims-are-contracts.R4 req:p02-check-before-creating.R2 req:p11-registry-fields.R3 req:p02-registered-claims.R4 req:p02-scope.R1 req:p02-auth-strength-session.R2"
     },
     "absent_semantics": {
      "type": "object",
@@ -425,7 +425,7 @@
      },
      "minProperties": 1,
      "description": "Meaning of a missing claim, null, false, an empty array and an empty string. A claim that can disappear at a limit (Entra groups overage) is never read as \"no membership\"",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R5 req:p04-absent-null-false-empty.R1"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R5 req:p04-absent-null-false-empty.R1 req:p12-review-viewpoints.R2"
     },
     "flat_alias": {
      "type": "string",
@@ -755,7 +755,7 @@
       "normalization"
      ],
      "description": "When the claim relays a value from an upstream issuer (broker, SAML, another IdP, declarative mapping): the upstream iss and the normalization rule to the organization key",
-     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4 req:p02-tenant-org.R4 req:p03-absorb-idp-differences.R3"
+     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4 req:p02-tenant-org.R4 req:p03-absorb-idp-differences.R3 req:p02-roles-groups-entitlements.R3 req:p11-translation-layer.R5"
     },
     "authoritative_writer": {
      "type": "array",
@@ -870,7 +870,7 @@
       "呼び出し側の申告"
      ],
      "description": "Where the value comes from and who can write it. Values of different provenance get different names",
-     "$comment": "Trace: req:p04-split-by-writer.R1 req:p11-registry-fields.R5 req:p03-cognito-pre-token-hook.R4 req:p07-three-db-paths.R4 req:p07-row-level-security.R2 req:p07-cloud-attributes.R1"
+     "$comment": "Trace: req:p04-split-by-writer.R1 req:p11-registry-fields.R5 req:p03-cognito-pre-token-hook.R4 req:p07-three-db-paths.R4 req:p07-row-level-security.R2 req:p07-cloud-attributes.R1 req:p12-antipatterns-1.R7 req:p12-review-viewpoints.R15"
     },
     "issue_events": {
      "type": "array",
@@ -989,7 +989,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Services allowed to read the claim (the contract; [] when nobody reads it)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6 req:p04-forward-compatibility.R3 req:p11-change-procedure.R3"
+     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6 req:p04-forward-compatibility.R3 req:p11-change-procedure.R3 req:p09-minimize-derived.R4"
     },
     "consumer_access_path": {
      "type": "array",
@@ -1256,7 +1256,7 @@
       "該当なし"
      ],
      "description": "Category under the Act on the Protection of Personal Information (a separate axis from data_category)",
-     "$comment": "Trace: req:p09-jws-is-readable.R2 req:p11-registry-fields.R8"
+     "$comment": "Trace: req:p09-jws-is-readable.R2 req:p11-registry-fields.R8 req:p01-jwt-structure.R2 req:p06-issuance-hook.R4"
     },
     "data_category": {
      "type": "array",

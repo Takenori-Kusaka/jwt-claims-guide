@@ -223,7 +223,7 @@
        }
       }
      ],
-     "$comment": "Trace: req:p01-client-made-jwts.R2"
+     "$comment": "Trace: req:p01-client-made-jwts.R2 req:p08-decision-table.R3"
     },
     "tls_termination": {
      "allOf": [
@@ -517,6 +517,7 @@
      ]
     },
     "subject_type": {
+     "$comment": "Trace: req:p09-pairwise-identifiers.R3 req:p09-checklist.R3",
      "enum": [
       "public",
       "pairwise"
@@ -668,6 +669,7 @@
      "description": "Approval when max_lifetime exceeds the organization cap (L23 of #6)"
     },
     "refresh": {
+     "$comment": "Trace: req:p08-decision-table.R5",
      "type": "string",
      "minLength": 1,
      "pattern": "\\S"
@@ -769,7 +771,7 @@
      "maxItems": 10,
      "minItems": 1,
      "description": "Means that end the token (or session) before max_lifetime, with the worst-case delay until consumers stop accepting it. exp_only: a locally validated JWT stays until exp",
-     "$comment": "Trace: req:p08-logout.R2 req:p01-self-contained-vs-reference.R1 req:p10-delegation-chain-depth.R3"
+     "$comment": "Trace: req:p08-logout.R2 req:p01-self-contained-vs-reference.R1 req:p10-delegation-chain-depth.R3 req:p12-review-viewpoints.R18"
     },
     "introspection_cache_ttl": {
      "type": "integer",
@@ -1032,6 +1034,7 @@
      "$comment": "Trace: req:p01-jwt-structure.R3 req:p09-jwe-sd-jwt.R1"
     },
     "log_policy": {
+     "$comment": "Trace: req:p09-checklist.R8",
      "enum": [
       "記録しない",
       "jti だけ記録",

@@ -38,6 +38,7 @@
 ## 2. 範囲と信頼の境界〔Lite：手で書く〕
 
 項目 ID：`template:00_core#scope-boundary`
+<!-- req:p06-validation-split.R8 -->
 
 決めること：この設計書が扱う範囲（どのクライアント・発行者・サービス・データ層までか）と、信頼の境界（ブラウザ・入口・サービスの網・DB・外部の IdP・取引先）。境界ごとに、使うプロファイル（P1・P4・P5）を書きます。範囲の外にしたものは、外にした前提を書きます。
 
@@ -98,7 +99,7 @@ flowchart LR
 ### 2.2 システムの権限〔Full だけ〕
 
 項目 ID：`template:00_core#system-privileges`
-<!-- req:p05-system-privileges.R1 req:p05-system-privileges.R3 req:p05-system-privileges.R7 req:p05-cross-tenant.R3 -->
+<!-- req:p05-system-privileges.R1 req:p05-system-privileges.R3 req:p05-system-privileges.R7 req:p05-cross-tenant.R3 req:p05-system-privileges.R5 -->
 
 決めること：夜間バッチ・運用者の操作・緊急時の特権（break-glass）・基盤の操作のそれぞれで、どの主体がどのトークンで動くか。利用者の権限を借りないこと、運用者は実行者として名を残すことを、場面ごとに確かめます。
 
@@ -238,7 +239,7 @@ flowchart LR
 ### 5.1 寿命の上限の方針〔Full だけ〕
 
 項目 ID：`template:00_core#lifetime-policy`
-<!-- req:p08-token-types-lifetimes.R4 req:p08-choosing-lifetime.R2 -->
+<!-- req:p08-token-types-lifetimes.R4 req:p08-choosing-lifetime.R2 req:p08-choosing-lifetime.R4 req:p08-decision-table.R1 -->
 
 決めること：種類ごとの寿命の上限を、組織の規則として文書にします。上限を超える種別には、例外を認める手順（誰が承認し、どこに記録するか）を書きます。上限のファイルは `tools/claim_lint/lifetime_caps.yaml` の形（#6 の L23。自組織のファイルに替えられる）です。
 
@@ -318,6 +319,7 @@ sequenceDiagram
 ## 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
 
 項目 ID：`template:00_core#hop-table`
+<!-- req:p12-review-viewpoints.R7 -->
 
 決めること：経路のホップごとに、運ぶトークン・`aud`・`scope`・寿命・運ぶ独自クレーム・交換を担うサービス・受け手の検証。**規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。** 超える場合（Txn-Token は仕様上、元より長くてよい）は `narrowing_exception` に理由を書きます。値は `hops.yaml` に書き、この節は render が生成します。交換・作り直しのホップの `aud`・`scope`・`max_lifetime`・`custom_claims`・`exchanger` は Lite でも手で書きます。
 
@@ -344,6 +346,7 @@ sequenceDiagram
 ## 9. ライフサイクル表〔Lite：手で書く〕
 
 項目 ID：`template:00_core#lifecycle`
+<!-- req:p02-auth-strength-session.R5 req:p08-async-processing.R4 req:p08-downstream-after-expiry.R3 -->
 
 決めること：寿命の 4 つの層（トークン・クレームの値の鮮度・セッションと RT・クレームの定義）を、別々に書きます。9.1 はトークン種別とセッション層と接続ごと、9.2 はクレームごと、9.3 はクレームの定義ごとです。4 つは独立に動きます（AT が 5 分でも、セッションが 10 時間なら 10 時間トークンを得られる）。
 
@@ -376,7 +379,7 @@ sequenceDiagram
 #### DB・ブローカーの接続の層
 
 項目 ID：`template:00_core#lifecycle-db-connection`
-<!-- req:p07-lifetime-mismatch.R4 -->
+<!-- req:p07-lifetime-mismatch.R4 req:p07-lifetime-mismatch.R3 -->
 
 決めること：DB・メッセージブローカーへの接続の寿命と、トークンの寿命の関係。多くの DB でトークンは「接続を開く鍵」で、失効やロールの剥奪は開いた接続に届きません。接続の最大寿命をトークンの寿命以下にするか、利用者のクレームを取引ごとに注入するか、すぐ止めるなら DB 側の主体を削除するかを決めます。既存の接続に再認証を強制できる製品では、それを有効にするかを決めます（Kafka の `connections.max.reauth.ms` は既定で 0、つまり再認証しない）。値は `hops.yaml` の `db_connection`・`broker_connection` のホップの `connection_max_lifetime` に書きます。
 
@@ -401,7 +404,7 @@ sequenceDiagram
 ### 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕
 
 項目 ID：`template:00_core#freshness`
-<!-- req:p08-stale-claims.R1 req:p08-reissue-triggers.R2 -->
+<!-- req:p08-stale-claims.R1 req:p08-reissue-triggers.R2 req:p08-four-lifetimes.R1 -->
 
 決めること：クレームを発行時点の写しとみなし、クレームごとに「値が変わってから反映されるまでに許す時間」（台帳の `volatility`）と、載るトークンの寿命（受け入れの上限＝`max_lifetime`＋`max_clock_skew`）を並べます。**寿命のほうが長いクレームには対策を書きます。** 外部の IdP の属性を取り込むなら、取り込み方（初回だけか、毎回か）も値の鮮度として書きます。
 
@@ -424,7 +427,7 @@ sequenceDiagram
 ### 9.3 クレームの定義の寿命〔Full だけ（廃止予定の行があれば Lite でも書く）〕
 
 項目 ID：`template:00_core#definition-lifecycle`
-<!-- req:p00-claims-are-contracts.R8 req:p04-forward-compatibility.R3 req:p04-forward-compatibility.R4 req:p11-why-govern.R1 req:p11-change-procedure.R1 req:p11-change-procedure.R3 req:p11-change-procedure.R4 req:p11-change-procedure.R5 req:p11-pre-add-questions-2.R11 req:p11-pre-add-questions-2.R12 -->
+<!-- req:p00-claims-are-contracts.R8 req:p04-forward-compatibility.R3 req:p04-forward-compatibility.R4 req:p11-why-govern.R1 req:p11-change-procedure.R1 req:p11-change-procedure.R3 req:p11-change-procedure.R4 req:p11-change-procedure.R5 req:p11-pre-add-questions-2.R11 req:p11-pre-add-questions-2.R12 req:p08-four-lifetimes.R1 req:p12-review-viewpoints.R16 -->
 
 決めること：クレームの追加・変更・廃止を、API の変更と同じ重さの手順で扱います。トークンの中身（名前・型・形）の変更は破壊的変更です。手順は「受け手が先、発行者が後」です。
 

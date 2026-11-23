@@ -92,7 +92,7 @@
 | `template:00_core#priorities-deferrals` | 組織の種類ごとの重点と見送り、その効果・費用・見直しの条件 | `p12-priorities-deferrals.R3`, `p12-priorities-deferrals.R4`, `p12-priorities-deferrals.R5` |
 | `template:claim_request#q01` | 追加前の 25 問の第 1 問の回答欄 | `p11-pre-add-questions-1.R1` |
 | `template:claim_request#q02` | 追加前の 25 問の第 2 問の回答欄 | `p11-pre-add-questions-1.R2` |
-| `template:claim_request#q03` | 追加前の 25 問の第 3 問の回答欄 | `p10-four-questions.R7`, `p11-pre-add-questions-1.R3`, `p12-review-viewpoints.R1` |
+| `template:claim_request#q03` | 追加前の 25 問の第 3 問の回答欄 | `p02-registered-claims.R7`, `p02-scope.R3`, `p10-four-questions.R7`, `p11-pre-add-questions-1.R3`, `p12-review-viewpoints.R1` |
 | `template:claim_request#q04` | 追加前の 25 問の第 4 問の回答欄 | `p11-pre-add-questions-1.R4` |
 | `template:claim_request#q05` | 追加前の 25 問の第 5 問の回答欄 | `p11-pre-add-questions-1.R5` |
 | `template:claim_request#q06` | 追加前の 25 問の第 6 問の回答欄 | `p11-pre-add-questions-1.R6` |
@@ -142,7 +142,7 @@
 | `review:perspectives#q-operator-act` | 運用者の操作が委任のトークン（sub と act）で行われ、両方が記録されているか | `p05-system-privileges.R3` |
 | `review:perspectives#q-break-glass` | break-glass に承認の ID と短い期限があるか | `p05-system-privileges.R5` |
 | `review:perspectives#q-cross-tenant-identity` | テナントをまたいだ暗黙の名寄せをしていないか、複合キーを使っているか | `p05-cross-tenant.R2` |
-| `review:contrasts/scope-vs-role` | 対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方） | `p05-scope-vs-role.R1` |
+| `review:contrasts/scope-vs-role#misuse` | 対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方） | `p05-scope-vs-role.R1` |
 | `review:perspectives#q-hook-adds-raw-pii` | 発行時フックが生の個人情報を足していないか | `p06-issuance-hook.R4` |
 | `review:perspectives#q-step-up-by-rs` | 高リスクの操作で、受け手が acr・auth_time を見て追加認証を求めるか | `p06-step-up-approval.R2` |
 | `review:perspectives#q-rar-per-audience` | authorization_details を宛先ごとに絞っているか | `p06-step-up-approval.R3` |
