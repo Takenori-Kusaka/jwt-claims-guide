@@ -3,7 +3,7 @@
 認証認可とマイクロサービスの設計を任された新任のテックリーダーに向けた解説スライドです（全 159 枚、解説ノートつき）。主題は、OpenID Connect や OAuth の標準クレームそのものではなく、**組織のあらゆるサービスで共用する独自クレーム**の設計・伝搬・検証・ガバナンスです。独自クレームで既存のクレームと重複・衝突しないよう、標準クレームの地図と、4 つの IdP（Microsoft Entra ID・Keycloak・Auth0/Okta・Amazon Cognito）の実際を前提として扱います。
 
 - Web スライド: https://takenori-kusaka.github.io/jwt-claims-guide/
-- 設計書のビューアー（YAML の設計書を人が読む形で表示する。記入例のシナリオ A・B と、自分の YAML をブラウザの中だけで開く機能。データを外部に送信しない（リンクを押したときの移動は除く））: https://takenori-kusaka.github.io/jwt-claims-guide/claims/
+- 設計書のエディター（YAML の設計書を書きながら、ブラウザの中で JSON Schema と claim_lint で検査し、人が読む形で表示する。最初は何も開いていない。記入例のシナリオ A・B は「サンプルを開く」で開く。データを外部に送信しない（リンクを押したときの移動は除く））: https://takenori-kusaka.github.io/jwt-claims-guide/claims/
 - PDF / PPTX: [slides/](slides/)
 - Docswell: https://www.docswell.com/s/takenori_kusaka/ZWR7NJ-jwt-claims-guide
 - ケーススタディ（実測、67 ケースの攻撃・正規の要求と除去実験）: https://github.com/Takenori-Kusaka/jwt-claims-casestudy
@@ -108,19 +108,65 @@ python tools/tests/cmp_pptx.py before.pptx after.pptx          # 2 つのビル�
 - 従来の、番号で指す `#s47` の形も開けます。ただし、番号はずれるので、文書には書かないでください
 - 見つからない ID や壊れたハッシュのときは、1 枚目を開き、見つからなかったことを表示します
 
-### 設計書のビューアー（`docs/claims/`、#36）
-- `https://takenori-kusaka.github.io/jwt-claims-guide/claims/` で、記入例（`templates/examples/scenario-a`・`scenario-b`）の台帳・トークン目録・発行方式と導かれる要件・ホップ・寿命の 4 つの層・カタログへの回答・lint の結果と、対応表（#22）の進み具合を表示します。スライドの Web 版（`/`）とは別のパスで、同じ公開の方式（`main` の `/docs`）のまま共存します
-- 根拠の `slide:<id>` は、スライドの Web 版の `#<id>` に移動します
-- 静的な HTML・JS・CSS だけで、サーバーは使いません。CSP（`<meta>`）を `connect-src 'none'` にしていて、外部の CDN も使いません。YAML の読み取りに js-yaml 4.3.2（MIT、`docs/claims/vendor/`、版と sha256 を固定。GHSA-h67p-54hq-rp68・GHSA-52cp-r559-cp3m・GHSA-5p4m-2wfm-xmqj・GHSA-2883-xcg3-v3hh の修正後の版）を同梱し、`CORE_SCHEMA` で読みます（`<<` のマージと `!!omap` は扱わない。`<<` を使った YAML には画面で注意を出す）。同梱したファイルは Dependabot の対象にならないので、版を上げるときは advisory を手で確かめます
-- 根拠のリンク（RFC・GitHub など）を押せば、そのページへ移動します。ページが自分から外部に接続することはありません
-- **自分の YAML を開く**：`claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml`、または `python tools/claim_lint render <dir> --format json` の束を、ブラウザの中（FileReader）だけで読みます。ファイルは送信しません。確かめた記録は `research/claims-viewer/` にあります
-- データ（`docs/claims/data/*.js`）は YAML から生成します。台帳・記入例・`templates/registry/README.md` の列の見出し・レビュー教材・対応表を変えたら、作り直してコミットします。食い違いは CI（`.github/workflows/claims.yml`）で落ちます
+### 設計書のエディター（`docs/claims/`、#49。#36 のビューアーを置き換えた）
+- `https://takenori-kusaka.github.io/jwt-claims-guide/claims/` を開くと、**何も開いていない最初の画面**が出ます。記入例は「サンプルを開く」を押したときだけ読み込みます。スライドの Web 版（`/`）とは別のパスで、同じ公開の方式（`main` の `/docs`）のまま共存します
+- **始め方（6 つの入口）**：ファイルを開く（複数）・フォルダを開く（`claims.yaml` のあるディレクトリを読む）・ドラッグ＆ドロップ（ファイルでもフォルダでもよい）・貼り付け・空の雛形から始める（`python tools/new_design.py` と同じ骨組み）・サンプルを開く（シナリオ A・B）
+- **左右に分けた画面**：左は YAML のエディター（CodeMirror 6。ファイルごとのタブ：`claims.yaml`・`token_types.yaml`（発行方式 `issuance_profile` を含む）・`hops.yaml`・`catalog_answers.yaml`・`claim_request_*.md`・`design.md`。折り畳み・検索・元に戻す）。右は #36 の画面（概要・クレームの一覧・台帳（折り畳み）・詳細・トークン目録・発行方式と要件・ホップ・寿命の 4 つの層・カタログへの回答・検査の結果・生成した表・対応表の進み具合）
+- **その場の検査**：編集すると少し待ってから検査します
+  - YAML の構文（重複したキーを含む）と、台帳の JSON Schema（`templates/registry/*.schema.json`）は、ブラウザの中ですぐに検査します（yaml 2.9.1・@cfworker/json-schema 4.1.6）。Python の `re` の書き方 `(?i)` は、同じ意味の JavaScript の正規表現に書き換えて使います
+  - claim_lint は Python のまま Pyodide 314.0.8（CPython 3.14.2 の WebAssembly 版）で動かします。「検査の結果」など Python が作る画面（印 `Py`）を開いたときに初めて読み込み、以後は編集のたびに Web Worker の中で `python tools/claim_lint <dir> --profile <full|lite> --also-scan <dir>/design.md` と同じ検査と render を行います。claim_lint とそれが読むファイル（カタログ・台帳のスキーマ・`deck/slide_ids.json`）は `docs/claims/data/claim_lint.zip` にまとめています
+  - 指摘は、エディターの行（行番号の横の印と下線、タブの件数）と、プレビューの行（一覧・詳細・表の「検査」の列）の両方に出ます。指摘の行番号を押すと、エディターのその行に移動します。claim_lint が最新の内容で動いた後は、ブラウザの Schema の指摘の代わりに claim_lint の `SCHEMA` の指摘（CLI と同じもの）を出します
+- **CLI との一致**：シナリオ A・B の Full と Lite で、ブラウザの claim_lint の結果（JSON の全体）が CLI と一致することをテストで確かめています（`research/claims-editor/parity.json`）。CI では、`claim_lint.zip` と worker の Python を CPython で動かして CLI と比べます
+- **保存**：「このファイルを書き出す」（`Ctrl+S` でも）と「zip で書き出す」。開いたときの改行（CRLF）と BOM を保ったまま書き出します
+  - **黙って消えない**：書き出していない変更があるときに、別の設計書を開く・閉じる操作をすると、ページの中の確認（「zip で書き出してから」「書き出さずに」「やめる」）を出します。ページを離れる（再読み込み・タブを閉じる）ときは、ブラウザが確かめます（`beforeunload`）。エディターの外へのリンク（スライド・RFC・GitHub など）は新しいタブで開き、エディターは残ります
+  - **自動保存（localStorage）**：チェックを入れたときだけ行います。設計書のディレクトリごとに 1 件（`claims-editor:autosave:v2:<ディレクトリ>`）を保存し、別の設計書を開いても上書きしません。貼り付けた内容と、フォルダ無しで開いたファイルは、開いた日時と乱数の名前（例 `work/pasted-20261123-153012-a1b2c3`）で別々に保存します。保存するのは編集した後だけです（開いただけでは保存しない）。自動保存した版がある設計書をもう一度開くときは、自動保存した版（名前と保存した日時）と元のファイルのどちらを開くかを確かめます
+    - 保存に失敗したとき（容量の超過など）は、画面の上に警告を出し続け、変更は「書き出していない」ものとして扱います（閉じる・別の設計書を開く・ページを離れるときに確かめる）
+    - チェックを外すときは、保存したものを残すか消すかを確かめます（件数を出す）。残したものは、最初の画面から開く・消すことができます
+    - ページは常に何も開いていない状態で始まり、最初の画面の一覧で「開く」を押したときだけ開きます
+    - 同じ設計書を 2 つのタブで開いて編集すると、最後に保存したほうが残ります（タブの間では知らせません）
+  - **ファイルを足す**：開いているファイルと同じ名前のファイルを足すときは、「置き換える」「両方残す（足すほうの名前を変える。`hops.2.yaml` のような名前は検査の対象外、`claim_request_x_2.md` は対象）」「やめる」を確かめます
+- **キーボード**：Tab で移動、Enter で押します。エディターの中の Tab は、インデントせずに次へ移ります（インデントは空白で入れるか、行を選んで `Ctrl+]`・`Ctrl+[`）。ファイルのタブは `←`・`→`・`Home`・`End` で移ります（`role="tablist"`・`aria-controls`。指摘の件数は「エラー 1 件」のように読み上げる）。`Ctrl+Shift+M` で指摘の一覧、`F8` で次の指摘。長い行は折り返して表示します
+- **折り畳み**：節（採否ごと）・クレーム・列のまとまり（`templates/registry/README.md` の 3.1 の見出し）ごとに開閉でき、開閉の状態は URL（`?fold=`）に残ります。名前は位置ではなく見出しと ID で付けます（`sec~採用`・`claim~C-iss`・`claim~C-iss~grp~定義`・`grp~定義`。`~` は ID に現れない）。列のまとまりの順が変わっても、共有した URL の意味は変わりません
+- **レビューモード（#50）のための仕組み**（#50 の前提）
+  - 行の固定の名前（アンカー）：台帳の行・トークン種別・ホップ・カタログのイベント・発行方式の項目は `<種類>:<ID>`（例 `claims:C-iss`・`catalog_answers:I25`・`issuance_profile:client_type`）。同じ種類で ID が 2 行以上にあると、その ID にはアンカーを付けず、エディターの指摘（規則 `ANCHOR`、warn）に出します。#50 は、アンカーの無い行にはレビューの記録を付けません
+  - 行の内容のハッシュ：`ClaimsEditor.rowHash(anchor)` は、行の値の RFC 8785（JSON Canonicalization Scheme）の文字列を UTF-8 にした SHA-256 です。キーの順・引用符・空白・コメントを変えても変わりません。同じ計算を Python でする `python tools/row_hash.py <設計書のディレクトリ> [--format json]` があり、シナリオ A・B の全アンカーで一致することをテストで確かめています（`research/claims-editor/row-hash-parity.json`）
+  - 値の読み方：ブラウザも、claim_lint（PyYAML、YAML 1.1）と同じ規則で読みます。`yaml` の YAML 1.1 の型の判定を、PyYAML の resolver の正規表現に置き換えています。どちらも日付を文字列のままにし、重複したキーを誤りにします。そのため、エディター・claim_lint・`tools/row_hash.py` で値もハッシュも一致します（境目の値の一致はテストで確かめている）
+  - 引用符の無い値で、YAML の読み手によって意味が変わるものには、エディターが規則 `YAML11` の warn を出します。claim_lint の読み方では次のとおりで、YAML 1.2 の読み手とは違います。意味どおりに読ませるには引用符で囲んでください（記入例にはありません）
+    - `y`・`n`：文字列（ほかの YAML 1.1 の読み手では真偽値）
+    - `yes`・`no`・`on`・`off`（大文字を含む）：真偽値（YAML 1.2 では文字列）
+    - 符号の無い指数（`1e3`・`1.0e3`）：文字列（YAML 1.2 では数）。`1.0e+3` は数
+    - `012`：8 進数で 10。`09`：文字列
+    - `10:30`：60 進数で 630
+    - `0b101`・`1_000`：数（YAML 1.2 では文字列）
+    - マージキー `<<`：claim_lint の読み方では YAML の誤り（エディターは展開するが、`YAML11` の error を出す）
+  - 対になっていないサロゲート（`"\ud800"`）を含む行は、RFC 8785 が前提にする I-JSON にならないので、ハッシュを計算しません（エディターは `ANCHOR` の warn、`tools/row_hash.py` は `errors` に出して終了コード 1）
+  - `ClaimsEditor.registerRowPanel(fn)` で、各画面の行と詳細の画面に、記録の表示を足せます
+- **外部に送信しない**：CSP（`<meta>`）は `default-src 'none'` を基本に、`connect-src 'self'`（Pyodide がこのサイトの `vendor/pyodide/` と `data/claim_lint.zip` を GET するため）、`script-src 'self' 'wasm-unsafe-eval'`（WebAssembly のコンパイルを許すだけで、JavaScript の `eval` は許さない。外すと Pyodide が起動しないことをテストで確かめた）、`worker-src blob:`（claim_lint の worker を blob: から起動し、このページの CSP を引き継がせる。GitHub Pages は CSP のヘッダーを付けられないので、URL から起動した worker には CSP が効かない）、`style-src 'self'`（エディターは shadow root の中に置き、CodeMirror のスタイルを constructed stylesheet で当てる）です。外部の CDN は使いません
+  - 確かめ方（`research/claims-editor/network-log.json`）：
+    - Playwright（Chromium）のネットワークの記録で、サンプル B を開く・claim_lint を読み込んで検査する・編集して再検査する・自動保存を有効にする・zip で書き出す・各画面を見る、の間の全リクエスト（ページと worker）が、同じオリジンへの GET だけであること
+    - 別のポートに、来たリクエストをすべて記録する「受け手」のサーバーを立て、ページから `fetch`（POST）・`sendBeacon`・WebSocket・`<img>`・フォームの POST を、blob: の worker から `fetch`（POST）を試みても、受け手に届いたリクエストが 0 件であること。CSP の違反（`connect-src`・`img-src`・`form-action`）がそれぞれ記録されること
+  - meta の CSP では `frame-ancestors` を指定できないので、ほかのサイトの枠の中に表示されることは防げません（クリックジャッキング）。このページには送信や認証の操作が無いので、影響は小さいと判断しています
+- **同梱したライブラリ**：版・ライセンス・sha256 は `docs/claims/vendor/MANIFEST.json`（`python tools/build_claims_viewer.py` が生成し、CI が食い違いを検出）。エディターのライブラリは `tools/claims_editor_vendor/`（`package-lock.json` で版を固定。`npm ci --ignore-scripts && node build.mjs` で `vendor/editor-libs.js` を作る）。Pyodide はリリースの `pyodide-core-314.0.8.tar.bz2`（sha256 `ff3e5f9d…62ca37`）から必要なファイルだけを置き、wheel は `pyodide-lock.json` の sha256 と一致するものを置いています。既知の脆弱性の確認（2026-11-23。OSV・npm audit・GitHub の advisory）は `tools/claims_editor_vendor/advisories.json` に記録しています。同梱したファイルは Dependabot の対象にならないので、版を上げるときは同じ確認をやり直します
+- **初回の読み込みの大きさと時間**（2026-11-23、ローカルの HTTP サーバーと headless Chromium、キャッシュなしで測定。gzip は各ファイルを gzip -6 で圧縮した大きさで、GitHub Pages が圧縮して送るときの目安。`research/claims-editor/load-measurements.json`）
+
+  | 場面 | リクエスト | 大きさ | gzip の目安 | 時間 |
+  | --- | --- | --- | --- | --- |
+  | 最初の画面（何も開いていない） | 8 | 896 KB | 270 KB | 0.18 秒 |
+  | サンプル B を開く | 1 | 498 KB | 105 KB | 0.26 秒 |
+  | claim_lint を初めて使う（Pyodide と wheel と claim_lint.zip） | 16 | 14.7 MB | 7.1 MB | 6.2 秒（Pyodide の起動 2.2 秒、最初の検査 3.8 秒） |
+  | 編集の後の検査（シナリオ B） | 0 | — | — | 3.4 秒（worker の中なので、その間も編集できる） |
+
+  ネットワーク越しでは、claim_lint の初回は回線の速さに応じて長くなります（7 MB を送る時間が加わる）。2 回目以降はブラウザのキャッシュが効きます
+- `file://` で開いた場合も、編集・YAML と Schema の検査・プレビュー・書き出しは動きます。claim_lint は HTTP で開いたときだけ動きます（画面に表示します）
+- **リポジトリの大きさ**：同梱した Pyodide とライブラリは、git の中で約 12 MB です（`pyodide.asm.wasm` 9.6 MB・`python_stdlib.zip` 2.5 MB など）。clone のたびに履歴として残り、Pyodide の版を上げるたびに同じくらい増えます。`data/claim_lint.zip`（約 0.7 MB）は、claim_lint・台帳のスキーマ・カタログを変えたときだけ変わります（並びと日時を固定し、圧縮しないので、入力が同じなら同じバイト列になる）。増え方が問題になったら、Pyodide を Git LFS か GitHub のリリースの資産に移します（どちらも GitHub Pages から同じオリジンで配る方法を先に確かめる）
+- データ（`docs/claims/data/*`）は YAML などから生成します。台帳・記入例・`templates/registry/README.md` の列の見出し・レビュー教材・対応表・claim_lint を変えたら、作り直してコミットします。食い違いは CI（`.github/workflows/claims.yml`）で落ちます
 
 ```bash
-python tools/build_claims_viewer.py           # docs/claims/data/ を書く
-python tools/build_claims_viewer.py --check   # YAML と食い違えば終了コード 1
+python tools/build_claims_viewer.py           # docs/claims/data/ と vendor/MANIFEST.json を書く
+python tools/build_claims_viewer.py --check   # 食い違えば終了コード 1
 python -m pytest -q tools/tests/test_build_claims_viewer.py
-python -m pytest -q tools/tests/test_claims_viewer_ui.py   # Playwright（pip install playwright && python -m playwright install chromium）。CI では飛ばす
+python -m pytest -q tools/tests/test_claims_editor_ui.py   # Playwright（pip install playwright && python -m playwright install chromium）。CI では飛ばす
+CLAIMS_EDITOR_EVIDENCE=research/claims-editor python -m pytest -q tools/tests/test_claims_editor_ui.py   # 証跡（画面・ネットワークの記録・CLI との一致・読み込みの測定）も保存する
 ```
 
 ### 文書からの参照

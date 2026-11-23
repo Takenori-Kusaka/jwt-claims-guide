@@ -1,0 +1,3 @@
+# Vendored files of the design editor (#49) are kept byte for byte: their sha256 is in docs/claims/vendor/MANIFEST.json
+docs/claims/vendor/** -text
+docs/claims/data/*.zip binary

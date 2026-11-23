@@ -33,7 +33,7 @@
 | [modules/M_idp_keycloak.md](modules/M_idp_keycloak.md) | Keycloak 26.8（契機・上限・書き換えられないクレーム・カタログの既定の回答） |
 | [registry/](registry/) | 台帳のスキーマ（`claims`・`token_types`・`hops`）、問いの一覧、発行方式の効果（#3） |
 | [catalog/](catalog/) | 発行・利用イベントのカタログ（#2） |
-| [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR）。ビューアーで読める：https://takenori-kusaka.github.io/jwt-claims-guide/claims/ |
+| [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR）。エディターの「サンプルを開く」で読める：https://takenori-kusaka.github.io/jwt-claims-guide/claims/ |
 | [review/](review/) | レビュー教材（#5）：観点書・判断の木・対比表・専門家に回す基準・手順・理由の採点基準・レポートの様式・レビュー後の欠陥の記録・指標 |
 | [trace/](trace/) | ガイドのスライドとの対応表（#22） |
 | [runtime/](runtime/) | 実行での照合の確認（#8）：拒否のテスト、交換で絞られているか、寿命と失効、受け手の契約テスト、見本のトークン。コードは `tools/runtime_tests/` |
@@ -121,7 +121,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 7. **ホップ**（`hops.yaml`。00_core の 8.）：交換・作り直しのホップがあれば手で書く
 8. **ライフサイクル表**（00_core の 9.）：トークン・セッション・接続、クレームの鮮度、定義の寿命
 9. **カタログへの回答**（`catalog_answers.yaml`）：全イベントに該当か対象外（前提と崩れる条件）
-10. **検査と生成**：`python tools/claim_lint <設計書のディレクトリ> --profile lite`（Full なら `--profile` なし）を error 0 件まで直し、`python tools/claim_lint render <設計書のディレクトリ> --write` で生成の節を埋める。書いた YAML は、設計書のビューアー（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ の「自分の YAML を開く」）で表として読める。ファイルはブラウザの中だけで読み、送信しない
+10. **検査と生成**：`python tools/claim_lint <設計書のディレクトリ> --profile lite`（Full なら `--profile` なし）を error 0 件まで直し、`python tools/claim_lint render <設計書のディレクトリ> --write` で生成の節を埋める。設計書のエディター（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ 。「フォルダを開く」で設計書のディレクトリを開く）でも、書きながら JSON Schema と claim_lint で検査し、表として読める。ファイルはブラウザの中だけで読み、送信しない
 11. **書き手が自信のない点**（00_core の 12.）と、**既定から外れた点**（00_core の 3.）の要約を最後に書く
 
 根拠：research/template-design/gate1.md の 3.（迷った点 16 件）、templates/registry/README.md の 1.、筆者の提案：境界と発行方式を先に決めてから、その結果としてクレームを書く順序（追跡 #4）
