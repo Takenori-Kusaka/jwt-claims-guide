@@ -72,29 +72,51 @@
     [/^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?$/, 'コロンで区切った数（10:30）は、claim_lint では 60 進数（630）、YAML 1.2 の読み手では文字列'],
     [/^[-+]?(?:0b[01_]+|[0-9][0-9_]*_[0-9_]*(?:\.[0-9_]*)?)$/, '0b の数や _ で区切った数は、claim_lint では数、YAML 1.2 の読み手では文字列'],
   ];
+  // plain scalars that claim_lint's loader (PyYAML) refuses although the yaml package reads them: an error (#50 leftovers
+  // of the PR #51 check). `=` resolves to tag:yaml.org,2002:value, which SafeLoader cannot construct; a flow collection
+  // entry that starts with `:` ([:1], {:1}) is a ParserError of PyYAML ("while parsing a flow node").
+  const PY_ERROR = [
+    [/^=$/, '= は、claim_lint（PyYAML）の読み込みでは誤り（tag:yaml.org,2002:value を作れない）。このエディターは文字列として読む'],
+    [/^<<$/, 'マージキー（<<）は、claim_lint の読み込みでは誤りになる（このエディターは展開する）。書き下す'],
+  ];
   function yaml11Diags(f) {
     const out = [];
     const seen = new Set();
-    const visit = (node, depth) => {
+    const push = (pos, src, severity, msg) => {
+      const line = f.lc.linePos(pos).line;
+      const k = line + '|' + src;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ source: 'yaml', severity, rule: 'YAML11', file: f.name, line, target: f.name.replace(/\.yaml$/, ''), message: msg });
+    };
+    const visit = (node, depth, isKey, inFlow) => {
       if (!node || depth > 200) return;
       if (L.isMap(node) || L.isSeq(node)) {
-        node.items.forEach((it) => { if (L.isPair(it)) { visit(it.key, depth + 1); visit(it.value, depth + 1); } else visit(it, depth + 1); });
+        const flow = !!node.flow;
+        node.items.forEach((it) => {
+          if (L.isPair(it)) { visit(it.key, depth + 1, true, flow); visit(it.value, depth + 1, false, flow); } else visit(it, depth + 1, false, flow);
+        });
         return;
       }
       if (!L.isScalar(node) || node.type !== 'PLAIN' || typeof node.source !== 'string' || !node.range) return;
       const src = node.source;
-      let msg = null;
-      if (src === '<<') msg = 'マージキー（<<）は、claim_lint の読み込みでは誤りになる（このエディターは展開する）。書き下す';
-      else { const hit = YAML11.find(([re]) => re.test(src)); if (hit) msg = hit[1]; }
-      if (!msg) return;
-      const line = f.lc.linePos(node.range[0]).line;
-      const k = line + '|' + src;
-      if (seen.has(k)) return;
-      seen.add(k);
-      out.push({ source: 'yaml', severity: src === '<<' ? 'error' : 'warn', rule: 'YAML11', file: f.name, line, target: f.name.replace(/\.yaml$/, ''),
-        message: `引用符の無い ${src}：${msg}。意味どおりに読ませるには引用符で囲む（"${src}"）` });
+      // [:1] / {:1}: the yaml package reads the plain scalar ":1"; in a flow collection PyYAML takes the ":" as the value
+      // indicator and fails ("while parsing a flow node")
+      if (inFlow && src[0] === ':') {
+        push(node.range[0], src, 'error', `流れの形（[ ]・{ }）の中の、引用符の無い ${src}：claim_lint（PyYAML）の読み込みでは「:」が値の印になり誤り（while parsing a flow node）。このエディターは文字列 "${src}" として読む。引用符で囲む（"${src}"）`);
+        return;
+      }
+      const err = PY_ERROR.find(([re]) => re.test(src));
+      if (err) { push(node.range[0], src, 'error', `引用符の無い ${src}：${err[1]}。意味どおりに読ませるには引用符で囲む（"${src}"）`); return; }
+      if (isKey && typeof node.value === 'number' && !isFinite(node.value)) {
+        // .inf / .nan as a mapping key: both readers turn it into the text of the number (Infinity, NaN), see tools/row_hash.py
+        push(node.range[0], src, 'warn', `引用符の無い ${src} をキーにしている：claim_lint では数（${node.value}）のキー、このエディターと tools/row_hash.py では文字列 "${String(node.value)}" のキーとして扱う。キーは引用符で囲んだ文字列にする（"${src}"）`);
+        return;
+      }
+      const hit = YAML11.find(([re]) => re.test(src));
+      if (hit) push(node.range[0], src, 'warn', `引用符の無い ${src}：${hit[1]}。意味どおりに読ませるには引用符で囲む（"${src}"）`);
     };
-    visit(f.doc && f.doc.contents, 0);
+    visit(f.doc && f.doc.contents, 0, false);
     return out;
   }
 
@@ -171,7 +193,7 @@
   function openWorkspace(opts, entries, skipped) {
     return confirmReplace(opts, entries, '開く').then((c) => {
       if (c === 'cancel') return false;
-      if (c && c.saved) return doOpen(Object.assign({}, c.saved, { origin: 'autosave' }), Object.keys(c.saved.files).map((n) => ({ name: n, text: c.saved.files[n] })), skipped);
+      if (c && c.saved) return doOpen(Object.assign({}, c.saved, { origin: 'autosave', extras: opts.extras }), Object.keys(c.saved.files).map((n) => ({ name: n, text: c.saved.files[n] })), skipped);
       return doOpen(opts, entries, skipped);
     });
   }
@@ -204,12 +226,25 @@
     runChecks(true);
     if (skipped && skipped.length) status(`開かなかったファイル：${skipped.join('、')}（設計書のファイル名でも、中身で見分けられる YAML でもない）`);
     if (lint.state === 'fresh' || lint.state === 'stale' || lint.state === 'running') scheduleLint(0);
+    foreign.notes.clear(); renderForeign();
+    // review.yaml found next to the design (a folder, files, a sample) goes to the review mode (#50)
+    companions.forEach((c) => { if (c.onOpen) c.onOpen({ designRel: ws.designRel, origin: ws.origin, extras: opts.extras || [] }); });
     return true;
   }
-  function unsaved() {
+  // what other parts (the review mode of #50) keep with the design: [{unsaved() -> bool, label, autosave() -> bool,
+  // exportEntries() -> [{name, text}], markSaved(), onOpen(info), onClose()}]
+  const companions = [];
+  function filesUnsaved() {
     if (!ws.open) return false;
     for (const f of ws.files.values()) if (exportText(f) !== f.savedText) return true;
     return false;
+  }
+  function unsaved() { return ws.open && (filesUnsaved() || companions.some((c) => c.unsaved())); }
+  function unsavedLabel() {
+    const parts = [];
+    if (filesUnsaved()) parts.push('設計書のファイル');
+    companions.forEach((c) => { if (c.unsaved()) parts.push(c.label); });
+    return parts.join('と');
   }
   function sameFiles(saved, entries) {
     const names = Object.keys(saved || {});
@@ -220,9 +255,19 @@
     if (ws.open && unsaved()) {
       if (!keptByAutosave()) {  // kept in its own slot when the save succeeds
         steps.push(() => ask('書き出していない変更があります',
-          `開いている「${ws.label}」には、書き出していない変更があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、保存できていません' : '無効です'}）。`,
+          `開いている「${ws.label}」には、書き出していない変更（${unsavedLabel()}）があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、保存できていません' : '無効です'}）。zip には ${companions.some((c) => c.unsaved()) ? 'review.yaml も' : '設計書のファイルを'}入れます。`,
           [['export', 'zip で書き出してから' + verb], ['discard', '書き出さずに' + verb + '（変更は消える）'], ['cancel', 'やめる']])
-          .then((c) => { if (c === 'export') exportZip(); return c === 'cancel' ? 'cancel' : null; }));
+          .then((c) => {
+            if (c !== 'export') return c === 'cancel' ? 'cancel' : null;
+            // the review mode may ask what goes into the zip (#50: independent review); what is still not written out
+            // after the export (another reviewer's records left out) is asked about again, not dropped
+            return exportZip().then((done) => {
+              if (!done) return 'cancel';
+              if (!unsaved()) return null;
+              return ask('まだ書き出していない記録があります', `zip に入れなかった変更（${unsavedLabel()}）が残っています。${verb}と、それは消えます。`,
+                [['cancel', 'やめる'], ['discard', '書き出さずに' + verb + '（残りは消える）']]).then((c2) => (c2 === 'discard' ? null : 'cancel'));
+            });
+          }));
       }
     }
     if (opts && opts.origin !== 'autosave') {
@@ -255,6 +300,9 @@
     return confirmReplace(null, [], '閉じる').then((c) => { if (c !== 'cancel') closeWorkspace(false); });
   }
   function closeWorkspace(silent) {
+    if (ws.open) companions.forEach((c) => { if (c.onClose) c.onClose(); });
+    foreign.notes.clear();
+    if ($('#tab-warn')) renderForeign();
     ws.open = false;
     ws.files = new Map();
     ws.registry = {};
@@ -280,15 +328,16 @@
       dir = withClaims.sort((a, b) => a.split('/').length - b.split('/').length)[0];
       if (dir === undefined) dir = Array.from(byDir.keys()).sort((a, b) => a.split('/').length - b.split('/').length)[0];
     } else dir = Array.from(byDir.keys())[0] || '';
-    const out = []; const skipped = []; const seen = new Set();
+    const out = []; const skipped = []; const seen = new Set(); const extras = [];
     for (const x of byDir.get(dir) || []) {
       const { text, bom } = decode(x.buf);
+      if (/^review(?:[._-][A-Za-z0-9_.-]*)?\.ya?ml$/.test(x.name)) { extras.push({ name: x.name, text }); continue; }  // #50
       const kind = classify(x.name, text);
       if (!kind || seen.has(kind)) { skipped.push(x.name); continue; }
       seen.add(kind);
       out.push({ name: kind, text, bom, from: x.name });
     }
-    return { out, skipped, dir };
+    return { out, skipped, dir, extras };
   }
   function readFileList(fileList, origin) {
     const arr = Array.from(fileList || []);
@@ -297,12 +346,12 @@
       .then((list) => openList(list, origin));
   }
   function openList(list, origin) {
-    const { out, skipped, dir } = entriesFromFiles(list);
+    const { out, skipped, dir, extras } = entriesFromFiles(list);
     if (!out.length) { status('開けるファイルがありません（claims.yaml・token_types.yaml・hops.yaml・catalog_answers.yaml・claim_request_*.md・design.md、または中身で見分けられる YAML）。'); return false; }
     const how = origin === 'folder' ? 'フォルダ' : origin === 'drop' ? 'ドロップ' : 'ファイル';
     // a folder names the design; files without a folder get a name of their own (their autosave slot is not shared)
     const name = dir ? dir.split('/').pop() : uniqueName(origin === 'drop' ? 'dropped' : 'files');
-    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル（' + out.map((e) => e.from).join('・') + '）') + `（${how}、${stamp().label}）`, origin }, out, skipped);
+    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル（' + out.map((e) => e.from).join('・') + '）') + `（${how}、${stamp().label}）`, origin, extras }, out, skipped);
   }
   function stamp() {
     const d = new Date();
@@ -327,7 +376,7 @@
   }
   function openSample(letter) {
     return loadScript(`data/sample-${letter}.js`, 'sample-' + letter).then((s) => openWorkspace(
-      { name: s.id, label: s.label, designRel: s.design, origin: 'sample', profile: s.profile },
+      { name: s.id, label: s.label, designRel: s.design, origin: 'sample', profile: s.profile, extras: s.review ? [{ name: 'review.yaml', text: s.review }] : [] },
       Object.keys(s.files).map((n) => ({ name: n, text: s.files[n] }))));
   }
   function openSkeleton() {
@@ -535,8 +584,9 @@
   }
   function addFiles(list) {
     return Promise.all(Array.from(list || []).map((f) => f.arrayBuffer().then((buf) => ({ name: f.name, path: f.name, buf })))).then((xs) => {
-      const { out, skipped } = entriesFromFiles(xs);
+      const { out, skipped, extras } = entriesFromFiles(xs);
       if (skipped.length) status('開かなかったファイル：' + skipped.join('、'));
+      if (extras.length) companions.forEach((c) => { if (c.onExtras) c.onExtras(extras); });  // review.yaml (#50)
       let p = Promise.resolve();
       const added = [];
       out.forEach((e) => {
@@ -878,13 +928,29 @@
     download(f.name, new Blob([exportText(f)], { type: /\.md$/.test(f.name) ? 'text/markdown' : 'text/yaml' }));
     f.savedText = exportText(f);
   }
+  // -> Promise<true when written, false when a companion's question was cancelled>
   function exportZip() {
-    if (!ws.open) return;
-    const dir = safeDirName(ws.designRel.split('/').pop());
-    const entries = {};
-    sortedNames().forEach((n) => { entries[dir + '/' + n] = [L.strToU8(exportText(ws.files.get(n))), { mtime: new Date(1980, 0, 2) }]; });
-    download(dir + '.zip', new Blob([L.zipSync(entries, { level: 6 })], { type: 'application/zip' }));
-    ws.files.forEach((f) => { f.savedText = exportText(f); });
+    if (!ws.open) return Promise.resolve(false);
+    // review.yaml (#50) goes next to the design files, as it is kept in the repository. A companion may ask first what
+    // to put in (prepareExport -> {entries, markSaved} or null to cancel)
+    let p = Promise.resolve([]);
+    companions.forEach((c) => {
+      p = p.then((acc) => (c.prepareExport ? c.prepareExport() : Promise.resolve({ entries: c.exportEntries ? c.exportEntries() : [], markSaved: c.markSaved }))
+        .then((r) => (r === null || acc === null ? null : acc.concat([r]))));
+    });
+    return p.then((parts) => {
+      if (parts === null) return false;
+      const dir = safeDirName(ws.designRel.split('/').pop());
+      const entries = {};
+      sortedNames().forEach((n) => { entries[dir + '/' + n] = [L.strToU8(exportText(ws.files.get(n))), { mtime: new Date(1980, 0, 2) }]; });
+      parts.forEach((r) => (r.entries || []).forEach((e) => {
+        if (!entries[dir + '/' + e.name]) entries[dir + '/' + e.name] = [L.strToU8(e.text), { mtime: new Date(1980, 0, 2) }];
+      }));
+      download(dir + '.zip', new Blob([L.zipSync(entries, { level: 6 })], { type: 'application/zip' }));
+      ws.files.forEach((f) => { f.savedText = exportText(f); });
+      parts.forEach((r) => { if (r.markSaved) r.markSaved(); });
+      return true;
+    });
   }
   let autosaveTimer = null;
   function autosaveSoon() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(autosave, 1000); }
@@ -904,13 +970,54 @@
       return false;
     }
   }
-  function saveWarning(text) {
+  // the warnings that stay on screen until the save succeeds, one per source (the files; the review records of #50)
+  const saveWarnings = new Map();
+  function saveWarning(text, key) {
+    const k = key || 'files';
+    if (text) saveWarnings.set(k, text); else saveWarnings.delete(k);
     const el = $('#save-warn');
     if (!el) return;
-    el.hidden = !text;
-    el.textContent = text ? '⚠ ' + text : '';
+    el.hidden = !saveWarnings.size;
+    el.textContent = Array.from(saveWarnings.values()).map((t) => '⚠ ' + t).join(' ');
   }
-  function keptByAutosave() { return autosaveEnabled() && ws.edited && autosave(); }
+  function keptByAutosave() {
+    if (!autosaveEnabled()) return false;
+    if (filesUnsaved() && !(ws.edited && autosave())) return false;
+    return companions.every((c) => !c.unsaved() || (c.autosave && c.autosave()));
+  }
+
+  // ------------------------------------------------------------ two tabs on one design (#50, the PR #51 check)
+  // localStorage fires a storage event in the other tabs of this origin. When another tab saves the slot of the design
+  // that is open here (the files, or the review records of #50), this tab says so and offers the other tab's version;
+  // saving here afterwards would overwrite it (last write wins), so the note stays until it is answered.
+  const foreign = { notes: new Map() };
+  function onStorage(e) {
+    if (!ws.open || !e.key || e.storageArea !== localStorage) return;
+    const mine = AUTOSAVE_PREFIX + ws.designRel;
+    const comp = companions.find((c) => c.slotKey && c.slotKey() === e.key);
+    if (e.key !== mine && !comp) return;
+    if (e.newValue === null) return;
+    let when = '';
+    try { when = (JSON.parse(e.newValue) || {}).savedAt || ''; } catch (err) { /* not ours */ }
+    const what = e.key === mine ? '設計書のファイル' : comp.label;
+    foreign.notes.set(e.key, { what, when, comp });
+    renderForeign();
+  }
+  function renderForeign() {
+    let el = $('#tab-warn');
+    if (!el) { el = h('div', { id: 'tab-warn', class: 'savewarn', role: 'alert' }); $('#save-warn').after(el); }
+    el.textContent = '';
+    el.hidden = !foreign.notes.size;
+    foreign.notes.forEach((n, key) => {
+      el.append(h('p', { 'data-foreign': key }, '⚠ 別のタブで、この設計書（', code(ws.designRel), `）の${n.what}が保存されました（${n.when || '時刻不明'}）。このタブで続けて保存すると、別のタブの版を上書きします。 `,
+        h('button', { type: 'button', 'data-foreign-load': key, onclick: () => {
+          foreign.notes.delete(key); renderForeign();
+          if (n.comp) n.comp.loadForeign();
+          else { const sv = slot(ws.designRel); if (sv) openWorkspace(Object.assign({}, sv, { origin: 'autosave' }), Object.keys(sv.files).map((x) => ({ name: x, text: sv.files[x] }))); }
+        } }, '別のタブの版を開く'), ' ',
+        h('button', { type: 'button', 'data-foreign-keep': key, onclick: () => { foreign.notes.delete(key); renderForeign(); } }, 'このタブの版を残す（知らせを閉じる）')));
+    });
+  }
 
   // ------------------------------------------------------------ row anchors and content hashes (#50)
   // RFC 8785 (JSON Canonicalization Scheme): object keys sorted by UTF-16 code units (the default sort of JavaScript
@@ -976,18 +1083,54 @@
   }
   // The anchor of a row is <kind>:<id>. An id that is written twice has no anchor (the review mode cannot tell the rows
   // apart): such rows are left out of anchors() and reported as a diagnostic (rule ANCHOR).
-  function allAnchors() {
+  function allAnchors() { return anchorsOf((kind) => rowList(kind), () => { const tt = ws.files.get('token_types.yaml'); return tt && tt.value && tt.value.issuance_profile; }); }
+  function anchorsOf(listOf, profileOf) {
     const out = [];
     Object.keys(ROWS).forEach((kind) => {
       const key = ROWS[kind][2];
-      rowList(kind).forEach((r, i) => {
-        if (r && typeof r === 'object' && !Array.isArray(r) && r[key] !== undefined && r[key] !== null) out.push({ anchor: kind + ':' + r[key], kind, id: String(r[key]), index: i });
+      listOf(kind).forEach((r, i) => {
+        if (r && typeof r === 'object' && !Array.isArray(r) && r[key] !== undefined && r[key] !== null) out.push({ anchor: kind + ':' + r[key], kind, id: String(r[key]), index: i, row: r });
       });
     });
-    const tt = ws.files.get('token_types.yaml');
-    const prof = tt && tt.value && tt.value.issuance_profile;
-    if (prof && typeof prof === 'object' && !Array.isArray(prof)) Object.keys(prof).forEach((k) => out.push({ anchor: 'issuance_profile:' + k, kind: 'issuance_profile', id: k }));
+    const prof = profileOf();
+    if (prof && typeof prof === 'object' && !Array.isArray(prof)) Object.keys(prof).forEach((k) => out.push({ anchor: 'issuance_profile:' + k, kind: 'issuance_profile', id: k, row: prof[k] }));
     return out;
+  }
+  // the anchors and hashes of another version of a design ({file name: text}), read as the open files are read: the
+  // review mode compares them with the open design (the rows that changed, #50; tools/review_record.py diff)
+  function hashesOfTexts(texts) {
+    const values = {}; const errors = [];
+    Object.keys(ROWS).forEach((kind) => {
+      const name = ROWS[kind][0];
+      if (typeof texts[name] !== 'string') return;
+      try {
+        const d = L.parseDocument(texts[name], { schema: 'yaml-1.1', customTags: YAML_TAGS, uniqueKeys: true });
+        if (d.errors.length) { errors.push(`${name}: ${String(d.errors[0].message).split('\n')[0]}`); return; }
+        values[kind] = d.toJS({ maxAliasCount: 100 });
+      } catch (e) { errors.push(`${name}: ${e.message || e}`); }
+    });
+    const listOf = (kind) => { const v = values[kind]; const k = ROWS[kind][1]; return v && typeof v === 'object' && Array.isArray(v[k]) ? v[k] : []; };
+    const all = anchorsOf(listOf, () => values.token_types && values.token_types.issuance_profile);
+    const n = new Map();
+    all.forEach((a) => n.set(a.anchor, (n.get(a.anchor) || 0) + 1));
+    const hashes = {};
+    all.forEach((a) => { if (n.get(a.anchor) === 1) { const x = hashOf(a.row); if (x) hashes[a.anchor] = x; } });
+    return { hashes, duplicates: Array.from(n.keys()).filter((k) => n.get(k) > 1), errors, files: Object.keys(texts) };
+  }
+  // a YAML text read with the options of the design files (YAML 1.1 as PyYAML, duplicate keys refused): review.yaml
+  function parseYaml(text) {
+    const d = L.parseDocument(text, { schema: 'yaml-1.1', customTags: YAML_TAGS, uniqueKeys: true });
+    if (d.errors.length) throw new Error(String(d.errors[0].message).split('\n')[0]);
+    return d.toJS({ maxAliasCount: 100 });
+  }
+  const extraValidators = {};
+  function validateWith(kind, value) {
+    if (!SCHEMAS || !SCHEMAS[kind]) return [{ path: '', message: 'スキーマ ' + kind + ' がない' }];
+    if (!extraValidators[kind]) extraValidators[kind] = new L.Validator(jsSchema(SCHEMAS[kind]), '2020-12', false);
+    const res = extraValidators[kind].validate(value);
+    if (res.valid) return [];
+    return res.errors.filter((e) => !WRAPPERS.has(e.keyword) && !/\/(anyOf|oneOf)\/\d+\//.test(e.keywordLocation))
+      .map((e) => ({ path: decodePointer(e.instanceLocation).join('/') || '(root)', message: jaSchemaMessage(e) }));
   }
   function duplicateAnchors() {
     const n = new Map();
@@ -1063,7 +1206,7 @@
       setProfile: (p) => { ws.profile = p === 'lite' ? 'lite' : 'full'; if (lint.state === 'fresh') lint.state = 'stale'; scheduleLint(0); publish(false); },
     });
     $('#btn-export-one').addEventListener('click', exportOne);
-    $('#btn-export-zip').addEventListener('click', exportZip);
+    $('#btn-export-zip').addEventListener('click', () => { exportZip(); });
     $('#btn-close').addEventListener('click', requestClose);
     // leaving the page with edits that were not written out (a link, a reload, closing the tab): the browser asks first.
     // With autosave on, the edits are saved to their slot instead.
@@ -1098,6 +1241,7 @@
     addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) $('#drop-overlay').hidden = true; });
     addEventListener('dragover', (e) => e.preventDefault());
     addEventListener('drop', (e) => { depth = 0; onDrop(e); });
+    addEventListener('storage', onStorage);
     initSplitter();
     renderStart();
   }
@@ -1131,6 +1275,19 @@
     loadLint,
     open: { sample: openSample, skeleton: openSkeleton, paste: openPaste },
     registerRowPanel: (fn) => P.registerRowPanel(fn),
+    // for the review mode (#50)
+    registerCompanion: (c) => { companions.push(c); },
+    hashesOfTexts,
+    parseYaml,
+    validate: validateWith,
+    ask,
+    download,
+    goto: (file, line) => { if (ws.files.has(file)) { switchTo(file, line); return true; } return false; },
+    autosaveEnabled,
+    saveWarning,
+    label: () => ws.label,
+    publish: () => { if (ws.open) publish(false); },
+    lintCounts: () => (lint.state === 'fresh' && lint.last ? Object.assign({ profile: lint.last.profile }, lint.last.lint.counts) : null),
     lintInfo: null,
     lastLint: null,
   };

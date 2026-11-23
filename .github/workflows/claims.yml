@@ -92,10 +92,28 @@ jobs:
         run: python tools/build_claims_viewer.py --check
       - name: Editor build tests (drift detection, column headings, CSP, vendored sha256 and licenses, claim_lint.zip + the worker's driver give the CLI result)
         run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
+      # #50: the review mode of the editor. data/review.js (the 168 questions of perspectives.md) is checked by the
+      # build --check above; the recorded review of scenario B (review.yaml) and its report are checked here.
+      - name: Review records (#50) - review.yaml of scenario B against review.schema.json, questions, sampling seed; row approvals vs the current rows (tools/row_hash.py)
+        run: |
+          python - <<'EOF'
+          import json, jsonschema
+          jsonschema.Draft202012Validator.check_schema(json.load(open('templates/review/review.schema.json', encoding='utf-8')))
+          print('valid schema: templates/review/review.schema.json')
+          EOF
+          # stale approvals (a row changed after it was approved) are listed as "stale" and shown as ::warning annotations on the
+          # PR; not fatal by default (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変えるとき); --fail-on-stale stops on them
+          python tools/review_record.py check templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --annotate
+      - name: Review report of scenario B is what review.yaml generates (fix with python tools/review_record.py report ... -o ...) and follows report_template.md
+        run: |
+          python tools/review_record.py report templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --check templates/examples/scenario-b/review-report-2026-11-23.md
+          python tools/review_check.py --report templates/examples/scenario-b/review-report-2026-11-23.md
+      - name: review_record tests (schema, stale approvals after an edit, merge, sampling, report form RP1-RP10)
+        run: python -m pytest -q -rs tools/tests/test_review_record.py tools/tests/test_row_hash.py
       # The browser tests of the editor (tools/tests/test_claims_editor_ui.py: empty start, the six entry points,
       # diagnostics, claim_lint in Pyodide vs the CLI for scenarios A and B (full and lite), export round trip, network
-      # log) need Playwright and Chromium, which this job does not install; they are skipped here and run locally
-      # (README.md, 設計書のエディター).
+      # log) and of its review mode (tools/tests/test_claims_review_ui.py, #50) need Playwright and Chromium, which this job
+      # does not install; they are skipped here and run locally (README.md, 設計書のエディター).
 
   secret-scan:
     runs-on: ubuntu-latest

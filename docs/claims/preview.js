@@ -27,7 +27,7 @@
   const lookup = (o, k) => (own(o, k) ? o[k] : undefined);
 
   // bundle: {registry, sections, design, label, stale}; diag: {byTarget: Map(id -> [finding]), list: [finding]}
-  const state = { bundle: null, diag: { byTarget: new Map(), list: [] }, panels: [], hooks: {}, folds: new Set() };
+  const state = { bundle: null, diag: { byTarget: new Map(), list: [] }, panels: [], hooks: {}, folds: new Set(), views: {} };
   const $ = (s, r) => (r || document).querySelector(s);
   // kinds of rows (the anchor of a row is `${kind}:${id}`; #50 keys review records by it)
   const ANCHOR_KIND = { claim: 'claims', token: 'token_types', hop: 'hops', event: 'catalog_answers', profile: 'issuance_profile' };
@@ -392,6 +392,13 @@
     VIEWS.forEach(([v, label]) => ul.append(h('li', null, h('a', { href: route(v), 'aria-current': cur === v ? 'page' : null, 'data-view': v }, label,
       PYTHON_VIEWS[v] ? h('span', { class: 'py', title: 'claim_lint（Pyodide）が作る画面' }, ' Py') : null,
       v === 'lint' && all.length ? h('span', { class: 'cnt' }, ' ', String(all.length)) : null))));
+    Object.keys(state.views).forEach((name) => {
+      const v = state.views[name];
+      ul.append(h('li', { class: 'sep' }, v.group));
+      const cur2 = parseHash().parts;
+      v.nav().forEach((it) => ul.append(h('li', null, h('a', { href: route(name, it.sub || null), 'data-view': name + (it.sub ? '/' + it.sub : ''),
+        'aria-current': cur === name && (cur2[1] || '') === (it.sub || '') ? 'page' : null }, it.label, it.count ? h('span', { class: 'cnt' }, ' ', it.count) : null))));
+    });
     ul.append(h('li', { class: 'sep' }, 'ガイド全体'));
     ul.append(h('li', null, h('a', { href: '#/trace', 'aria-current': cur === 'trace' ? 'page' : null }, '対応表の進み具合')));
   }
@@ -779,7 +786,8 @@
       profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: viewLint, tables: viewTables,
       trace: viewTrace }, view);
     const navView = lookup({ claim: 'claims', token: 'tokens', hop: 'hops' }, view) || view;
-    show(navView, fn || (() => notFound('画面 ' + view)), PYTHON_VIEWS[view]);
+    const extra = !fn && own(state.views, view) ? () => state.views[view].render(parts.slice(1), query) : null;
+    show(navView, fn || extra || (() => notFound('画面 ' + view)), PYTHON_VIEWS[view]);
   }
   function show(navView, fn, python) {
     nav(navView);
@@ -818,6 +826,12 @@
     render,
     setHooks(hooks) { Object.assign(state.hooks, hooks); },
     registerRowPanel(fn) { state.panels.push(fn); },
+    // a screen of its own (the review mode of #50): render(parts after the name, query) -> nodes; nav() -> [{sub, label, count}]
+    registerView(name, view) { state.views[name] = view; },
+    // the renderers of the preview, for the screens of #50 (text only)
+    helpers: { value: (v, col) => value(v, col), columnValue: (coll, key, v) => columnValue(coll, key, v, (META.columns[coll] || []).find((c) => c.key === key)),
+      inline, badge, lintBadges, foldable, foldKey, slideLink, revealLink, claimLink, tokenLink, hopLink, columns: (coll) => META.columns[coll] || [],
+      registry: () => reg(), keepScroll: () => { render.keepScroll = true; render.focus = false; } },
     anchorOf,
     route,
     parseHash,

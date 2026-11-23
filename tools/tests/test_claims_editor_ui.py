@@ -425,6 +425,7 @@ class ClaimsEditor(unittest.TestCase):
             pg.click('#btn-export-zip')
         data = pathlib.Path(dl.value.path()).read_bytes()
         self.assertEqual(dl.value.suggested_filename, 'scenario-b.zip')
+        names = names + ['review.yaml']  # the review records of the example (#50) go into the zip with the design
         with zipfile.ZipFile(io.BytesIO(data)) as z:
             self.assertEqual(sorted(z.namelist()), sorted('scenario-b/' + n for n in names))
             for n in names:

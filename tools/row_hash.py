@@ -77,6 +77,10 @@ def _key(k):
         return 'true' if k else 'false'
     if k is None:
         return ''
+    if isinstance(k, float) and (math.isnan(k) or math.isinf(k)):
+        # .inf / .nan as a key: the yaml package writes String(Infinity) (#50, the PR #51 check). A value of .inf is
+        # still refused (jcs); only a key is turned into its text, as the editor does
+        return 'NaN' if math.isnan(k) else 'Infinity' if k > 0 else '-Infinity'
     if isinstance(k, (int, float)):
         return es_number(k)
     return str(k)

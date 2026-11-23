@@ -20,6 +20,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
 | [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR7。各観点に合格と不合格の例。採点の範囲と迷いやすい点の決まり） |
 | [report_template.md](report_template.md) | レビューレポートの様式（出どころ 5 種・種別 5 種） |
+| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50。設計書のエディターのレビューモードが書き出す。レビュアーの名前は自己申告） |
 | [escaped_defects.md](escaped_defects.md) | レビュー後に見つかった欠陥の記録 |
 | [metrics.md](metrics.md) | レビューの指標（目標にしない観察の記録） |
 
@@ -36,7 +37,26 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [contrasts/carry-vs-query.md](contrasts/carry-vs-query.md) | クレームに載せることと、問い合わせること |
 | [contrasts/name-vs-identifier.md](contrasts/name-vs-identifier.md) | 名前（表示・語彙）と識別子（照合のキー）、名前空間 |
 
-記入例：[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md)（シナリオ B のレビューと、過去の指摘との較正）。
+記入例：[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md)（シナリオ B のレビューと、過去の指摘との較正）。エディターのレビューモードで記録した例：[../examples/scenario-b/review.yaml](../examples/scenario-b/review.yaml) と、そこから生成した [../examples/scenario-b/review-report-2026-11-23.md](../examples/scenario-b/review-report-2026-11-23.md)（今の版を LLM のセッション 1 つが全 168 問でレビューしたもの。人による点検は未実施）。
+
+## エディターのレビューモード（#50）
+
+設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）の「レビュー」の画面で、この教材を使ってレビューを記録できます。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします（Git の履歴が監査の記録になる）。
+
+- 観点のチェックリスト：観点書の 168 問（`python tools/build_claims_viewer.py` が観点書から作る。CI の `--check` が食い違いを見る）を、6 段と役割（7. の索引）で絞り込み、問いごとに Yes／No／該当なし とメモを記録する。「見る欄」から、その欄（台帳の列・設計書の節・25 問の回答）に移る
+- 行ごとの判定：承認／修正を求める／保留 を、レビュアー・日時・コメントとともに記録する。判定は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると「再確認が要る」になる
+- 指摘は report_template.md の欄で記録する。分析の画面（網羅・lint との重ね合わせ・前の版との差分・25 問の回答・却下の理由の抜き取り）と、report_template.md の形のレポートの生成がある
+- **レビュアーの名前は自己申告です。** 本当の承認は GitHub の PR のレビューで行います
+- 独立レビュー：提出するまで、ほかのレビュアーの記録を隠す設定がある（[procedure.md](procedure.md)）。画面で隠すだけで、review.yaml を開けば見える。提出の前に隠すのをやめる操作は確かめて、外れたことを review.yaml に記録する（`independence`）。守ったかは自己申告で、手順で守る
+- 行の判定のハッシュは、その行の値だけを見る。参照する行・25 問の回答・design.md の本文を変えても「再確認が要る」にならない
+- 記録がある設計書を変える PR の手順（承認した行・却下の行・教材を変えたとき）は [../CONTRIBUTING.md](../CONTRIBUTING.md) の「レビューの記録がある設計書を変えるとき」
+
+```
+python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・抜き取り・古くなった承認
+python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"   # 母集団が変わった抜き取りを引き直す
+python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md
+python tools/review_check.py --report <レポート>                                          # report_template.md の様式どおりか
+```
 
 ## 問いの数（段ごと）
 

@@ -152,6 +152,18 @@ evidence:
 
    「人で検証済み」「レビュー済み」とだけ書くことはしません。人による点検は、協力者が見つかったときに #20 で行い、終えたものから表示を外します。
 
+### レビューの記録がある設計書を変えるとき（#50）
+
+`templates/examples/scenario-b/review.yaml` のように、レビューの記録（`review.yaml`）とそこから生成したレポートがある設計書を変える PR では、CI の 3 つの検査が次のように反応します。どれも、記録を書き換えて合わせるのではなく、記録した時のものを残したまま直します。
+
+| 変えたもの | CI の反応 | 直し方 |
+| --- | --- | --- |
+| 承認した行の値（台帳・目録・ホップ・カタログの行） | `review_record.py check` は stale を一覧に出し、PR の画面に `::warning` を出す（失敗にはしない）。`report --check` は失敗する（9. の「今の行との対応」が変わる） | `python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md` で作り直す。差分に「再確認が要る」が出る。再レビューするなら、エディターで判定を記録し直す |
+| 却下の行（足す・消す・ID や内容を変える） | `check` は「抜き取りの母集団が変わった」を warn にする（失敗にはしない）。`report --check` は失敗することがある | 作り直す（上と同じ）。抜き取りを引き直すなら `python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"`（前の抜き取りは `sampling.previous` に残る。新しく選ばれた行は採点し直す） |
+| 教材（`templates/review/perspectives.md`・`report_template.md` の版や問い） | `check` は、今の観点書に無い問いへの回答を warn にする。`report --check` は失敗する（1. に今の教材の版が並ぶ） | 作り直す。レポートの「使った教材の版」は review.yaml の `materials`（レビューした時の版）のままで、今の版が違うことを並べて書く |
+
+`--fail-on-stale` は、記入例の CI には付けません。記入例の記録は 2026-11-23 の LLM の一次スクリーニングで、止めると、台帳を変えるたびに LLM で承認し直すか、記録を消すかを強いることになるためです（PR #52 の点検）。
+
 ## 4. 公開物の取り扱い
 
 ### ライセンス
