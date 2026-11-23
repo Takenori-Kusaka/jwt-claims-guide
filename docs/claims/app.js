@@ -18,7 +18,10 @@
   const SEVERITY = { error: ['ng', '✖'], warn: ['warn', '▲'], info: ['info', 'ℹ'] };
   const STATUS = { satisfied: ['ok', '✓', '満たす'], unsatisfied: ['ng', '✖', '満たさない'], unknown: ['warn', '?', '判定できない'] };
   const DECISION = { '採用': ['ok', '●'], '既定どおり': ['neutral', '○'], '却下': ['ng', '✖'] };
-  const TIER_ROW = { read: '受け手が読む行', idle: '縮小の行（既定どおり・受け手なし）', rejected: '却下の行' };
+  // kinds of rows of templates/registry/README.md 2. (縮小 Lite の印). Not the trace tier (core/full).
+  const ROW_KIND = { read: '受け手が読む行', unread: '受け手のない採用の行', idle: '縮小の行（既定どおり・受け手なし）', rejected: '却下の行' };
+  const own = (o, k) => o !== null && o !== undefined && Object.prototype.hasOwnProperty.call(o, k);
+  const lookup = (o, k) => (own(o, k) ? o[k] : undefined);
 
   const state = { ds: null, bundles: {}, localFiles: [] };
   const $ = (s, r) => (r || document).querySelector(s);
@@ -51,7 +54,7 @@
   function safeUrl(u) { return /^https?:\/\//i.test(String(u)) ? String(u) : null; }
   function ext(url, text) { const u = safeUrl(url); return u ? h('a', { href: u, rel: 'noreferrer noopener' }, text) : text; }
   function slideLink(id) {
-    const s = META.names.slides[id];
+    const s = lookup(META.names.slides, id);
     return h('a', { href: '../#' + encodeURIComponent(id), title: s ? `スライド ${s.n}：${s.title}` : 'スライド（ID が一覧に無い）',
       'data-slide': id }, 'slide:' + id);
   }
@@ -62,7 +65,7 @@
   }
 
   // inline text: `code`, **bold**, slide:<id>, URLs, C-… / token ids (when they exist in the dataset)
-  const INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(slide:p\d{2}-[a-z0-9-]+)|(https?:\/\/[^\s）、。」]+)/g;
+  const INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(slide:p\d{2}-[a-z0-9-]+)|(https?:\/\/[^\s）、。」)"'<>]+)/g;
   function inline(text) {
     const out = []; const s = String(text); let last = 0; let m;
     INLINE.lastIndex = 0;
@@ -92,9 +95,11 @@
   function tokenById(id) { return tokenTypes().find((t) => t.id === id); }
   function hopById(id) { return hops().find((x) => x.id === id); }
   function fullName(c) { return (c.namespace ? c.namespace : '') + (c.name || ''); }
-  function tierOf(c) {
+  function rowKind(c) {
     if (c.decision === '却下') return 'rejected';
-    if (c.decision === '既定どおり' && !(c.consumers || []).length) return 'idle';
+    const read = Array.isArray(c.consumers) && c.consumers.length > 0;
+    if (c.decision === '既定どおり' && !read) return 'idle';
+    if (!read) return 'unread';  // 採用 with no consumer: not a row that receivers read
     return 'read';
   }
   function stages(c) { return (c.authoritative_writer || []).map((w) => w && w.stage).filter(Boolean); }
@@ -102,31 +107,34 @@
   // lint findings by target (claim id, token type id, hop id, event id)
   function lintIndex() {
     const s = section('ci-result');
-    const idx = {};
+    const idx = new Map();
     if (!s || !s.tables.length) return null;
     for (const f of s.tables[0].rows) {
       const t = String(f.target || '').replace(/^(token_type|hop) /, '');
-      (idx[t] = idx[t] || []).push(f);
+      if (!idx.has(t)) idx.set(t, []);
+      idx.get(t).push(f);
     }
     return idx;
   }
   function lintBadges(id) {
     const idx = lintIndex();
-    const fs = (idx && idx[id]) || [];
+    const fs = (idx && idx.get(id)) || [];
     if (!fs.length) return null;
-    const by = {};
+    const by = Object.create(null);
     fs.forEach((f) => { by[f.severity] = (by[f.severity] || 0) + 1; });
     return h('span', { class: 'codes' }, Object.keys(SEVERITY).filter((k) => by[k]).map((k) =>
       badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k]}`, fs.filter((f) => f.severity === k).map((f) => f.rule + ' ' + f.message).join('\n'))));
   }
   function lintList(id) {
     const idx = lintIndex();
-    const fs = (idx && idx[id]) || [];
+    const fs = (idx && idx.get(id)) || [];
     if (!fs.length) return null;
     return h('div', { class: 'note warn', 'data-lint-for': id }, h('strong', null, 'lint の指摘（claim_lint）'),
       h('ul', null, fs.map((f) => h('li', null, sevBadge(f.severity), ' ', code(f.rule), ' ', inline(f.message)))));
   }
-  function sevBadge(s) { const x = SEVERITY[s] || ['neutral', '•']; return badge(x[0], x[1], s); }
+  function lintProfile(sec) { const m = /（profile (\w+)）/.exec(((sec && sec.notes) || []).join(' ')); return m ? m[1] : null; }
+  function datasetLabel() { const d = META.datasets.find((x) => x.id === state.ds); return d ? d.label : ''; }
+  function sevBadge(s) { const x = lookup(SEVERITY, s) || ['neutral', '•']; return badge(x[0], x[1], s); }
 
   // ------------------------------------------------------------ value rendering
   function refItem(r) {
@@ -137,7 +145,7 @@
       return h('span', null, '筆者の提案：', r.id, t ? ['（追跡 ', t, '）'] : null);
     }
     const label = r.url ? ext(r.url, r.id) : r.id;
-    return h('span', null, label, h('span', { class: 'muted' }, `（${REF_KIND[r.kind] || r.kind}${r.verified_on ? '、確かめた日 ' + r.verified_on : ''}）`));
+    return h('span', null, label, h('span', { class: 'muted' }, `（${lookup(REF_KIND, r.kind) || r.kind}${r.verified_on ? '、確かめた日 ' + r.verified_on : ''}）`));
   }
   function refs(v) {
     const list = Array.isArray(v) ? v : [v];
@@ -147,10 +155,14 @@
   function asvs(id) {
     const m = /^v(\d+\.\d+\.\d+)-(\d+)\.\d+\.\d+$/.exec(id);
     if (!m) return code(id);
-    const ch = +m[2]; const name = ASVS_CHAPTERS[ch];
-    const file = name ? `0x${(0x0f + ch).toString(16)}-V${ch}-${name}.md` : '';
-    return h('a', { href: `https://github.com/OWASP/ASVS/blob/v${m[1]}/${m[1].split('.').slice(0, 2).join('.')}/en/${file}`, rel: 'noreferrer noopener',
+    const ch = +m[2]; const name = m[1] === '5.0.0' ? lookup(ASVS_CHAPTERS, ch) : undefined;
+    if (!name) return h('span', { title: 'ASVS の章が分からないのでリンクにしない' }, code(id));
+    // the files of OWASP/ASVS v5.0.0 5.0/en are numbered 0x10-V1 ... 0x19-V10, 0x20-V11 ... 0x26-V17 (decimal after 0x)
+    return h('a', { href: asvsUrl(ch), rel: 'noreferrer noopener',
       title: `OWASP ASVS ${m[1]} の V${ch}` }, 'ASVS ' + id);
+  }
+  function asvsUrl(ch) {
+    return `https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x${ch + 9}-V${ch}-${ASVS_CHAPTERS[ch]}.md`;
   }
   function caseRef(s) {
     const m = /^jwt-claims-casestudy@([0-9a-f]{7,40}):(.+)$/.exec(s);
@@ -159,8 +171,8 @@
   function claimLink(id) { return claimById(id) ? h('a', { href: route(state.ds, 'claim', id) }, id) : code(id); }
   function tokenLink(id) { return tokenById(id) ? h('a', { href: route(state.ds, 'token', id) }, id) : code(id); }
   function hopLink(id) { return hopById(id) ? h('a', { href: route(state.ds, 'hop', id) }, id) : code(id); }
-  function eventLabel(id) { const n = META.names.events[id]; return h('span', null, code(id), n ? ' ' + n : ''); }
-  function questionLabel(id) { const n = META.names.questions[id]; return h('span', null, code(id), n ? `「${n}」` : ''); }
+  function eventLabel(id) { const n = lookup(META.names.events, id); return h('span', null, code(id), n ? ' ' + n : ''); }
+  function questionLabel(id) { const n = lookup(META.names.questions, id); return h('span', null, code(id), n ? `「${n}」` : ''); }
   function none() { return h('span', { class: 'muted' }, '—（なし）'); }
   function text(v) { return h('span', null, inline(v)); }
 
@@ -180,14 +192,14 @@
     if (Array.isArray(v)) {
       if (!v.length) return h('span', { class: 'muted' }, '[]（空）');
       if (v.every((x) => x && typeof x === 'object' && !Array.isArray(x))) {
-        if (v.every((x) => 'kind' in x && 'id' in x && REF_KIND[x.kind])) return refs(v);
+        if (v.every((x) => own(x, 'kind') && own(x, 'id') && own(REF_KIND, x.kind))) return refs(v);
         return miniTable(v, col);
       }
       if (v.every((x) => typeof x !== 'object')) return h('ul', null, v.map((x) => h('li', null, value(x, col, depth + 1))));
       return h('ul', null, v.map((x) => h('li', null, value(x, col, depth + 1))));
     }
     if (typeof v === 'object') {
-      if ('kind' in v && 'id' in v && REF_KIND[v.kind]) return refItem(v);
+      if (own(v, 'kind') && own(v, 'id') && own(REF_KIND, v.kind)) return refItem(v);
       return h('dl', { class: 'obj' }, Object.keys(v).map((k) => [h('dt', null, partLabel(col, k)), h('dd', null, value(v[k], null, depth + 1))]));
     }
     return text(String(v));
@@ -272,7 +284,7 @@
     }
   }
   function linkish(s, key) {
-    if (key === 'event' && META.names.events[s]) return code(s);
+    if (key === 'event' && own(META.names.events, s)) return code(s);
     if (claimById(s)) return claimLink(s);
     if (tokenById(s)) return tokenLink(s);
     if (hopById(s)) return hopLink(s);
@@ -326,7 +338,7 @@
   function viewOverview() {
     const b = B();
     const cs = claims();
-    const dec = {};
+    const dec = Object.create(null);
     cs.forEach((c) => { dec[c.decision] = (dec[c.decision] || 0) + 1; });
     const ci = section('ci-result');
     const cat = section('catalog-summary');
@@ -338,8 +350,8 @@
         card('トークン種別', tokenTypes().length),
         card('ホップ', hops().length),
         card('カタログへの回答', answers().length, cat && cat.counts ? `対象外 ${cat.counts.out_of_scope}（${cat.counts.out_of_scope_pct}%）` : null),
-        ci && ci.counts ? card('lint', `${ci.counts.error} / ${ci.counts.warn} / ${ci.counts.info}`, 'error / warn / info') : null),
-      h('div', { class: 'note' }, h('p', null, h('strong', null, '外部と通信しません。'), 'このページは、同じディレクトリのスクリプトとデータだけを読みます。CSP（',
+        ci && ci.counts ? card('lint', `${ci.counts.error} / ${ci.counts.warn} / ${ci.counts.info}`, `error / warn / info（profile ${lintProfile(ci) || '不明'}）`) : null),
+      h('div', { class: 'note' }, h('p', null, h('strong', null, 'データを外部に送信しません（リンクを押したときの移動は除く）。'), 'このページは、同じディレクトリのスクリプトとデータだけを読みます。CSP（',
         code("connect-src 'none'"), '）で、スクリプトからの通信を禁じています。「自分の YAML を開く」で開いたファイルは、ブラウザの中だけで読み、送信しません。')),
       h('h2', null, '読み方'),
       h('ul', null, h('li', null, '根拠の ', code('slide:<id>'), ' は、スライドの Web 版の該当スライドに移動します。RFC・ASVS などは原典に移動します。'),
@@ -356,7 +368,7 @@
     ['token', '載るトークン', (c) => c.carried_in || []],
     ['stage', '段階（書き手）', (c) => stages(c)],
     ['decision', '採否', (c) => [c.decision]],
-    ['tier', 'Lite の扱い（tier）', (c) => [TIER_ROW[tierOf(c)]]],
+    ['row_kind', '行の種類（縮小 Lite）', (c) => [ROW_KIND[rowKind(c)]]],
     ['data_category', '何のデータか（data_category）', (c) => c.data_category || []],
     ['pii_category', '個人情報の区分', (c) => [c.pii_category || '（未記入）']],
   ];
@@ -374,7 +386,7 @@
     const count = h('p', { class: 'count', id: 'f-count', 'aria-live': 'polite' });
     const tbody = h('tbody');
     const tbl = h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'claims' }, h('caption', null, '台帳の行（クリックかキーボードで詳細を開く）'),
-      h('thead', null, h('tr', null, ['ID', '名前', '型', '採否', 'Lite の扱い', '載るトークン', 'data_category', 'pii_category', '状態', '段階', 'lint'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
+      h('thead', null, h('tr', null, ['ID', '名前', '型', '採否', '行の種類（縮小 Lite）', '載るトークン', 'data_category', 'pii_category', '状態', '段階', 'lint'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
     function apply() {
       const params = {};
       const text = search.value.trim().toLowerCase();
@@ -390,13 +402,13 @@
       });
       tbody.textContent = '';
       rows.forEach((c) => {
-        const d = DECISION[c.decision] || ['neutral', '•'];
+        const d = lookup(DECISION, c.decision) || ['neutral', '•'];
         tbody.append(h('tr', { 'data-row': c.id },
           h('th', { scope: 'row' }, h('a', { href: route(state.ds, 'claim', c.id) }, c.id)),
           h('td', null, c.namespace ? h('span', { class: 'muted' }, c.namespace) : null, h('strong', null, c.name)),
           h('td', null, code(c.type || '—'), c.shape && c.shape !== 'single' ? [' ', h('span', { class: 'muted' }, c.shape)] : null),
           h('td', null, badge(d[0], d[1], c.decision)),
-          h('td', null, TIER_ROW[tierOf(c)]),
+          h('td', null, ROW_KIND[rowKind(c)]),
           h('td', null, (c.carried_in || []).length ? h('span', { class: 'codes' }, c.carried_in.map(tokenLink)) : '—'),
           h('td', null, (c.data_category || []).length ? h('span', { class: 'codes' }, c.data_category.map(code)) : '—'),
           h('td', null, c.pii_category || '—'),
@@ -413,21 +425,21 @@
       h('div', null, h('button', { type: 'button', onclick: () => { search.value = ''; FILTERS.forEach(([k]) => { $('#f-' + k).value = ''; }); apply(); } }, '絞り込みを解く')));
     setTimeout(apply, 0);
     return [h('h1', { tabindex: '-1' }, 'クレームの一覧'),
-      h('p', { class: 'lead' }, '台帳（claims.yaml）の全部の行。「Lite の扱い」は、台帳の README の 2.（縮小 Lite の印）の行の種類です。'),
+      h('p', { class: 'lead' }, '台帳（claims.yaml）の全部の行。「行の種類（縮小 Lite）」は、台帳の README の 2.（縮小 Lite の印）の区分です（対応表の tier（core・full）とは別）。'),
       form, count, tbl];
   }
 
   function viewClaim(id) {
     const c = claimById(id);
     if (!c) return notFound('台帳の行 ' + id);
-    const d = DECISION[c.decision] || ['neutral', '•'];
+    const d = lookup(DECISION, c.decision) || ['neutral', '•'];
     const onHops = hops().filter((x) => (x.custom_claims || []).includes(c.id));
     const prof = section('issuance-profile');
     const effects = [];
     if (prof && prof.effects) prof.effects.forEach((e) => (e.requires || []).forEach((r) => { if ((r.rows || []).includes(c.id)) effects.push([e, r]); }));
     return [h('p', null, h('a', { href: route(state.ds, 'claims') }, '← クレームの一覧')),
       h('h1', { tabindex: '-1' }, c.namespace ? h('span', { class: 'muted' }, c.namespace) : null, c.name, ' ', h('span', { class: 'muted' }, '(' + c.id + ')')),
-      h('p', null, badge(d[0], d[1], c.decision), ' ', TIER_ROW[tierOf(c)], c.description ? ['：', inline(c.description)] : null),
+      h('p', null, badge(d[0], d[1], c.decision), ' ', ROW_KIND[rowKind(c)], c.description ? ['：', inline(c.description)] : null),
       lintList(c.id),
       onHops.length || effects.length ? h('div', { class: 'note' },
         onHops.length ? h('p', null, 'この行を運ぶホップ：', h('span', { class: 'codes' }, onHops.map((x) => hopLink(x.id)))) : null,
@@ -448,10 +460,10 @@
   function viewToken(id) {
     const t = tokenById(id);
     if (!t) return notFound('トークン種別 ' + id);
-    const d = DECISION[t.decision] || ['neutral', '•'];
+    const d = lookup(DECISION, t.decision) || ['neutral', '•'];
     const carried = claims().filter((c) => (c.carried_in || []).includes(id));
     return [h('p', null, h('a', { href: route(state.ds, 'tokens') }, '← トークン目録')),
-      h('h1', { tabindex: '-1' }, id, ' ', h('span', { class: 'muted' }, META.names.token_kinds[t.kind] || t.kind || '')),
+      h('h1', { tabindex: '-1' }, id, ' ', h('span', { class: 'muted' }, lookup(META.names.token_kinds, t.kind) || t.kind || '')),
       h('p', null, badge(d[0], d[1], t.decision)), lintList(id),
       carried.length ? h('p', null, '載る台帳の行：', h('span', { class: 'codes' }, carried.map((c) => h('a', { href: route(state.ds, 'claim', c.id), title: c.id }, fullName(c))))) : null,
       record('token_types', t)];
@@ -479,7 +491,7 @@
     const rest = (s.effects || []).filter((e) => !e.holds);
     out.push(h('h2', null, '選択から導かれる要件（templates/registry/issuance_effects.yaml）'),
       h('div', { class: 'note warn' }, h('p', null, h('strong', null, 'これは検査ではありません。'), 'render による簡易な読み取りで、検査の正は claim_lint の L62〜L64 です（tools/claim_lint/RENDER.md の 5.）。')));
-    const tally = { satisfied: 0, unsatisfied: 0, unknown: 0 };
+    const tally = Object.assign(Object.create(null), { satisfied: 0, unsatisfied: 0, unknown: 0 });
     holds.forEach((e) => (e.requires || []).forEach((r) => { tally[r.status] = (tally[r.status] || 0) + 1; }));
     out.push(h('p', null, `成り立つ条件 ${holds.length} 件、要件 `, Object.keys(STATUS).map((k) => [badge(STATUS[k][0], STATUS[k][1], `${STATUS[k][2]} ${tally[k] || 0}`), ' '])));
     holds.forEach((e) => {
@@ -487,7 +499,7 @@
         h('h3', null, code(e.id), ' ', h('span', { class: 'muted' }, '条件：'), (e.when || []).map((w, i) => [i ? '、' : '', code(w.field), ' = ', code(JSON.stringify(w.equals !== undefined ? w.equals : w))])),
         h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, ['要件', '内容', '判定（簡易な読み取り。正は L62）', '満たしている行'].map((x) => h('th', { scope: 'col' }, x)))),
           h('tbody', null, (e.requires || []).map((r) => {
-            const st = STATUS[r.status] || ['neutral', '•', r.status];
+            const st = lookup(STATUS, r.status) || ['neutral', '•', r.status];
             return h('tr', { 'data-require': r.id }, h('th', { scope: 'row' }, code(r.id)), h('td', null, inline(r.text)),
               h('td', null, badge(st[0], st[1], st[2]), r.check ? h('div', { class: 'muted' }, code(r.check.path + ' ' + r.check.op)) : null),
               h('td', null, (r.rows || []).length ? h('span', { class: 'codes' }, r.rows.map((x) => claimById(x) ? claimLink(x) : tokenLink(x))) : '—'));
@@ -564,7 +576,11 @@
     const out = [h('h1', { tabindex: '-1' }, 'lint の結果（claim_lint）')];
     if (!s) return out.concat(needBundle('lint の結果'));
     const c = s.counts || {};
-    out.push(h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${c[k] || 0}`), ' '])), paras(s.notes),
+    const prof = lintProfile(s);
+    out.push(h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${c[k] || 0}`), ' ']), h('span', { 'data-lint-profile': prof || '' }, `claim_lint の profile：${prof || '不明'}`)),
+      prof === 'full' && /Lite/.test(datasetLabel()) ? h('div', { class: 'note warn' }, h('p', null, 'この設計書は Lite ですが、この結果は profile full（render が design.md の「CI の結果」に書くのと同じ）です。Lite の検査（',
+        code('python tools/claim_lint <dir> --profile lite'), '）では、必須の列が減る一方、Lite だけの規則の指摘が出ることがあります。CI はどちらも実行しています。')) : null,
+      paras(s.notes),
       h('p', { class: 'muted' }, '対象の列は、台帳の行・トークン種別・ホップ・カタログのイベントに移動できます。それぞれの画面の行にも、同じ指摘を重ねて表示しています。'));
     const t = s.tables[0];
     if (t) {
@@ -572,7 +588,7 @@
         h('tbody', null, t.rows.map((r) => {
           const tg = String(r.target || '').replace(/^(token_type|hop) /, '');
           const where = claimById(tg) ? claimLink(tg) : tokenById(tg) ? tokenLink(tg) : hopById(tg) ? hopLink(tg)
-            : META.names.events[tg] ? h('a', { href: route(state.ds, 'catalog') }, tg) : code(r.target);
+            : own(META.names.events, tg) ? h('a', { href: route(state.ds, 'catalog') }, tg) : code(r.target);
           return h('tr', { 'data-row': tg }, h('th', { scope: 'row' }, code(r.rule)), h('td', null, sevBadge(r.severity)), h('td', null, where), h('td', null, inline(r.message)));
         })))));
     }
@@ -623,7 +639,7 @@
     drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); readFiles(e.dataTransfer.files, list, msg); });
     input.addEventListener('change', () => readFiles(input.files, list, msg));
     return [h('h1', { tabindex: '-1' }, '自分の YAML を開く'),
-      h('div', { class: 'note' }, h('p', null, h('strong', null, 'ファイルは送信しません。'), 'ブラウザの中（FileReader）で読み、同梱の js-yaml 4.1.1 で解釈します。このページは CSP で ',
+      h('div', { class: 'note' }, h('p', null, h('strong', null, 'ファイルは送信しません。'), 'ブラウザの中（FileReader）で読み、同梱の js-yaml 4.3.2（CORE_SCHEMA）で解釈します。このページは CSP で ',
         code("connect-src 'none'"), ' にしているので、スクリプトからはどこにも接続できません。社内の設計書を外に出さずに見るための機能です。ページを閉じると読み込んだ内容は消えます（保存しません）。')),
       h('p', null, '開けるもの：'),
       h('ul', null, h('li', null, code('claims.yaml'), '・', code('token_types.yaml'), '・', code('hops.yaml'), '・', code('catalog_answers.yaml'), '（名前か中身の最上位のキーで見分けます）。台帳の一覧・詳細・トークン目録・ホップ・カタログへの回答を表示します。'),
@@ -640,6 +656,14 @@
     if (obj && Array.isArray(obj.answers)) return 'catalog_answers';
     return null;
   }
+  // `<<` is a plain key under CORE_SCHEMA (merge keys are a YAML 1.1 type). PyYAML (claim_lint) expands them.
+  function countMergeKeys(v, depth) {
+    depth = depth || 0;
+    if (!v || typeof v !== 'object' || depth > 50) return 0;
+    let n = 0;
+    for (const k of Object.keys(v)) { if (k === '<<') n++; n += countMergeKeys(v[k], depth + 1); }
+    return n;
+  }
   function readFiles(files, list, msg) {
     const arr = Array.from(files || []);
     if (!arr.length) return;
@@ -654,9 +678,11 @@
           kind = classify(f.name, obj);
           if (!kind) err = '何のファイルか分かりません（claims・token_types・hops・catalog_answers・render の JSON のどれでもない）';
         } catch (e) { err = '読めません：' + (e && e.message ? e.message : e); }
+        const merges = !err && !/\.json$/i.test(f.name) ? countMergeKeys(obj) : 0;
         if (!err && kind === 'bundle') bundle = obj;
         else if (!err) local.registry[kind] = obj;
-        list.append(h('li', null, err ? badge('ng', '✖', '読めない') : badge('ok', '✓', kind === 'bundle' ? 'render の束' : kind), ' ', code(f.name), ` ${f.size} バイト`, err ? h('div', { class: 'err' }, err) : null));
+        list.append(h('li', null, err ? badge('ng', '✖', '読めない') : badge('ok', '✓', kind === 'bundle' ? 'render の束' : kind), ' ', code(f.name), ` ${f.size} バイト`, err ? h('div', { class: 'err' }, err) : null,
+          merges ? h('div', { class: 'note warn', 'data-merge-warning': f.name }, badge('warn', '▲', '注意'), ` マージキー（<<）が ${merges} か所あります。ビューアーは展開せず、「<<」という列として表示します（claim_lint の YAML の読み方では展開されます）。表示と lint の結果が違って見えるときは、マージを書き下してください。`) : null));
       }
       const data = bundle ? Object.assign({}, bundle, { registry: Object.assign({}, bundle.registry, local.registry) }) : local;
       if (!bundle && !Object.keys(local.registry).length) { msg.append(h('p', { class: 'err' }, '表示できるファイルがありません。')); return; }
@@ -704,19 +730,21 @@
     const { parts, query } = parseHash();
     const main = $('#main');
     let ds = parts[0];
-    if (ds === 'trace' || (ds === 'local' && (!parts[1] || !state.bundles.local))) return show(ds, () => (ds === 'trace' ? viewTrace() : viewLocal()));
+    if (ds === 'trace' || (ds === 'local' && (!parts[1] || !state.bundles.local))) { ++render.ticket; return show(ds, () => (ds === 'trace' ? viewTrace() : viewLocal())); }
     if (!ds) ds = META.datasets[0].id;
     const view = parts[1] || 'overview';
     const id = parts[2];
     const p = ds === 'local' ? Promise.resolve(state.bundles.local) : loadDataset(ds);
+    const ticket = ++render.ticket;
     return p.then(() => {
+      if (ticket !== render.ticket) return;  // the reader moved on while this design was loading
       state.ds = ds;
       fillDatasets();
-      const fn = { overview: viewOverview, claims: () => viewClaims(query), claim: () => viewClaim(id), tokens: viewTokens, token: () => viewToken(id),
-        profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: viewLint, tables: viewTables }[view];
-      const navView = { claim: 'claims', token: 'tokens', hop: 'hops' }[view] || view;
+      const fn = lookup({ overview: viewOverview, claims: () => viewClaims(query), claim: () => viewClaim(id), tokens: viewTokens, token: () => viewToken(id),
+        profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: viewLint, tables: viewTables }, view);
+      const navView = lookup({ claim: 'claims', token: 'tokens', hop: 'hops' }, view) || view;
       show(navView, fn || (() => notFound('画面 ' + view)));
-    }).catch((e) => { main.textContent = ''; main.append(h('h1', null, '読み込めません'), h('p', { class: 'err' }, String(e.message || e))); });
+    }).catch((e) => { if (ticket !== render.ticket) return; main.textContent = ''; main.append(h('h1', null, '読み込めません'), h('p', { class: 'err' }, String(e.message || e))); });
   }
   function show(navView, fn) {
     if (!state.ds) state.ds = META.datasets[0].id;
@@ -732,6 +760,7 @@
     return null;
   }
 
+  render.ticket = 0;
   function init() {
     if (!META) { $('#main').textContent = 'data/meta.js を読めません。'; return; }
     fillDatasets();

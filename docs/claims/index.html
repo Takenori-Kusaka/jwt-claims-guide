@@ -21,7 +21,7 @@
     <label for="dataset">表示する設計書</label>
     <select id="dataset"></select>
   </div>
-  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> 外部と通信しません（CSP の <code>connect-src 'none'</code>）</p>
+  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> データを外部に送信しません（リンクを押したときの移動は除く。CSP の <code>connect-src 'none'</code>）</p>
 </header>
 <div class="layout">
   <nav class="side" aria-label="画面">
@@ -34,9 +34,9 @@
 </div>
 <footer class="foot">
   <p>正本は YAML（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/tree/main/templates/examples">templates/examples/</a>）です。このビューアーは閲覧だけで、編集はしません。データは <code>python tools/build_claims_viewer.py</code> で生成しています（#36）。</p>
-  <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE">LICENSE</a>）。YAML の読み取りに <a href="vendor/js-yaml-4.1.1.LICENSE.txt">js-yaml 4.1.1（MIT）</a> を同梱しています。作成方法：本ビューアーは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
+  <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE">LICENSE</a>）。YAML の読み取りに <a href="vendor/js-yaml-4.3.2.LICENSE.txt">js-yaml 4.3.2（MIT）</a> を同梱しています。作成方法：本ビューアーは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
 </footer>
-<script src="vendor/js-yaml-4.1.1.min.js"></script>
+<script src="vendor/js-yaml-4.3.2.min.js"></script>
 <script src="data/meta.js"></script>
 <script src="data/trace.js"></script>
 <script src="app.js"></script>

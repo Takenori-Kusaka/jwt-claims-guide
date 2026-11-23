@@ -20,7 +20,10 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import build_claims_viewer as bcv  # noqa: E402
 
 VIEWER = os.path.join(ROOT, 'docs', 'claims')
-JS_YAML = ('vendor/js-yaml-4.1.1.min.js', '0de3dec92d20eab9e0b46a5d928cd45ec025d73e348ddf458dbfb01da00cb473')
+# js-yaml 4.3.2 from npm (tarball shasum 8e44fb14a2643c59726bb15787b5f1512cb3d3fb, the registry's dist.shasum). 4.3.2 is
+# outside the ranges of GHSA-h67p-54hq-rp68, GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj and GHSA-2883-xcg3-v3hh.
+JS_YAML = ('vendor/js-yaml-4.3.2.min.js', '32391560601990bb6e0daabd8106a35a6a539de088532413931a70a4cb4f4769')
+JS_YAML_MAP = '8d0c35eaff494d5b5883d3900f35b56b52aabf158d02a66255811e43a6d88aa2'
 _EXPECTED = {}
 
 
@@ -158,10 +161,21 @@ class StaticFiles(unittest.TestCase):
         with open(os.path.join(VIEWER, rel), 'rb') as f:
             # LF, as published on npm (a Windows checkout may have CRLF)
             self.assertEqual(hashlib.sha256(f.read().replace(b'\r\n', b'\n')).hexdigest(), sha)
-        self.assertIn('js-yaml 4.1.1', self.read(rel)[:80])
-        lic = self.read('vendor/js-yaml-4.1.1.LICENSE.txt')
+        lic = self.read('vendor/js-yaml-4.3.2.LICENSE.txt')
         self.assertIn('MIT', lic)
         self.assertIn(rel, self.read('index.html'))
+        # the source map named at the end of the file is vendored too (no 404 when developer tools open it)
+        self.assertTrue(self.read(rel).rstrip().endswith('//# sourceMappingURL=js-yaml.min.js.map'))
+        with open(os.path.join(VIEWER, 'vendor', 'js-yaml.min.js.map'), 'rb') as f:
+            self.assertEqual(hashlib.sha256(f.read().replace(b'\r\n', b'\n')).hexdigest(), JS_YAML_MAP)
+        self.assertEqual(sorted(os.listdir(os.path.join(VIEWER, 'vendor'))),
+                         ['js-yaml-4.3.2.LICENSE.txt', 'js-yaml-4.3.2.min.js', 'js-yaml.min.js.map'])
+
+    def test_user_yaml_is_read_with_the_core_schema(self):
+        # CORE_SCHEMA: no `<<` merge and no !!omap (the DoS advisories of js-yaml are about those types), no JS types
+        js = self.read('app.js')
+        self.assertIn('window.jsyaml.load(txt, { schema: window.jsyaml.CORE_SCHEMA', js)
+        self.assertNotIn('DEFAULT_SCHEMA', js)
 
     def test_readmes_link_to_the_viewer(self):
         url = 'https://takenori-kusaka.github.io/jwt-claims-guide/claims/'

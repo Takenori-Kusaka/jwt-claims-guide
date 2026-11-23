@@ -16,7 +16,7 @@
   },
   {
    "method": "GET",
-   "url": "<origin>/claims/vendor/js-yaml-4.1.1.min.js",
+   "url": "<origin>/claims/vendor/js-yaml-4.3.2.min.js",
    "type": "script"
   },
   {

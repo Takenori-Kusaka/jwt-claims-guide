@@ -156,9 +156,10 @@ class ClaimsViewer(unittest.TestCase):
         pg.select_option('#f-data_category', 'user.unique_id')
         self.assertEqual(pg.locator(rows).count(), sum('user.unique_id' in (c.get('data_category') or []) for c in claims))
         pg.select_option('#f-data_category', '')
-        pg.select_option('#f-tier', '却下の行')
+        pg.select_option('#f-row_kind', '却下の行')
+        self.assertIn('row_kind=', pg.evaluate('location.hash'))
         self.assertEqual(pg.locator(rows).count(), sum(c['decision'] == '却下' for c in claims))
-        pg.select_option('#f-tier', '')
+        pg.select_option('#f-row_kind', '')
         pg.select_option('#f-stage', '②')
         self.assertEqual(pg.locator(rows).count(), sum(any(w.get('stage') == '②' for w in c.get('authoritative_writer') or []) for c in claims))
         pg.click('text=絞り込みを解く')
@@ -311,6 +312,95 @@ class ClaimsViewer(unittest.TestCase):
         self.assertEqual(pg.locator('[data-effect="E-dpop"]').count(), 1)
         self.assertEqual(pg.requests, [])
         self.assertEqual(pg.problems, [])
+
+    def local_files(self, files):
+        """Write {name: text} to a temporary directory and open them in local-file mode."""
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(d))
+        paths = []
+        for name, text in files.items():
+            p = os.path.join(d, name)
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write(text)
+            paths.append(p)
+        pg = self.open('#/local')
+        pg.requests.clear()
+        pg.set_input_files('#local-files', paths)
+        pg.wait_for_function('() => document.querySelectorAll("#local-list li").length > 0')
+        return pg
+
+    def test_asvs_links_for_every_chapter(self):
+        # file names of OWASP/ASVS v5.0.0 5.0/en (gh api repos/OWASP/ASVS/contents/5.0/en?ref=v5.0.0, 2026-11-23)
+        files = ['0x10-V1-Encoding-and-Sanitization.md', '0x11-V2-Validation-and-Business-Logic.md', '0x12-V3-Web-Frontend-Security.md',
+                 '0x13-V4-API-and-Web-Service.md', '0x14-V5-File-Handling.md', '0x15-V6-Authentication.md', '0x16-V7-Session-Management.md',
+                 '0x17-V8-Authorization.md', '0x18-V9-Self-contained-Tokens.md', '0x19-V10-OAuth-and-OIDC.md', '0x20-V11-Cryptography.md',
+                 '0x21-V12-Secure-Communication.md', '0x22-V13-Configuration.md', '0x23-V14-Data-Protection.md',
+                 '0x24-V15-Secure-Coding-and-Architecture.md', '0x25-V16-Security-Logging-and-Error-Handling.md', '0x26-V17-WebRTC.md']
+        ids = [f'v5.0.0-{ch}.1.1' for ch in range(1, 18)] + ['v5.0.0-99.1.1', 'v4.0.3-1.1.1']
+        yaml_text = 'claims:\n  - id: C-x\n    name: x\n    decision: 採用\n    asvs_ids: [' + ', '.join(ids) + ']\n'
+        pg = self.local_files({'claims.yaml': yaml_text})
+        self.go(pg, '#/local/claim/C-x', '(C-x)')
+        hrefs = pg.eval_on_selector_all('[data-col="asvs_ids"] a', 'els => els.map(e => e.getAttribute("href"))')
+        self.assertEqual(hrefs, ['https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/' + f for f in files])
+        # an unknown chapter or version is shown as text, not as a link to a directory
+        self.assertIn('v5.0.0-99.1.1', pg.inner_text('[data-col="asvs_ids"]'))
+        self.assertIn('v4.0.3-1.1.1', pg.inner_text('[data-col="asvs_ids"]'))
+        self.assertEqual(pg.problems, [])
+
+    def test_local_yaml_merge_keys_omap_and_row_kinds(self):
+        claims_yaml = ('claims:\n'
+                       '  - &base\n    id: C-a\n    name: a\n    decision: 採用\n    consumers: []\n'
+                       '  - <<: *base\n    id: C-b\n    name: b\n    consumers: [api]\n')
+        pg = self.local_files({'claims.yaml': claims_yaml, 'hops.yaml': 'hops: !!omap\n  - a: 1\n'})
+        items = pg.locator('#local-list li').all_inner_texts()
+        # !!omap is not a type of CORE_SCHEMA: the file is refused (the js-yaml DoS advisories are about omap and merge)
+        self.assertTrue(any('読めない' in x and 'hops.yaml' in x for x in items), items)
+        # `<<` is not expanded; the reader is told so
+        warn = pg.locator('[data-merge-warning="claims.yaml"]')
+        self.assertEqual(warn.count(), 1)
+        self.assertIn('1 か所', warn.inner_text())
+        self.go(pg, '#/local/claim/C-b', '(C-b)')
+        self.assertEqual(pg.locator('main [data-col="<<"]').count(), 1)  # shown as a column outside the schema
+        self.assertEqual(pg.inner_text('[data-col="decision"] .cv'), '（未記入）')  # not taken from the anchor
+        # row kinds: 採用 without consumers is not a row that receivers read
+        self.go(pg, '#/local/claims', 'クレームの一覧')
+        self.assertIn('受け手のない採用の行', pg.inner_text('tr[data-row="C-a"]'))
+        self.assertEqual(pg.requests, [])
+        self.assertEqual(pg.problems, [])
+
+    def test_lint_targets_named_like_object_properties(self):
+        import sys
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import build_claims_viewer as bcv
+        b = bcv.bundle_of('templates/examples/scenario-a')
+        ci = [s for s in b['sections'] if s['id'] == 'ci-result'][0]
+        for t in ('toString', 'constructor', '__proto__', 'hasOwnProperty'):
+            ci['tables'][0]['rows'].append({'rule': 'X1', 'severity': 'toString', 'target': t, 'message': 'm'})
+        b['registry']['catalog_answers']['answers'].append({'event': 'toString', 'answer': '該当'})
+        pg = self.local_files({'bundle.json': json.dumps(b, ensure_ascii=False)})
+        for h, title in (('#/local/tokens', 'トークン目録'), ('#/local/claims', 'クレームの一覧'), ('#/local/lint', 'lint の結果'),
+                         ('#/local/catalog', 'カタログ'), ('#/local/constructor', '見つかりません')):
+            self.go(pg, h, title)
+        self.go(pg, '#/local/lint', 'lint の結果')
+        self.assertIn('toString', pg.inner_text('table[data-table="ci-result"]'))
+        self.assertEqual(pg.problems, [])
+
+    def test_lint_profile_is_labelled(self):
+        pg = self.open('#/scenario-a/lint')
+        self.assertEqual(pg.get_attribute('[data-lint-profile]', 'data-lint-profile'), 'full')
+        self.assertIn('Lite', pg.inner_text('main'))
+        self.go(pg, '#/scenario-a/overview', 'シナリオ A')
+        self.assertIn('profile full', pg.inner_text('main .cards'))
+
+    def test_a_stale_load_does_not_overwrite_the_screen(self):
+        pg = self.open('#/trace')
+        # start loading B, then move to the trace screen before it finishes
+        pg.evaluate('() => { location.hash = "#/scenario-b/claims"; }')
+        pg.evaluate('() => { location.hash = "#/trace"; }')
+        pg.wait_for_timeout(800)
+        self.assertIn('対応表', pg.inner_text('main h1'))
 
     def test_trace_counts(self):
         reqs = load_yaml('templates/trace/requirements.yaml')['requirements']
