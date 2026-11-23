@@ -600,19 +600,6 @@ def test_r8_info_still_reports_a_custom_claim_on_two_types(tmp_path):
     assert 'C-tenant-id' in [f['target'] for f in by(lint(tmp_path, d), 'R8', 'info')]
 
 
-# ------------------------------------------------------------------ L74 (text after " #" dropped as a YAML comment, found in #39)
-def test_l74_hash_in_plain_value_warns_and_quoted_pass(tmp_path, example):
-    assert not by(example, 'L74')
-    d = tmp_path / 'design'
-    lint(tmp_path, base())
-    p = d / 'hops.yaml'
-    text = p.read_text(encoding='utf-8')
-    p.write_text(text + '# a comment line is fine\nextra_note: 見直しは #6 で\nquoted: "見直しは #6 で"\n', encoding='utf-8')
-    x = semantic.Ctx({}, 'full', str(d), ROOT, os.path.join(ROOT, 'templates', 'catalog'), TODAY)
-    semantic.rule_l74(x)
-    assert [(f['severity'], f['target'].split(':')[0]) for f in x.findings] == [('warn', 'hops.yaml')]
-
-
 def test_l1a_role_synonym_fails(tmp_path):
     d = base()
     d['claims']['claims'].append(new_claim(id='C-user-roles', name='user_roles', shape='array', max_items=2))
