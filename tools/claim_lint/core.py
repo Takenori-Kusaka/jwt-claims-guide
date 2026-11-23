@@ -45,6 +45,12 @@ TT_ADOPTED = ['purpose', 'issuer', 'holder', 'max_lifetime', 'stored_at', 'trans
 TT_JWT = ['typ', 'alg_allowlist', 'issuers', 'key_rotation', 'jwe']
 HEADER_TRANSPORTS = {'authorization_bearer', 'authorization_dpop', 'cookie'}
 IDLE_KINDS = {'refresh_token', 'session'}  # idle and absolute lifetimes are separate columns (gate1.md 5., A14)
+# --profile lite (the reduced Lite of gate 1, research/template-design/gate1.md 10., #4): columns the reduced Lite generates
+# instead of asking the writer (from the IdP module, the catalogue, token_types and the default status), and the columns a
+# 既定どおり row that nobody reads keeps (what R8 and the decision need)
+LITE_GENERATED = {'issue_events', 'propagation_delay', 'status', 'issuers'}
+LITE_UNREAD_KEEP = ['namespace', 'type', 'shape', 'max_bytes', 'pii_category', 'carried_in', 'data_category',
+                    'confidential_from']
 # R8 info: claims of the ID token (OpenID Connect Core 1.0 §2) or of the JWT access token (RFC 9068 §2.2, §2.2.1)
 IDT_AT_REGISTERED = {'iss', 'sub', 'aud', 'exp', 'iat', 'auth_time', 'nonce', 'acr', 'amr', 'azp', 'client_id', 'jti'}
 
@@ -102,13 +108,20 @@ def schema_check(doc, schema_path, where):
 
 
 # ------------------------------------------------------------------ R1
-def rule_r1(claims, token_types):
+def rule_r1(claims, token_types, profile='full'):
     out = []
+    lite = profile == 'lite'
     for c in claims:
         cid = c.get('id', '?')
         need = list(COMMON)
         if c.get('decision') in ('採用', '既定どおり'):
-            need += CARRIED
+            if lite and c.get('decision') == '既定どおり' and c.get('consumers') == []:
+                need += LITE_UNREAD_KEEP
+            elif lite:
+                need += [k for k in CARRIED if k not in LITE_GENERATED
+                         and not (k == 'overflow_strategy' and c.get('shape') != 'array')]
+            else:
+                need += CARRIED
             if c.get('shape') == 'array':
                 need.append('max_items')
         for k in need:
@@ -124,7 +137,7 @@ def rule_r1(claims, token_types):
                 out.append(Finding('R1', ERROR, cid, f"{c.get('decision')} には refs・assumption・revisit_trigger のうち 2 つ以上が要る（あるのは {have or 'なし'}）"))
     for t in token_types:
         tid = t.get('id', '?')
-        need = list(TT_COMMON)
+        need = list(TT_COMMON)  # a rejected token type keeps kind, decision, rationale (and format, which the schema requires)
         if t.get('decision') in ('採用', '既定どおり'):
             need += TT_ADOPTED
             if t.get('kind') in IDLE_KINDS:
@@ -412,7 +425,7 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     catalog = []
     for name in ('issue_events', 'use_events'):
         catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
-    findings += rule_r1(claims, tts)
+    findings += rule_r1(claims, tts, profile)
     findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
     findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)

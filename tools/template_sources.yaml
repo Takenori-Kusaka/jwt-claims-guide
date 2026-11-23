@@ -1,0 +1,35 @@
+# Pinned lists for tools/template_check.py (#4): the RFCs and the tracking issues the templates may cite. An evidence
+# element of the templates that names an RFC or a tracking issue outside these lists fails (T3). Adding a source is a
+# deliberate change in a PR: open the RFC (or the issue) and add it here with its title.
+# The RFC numbers were checked to exist by the independent check of PR #43 (2026-11-23, 63 of 63 sections found).
+# Sections are NOT checked: whether "RFC 9449 §11.1" supports the item is the 10% sampled check of templates/CONTRIBUTING.md 2.
+rfcs:
+  7009: OAuth 2.0 Token Revocation
+  7515: JSON Web Signature (JWS)
+  7519: JSON Web Token (JWT)
+  7662: OAuth 2.0 Token Introspection
+  8693: OAuth 2.0 Token Exchange
+  8705: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens
+  8707: Resource Indicators for OAuth 2.0
+  8725: JSON Web Token Best Current Practices
+  9068: JSON Web Token (JWT) Profile for OAuth 2.0 Access Tokens
+  9110: HTTP Semantics
+  9126: OAuth 2.0 Pushed Authorization Requests
+  9207: OAuth 2.0 Authorization Server Issuer Identification
+  9396: OAuth 2.0 Rich Authorization Requests
+  9421: HTTP Message Signatures
+  9449: OAuth 2.0 Demonstrating Proof of Possession (DPoP)
+  9470: OAuth 2.0 Step Up Authentication Challenge Protocol
+  9700: Best Current Practice for OAuth 2.0 Security
+  10017: OAuth 2.0 for Browser-Based Applications
+# Issues that track author proposals (templates/CONTRIBUTING.md 1.: the issue keeps one item per proposal and stays open
+# or records a conclusion). Whether the issue really carries that proposal is not checked by machine.
+tracking_issues:
+  3: クレーム台帳 v1
+  4: 設計書テンプレートの MVP
+  6: claim-lint の意味の規則
+  16: 縦の一本（シナリオ A）と関門 1
+  17: claim-lint の網羅の規則
+  19: claim-lint render
+  20: 人による点検
+  21: 後回し（P2・P3・P6、Keycloak 以外の IdP）

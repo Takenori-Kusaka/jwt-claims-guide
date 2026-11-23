@@ -53,7 +53,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 - **トークン目録の却下の行**：`kind`・`decision`・`rationale` だけ（スキーマも理由は `rationale` だけを求める）
 - **単一値の `overflow_strategy`**：既定（`上限で固定（超えない値域）`）
 
-`claim_lint --profile lite` の R1 の必須の列を、この印に合わせる作業は #4 の担当です（#4 の改訂の項目）。v1 の時点の R1 は、Lite と Full で同じ列を必須にしています。
+`claim_lint --profile lite` の R1 は、この印に合わせて必須の列を減らします（#4。`tools/claim_lint/RULES.md` の「R1 の必須の列」）。
 
 ## 3. 列の一覧
 

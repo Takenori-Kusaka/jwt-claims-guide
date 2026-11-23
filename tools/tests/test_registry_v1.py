@@ -4,6 +4,7 @@ REF rule and the new R1 columns of claim_lint, and tools/casestudy_check.py (pur
 import copy
 import json
 import os
+import shutil
 import re
 import sys
 
@@ -48,6 +49,9 @@ def lint(tmp_path, docs):
     for k, v in docs.items():
         with open(tmp_path / (k + '.yaml'), 'w', encoding='utf-8') as f:
             yaml.safe_dump(v, f, allow_unicode=True, sort_keys=False)
+    for n in os.listdir(EXAMPLE):  # the 25 answers of the shared claims (L72 is error, #4)
+        if n.startswith('claim_request_'):
+            shutil.copy(os.path.join(EXAMPLE, n), tmp_path / n)
     return core.run(str(tmp_path))
 
 

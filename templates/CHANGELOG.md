@@ -27,6 +27,15 @@
 - `registry/claims.schema.json` の `volatility`：0 以上の整数か `never`。`0` は「変わったら即時に反映が要る」、`never` は「トークンの寿命の間に値が変わらない」（それまでの description は 0 を「変わらない」としていたので、意味を分けた）。`examples/scenario-a/claims.yaml` の 0 の 15 行（iss・sub・aud・exp・iat・jti・auth_time・typ・azp・sid・scope・nonce・tenant_id・user_id・v）を `never` にした（#19、PR #39。L5 は #6 で合わせる）
 - `.gitleaks.toml`：トレースの要件 ID（`p08-revocation-propagation.R6` など）を generic-api-key の誤検出から外した。secret-scan は HEAD から辿れる履歴だけを見る（`--log-opts="HEAD"`）
 
+- 設計書テンプレートの MVP（#4）：`00_core.md`（設計書の本体。13 の節と付録、生成の区間）、`claim_request.md`（追加前の 25 問。Lite でも必須）、`GETTING_STARTED.md`（30 分の入門）、`glossary.md`（ガイドと同じ訳語。「Transaction Token（Txn-Token）」「誰の権限で」）、`profiles/`（P1_human_web・P4_ai_agent_delegation・P5_internal_propagation）、`modules/`（M_authz_pdp・M_token_validation・M_multitenancy・M_privacy_minimization・M_data_layer・M_sender_constraint・M_idp_keycloak）。各項目に固定の項目 ID（`template:<パス>#<アンカー>`）と根拠の行を付け、採否の理由の見本は載せていない。版は 0.3.0
+- `README.md`：準備中の入口を、一式の入口に書き直した。Lite と Full の判定（5 問）、縮小 Lite の定義（関門 1 の 10.）、プロファイルとモジュールの組み合わせ方、記入の順序、記入の目安（欄の数）（#4）
+- `tools/template_check.py`：テンプレートの項目 ID・根拠の形（スライドの実在、RFC の節、草案の版、筆者の提案の追跡 issue）・記入欄が空かを確かめる（#4。CI は `.github/workflows/trace.yml`）
+- `python tools/claim_lint --profile lite`：R1 の必須の列を縮小 Lite に合わせた。載せて誰かが読む行は、生成する列（`issue_events`・`propagation_delay`・`status`・`issuers`）と単一値の `overflow_strategy` を求めない。既定どおりで誰も読まない行は、R8 と判断に要る列だけを求める（#4、`tools/claim_lint/RULES.md` の「R1 の必須の列」）
+- `tools/count_lite_fields.py --current <記入例> --profile lite|full`：今の記入例の、手で書く欄の数（#4。README の「記入の目安」）
+- 対応表（#22）：#4 の要件 122 件を実装済みにした（core 92・full 30。うち 11 件は #6・#18 の規則（L3・L5・L6・L9・L14・L18・L23・L43・R8）の行に印を足して実装済みにした）。`template:00_core#issuance-profile`・`template:modules/M_sender_constraint#…`（5 件）・`template:claim_request#form` を planned_items に足し、送信者制約・クライアントの種類・PAR に関係する要件（7 件）に結び直した。`template:claim_request`（アンカーなし）を指していた 5 件は、`#form`・`#gate` に付け替えた。台帳のスキーマと問いの一覧には、#4 の要件の `req:` の印だけを足した（列は変えていない）
+
+- PR #43 の独立点検の反映（#4。記録：`research/reviews/templates-mvp-2026-11-23.md`）：事実の誤り・過大・不一致の 13 件を直した。`tools/new_design.py`（空の設計書。GETTING_STARTED は記入例を写させない）、`tools/template_sources.yaml`（RFC と追跡 issue の固定の一覧）と `template_check` の T3（RFC・issue・パスの実在、形の絞り込み）・T4（記入欄の全列）・T6（見出しのアンカー）、シナリオ A の追加前の 25 問 3 ファイル（`claim_request_user_id.md`・`claim_request_roles.md`・`claim_request_v.md`）、L72 を error に（Lite も同じ）、`count_lite_fields --current` の Lite で Full のみの列を数えない
+
 ### 変更
 
 - claim_lint の目的と仕組みの規則（#18）：L11〜L14（宣言の整合の検査）を足した。`examples/scenario-a/catalog_answers.yaml` に `questions`（問いが要るか）を、`claims.yaml` の C-iss・C-sub に saas-web の `enforced_at` を足した（`design.md` の 13.）

@@ -32,6 +32,7 @@ questions:
     refs:
       - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
       - {kind: guide-slide, id: p05-one-request-carries}
+    trace: "req:p06-audit-trail.R1 req:p10-agent-identity.R5 req:p10-token-exchange-not-narrowing.R5"
 
   - id: q-req-wl
     text: どのワークロードが Txn-Token を求めたか
@@ -51,6 +52,7 @@ questions:
     not_this: [q-req-wl, q-actor]
     refs:
       - {kind: guide-slide, id: p05-one-request-carries}
+    trace: "req:p08-async-processing.R3"
 
   - id: q-via
     text: どこを経由したか
@@ -74,6 +76,7 @@ questions:
     refs:
       - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
       - {kind: guide-slide, id: p06-audit-trail}
+    trace: "req:p06-audit-trail.R1"
 
   - id: q-user
     text: 誰が利用者か

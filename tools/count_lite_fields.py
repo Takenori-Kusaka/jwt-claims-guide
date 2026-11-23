@@ -9,6 +9,17 @@ Counting rule: in each YAML row, every key except `id` whose value is not null c
 empty list such as `consumers: []` is a written answer and counts; `namespace: null` does not). Nested values
 (`refs`, `enforced_at`, `authoritative_writer`) count as one field. The reduced Lite rules are the constants below;
 they are a proposal (author-proposal, tracking #16), not yet the Lite definition of #4.
+
+  python tools/count_lite_fields.py --current EXAMPLE_DIR --profile lite|full
+
+counts the fields the writer of a worked example writes by hand today (all columns of registry v1, not the v0 subset;
+templates/README.md 「記入の目安」, #4). Same counting rule. lite applies the reduced Lite of templates/README.md (the
+generated columns, the Full-only columns (the 「Full のみ」 marks of templates/registry/README.md 3., read from that file)
+and the generated sections are not counted; issuance_profile counts only the items that leave the default combination;
+hops count only exchange / reissue hops; a rejected token type counts kind, decision, rationale and format (what R1 and
+the schema ask); an inherited 対象外 answer counts one field). full counts every written field.
+Both add the hand-written questions of every claim_request_*.md (rows whose last column is 手書き) and the hand-written
+sections of design.md (00_core: lite 2, 3, 6, 9, 12; full also 7).
 """
 import os
 import re
@@ -116,8 +127,140 @@ def count(example):
     return rows, (tb, ta), hand, hand_oos
 
 
+# --current (#4): the default issuance combination (templates/registry/README.md 3.3, gate1.md 10.)
+DEFAULT_PROFILE = {'client_type': 'confidential', 'grants': ['authorization_code_pkce', 'refresh_token'],
+                   'sender_constraint': 'none', 'at_format': 'jwt', 'rt_strategy': 'rotation', 'request_protection': [],
+                   'conformance_profile': 'none'}
+HAND_SECTIONS = {'lite': [2, 3, 6, 9, 12], 'full': [2, 3, 6, 7, 9, 12]}
+
+
+def full_only_columns():
+    """{'claims': set, 'token_types': set, 'hops': set} of the columns marked 「Full のみ」 in templates/registry/README.md 3."""
+    out = {'claims': set(), 'token_types': set(), 'hops': set()}
+    sec = None
+    with open(os.path.join(ROOT, 'templates', 'registry', 'README.md'), encoding='utf-8') as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if line.startswith('### 3.1'):
+                sec = 'claims'
+            elif line.startswith('### 3.2'):
+                sec = 'token_types'
+            elif line.startswith('### 3.3'):
+                sec = None
+            elif line.startswith('### 3.4'):
+                sec = 'hops'
+            elif line.startswith('## 4'):
+                sec = None
+            m = re.match(r'^\| `([a-z_]+)` \|.*\| Full のみ[^|]* \|$', line)
+            if sec and m:
+                out[sec].add(m.group(1))
+    return out
+
+
+REJECTED_TT_KEEP_V1 = REJECTED_TT_KEEP | {'format'}
+
+
+def _load(example, name):
+    path = os.path.join(example, name + '.yaml')
+    return (core.load_yaml(path) or {}) if os.path.isfile(path) else {}
+
+
+def _row(v):
+    return len(fields(v, ())) if isinstance(v, dict) else (0 if v is None else 1)
+
+
+def _count_section(v):
+    """A section of catalog_answers.yaml or an issuance_profile item: every written leaf counts as one field, and a list of
+    plain values (a list of IDs, `searched`) counts as one field, like a nested value of a YAML row."""
+    if v is None:
+        return 0
+    if isinstance(v, dict):
+        return sum(_count_section(x) for x in v.values())
+    if isinstance(v, list):
+        if all(not isinstance(x, (dict, list)) for x in v):
+            return 1
+        return sum(_count_section(x) for x in v)
+    return 1
+
+
+def count_current(example, profile):
+    """(rows, total) of the hand-written fields of a worked example under the Lite or Full definition of #4."""
+    lite = profile == 'lite'
+    claims = _load(example, 'claims').get('claims') or []
+    tdoc = _load(example, 'token_types')
+    hops = _load(example, 'hops').get('hops') or []
+    adoc = _load(example, 'catalog_answers')
+    rows = []
+    fo = full_only_columns() if lite else {'claims': set(), 'token_types': set(), 'hops': set()}
+    groups = {'read': [0, 0], 'unread': [0, 0], 'rejected': [0, 0]}
+    for c in claims:
+        f = [k for k in fields(c) if k not in fo['claims']]
+        if c.get('decision') == '却下':
+            g = 'rejected'
+        elif c.get('decision') == '既定どおり' and c.get('consumers') == []:
+            g = 'unread'
+            if lite:
+                f = [x for x in f if x in UNREAD_KEEP | {'data_category', 'confidential_from', 'max_items', 'catalog_refs'}]
+        else:
+            g = 'read'
+            if lite:
+                f = [x for x in f if x not in GENERATED_CARRIED and not (x == 'overflow_strategy' and c.get('shape') != 'array')]
+        groups[g][0] += 1
+        groups[g][1] += len(f)
+    rows.append((f"台帳：載せて誰かが読む行（{groups['read'][0]} 行）", groups['read'][1]))
+    rows.append((f"台帳：既定どおりで誰も読まない行（{groups['unread'][0]} 行）", groups['unread'][1]))
+    rows.append((f"台帳：却下の行（{groups['rejected'][0]} 行）", groups['rejected'][1]))
+    ip = tdoc.get('issuance_profile') or {}
+    if lite:
+        off = [k for k, v in ip.items() if k in DEFAULT_PROFILE and isinstance(v, dict) and v.get('value') != DEFAULT_PROFILE[k]]
+        off += [k for k in ip if k not in DEFAULT_PROFILE and k != 'client_auth']
+        rows.append((f"発行方式の選択（既定から外れた {len(off)} 項目）", sum(_row(ip[k]) for k in off)))
+    else:
+        rows.append(('発行方式の選択', sum(_row(v) for v in ip.values())))
+    tts = tdoc.get('token_types') or []
+    rows.append((f'トークン目録（{len(tts)} 行）', sum(
+        len([k for k in fields(t) if k in REJECTED_TT_KEEP_V1]) if lite and t.get('decision') == '却下'
+        else len([k for k in fields(t) if k not in fo['token_types']])
+        for t in tts)))
+    hand_hops = [h for h in hops if not lite or h.get('kind') in ('exchange', 'reissue')]
+    note = '。交換・作り直しのホップだけ' if lite else ''
+    rows.append((f'ホップ（{len(hand_hops)} 行{note}）', sum(len([k for k in fields(h) if k not in fo['hops']]) for h in hand_hops)))
+    answers = adoc.get('answers') or []
+    inherited = [a for a in answers if a.get('inherit') == 'idp-default']
+    rows.append((f'カタログへの回答（{len(answers)} 件。引き継ぎ {len(inherited)} 件は各 1 欄）', sum(
+        INHERITED_FIELD if a in inherited else len(fields(a, ())) for a in answers)))
+    other = sum(_count_section(v) for k, v in adoc.items() if k != 'answers')
+    keys = '・'.join(k for k in adoc if k != 'answers')
+    rows.append((f'網羅の節（{keys}）', other))
+    hand_q, files = 0, 0
+    for n in sorted(os.listdir(example)):
+        if n.startswith('claim_request_') and n.endswith('.md'):
+            files += 1
+            text = open(os.path.join(example, n), encoding='utf-8').read()
+            hand_q += len(re.findall(r'^\| \d+ \|.*\| 手書き \|$', text, flags=re.M))
+    rows.append((f'追加前の 25 問（{files} ファイルの手書きの問い）', hand_q))
+    return rows, sum(r[1] for r in rows)
+
+
+def main_current(example, profile):
+    rows, total = count_current(example, profile)
+    out = [f'| 対象（{os.path.basename(os.path.normpath(example))}、{profile}） | 手で書く欄 |', '| --- | --- |']
+    out += [f'| {n} | {v} |' for n, v in rows]
+    out.append(f'| **YAML と 25 問の欄の計** | **{total}** |')
+    sec = '・'.join(map(str, HAND_SECTIONS[profile]))
+    out.append(f'| 設計書の手で書く節（00_core の番号） | {len(HAND_SECTIONS[profile])}（{sec}） |')
+    sys.stdout.buffer.write(('\n'.join(out) + '\n').encode('utf-8'))
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == '--current':
+        profile = argv[argv.index('--profile') + 1] if '--profile' in argv else 'lite'
+        if profile not in HAND_SECTIONS or len(argv) < 2:
+            sys.stderr.write('usage: count_lite_fields.py --current EXAMPLE_DIR --profile lite|full\n')
+            return 2
+        return main_current(os.path.abspath(argv[1]), profile)
     example = os.path.abspath(argv[0]) if argv else os.path.join(ROOT, 'templates', 'examples', 'scenario-a')
     rows, (tb, ta), hand, hand_oos = count(example)
     out = ['| 対象 | 今の記入例 | 縮小 Lite | 差 |', '| --- | --- | --- | --- |']

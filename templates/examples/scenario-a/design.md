@@ -6,13 +6,13 @@
 - **生成の区間**：`<!-- render:<節>:begin -->` と `<!-- render:<節>:end -->` の間は、`python tools/claim_lint render templates/examples/scenario-a --write` が台帳から書き直す（#19、`tools/claim_lint/RENDER.md`）。手で直さず、台帳を直してから生成し直す。CI は `render --check` で、区間が台帳から生成し直したものと違えば失敗する。区間の外は手で書く
 - 版：0.2.3（#18 の目的と仕組みの規則が求める宣言を足した版）。0.2.2 は #6 の意味の規則が求める宣言を足した版。0.2.1 は #19 で生成の区間に置き換えた版（前の版は 0.2.0）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
-- 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
+- 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`・`claim_request_user_id.md`・`claim_request_roles.md`・`claim_request_v.md`。#4 で後の 3 つを足した）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
 
 ## 1. CI の結果　〔縮小 Lite：生成〕
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 6、info 6**（claims 25・token_types 18・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 3、info 6**（claims 25・token_types 18・catalog_events 62）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -24,9 +24,6 @@
 | `L1b` | info | `C-typ-claim` | IdP が既定で出す私的名 typ（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す |
 | `L2` | info | `idp` | IdP keycloak の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。L2 は確かめていない（IdP モジュール #4 で手で確かめる） |
 | `L27` | info | `token_type AT` | at+jwt の REQUIRED の client_id（RFC 9068 §2.2）が無いことを、台帳の却下の行で逸脱として記録している |
-| `L72` | warn | `C-user-id` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
-| `L72` | warn | `C-roles` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
-| `L72` | warn | `C-v` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
 | `L11` | warn | `C-scope` | AT に scope を載せるのに、認可の判断に使う宣言（enforced_at）がない。載せるなら判断に使い、使わないなら載せない（OWASP ASVS 5.0.0 10.3.2） |
 
 R8 AT：ヘッダー 86・ペイロード 599・署名 256 バイト（ceil(4/3*86) + ceil(4/3*599) + ceil(4/3*256) + 2 = 115 + 799 + 342 + 2 = 1258; + 7 (Bearer) = 1265）。nginx-large-client-header-buffers 1280／8192 バイト、nodejs-max-http-header-size 3328／16384 バイト

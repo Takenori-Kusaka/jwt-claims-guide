@@ -523,11 +523,13 @@
      ]
     },
     "typ": {
+     "$comment": "Trace: req:p03-confusing-differences.R5",
      "type": "string",
      "minLength": 1,
      "pattern": "\\S"
     },
     "alg_allowlist": {
+     "$comment": "Trace: req:p01-library-defaults.R3",
      "type": "array",
      "items": {
       "type": "string",
@@ -540,6 +542,7 @@
      "description": "Allowed alg values; one per key"
     },
     "issuers": {
+     "$comment": "Trace: req:p05-multitenancy.R2",
      "type": "array",
      "items": {
       "type": "object",
@@ -586,6 +589,7 @@
      ]
     },
     "required_claims": {
+     "$comment": "Trace: req:p03-keycloak-aud-lightweight.R2",
      "type": "array",
      "items": {
       "type": "string",
@@ -600,7 +604,7 @@
     "max_clock_skew": {
      "type": "integer",
      "minimum": 0,
-     "$comment": "Trace: req:p01-attack-patterns.R5"
+     "$comment": "Trace: req:p01-attack-patterns.R5 req:p01-library-defaults.R5"
     },
     "max_lifetime": {
      "type": "integer",
@@ -765,7 +769,7 @@
      "maxItems": 10,
      "minItems": 1,
      "description": "Means that end the token (or session) before max_lifetime, with the worst-case delay until consumers stop accepting it. exp_only: a locally validated JWT stays until exp",
-     "$comment": "Trace: req:p08-logout.R2"
+     "$comment": "Trace: req:p08-logout.R2 req:p01-self-contained-vs-reference.R1 req:p10-delegation-chain-depth.R3"
     },
     "introspection_cache_ttl": {
      "type": "integer",
@@ -842,6 +846,7 @@
      "description": "New keys are published before use; old keys leave the JWKS after the longest token signed with them expires"
     },
     "unknown_kid": {
+     "$comment": "Trace: req:p01-dangerous-header-params.R3",
      "type": "object",
      "additionalProperties": false,
      "properties": {
@@ -878,6 +883,7 @@
      ]
     },
     "stored_at": {
+     "$comment": "Trace: req:p09-url-browser.R4 req:p06-flow-browser-to-db.R1",
      "enum": [
       "browser",
       "bff_server",
@@ -1023,7 +1029,7 @@
       }
      ],
      "description": "Whether the token is encrypted. When used: signed then encrypted, one encryption key per recipient, and who can decrypt",
-     "$comment": "Trace: req:p01-jwt-structure.R3"
+     "$comment": "Trace: req:p01-jwt-structure.R3 req:p09-jwe-sd-jwt.R1"
     },
     "log_policy": {
      "enum": [
