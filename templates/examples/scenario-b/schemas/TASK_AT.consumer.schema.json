@@ -51,7 +51,7 @@
    "type": "string"
   },
   "scope": {
-   "description": "クライアント（エージェント・ツール）に許した操作の範囲。AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ",
+   "description": "クライアントに許した操作の範囲。KC_AT は portal のクライアントスコープ、INT_AT 系は呼び出し先の操作だけ、TXN は取引の最も狭い目的（草案 -11 §9.2 で必須）、AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ",
    "$comment": "C-scope",
    "type": "string"
   },

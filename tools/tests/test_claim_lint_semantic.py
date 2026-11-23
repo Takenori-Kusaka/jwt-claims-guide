@@ -139,19 +139,32 @@ def test_l1b_same_name_different_meaning_fails(tmp_path):
     assert any('同じ名前' in f['message'] for f in bad(lint(tmp_path, d), 'L1b'))
 
 
-def test_l1b_name_defined_by_a_versioned_draft_is_warn(tmp_path):
-    """A name the draft defines (Txn-Token req_wl; #4 scenario B) warns instead of failing, only when registered_ref points
-    at the draft section and spec_version lists the same draft."""
+def _draft_row(name, draft='draft-ietf-oauth-transaction-tokens-11', sec='§9.2', usage='protocol', spec=True):
+    return new_claim(id='C-' + name.replace('_', '-'), name=name, namespace=None, usage=usage,
+                     spec_version=[draft] if spec else None, registered_ref={'kind': 'spec', 'id': f'{draft} {sec}'})
+
+
+def test_l1b_name_pinned_for_its_draft_is_warn(tmp_path):
+    """A name that tools/claim_lint/draft_claims.yaml pins for the cited draft (Txn-Token req_wl) warns (#4 scenario B)."""
     d = base()
-    draft = 'draft-ietf-oauth-transaction-tokens-11'
-    d['claims']['claims'].append(new_claim(id='C-req-wl', name='req_wl', namespace=None, spec_version=[draft],
-                                           registered_ref={'kind': 'spec', 'id': draft + ' §9.2'}))
+    d['claims']['claims'].append(_draft_row('req_wl'))
     f = [x for x in lint(tmp_path, d)['findings'] if x['rule'] == 'L1b' and x['target'] == 'C-req-wl']
     assert [x['severity'] for x in f] == ['warn']
-    d2 = base()
-    d2['claims']['claims'].append(new_claim(id='C-req-wl', name='req_wl', namespace=None,
-                                            registered_ref={'kind': 'spec', 'id': draft + ' §9.2'}))  # no spec_version
-    assert [x['target'] for x in bad(lint(tmp_path / 'b', d2), 'L1b')] == ['C-req-wl']
+
+
+def test_l1b_draft_relaxation_cannot_be_abused(tmp_path):
+    """PR #44 review B06: a made-up draft, a name the real draft does not define, an authz use, or no spec_version stay
+    errors."""
+    cases = [
+        _draft_row('is_admin', draft='draft-acme-made-up-claims-00', sec='§1', usage='authz'),  # (1) fake draft
+        _draft_row('superuser', usage='authz'),                                                   # (2) real draft, foreign name
+        _draft_row('req_wl', usage='authz'),                                                      # pinned name used for authz
+        _draft_row('req_wl', spec=False),                                                         # no spec_version
+    ]
+    for k, row in enumerate(cases):
+        d = base()
+        d['claims']['claims'].append(row)
+        assert [x['target'] for x in bad(lint(tmp_path / str(k), d), 'L1b')] == [row['id']], row
 
 
 def test_l1b_idp_default_private_name_is_info(example):
@@ -688,3 +701,44 @@ def test_l5_db_lookup_note_matches_whole_id(tmp_path):
     claim(d, 'C-roles').update(volatility=60, propagation_delay=0)
     tt(d, 'AT')['revocation'].append({'method': 'db_lookup', 'delay_seconds': 0, 'note': 'C-role を引く'})
     assert [f['target'] for f in bad(lint(tmp_path, d), 'L5')] == ['C-roles']
+
+
+# ------------------------------------------------------------------ L16: aud replacement, per-dimension exceptions (#4)
+def _sev16(res, hid='hop H4'):
+    return sorted((f['severity'], f['message'][:12]) for f in res['findings'] if f['rule'] == 'L16' and f['target'] == hid)
+
+
+def test_l16_declared_single_aud_replacement_is_info(tmp_path):
+    """slide:p06-narrow-downstream: an exchange may replace aud with one different audience; declared, it is not widening."""
+    d = base()
+    _exchange(d, ['invoices'], ['openid'], 120)
+    hop(d, 'H4').update(aud_replacement=True, narrowing_exception={'aud': '交換で次の 1 つの宛先に替える（MCP の素通しの禁止）'})
+    res = lint(tmp_path, d)
+    assert [f['severity'] for f in res['findings'] if f['rule'] == 'L16'] == ['info']
+
+
+def test_l16_aud_replacement_needs_one_aud_and_a_reason(tmp_path):
+    d = base()
+    _exchange(d, ['invoices', 'orders'], ['openid'], 120)
+    hop(d, 'H4').update(aud_replacement=True, narrowing_exception={'aud': '交換で次の宛先に替える（理由の例）'})
+    assert [f['severity'] for f in lint(tmp_path / 'a', d)['findings'] if f['rule'] == 'L16'] == ['warn']
+    d = base()
+    _exchange(d, ['invoices'], ['openid'], 120)
+    hop(d, 'H4').update(aud_replacement=True)
+    assert [f['severity'] for f in lint(tmp_path / 'b', d)['findings'] if f['rule'] == 'L16'] == ['warn']
+
+
+def test_l16_per_dimension_exception_records_reason(tmp_path):
+    d = base()
+    _exchange(d, ['saas-api'], ['openid', 'admin'], 600)
+    hop(d, 'H4').update(narrowing_exception={'scope': '管理の操作だけを足す交換（理由の例）', 'max_lifetime': 'バッチの処理に合わせる（理由の例）'})
+    res = lint(tmp_path, d)
+    sev = [f['severity'] for f in res['findings'] if f['rule'] == 'L16']
+    assert sev == ['info', 'info'] and all('理由' in f['message'] for f in res['findings'] if f['rule'] == 'L16')
+
+
+def test_l16_extra_custom_claim_has_no_exception(tmp_path):
+    d = base()
+    _exchange(d, ['saas-api'], ['openid'], 120, ('C-tenant-id', 'C-email'))
+    hop(d, 'H4').update(narrowing_exception={'aud': 'この欄は独自クレームの例外にはならない'})
+    assert any('C-email' in f['message'] for f in bad(lint(tmp_path, d), 'L16'))

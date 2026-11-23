@@ -51,7 +51,7 @@
    "type": "string"
   },
   "scope": {
-   "description": "クライアント（エージェント・ツール）に許した操作の範囲。AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ",
+   "description": "クライアントに許した操作の範囲。KC_AT は portal のクライアントスコープ、INT_AT 系は呼び出し先の操作だけ、TXN は取引の最も狭い目的（草案 -11 §9.2 で必須）、AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ",
    "$comment": "C-scope",
    "type": "string"
   },
@@ -64,6 +64,14 @@
    "description": "トークンを束縛した鍵。DPoP の公開鍵の JWK の SHA-256 の拇印（cnf.jkt）",
    "$comment": "C-cnf",
    "type": "object"
+  },
+  "authorization_details": {
+   "description": "人が承認した支払いの内容（type https://claims.example.com/rar/payment、actions [pay]、identifier（請求書の ID）、instructedAmount、creditorAccount）",
+   "$comment": "C-authorization-details",
+   "type": "array",
+   "items": {
+    "type": "object"
+   }
   },
   "https://claims.example.com/": {
    "type": "object",
@@ -87,6 +95,11 @@
      "description": "エージェントのタスクの ID（利用者がエージェントに与えた 1 つの仕事）",
      "$comment": "C-task-id",
      "type": "string"
+    },
+    "approval_id": {
+     "description": "人の承認の記録の ID（CIBA で本人が支払いを承認した記録）",
+     "$comment": "C-approval-id",
+     "type": "string"
     }
    },
    "additionalProperties": true,
@@ -94,6 +107,7 @@
     "tenant_id",
     "user_id",
     "task_id",
+    "approval_id",
     "v"
    ]
   }
@@ -109,6 +123,7 @@
   "scope",
   "act",
   "cnf",
+  "authorization_details",
   "https://claims.example.com/"
  ],
  "additionalProperties": true

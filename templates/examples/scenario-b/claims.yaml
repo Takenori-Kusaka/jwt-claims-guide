@@ -69,7 +69,7 @@ claims:
     recompute_trigger: [login, refresh, exchange, reissue]
     on_revoke: 値は変わらない。発行者をやめたら、受け手の許可リストから外す
     carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
-    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices]
     consumer_access_path:
       - {consumer: gateway, via: token_library, note: 入口の検証の部品（IdP ごとの許可リストと JWKS）}
       - {consumer: orders, via: token_library, note: 組織共通の検証の部品（STS の iss だけ）}
@@ -179,7 +179,7 @@ claims:
       - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
       - {kind: guide-slide, id: p06-narrow-downstream}
       - {kind: guide-slide, id: p10-mcp-authorization}
-    assumption: STS は resource indicator の値を 1 つだけ受け、その値を aud に書く
+    assumption: KC_AT の aud は Keycloak の Audience マッパーで固定する（Keycloak は RFC 8707 の resource パラメータに対応していない）。組織の sts は resource indicator の値を 1 つだけ受け、その値を aud に書く
     revisit_trigger: 1 つのトークンで 2 つ以上のサービスを呼ぶ設計にするとき
     spec_version: [draft-ietf-oauth-transaction-tokens-11]
     usage: authz
@@ -196,7 +196,7 @@ claims:
     recompute_trigger: [login, refresh, exchange, reissue]
     on_revoke: 値は変わらない
     carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
-    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices]
     on_missing: 拒否
     absent_semantics: {absent: 拒否, empty_array: 拒否}
     enforced_at:
@@ -208,7 +208,6 @@ claims:
       - {service: invoice-mcp, check: "AGENT_AT の aud が invoice-mcp だけ。自分宛てでないトークンは受けず、受けたトークンを上流に渡さない（ケーススタディ C2・C13）"}
       - {service: invoices, check: TASK_AT の aud が invoices だけ（2 つ以上なら拒否）}
       - {service: portal, check: IDT・LOGOUT の aud が portal}
-      - {service: payment-worker, check: TXN の aud が信頼ドメイン}
     max_bytes: 26
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -252,7 +251,7 @@ claims:
     recompute_trigger: [login, refresh, exchange, reissue]
     on_revoke: 該当なし
     carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
-    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices]
     on_missing: 拒否
     allowed_values: {format: numeric-date}
     enforced_at:
@@ -317,8 +316,8 @@ claims:
       - {service: ledger, check: "exp − iat ≤ 300"}
       - {service: docs, check: "exp − iat ≤ 300"}
       - {service: payroll, check: "exp − iat ≤ 300"}
-      - {service: invoice-mcp, check: "DPoP の proof の iat が今から ±60 秒の中（RFC 9449 §11.1 の受け入れる期間）"}
-      - {service: invoices, check: "DPoP の proof の iat が今から ±60 秒の中"}
+      - {service: invoice-mcp, check: "DPoP の proof の iat が今から ±60 秒の中（窓の幅は筆者の提案。RFC 9449 §11.1 は数値を定めない）"}
+      - {service: invoices, check: "DPoP の proof の iat が今から ±60 秒の中（同上）"}
     max_bytes: 10
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -516,42 +515,49 @@ claims:
     registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
     type: string
     shape: space_delimited
-    max_items: 4
+    max_items: 6
     typical_items: 2
-    description: クライアント（エージェント・ツール）に許した操作の範囲。AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ
+    description: クライアントに許した操作の範囲。KC_AT は portal のクライアントスコープ、INT_AT 系は呼び出し先の操作だけ、TXN は取引の最も狭い目的（草案 -11 §9.2 で必須）、AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ
     not_meaning: 利用者のロールではない。個別の請求書や金額の承認ではない（それは authorization_details）
     decision: 採用
-    rationale: エージェントのタスクの範囲を、交換のたびに上流以下に絞る（返金の範囲を求めても与えない。ケーススタディ C14）。KC_AT では入口だけが読む
+    rationale: 宛先ごと・取引ごとに操作の範囲を上流以下に絞る。入口は KC_AT の scope に呼び出し先の操作があるときだけ作り直し、INT_AT・TXN にはその操作だけを写す。エージェントのタスクの範囲は交換のたびに絞る（返金の範囲を求めても与えない。ケーススタディ C14）
     refs:
       - {kind: spec, id: "RFC 9068 §2.2.3", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3"}
       - {kind: guide-slide, id: p10-per-tool-scopes}
       - {kind: guide-slide, id: p05-scope-vs-role}
     assumption: STS の交換は、要求された scope と subject_token の scope の積だけを出す
     revisit_trigger: エージェントのツールを増やすとき（語彙と max_items を見直す）
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
     usage: authz
     answers: [q-authorized]
     does_not_answer: [q-resource]
-    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com"]
     authoritative_writer:
       - {stage: "②", writer: Keycloak（クライアントスコープ）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（作り直しで呼び出し先の操作だけに絞る）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（取引の最も狭い目的）, configurable_by: [platform]}
       - {stage: "⑥", writer: 入口の STS（CIBA の同意・交換で絞る）, configurable_by: [platform]}
     provenance: 管理者が設定した値
-    issue_events: [I01, I02, I06, I13]
+    issue_events: [I01, I02, I06, I13, I21, I22]
     source_system: STS のクライアントごとの許可（エージェント・ツールの登録）
     volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh, exchange]
     on_revoke: 寿命（300 秒）の間は変わらない。タスクの範囲を変えるときは交換し直す
-    carried_in: [KC_AT, AGENT_AT, TASK_AT]
-    consumers: [gateway, invoice-mcp, invoices]
+    carried_in: [KC_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+    consumers: [gateway, orders, ledger, docs, payroll, invoice-mcp, invoices]
     on_missing: 拒否
     absent_semantics: {absent: 拒否, empty_string: 拒否}
-    value_vocabulary: {values: [openid, invoices.read, invoices.pay, invoices.refund], owner: 社内 ID 基盤チーム, extensible: false}
+    value_vocabulary: {values: [openid, orders.read, ledger.read, ledger.post, docs.read, payslip.read, invoices.read, invoices.pay, invoices.refund], owner: 社内 ID 基盤チーム, extensible: false}
     enforced_at:
-      - {service: gateway, check: KC_AT の scope に openid があること（ほかは読まない）}
+      - {service: gateway, check: "KC_AT の scope に、呼び出し先の操作の scope（orders.read・ledger.read・ledger.post・docs.read・payslip.read）があること。INT_AT と TXN には、その操作の scope だけを写す（PR #44 のレビュー B02）"}
+      - {service: orders, check: INT_AT の scope に orders.read があること}
+      - {service: ledger, check: "書き込みは INT_AT_LEDGER の scope に ledger.post があるときだけ。TXN だけの要求は scope が ledger.read のときだけ受ける（B01）"}
+      - {service: docs, check: INT_AT_DOCS の scope に docs.read があること}
+      - {service: payroll, check: INT_AT_PAYROLL の scope に payslip.read があること}
       - {service: invoice-mcp, check: 呼ばれたツールに要る scope が AGENT_AT にあること。足りなければ WWW-Authenticate で要る scope を示す}
       - {service: invoices, check: 操作（read・pay・refund）に要る scope が TASK_AT にあること（ケーススタディ C14）}
-    max_bytes: 49
+    max_bytes: 80
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
     log_policy: 記録する
@@ -581,7 +587,7 @@ claims:
       - {kind: guide-slide, id: p05-one-request-carries}
       - {kind: guide-slide, id: p10-agent-identity}
     assumption: STS だけが act を書き、交換のたびに今の代理者を外側に足す
-    revisit_trigger: Keycloak の標準トークン交換に移す（Keycloak 26.8 の標準トークン交換は act を出さない。ケーススタディの実測）とき
+    revisit_trigger: Keycloak の標準トークン交換に移すとき（Keycloak 26.8 の標準トークン交換は既定では act を出さない。ケーススタディの実測。プレビューの機能 token-exchange-delegation を有効にすれば出す）
     usage: authz
     answers: [q-actor]
     does_not_answer: [q-sub, q-req-wl, q-peer, q-txn]
@@ -812,18 +818,19 @@ claims:
     authoritative_writer: [{stage: "⑥", writer: 入口の STS（承認の記録から）, configurable_by: [platform]}]
     provenance: 発行者が確かめた値
     verification_method: CIBA で本人が承認した記録（承認の ID・請求書・金額・相手先）を STS が引く
-    issue_events: [I06, I14]
+    issue_events: [I13, I06, I14]
     source_system: 承認の記録（STS の承認の DB）
     volatility: never
     propagation_delay: 0
     recompute_trigger: [exchange]
     on_revoke: 承認を取り消したら交換を断る。発行済みの TASK_AT は寿命（300 秒）まで残るので、invoices は支払いの前に承認の記録の状態を引く
-    carried_in: [TASK_AT]
-    consumers: [invoices]
+    carried_in: [AGENT_AT, TASK_AT]
+    consumers: [invoice-mcp, invoices]
     on_missing: 拒否
     absent_semantics: {absent: 支払いを拒否（読み取りだけ許す）, empty_array: 支払いを拒否}
     value_vocabulary: {values: ["https://claims.example.com/rar/payment"], namespace: "https://claims.example.com/rar/", owner: 社内 ID 基盤チーム, extensible: false}
     enforced_at:
+      - {service: invoice-mcp, check: "AGENT_AT の authorization_details の金額・相手先・対象と、ツールに渡された支払いの内容が一致する。交換の要求で同じ内容だけを求める"}
       - {service: invoices, check: "type が https://claims.example.com/rar/payment で、identifier・instructedAmount・creditorAccount が要求の本文と一致する（C5・C6）。C-approval-id の記録が有効か、支払いの前に承認の DB を引く（C7）"}
     max_bytes: 220
     overflow_strategy: 発行を失敗させる
@@ -870,11 +877,11 @@ claims:
     recompute_trigger: [reissue]
     on_revoke: 該当なし
     carried_in: [TXN]
-    consumers: [ledger, payment-worker]
+    consumers: [orders, ledger]
     on_missing: 拒否
     enforced_at:
-      - {service: ledger, check: 必須。監査のログに記録する}
-      - {service: payment-worker, check: メッセージの txn と、付いた TXN の txn が一致する}
+      - {service: orders, check: 必須。改変せずに ledger に渡す}
+      - {service: ledger, check: 必須。監査のログに記録し、支払いのイベント（H12）に値だけを写す}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -915,11 +922,10 @@ claims:
     recompute_trigger: [reissue]
     on_revoke: 該当なし
     carried_in: [TXN]
-    consumers: [ledger, payment-worker]
+    consumers: [ledger]
     on_missing: 拒否
     enforced_at:
       - {service: ledger, check: 入口の SPIFFE ID であること。監査に記録する}
-      - {service: payment-worker, check: 入口の SPIFFE ID であること}
     max_bytes: 64
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -949,7 +955,7 @@ claims:
     assumption: operation の語彙は入口の経路の表で決まる
     revisit_trigger: Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき
     spec_version: [draft-ietf-oauth-transaction-tokens-11]
-    usage: authz
+    usage: protocol
     answers: [q-txn]
     does_not_answer: [q-authorized]
     issuers: ["https://tts.corp.example.com"]
@@ -962,12 +968,11 @@ claims:
     recompute_trigger: [reissue]
     on_revoke: 該当なし
     carried_in: [TXN]
-    consumers: [ledger, payment-worker]
+    consumers: [ledger]
     on_missing: 拒否
     value_vocabulary: {values: [operation], owner: 社内 ID 基盤チーム, extensible: false}
     enforced_at:
-      - {service: ledger, check: "tctx の operation が、要求の操作（ledger.read・ledger.post）と一致する"}
-      - {service: payment-worker, check: "tctx の operation が payment.notify であること"}
+      - {service: ledger, check: "operation が TXN の scope（ledger.read）と食い違えば拒否し、監査に記録する。operation で書き込みを許さない（TXN の経路の操作は scope で決める。PR #44 のレビュー B01）"}
     max_bytes: 40
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -1559,17 +1564,22 @@ claims:
     provenance: 管理者が設定した値
     issue_events: [I01, I02, I21]
     source_system: Keycloak のレルムロールと、外部の IdP のグループ（ディレクトリ）
-    volatility: 330
-    propagation_delay: 330
+    volatility: 390
+    propagation_delay: 390
     recompute_trigger: [login, refresh, reissue]
-    on_revoke: "ロールを外しても、INT_AT の受け入れの上限（330 秒）の間は残る。管理の操作では、orders が Keycloak の利用者のロールを引き直す（ケーススタディの freshness）"
+    on_revoke: >-
+      社員（Keycloak）のロールを外しても、INT_AT の受け入れの上限（330 秒）の間は残る。管理の操作では、orders が Keycloak の利用者のロールを引き直す（ケーススタディの freshness）。
+      グループ会社の社員は、EXT_AT の groups を写すと剥奪の反映が EXT_AT の受け入れの上限（5430 秒）と INT_AT の 330 秒の和（最悪 5760 秒）になり、
+      Keycloak を引き直す対策も効かない。そこで入口は EXT_AT の groups を写さず、INT_AT を作るたびに各社のディレクトリで今の所属を引く（結果は 60 秒まで
+      キャッシュする。遅れの最悪は 60＋330＝390 秒で、volatility もこれに合わせた。ディレクトリ参照は p50 50.7 ms、ケーススタディの測定）。
+      さらに、EXT_AT から作る INT_AT には admins・editor を写さず（viewer・staff だけ）、グループ会社の社員の管理・編集の操作は受けない（PR #44 のレビュー B03）
     carried_in: [KC_AT, INT_AT]
     consumers: [gateway, orders]
     on_missing: 拒否
     absent_semantics: {absent: "拒否（超過で消えたのを「ロールなし」と読まない。ケーススタディ B8）", empty_array: ロールなし（何も許さない）}
     value_vocabulary: {values: [admins, editor, viewer, staff], owner: 社内 ID 基盤チーム, extensible: false}
     enforced_at:
-      - {service: gateway, check: 対応表で 4 つの語彙に写す。超過はディレクトリを引いて解決する。クライアントが送った X-User-Role などのヘッダーを、大文字小文字・アンダースコア・重複を含めて捨てる（B4・B5・B6）}
+      - {service: gateway, check: "対応表で 4 つの語彙に写す。EXT_AT から作るときは groups を写さず、各社のディレクトリで今の所属を引き（60 秒まで再利用）、viewer・staff だけを写す（admins・editor は Keycloak の社員だけ）。超過はディレクトリを引いて解決する。クライアントが送った X-User-Role などのヘッダーを、大文字小文字・アンダースコア・重複を含めて捨てる（B4・B5・B6）"}
       - {service: orders, check: 配列であること。4 件を超えたら拒否。語彙の外の値は無視。管理の操作は Keycloak の利用者のロールを引き直す}
     max_bytes: 6
     overflow_strategy: 上限で固定（超えない値域）
@@ -1850,18 +1860,19 @@ claims:
     issuers: ["https://sts.corp.example.com"]
     authoritative_writer: [{stage: "⑥", writer: 入口の STS（承認の記録から）, configurable_by: [platform]}]
     provenance: 発行者が確かめた値
-    issue_events: [I06, I14]
+    issue_events: [I13, I06, I14]
     source_system: 承認の記録（STS の承認の DB）
     volatility: 0
     propagation_delay: 0
     recompute_trigger: [exchange]
     on_revoke: "承認の取り消しは即時に反映が要る（volatility 0）。TASK_AT の受け入れの上限（300 秒＋ずれ 30 秒）はこれより長いので、トークンの値に頼らず、invoices が支払いの前に承認の DB で記録の状態を引いて拒否する（遅れ 0 秒。TASK_AT の revocation の db_lookup）。鮮度の表（design.md の 9.2）の「問い合わせに切り替える」の行"
-    carried_in: [TASK_AT]
-    consumers: [invoices]
+    carried_in: [AGENT_AT, TASK_AT]
+    consumers: [invoice-mcp, invoices]
     on_missing: 拒否
     absent_semantics: {absent: 支払いを拒否}
     allowed_values: {pattern: "^ap-[0-9]{1,12}$"}
     enforced_at:
+      - {service: invoice-mcp, check: AGENT_AT の承認の ID の記録が有効で、ツールに渡された支払いの内容が AGENT_AT の authorization_details と一致すること。交換の要求に同じ承認を引き継ぐ}
       - {service: invoices, check: 承認の DB に記録があり、持ち主が sub、内容が authorization_details と一致すること（C5・C6・C7）}
     max_bytes: 15
     overflow_strategy: 上限で固定（超えない値域）

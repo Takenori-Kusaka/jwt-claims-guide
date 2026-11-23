@@ -208,23 +208,27 @@ e-Gov 法令 API の現行の本文（https://laws.e-gov.go.jp/api/1/lawdata/415
 | B2 | 費用の数値：入口の交換 p50 682 µs、イントロスペクション p50 8.9 ms、ディレクトリ参照 p50 50.7 ms、DPoP の証明 498 バイト・作成と検証 p50 約 0.1 ms、JWS 670 バイト・JWE 1345 バイト | design.md の 3.1 | repo（同上） |
 | B3 | Keycloak 26.8.0 のリフレッシュでマッパーが再実行され、部署・ロールが反映される。RT はローテーションされる | 目録の KC_AT・RT | repo（同上の「Keycloak 26.8 の実際の挙動」） |
 | B4 | Keycloak corp の AT に `client_id` が無い | `C-kc-client-id`（却下） | シナリオ A の見本（2026-11-22）からの推定。corp では確かめていない（design.md の 12.） |
-| B5 | RFC 9068 §2.2 の at+jwt の REQUIRED（iss・exp・aud・sub・client_id・iat・jti）、RFC 8693 §4.1（最も外側の act が今の行為者）・§4.4（may_act）、RFC 7800 §3.1（cnf）、RFC 9449 §4.2・§4.3・§6.1・§8・§11.1、RFC 9396 §2・§9.1、RFC 9470 §3、OpenID Connect Back-Channel Logout 1.0 §2.4（ログアウトトークンに nonce を入れない） | 台帳・目録 | 記憶 |
-| B6 | draft-ietf-oauth-transaction-tokens-11 §9.2（txn・req_wl）・§9.2.3（tctx） | `C-txn`・`C-req-wl`・`C-tctx` | 記憶（2.3 の X2 は作業者が web で確かめた） |
+| B5 | RFC 9068 §2.2 の at+jwt の REQUIRED（iss・exp・aud・sub・client_id・iat・jti）、RFC 8693 §4.1（最も外側の act が今の行為者）・§4.4（may_act）、RFC 7800 §3.1（cnf）、RFC 9449 §4.2・§4.3・§6.1・§8・§11.1（§11.1 は受け入れる期間の数値を定めない。±60 秒は筆者の提案。PR #44 のレビュー B14）、RFC 9396 §2・§9.1、RFC 9470 §3、OpenID Connect Back-Channel Logout 1.0 §2.4（ログアウトトークンに nonce を入れない） | 台帳・目録 | 記憶 |
+| B6 | draft-ietf-oauth-transaction-tokens-11 §9.2（txn・req_wl。scope も REQUIRED）・§9.2.3（tctx） | `C-txn`・`C-req-wl`・`C-tctx`・`C-scope`（TXN の required_claims に scope を足した。PR #44 のレビュー B02） | 記憶（2.3 の X2 は作業者が web で確かめた。scope の REQUIRED は PR #44 のレビューが本文で確かめた） |
 | B7 | IANA の JWT Claims の登録の有無：req_wl・tctx・rctx・typ は未登録、htm・htu・ath・cnf・act・txn・groups は登録済み | 台帳の `registered_ref` | repo（`tools/claim_lint/iana_jwt_claims.yaml`、2026-11-23 取得） |
 | B8 | ASVS 5.0.0 の 9.2.1・9.2.4・10.3.1・10.3.2 | 台帳の `asvs_ids` | 記憶（10.3.2 だけがリポジトリのほかの場所にもある） |
 | B9 | fideslang 3.1.4 のキー（user.unique_id・user.name・user.contact.email・user.job_title・user.financial・user.authorization・system.operations・system.authentication）と、組織の子カテゴリ 2 つ（system.operations.transaction・user.authorization.delegation） | 台帳の `data_category` | 記憶（キーの実在は機械で確かめていない。registry README の 9.） |
 | B10 | DPoP の proof の受け入れの窓 60 秒・nonce の寿命 300 秒、接続の寿命（ledger-db 1800 秒、ブローカー 3600 秒） | 目録の DPOP、hops の H11〜H13 | 設計の値（筆者の提案） |
-| B11 | Kafka の `connections.max.reauth.ms` は SASL の接続にだけ効き、mTLS の接続では効かない | hops の H12 | 記憶（2.4 の D4 は既定値だけを確かめた） |
+| B11 | Kafka の `connections.max.reauth.ms` は SASL の接続にだけ効き、mTLS の接続では効かない | hops の H12 | 記憶（2.4 の D4 は既定値だけを確かめた。PR #44 のレビューが KIP-368 で正しいとした） |
+| B12 | Keycloak は RFC 8707 の resource パラメータに対応していない（Token exchange の章の「not supported yet」）。KC_AT の宛先は Audience マッパーで固定する | `issuance_profile.request_protection`、H2、`C-aud` | PR #44 のレビューが Keycloak の文書で確かめた（B07） |
+| B13 | RFC 10070（2026-11）§4 は RFC 7523 §3.2 を更新し、クライアント認証の JWT の `typ` を `client-authentication+jwt` とすることを SHOULD とする | 目録の CLIENTASSERTION | web（https://www.rfc-editor.org/rfc/rfc10070.html 、2026-11-23） |
+| B14 | Auth0 の AT の typ が at+jwt になるのは RFC 9068 のプロファイルを選んだときだけ（既定は JWT）。Cognito の AT に aud が無いのは resource binding を求めない既定の発行。Okta の `application/okta-internal-at+jwt` は公式文書で確かめられない | 目録の EXT_AT | PR #44 のレビュー（B14）。Okta は未確認として設計書の 12. に書いた |
+| B15 | Keycloak 26.8 の標準トークン交換は既定では act を出さない（ケーススタディの実測）。プレビューの機能 token-exchange-delegation を有効にすれば出す | `C-act` の revisit_trigger | repo と、2.1 の K3 |
 
 ### 5.3 機械の検査の結果（作成のとき）
 
 | 検査 | 結果 |
 | --- | --- |
-| `python tools/claim_lint templates/examples/scenario-b --also-scan .../design.md` | error 0、warn 7、info 28。warn：R3b 3 件（I12・I25・I26 で Keycloak のマッパーが呼ばれるかがカタログで unknown）、L1b 2 件（草案の名前 `req_wl`・`tctx`）、L18 1 件（廃止予定の `C-employee-id` を読む受け手。意図どおり）、L62 1 件（E-token-exchange.2：交換のホップ H15 に上流を置いていない。design.md の 8.） |
+| `python tools/claim_lint templates/examples/scenario-b --also-scan .../design.md` | PR #44 のレビューの反映の後：error 0、warn 6（R3b 3 件：I12・I25・I26 で Keycloak のマッパーが呼ばれるかがカタログで unknown。L1b 2 件：草案の許可リストに載る `req_wl`・`tctx`。L18 1 件：廃止予定の `C-employee-id` を読む受け手。意図どおり）。L62（E-token-exchange.2）は H15 に上流を置いたので出なくなった |
 | `python tools/claim_lint render templates/examples/scenario-b --check` | OK |
 | `python tools/variant_compare.py ... --check design.md` | OK |
 | `python tools/casestudy_check.py templates/examples/scenario-b` | error 0（refs 105、ORG 9、deviations 51） |
-| L16（下流ほど絞る） | 上流を置いた H2・H4〜H7・H10〜H13 で指摘 0 件。上流を置かない H3・H8・H9・H14・H15 の理由は design.md の 8. |
+| L16（下流ほど絞る） | 上流を置いた H2・H4〜H7・H10〜H13・H15 で warn・error 0 件（H15 は aud_replacement の info 1 件）。上流を置かない H3・H8・H9・H14 の理由は design.md の 8. |
 | L21（目録に無いトークン） | 指摘 0 件 |
 
 ### 5.4 規則の変更（#6 の L1b）

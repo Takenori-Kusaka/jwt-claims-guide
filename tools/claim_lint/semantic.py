@@ -74,6 +74,7 @@ class Ctx:
         self.cid = {c.get('id'): c for c in self.claims}
         self.hop = {h.get('id'): h for h in self.hops}
         self.iana = {x['name']: x for x in (_load(os.path.join(HERE, 'iana_jwt_claims.yaml')).get('claims') or [])}
+        self.drafts = _load(os.path.join(HERE, 'draft_claims.yaml')).get('drafts') or {}
         self.reserved = _load(os.path.join(HERE, 'idp_reserved.yaml')).get('idps') or {}
         self.caps = _load(caps_path or os.path.join(HERE, 'lifetime_caps.yaml')).get('caps') or {}
         self.effects = _load(os.path.join(root, 'templates', 'registry', 'issuance_effects.yaml')).get('effects') or []
@@ -149,11 +150,17 @@ def _iss_match(pattern, iss):
     return re.match(rx, iss) is not None
 
 
-def _draft_defined(c):
-    """registered_ref names a section of a versioned IETF draft that spec_version also lists (draft-...-NN)."""
+def _draft_defined(c, drafts):
+    """The name is pinned in draft_claims.yaml for the exact draft (name and version) that registered_ref cites and
+    spec_version lists, and the claim is not used for authorization or identification (PR #44 review B06)."""
     ref = c.get('registered_ref') or {}
-    m = re.match(r'^(draft-[a-z0-9-]+-\d{2})\b', str(ref.get('id') or ''))
-    return bool(m) and ref.get('kind') == 'spec' and m.group(1) in (c.get('spec_version') or [])
+    m = re.match(r'^(draft-[a-z0-9-]+-\d{2})(?: §[0-9.]+)?$', str(ref.get('id') or ''))
+    if not m or ref.get('kind') != 'spec' or m.group(1) not in (c.get('spec_version') or []):
+        return None
+    d = drafts.get(m.group(1)) or {}
+    if c.get('name') not in (d.get('claims') or {}) or c.get('usage') in ('authz', 'identifier'):
+        return None
+    return m.group(1)
 
 
 def rule_l1b(x):
@@ -165,12 +172,13 @@ def rule_l1b(x):
             if c.get('decision') == '既定どおり' and not c.get('consumers'):
                 x.add('L1b', cid, f"IdP が既定で出す私的名 {c.get('name')}（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない"
                                   '（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す', INFO)
-            elif _draft_defined(c):
+            elif _draft_defined(c, x.drafts):
                 # a name that a versioned draft itself defines (Txn-Token req_wl, tctx; #4 scenario B): the name belongs to
                 # the draft, so it cannot move into the organization's namespace. Still unregistered: warn (L14 asks for
                 # spec_version and revisit_trigger)
-                x.add('L1b', cid, f"未登録の名前 {c.get('name')} は草案（{c['registered_ref'].get('id')}）が定める名前。登録の前なので、"
-                                  '草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる', WARN)
+                x.add('L1b', cid, f"未登録の名前 {c.get('name')} は草案（{c['registered_ref'].get('id')}）が定める名前"
+                                  '（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、'
+                                  '登録・改名されたときの見直しの条件を確かめる', WARN)
             else:
                 x.add('L1b', cid, f"未登録の名前 {c.get('name')} を名前空間なしで使っている。IANA の登録名を使うか、組織の名前空間"
                                   '（namespaces）の下に置く（衝突に強い名前、RFC 7519 §4.2・§4.3）')
@@ -467,6 +475,15 @@ def rule_l15(x):
 SEV_WIDEN = WARN
 
 
+def _narrowing_exceptions(h):
+    """narrowing_exception per dimension (aud, scope, max_lifetime, authorization_details). The legacy string form is the
+    reason for max_lifetime. Extra custom_claims have no exception (move the claim upstream instead)."""
+    e = h.get('narrowing_exception')
+    if isinstance(e, str):
+        return {'max_lifetime': e}
+    return e if isinstance(e, dict) else {}
+
+
 def rule_l16(x):
     for h in x.hops:
         up = x.hop.get(h.get('upstream'))
@@ -484,14 +501,33 @@ def rule_l16(x):
         if up_tt is None or up_tt.get('kind') == 'session':
             continue
         x.count('L16.widen')
+        exc = _narrowing_exceptions(h)
         for k, label in (('aud', 'aud'), ('scope', 'scope'), ('authorization_details', 'authorization_details')):
             wide = sorted(set(h.get(k) or []) - set(up.get(k) or []))
-            if wide:
-                x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない）", SEV_WIDEN)
+            if not wide:
+                continue
+            if k == 'aud' and h.get('aud_replacement') is True:
+                # widening = the aud set is not a subset of the upstream's AND the hop is not a declared replacement by a
+                # single audience (slide:p06-narrow-downstream: entry -> orders -> inventory replaces aud at each hop)
+                if len(h.get('aud') or []) == 1 and not _empty(exc.get('aud')):
+                    x.add('L16', hid, f"aud を上流（{up.get('id')}）の {'・'.join(map(str, up.get('aud') or []))} から 1 つの宛先 "
+                                      f"{h['aud'][0]} に替える（aud_replacement。理由：{exc['aud']}）", INFO)
+                    continue
+                x.add('L16', hid, 'aud_replacement は、aud を 1 つの宛先にし、narrowing_exception.aud に理由を書いたときだけ'
+                                  f"使える（いまの aud は {len(h.get('aud') or [])} 個）", SEV_WIDEN)
+                continue
+            if not _empty(exc.get(k)):
+                x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い。"
+                                  f"narrowing_exception.{k} の理由：{exc[k]}", INFO)
+                continue
+            x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない）", SEV_WIDEN)
         ml, uml = h.get('max_lifetime'), up.get('max_lifetime')
         if isinstance(ml, int) and isinstance(uml, int) and ml > uml:
             kind = (x.tt.get(h.get('token_type')) or {}).get('kind')
-            if kind == 'txn_token' and not _empty(h.get('narrowing_exception')):
+            if kind != 'txn_token' and not _empty(exc.get('max_lifetime')):
+                x.add('L16', hid, f"寿命 {ml} 秒が上流（{up.get('id')}）の {uml} 秒を超える。narrowing_exception.max_lifetime の理由："
+                                  f"{exc['max_lifetime']}", INFO)
+            elif kind == 'txn_token' and not _empty(exc.get('max_lifetime')):
                 x.add('L16', hid, f"Txn-Token の寿命 {ml} 秒が上流の {uml} 秒を超える。仕様は認めている（draft-ietf-oauth-transaction-tokens-11 §6）"
                                   f"ので、narrowing_exception の理由を記録として扱う", INFO)
             else:

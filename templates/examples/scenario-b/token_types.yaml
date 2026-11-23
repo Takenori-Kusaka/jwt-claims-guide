@@ -63,8 +63,9 @@ issuance_profile:
   request_protection:
     value: [par, rar, resource_indicators]
     rationale: >-
-      ポータルの認可要求は PAR で URL から外す。エージェントへの委任の要求（CIBA）と交換では、支払いの承認の内容を RAR の authorization_details
-      で運ぶ。宛先は resource indicators で絞る（ポータルは使う API だけ、エージェントは invoice-mcp だけ、交換は invoices だけ）
+      ポータルの認可要求は PAR で URL から外す。エージェントへの委任の要求（CIBA）では、支払いの承認の内容を RAR の authorization_details
+      で運ぶ。resource indicators を使うのは組織の sts だけ（エージェントは invoice-mcp だけ、交換は invoices だけ）。Keycloak は RFC 8707 の
+      resource パラメータに対応していないので、KC_AT の宛先は Audience マッパーで固定する（PR #44 のレビュー B07）
     refs:
       - {kind: spec, id: "RFC 9126 §1", url: "https://www.rfc-editor.org/rfc/rfc9126#section-1"}
       - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
@@ -253,7 +254,7 @@ token_types:
     alg_allowlist: [RS256]
     issuers:
       - {iss: "https://idp.example.com/realms/corp", jwks_uri: "https://idp.example.com/realms/corp/protocol/openid-connect/certs"}
-    required_claims: [iss, sub, aud, exp, iat, jti, azp, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.department", "https://claims.example.com/.employee_id", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, scope, azp, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.department", "https://claims.example.com/.employee_id", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -310,7 +311,7 @@ token_types:
     aud: ["api://corp-gateway"]
     holder: グループ会社のアプリ
     format: jwt
-    typ: "IdP ごと（Entra は JWT、Okta は application/okta-internal-at+jwt、Cognito はヘッダーに無く token_use で見分ける、Auth0 は at+jwt）"
+    typ: "IdP ごと（Entra は JWT、Auth0 は RFC 9068 のプロファイルを選んだときだけ at+jwt（既定は JWT）、Cognito はヘッダーに無く token_use で見分ける、Okta の値は公式文書で確かめられない（模擬の値。design.md の 12.））"
     alg_allowlist: [RS256]
     issuers:
       - {iss: "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", jwks_uri: "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/discovery/v2.0/keys"}
@@ -353,11 +354,12 @@ token_types:
       path: [nginx-large-client-header-buffers]
       other_headers_bytes: 2048
     note: >-
-      IdP ごとの違い（利用者のキーは Entra が oid＋tid、Okta が uid、Cognito・Auth0 が sub。Cognito の AT には aud が無く client_id で確かめる。
+      IdP ごとの違い（利用者のキーは Entra が oid＋tid、Okta が uid、Cognito・Auth0 が sub。Cognito の AT は、resource binding を求めない既定の発行では aud が無く client_id で確かめる。
       Entra の groups は 200 件を超えると消え、_claim_names で知らせる）は入口の規則で吸収し、required_claims は IdP ごとに入口の設定で持つ
       （1 つの行では書けないので、この行には書かない）。台帳にはベンダー固有のクレームを行として置かず、C-user-id・C-roles・C-acr の
       upstream_issuer に写し方を書いた。typ は IdP ごとに違い、1 つの値では書けない（design.md の 12.）。tid でテナント（グループ会社）を決める。
-      寿命 5400 秒は Entra ID の既定の上限（模擬の値）で、組織の上限 3600 秒を超えるので lifetime_exception を書いた
+      寿命 5400 秒は Entra ID の既定の上限（模擬の値）で、組織の AT の上限（tools/claim_lint/lifetime_caps.yaml の 3600 秒。design.md の 5.1）を超えるので
+      lifetime_exception を書いた。組織が自分で発行する AT・内部トークン（KC_AT・INT_AT 系・AGENT_AT・TASK_AT）は 300 秒にしている
 
   - id: INT_AT
     kind: internal_token
@@ -372,7 +374,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
-    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, scope, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -426,7 +428,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
-    required_claims: [iss, sub, aud, exp, iat, jti, client_id, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, scope, client_id, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -481,7 +483,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
-    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.department", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, scope, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.department", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -535,7 +537,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
-    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.employee_id", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, scope, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.employee_id", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -593,7 +595,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://tts.corp.example.com", jwks_uri: "https://tts.corp.example.com/jwks"}
-    required_claims: [iss, iat, aud, exp, txn, sub, req_wl]
+    required_claims: [iss, iat, aud, exp, txn, sub, scope, req_wl]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -637,7 +639,7 @@ token_types:
     alg_allowlist: [ES256]
     issuers:
       - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
-    required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.v"]
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
     max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
@@ -647,7 +649,7 @@ token_types:
     refresh: なし（RT を出さない）。タスクが 300 秒を超えるなら、実行基盤が CIBA で取り直し、sts が委任の取り消しを確かめる
     revocation:
       - {method: exp_only, delay_seconds: 330, note: 委任の取り消しは、次の交換（TASK_AT）で sts が確かめて拒む（ケーススタディ C9）。手元の AGENT_AT は exp まで残る}
-      - {method: db_lookup, delay_seconds: 0, note: invoice-mcp は交換のたびに sts が委任の記録（approval の取り消し）を引くので、取り消し後の上流の呼び出しは 0 秒で止まる}
+      - {method: db_lookup, delay_seconds: 0, note: "invoice-mcp は AGENT_AT を受けるたびに、承認の DB で C-approval-id の記録の状態を引く。交換のたびに sts も委任の記録（承認の取り消し）を引くので、取り消し後の上流の呼び出しは 0 秒で止まる"}
     sender_constraint: dpop
     jti_policy: {unique_scope: per_issuer, replay_check: false}
     long_running: タスクの間だけ。300 秒を超える処理は CIBA で取り直す（エージェントが期限の後に上流を呼ぶ形を作らない）
@@ -815,7 +817,7 @@ token_types:
     key_source: {from: configured_jwks_uri, header_key_params: reject}
     signing_key_scope: per_client
     note: >-
-      typ の client-authentication+jwt は、client assertion を別の種類の JWT と取り違えないための組織の値（RFC 7523 は typ を定めない。筆者の提案）。
+      typ の client-authentication+jwt は、RFC 10070 §4（RFC 7523 §3.2 の更新）が SHOULD とする値（2026-11-23 に本文で確認）。client assertion を別の種類の JWT と取り違えない。
       クライアントの assertion にクレームの台帳の行は置かない（iss・sub はクライアント ID で、受け手は Keycloak・sts だけ）。そのため required_claims も目録に書かず、RFC 7523 §3 の iss・sub・aud・exp・jti の確認は Keycloak・sts の設定に任せる
 
   # ---------------------------------------------------------------- 却下の行（カタログの全種類に採否を付ける）

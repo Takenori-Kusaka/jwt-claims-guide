@@ -292,7 +292,8 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `validates` | 受け手の検証 | 手元で検証するか問い合わせるかと、確かめること | slide:p08-revocation-propagation、slide:p06-validation-split | 生成 |
 | `connection_max_lifetime` | 接続の寿命 | DB・ブローカーの接続の寿命（トークンより長く生きる） | slide:p07-lifetime-mismatch、v0-columns.md の 1. #13 | 手で書く |
 | `forwarded_headers` | 転記するヘッダー | ヘッダーに写すクレームと、入口で同名を捨てるか、書ける者、符号化（L8） | slide:p06-header-forwarding | 手で書く |
-| `narrowing_exception` | 絞り込みの例外 | 上流より広げる・長くする理由 | draft-ietf-oauth-transaction-tokens-11 §6、slide:p06-narrow-downstream | 手で書く |
+| `narrowing_exception` | 絞り込みの例外 | 上流より広げる・長くする理由。文字列なら寿命の理由、オブジェクトなら項目（aud・scope・max_lifetime・authorization_details）ごとの理由。独自クレームの例外は書けない（上流に移す） | draft-ietf-oauth-transaction-tokens-11 §6、slide:p06-narrow-downstream | 手で書く |
+| `aud_replacement` | aud の置き換え | 交換・作り直しで aud を 1 つの別の宛先に替える（置き換えによる絞り込み）。`narrowing_exception.aud` に理由が要る（L16） | slide:p06-narrow-downstream、RFC 8693 §2.1 | 手で書く（交換・作り直しのホップ） |
 | `note` | 注記 | | author-proposal（#3） | Full のみ |
 
 <a id="slide-134-map"></a>

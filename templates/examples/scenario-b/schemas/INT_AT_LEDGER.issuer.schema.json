@@ -51,6 +51,12 @@
    "type": "string",
    "maxLength": 32
   },
+  "scope": {
+   "description": "クライアントに許した操作の範囲。KC_AT は portal のクライアントスコープ、INT_AT 系は呼び出し先の操作だけ、TXN は取引の最も狭い目的（草案 -11 §9.2 で必須）、AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ",
+   "$comment": "C-scope",
+   "type": "string",
+   "maxLength": 80
+  },
   "acr": {
    "description": "ログインの認証の強さ。INT_AT では入口が組織の語彙（pwd・mfa）に正規化した値",
    "$comment": "C-acr",
@@ -116,6 +122,7 @@
   "exp",
   "iat",
   "jti",
+  "scope",
   "client_id",
   "sid",
   "https://claims.example.com/"

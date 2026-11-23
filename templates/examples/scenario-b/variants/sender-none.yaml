@@ -11,22 +11,25 @@ files:
     issuance_profile:
       sender_constraint:
         value: none
-        rationale: 変種。エージェントの実行基盤とツールサーバーのトークンも Bearer にする。漏れたトークンの再送（ケーススタディ B23 の型）は、寿命 300 秒と宛先の束縛だけで抑える
+        rationale: 変種。エージェントの実行基盤とツールサーバーのトークンも Bearer にする。agent-runtime は組織の外のモデルの出力に応じて動く部品で、漏れたトークンを別の端末から再送する攻撃（ケーススタディ B23 の型。B では見送りの代償として通った）が、寿命 300 秒と宛先 1 つの間は再び通る。その危険を受け入れる比較
     token_types:
       - id: AGENT_AT
         sender_constraint: none
         transport: authorization_bearer
-        required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.v"]
+        required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
+        # DPoP のヘッダー（最悪 841 バイト）が要求から無くなるので、ほかのヘッダーの見積もりを 3072 から 2048 にする（PR #44 のレビュー B12）
+        size: {"signing": {"alg": "ES256"}, "header": {"params": [{"name": "alg", "type": "string", "max_bytes": 5}, {"name": "typ", "type": "string", "max_bytes": 6}, {"name": "kid", "type": "string", "max_bytes": 22}]}, "path": ["nodejs-max-http-header-size"], "other_headers_bytes": 2048}
       - id: TASK_AT
         sender_constraint: none
         transport: authorization_bearer
         required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
+        size: {"signing": {"alg": "ES256"}, "header": {"params": [{"name": "alg", "type": "string", "max_bytes": 5}, {"name": "typ", "type": "string", "max_bytes": 6}, {"name": "kid", "type": "string", "max_bytes": 22}]}, "path": ["nodejs-max-http-header-size"], "other_headers_bytes": 2048}
       - id: DPOP
         _replace: true
         kind: dpop_proof
         decision: 却下
         rationale: 送信者制約を付けない（issuance_profile.sender_constraint は none）
-        assumption: AGENT_AT・TASK_AT は組織の網の中のエージェントの実行基盤とツールサーバーだけが持ち、寿命 300 秒と宛先 1 つで、漏れても使える時間と相手が限られる
+        assumption: AGENT_AT・TASK_AT を持つ agent-runtime と invoice-mcp は組織の網の中で動き、寿命 300 秒と宛先 1 つで、漏れても使える時間と相手が限られる。agent-runtime が組織の外のモデルの出力に応じて動く点は変わらず、再送（B23 の型）の危険は残る
         revisit_trigger: エージェントの実行基盤を組織の外（利用者の端末・外部の SaaS）に置くとき、またはトークンの盗用の兆候が出たとき
         format: jwt
   claims.yaml:
@@ -37,8 +40,12 @@ files:
       - {id: C-dpop-ath, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
       - {id: C-dpop-nonce, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
       - id: C-iat
+        description: 発行の時刻（UNIX 時刻の秒）
+        rationale: 寿命の検査（exp − iat）に使う
         carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
       - id: C-jti
+        description: トークンごとに一意の ID
+        rationale: ログでトークンを指す唯一の値（トークン全文の代わりに記録する）
         carried_in: [KC_AT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
   hops.yaml:
     hops:
@@ -57,7 +64,7 @@ files:
       - event: I29
         _replace: true
         answer: 対象外
-        assumption: 変種：送信者制約を付けない。AGENT_AT・TASK_AT は組織の網の中の部品だけが持つ（目録の DPOP は却下）
+        assumption: 変種：送信者制約を付けない。AGENT_AT・TASK_AT は組織の網の中の agent-runtime と invoice-mcp が持つ（目録の DPOP は却下）。再送（B23 の型）の危険は受け入れる
         breaks_when: エージェントの実行基盤を組織の外に置くとき、またはトークンの盗用の兆候が出たとき
       - event: I30
         _replace: true

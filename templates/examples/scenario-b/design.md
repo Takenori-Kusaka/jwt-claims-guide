@@ -13,7 +13,7 @@
 ## 1. CI の結果
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-b --also-scan templates/examples/scenario-b/design.md`（profile full）：**error 0、warn 7、info 28**（claims 46・token_types 24・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-b --also-scan templates/examples/scenario-b/design.md`（profile full）：**error 0、warn 6、info 31**（claims 46・token_types 24・catalog_events 62）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -25,18 +25,19 @@
 | `R3b` | warn | `I26` | keycloak のこの発行で プロトコルマッパー が呼ばれるかは unknown（カタログ）。独自クレーム C-tenant-id・C-user-id・C-roles・C-department・C-employee-id・C-idp・C-v が載ることを確かめて hook_checked に書く |
 | `R3b` | info | `I29` | hook_invoked unknown：書き手が確かめた（束縛するのは sts で、Keycloak のマッパーは関与しない。KC_AT に cnf が付かないことは、portal が DPoP の proof を送らないことで確かめる（Keycloak は proof が送られれば束縛する。カタログの I29）） |
 | `R6` | info | `pairwise` | 2 因子の組 60 個をすべて検討した（主体 2・発行イベント 14） |
-| `R8` | info | `KC_AT` | 最悪 1522 バイト（ヘッダーの行で 1544）／上限 8192（nginx-large-client-header-buffers）= 19% |
+| `R8` | info | `KC_AT` | 最悪 1563 バイト（ヘッダーの行で 1585）／上限 8192（nginx-large-client-header-buffers）= 19% |
 | `R8` | info | `EXT_AT` | 最悪 1150 バイト（ヘッダーの行で 1172）／上限 8192（nginx-large-client-header-buffers）= 14% |
-| `R8` | info | `INT_AT` | 最悪 951 バイト（ヘッダーの行で 4045）／上限 16384（nodejs-max-http-header-size）= 25% |
-| `R8` | info | `INT_AT_LEDGER` | 最悪 974 バイト（ヘッダーの行で 4068）／上限 16384（nodejs-max-http-header-size）= 25% |
-| `R8` | info | `INT_AT_DOCS` | 最悪 910 バイト（ヘッダーの行で 4004）／上限 16384（nodejs-max-http-header-size）= 24% |
-| `R8` | info | `INT_AT_PAYROLL` | 最悪 916 バイト（ヘッダーの行で 4010）／上限 16384（nodejs-max-http-header-size）= 24% |
-| `R8` | info | `AGENT_AT` | 最悪 1302 バイト（ヘッダーの行で 4389）／上限 16384（nodejs-max-http-header-size）= 27% |
-| `R8` | info | `TASK_AT` | 最悪 1674 バイト（ヘッダーの行で 4761）／上限 16384（nodejs-max-http-header-size）= 29% |
+| `R8` | info | `INT_AT` | 最悪 1072 バイト（ヘッダーの行で 4166）／上限 16384（nodejs-max-http-header-size）= 25% |
+| `R8` | info | `INT_AT_LEDGER` | 最悪 1095 バイト（ヘッダーの行で 4189）／上限 16384（nodejs-max-http-header-size）= 26% |
+| `R8` | info | `INT_AT_DOCS` | 最悪 1031 バイト（ヘッダーの行で 4125）／上限 16384（nodejs-max-http-header-size）= 25% |
+| `R8` | info | `INT_AT_PAYROLL` | 最悪 1038 バイト（ヘッダーの行で 4132）／上限 16384（nodejs-max-http-header-size）= 25% |
+| `R8` | info | `AGENT_AT` | 最悪 1716 バイト（ヘッダーの行で 4803）／上限 16384（nodejs-max-http-header-size）= 29% |
+| `R8` | info | `TASK_AT` | 最悪 1716 バイト（ヘッダーの行で 4803）／上限 16384（nodejs-max-http-header-size）= 29% |
 | `R8` | info | `DPOP` | 最悪 841 バイト（ヘッダーの行で 2904）／上限 16384（nodejs-max-http-header-size）= 18% |
-| `R8` | info | `C-scope` | KC_AT・AGENT_AT・TASK_AT の両方に載る（重複の候補） |
+| `R8` | info | `C-scope` | KC_AT・INT_AT・INT_AT_LEDGER・INT_AT_DOCS・INT_AT_PAYROLL・TXN・AGENT_AT・TASK_AT の両方に載る（重複の候補） |
 | `R8` | info | `C-act` | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
 | `R8` | info | `C-cnf` | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
+| `R8` | info | `C-authorization-details` | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
 | `R8` | info | `C-sid` | KC_AT・IDT・LOGOUT・INT_AT_LEDGER の両方に載る（重複の候補） |
 | `R8` | info | `C-tenant-id` | KC_AT・INT_AT・INT_AT_LEDGER・INT_AT_DOCS・INT_AT_PAYROLL・AGENT_AT・TASK_AT の両方に載る（重複の候補） |
 | `R8` | info | `C-user-id` | KC_AT・INT_AT・INT_AT_LEDGER・INT_AT_DOCS・INT_AT_PAYROLL・AGENT_AT・TASK_AT の両方に載る（重複の候補） |
@@ -45,29 +46,30 @@
 | `R8` | info | `C-employee-id` | KC_AT・INT_AT_PAYROLL の両方に載る（重複の候補） |
 | `R8` | info | `C-idp` | KC_AT・INT_AT の両方に載る（重複の候補） |
 | `R8` | info | `C-task-id` | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
-| `L1b` | warn | `C-req-wl` | 未登録の名前 req_wl は草案（draft-ietf-oauth-transaction-tokens-11 §9.2）が定める名前。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
-| `L1b` | warn | `C-tctx` | 未登録の名前 tctx は草案（draft-ietf-oauth-transaction-tokens-11 §9.2.3）が定める名前。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
+| `R8` | info | `C-approval-id` | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
+| `L1b` | warn | `C-req-wl` | 未登録の名前 req_wl は草案（draft-ietf-oauth-transaction-tokens-11 §9.2）が定める名前（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
+| `L1b` | warn | `C-tctx` | 未登録の名前 tctx は草案（draft-ietf-oauth-transaction-tokens-11 §9.2.3）が定める名前（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
 | `L1b` | info | `C-typ-claim` | IdP が既定で出す私的名 typ（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す |
 | `L2` | info | `idp` | IdP keycloak の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。L2 は確かめていない（IdP モジュール #4 で手で確かめる） |
+| `L16` | info | `hop H15` | aud を上流（H14）の invoice-mcp から 1 つの宛先 invoices に替える（aud_replacement。理由：MCP の認可は AGENT_AT の宛先を invoice-mcp だけにし、受け取ったトークンを上流に渡すことを禁じる。交換は宛先を invoices の 1 つに替える絞り込みで、宛先を足していない） |
 | `L18` | warn | `C-employee-id` | 廃止予定（deprecated、sunset_on 2027-03-31）のクレームを読む受け手：gateway・payroll |
 | `L27` | info | `token_type KC_AT` | at+jwt の REQUIRED の client_id（RFC 9068 §2.2）が無いことを、台帳の却下の行で逸脱として記録している |
-| `L62` | warn | `E-token-exchange.2` | 発行方式の選択（E-token-exchange）から要るもの：交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る）（templates/registry/issuance_effects.yaml） |
 
-R8 KC_AT：ヘッダー 86・ペイロード 797・署名 256 バイト（ceil(4/3*86) + ceil(4/3*797) + ceil(4/3*256) + 2 = 115 + 1063 + 342 + 2 = 1522; + 7 (Bearer) = 1529）。nginx-large-client-header-buffers 1544／8192 バイト
+R8 KC_AT：ヘッダー 86・ペイロード 828・署名 256 バイト（ceil(4/3*86) + ceil(4/3*828) + ceil(4/3*256) + 2 = 115 + 1104 + 342 + 2 = 1563; + 7 (Bearer) = 1570）。nginx-large-client-header-buffers 1585／8192 バイト
 
 R8 EXT_AT：ヘッダー 129・ペイロード 475・署名 256 バイト（ceil(4/3*129) + ceil(4/3*475) + ceil(4/3*256) + 2 = 172 + 634 + 342 + 2 = 1150; + 7 (Bearer) = 1157）。nginx-large-client-header-buffers 1172／8192 バイト
 
-R8 INT_AT：ヘッダー 72・ペイロード 575・署名 64 バイト（ceil(4/3*72) + ceil(4/3*575) + ceil(4/3*64) + 2 = 96 + 767 + 86 + 2 = 951; + 7 (Bearer) = 958）。nodejs-max-http-header-size 4045／16384 バイト
+R8 INT_AT：ヘッダー 72・ペイロード 666・署名 64 バイト（ceil(4/3*72) + ceil(4/3*666) + ceil(4/3*64) + 2 = 96 + 888 + 86 + 2 = 1072; + 7 (Bearer) = 1079）。nodejs-max-http-header-size 4166／16384 バイト
 
-R8 INT_AT_LEDGER：ヘッダー 72・ペイロード 592・署名 64 バイト（ceil(4/3*72) + ceil(4/3*592) + ceil(4/3*64) + 2 = 96 + 790 + 86 + 2 = 974; + 7 (Bearer) = 981）。nodejs-max-http-header-size 4068／16384 バイト
+R8 INT_AT_LEDGER：ヘッダー 72・ペイロード 683・署名 64 バイト（ceil(4/3*72) + ceil(4/3*683) + ceil(4/3*64) + 2 = 96 + 911 + 86 + 2 = 1095; + 7 (Bearer) = 1102）。nodejs-max-http-header-size 4189／16384 バイト
 
-R8 INT_AT_DOCS：ヘッダー 72・ペイロード 544・署名 64 バイト（ceil(4/3*72) + ceil(4/3*544) + ceil(4/3*64) + 2 = 96 + 726 + 86 + 2 = 910; + 7 (Bearer) = 917）。nodejs-max-http-header-size 4004／16384 バイト
+R8 INT_AT_DOCS：ヘッダー 72・ペイロード 635・署名 64 バイト（ceil(4/3*72) + ceil(4/3*635) + ceil(4/3*64) + 2 = 96 + 847 + 86 + 2 = 1031; + 7 (Bearer) = 1038）。nodejs-max-http-header-size 4125／16384 バイト
 
-R8 INT_AT_PAYROLL：ヘッダー 72・ペイロード 549・署名 64 バイト（ceil(4/3*72) + ceil(4/3*549) + ceil(4/3*64) + 2 = 96 + 732 + 86 + 2 = 916; + 7 (Bearer) = 923）。nodejs-max-http-header-size 4010／16384 バイト
+R8 INT_AT_PAYROLL：ヘッダー 72・ペイロード 640・署名 64 バイト（ceil(4/3*72) + ceil(4/3*640) + ceil(4/3*64) + 2 = 96 + 854 + 86 + 2 = 1038; + 7 (Bearer) = 1045）。nodejs-max-http-header-size 4132／16384 バイト
 
-R8 AGENT_AT：ヘッダー 61・ペイロード 849・署名 64 バイト（ceil(4/3*61) + ceil(4/3*849) + ceil(4/3*64) + 2 = 82 + 1132 + 86 + 2 = 1302）。nodejs-max-http-header-size 4389／16384 バイト
+R8 AGENT_AT：ヘッダー 61・ペイロード 1159・署名 64 バイト（ceil(4/3*61) + ceil(4/3*1159) + ceil(4/3*64) + 2 = 82 + 1546 + 86 + 2 = 1716）。nodejs-max-http-header-size 4803／16384 バイト
 
-R8 TASK_AT：ヘッダー 61・ペイロード 1128・署名 64 バイト（ceil(4/3*61) + ceil(4/3*1128) + ceil(4/3*64) + 2 = 82 + 1504 + 86 + 2 = 1674）。nodejs-max-http-header-size 4761／16384 バイト
+R8 TASK_AT：ヘッダー 61・ペイロード 1159・署名 64 バイト（ceil(4/3*61) + ceil(4/3*1159) + ceil(4/3*64) + 2 = 82 + 1546 + 86 + 2 = 1716）。nodejs-max-http-header-size 4803／16384 バイト
 
 R8 DPOP：ヘッダー 221・ペイロード 343・署名 64 バイト（ceil(4/3*221) + ceil(4/3*343) + ceil(4/3*64) + 2 = 295 + 458 + 86 + 2 = 841）。nodejs-max-http-header-size 2904／16384 バイト
 <!-- render:ci-result:end -->
@@ -153,7 +155,7 @@ flowchart LR
 | 送信者制約 | none | dpop（エージェントの経路だけ） | `issuance_profile.sender_constraint`、`C-cnf`、目録の DPOP・AGENT_AT・TASK_AT | 下の 3.3 と 12. |
 | クライアント認証 | client_secret_basic | private_key_jwt | `issuance_profile.client_auth`、目録の CLIENTASSERTION | 秘密鍵の管理が負担になったとき |
 | grant | 認可コード＋PKCE、refresh | ＋token exchange（ツールサーバー）、CIBA（エージェントへの委任の承認） | `issuance_profile.grants` | エージェントの委任をやめたとき |
-| 要求の保護 | なし | PAR・RAR・resource indicators | `issuance_profile.request_protection` | — |
+| 要求の保護 | なし | PAR・RAR・resource indicators（resource indicators は組織の sts だけ。Keycloak は RFC 8707 の resource に対応していないので、KC_AT の宛先は Audience マッパーで固定する。PR #44 のレビュー B07） | `issuance_profile.request_protection` | — |
 | 入口での作り直し | 入口なし（シナリオ A） | 入口で外部の AT を検証し、宛先ごとに内部トークンを作る | 目録の INT_AT 系、`hops.yaml` の H4〜H8 | — |
 | 廃止予定のクレーム | 廃止予定の行なし | `C-employee-id` を `deprecated`（期日 2027-03-31） | `C-employee-id` | 9.3 |
 | ケーススタディの判定 | B の判定 | C の判定の行を足した（carry 21 件ほか） | `templates/casestudy-deviations.yaml` | ケーススタディの固定を上げるとき |
@@ -207,12 +209,14 @@ flowchart LR
 
 | ID | 列 | 記入例 | 変種 |
 | --- | --- | --- | --- |
-| AGENT_AT | required_claims | [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, 'https://c… | −cnf |
+| AGENT_AT | required_claims | [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, authorizat… | −cnf |
 | AGENT_AT | sender_constraint | dpop | none |
 | AGENT_AT | transport | authorization_dpop | authorization_bearer |
+| AGENT_AT | size | {header: {params: [{max_bytes: 5, name: alg, type: string}, {max_byte… | {header: {params: [{max_bytes: 5, name: alg, type: string}, {max_byte… |
 | TASK_AT | required_claims | [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, authorizat… | −cnf |
 | TASK_AT | sender_constraint | dpop | none |
 | TASK_AT | transport | authorization_dpop | authorization_bearer |
+| TASK_AT | size | {header: {params: [{max_bytes: 5, name: alg, type: string}, {max_byte… | {header: {params: [{max_bytes: 5, name: alg, type: string}, {max_byte… |
 | DPOP | decision | 採用 | 却下 |
 | DPOP | （ほかの 25 列） | `purpose`・`issuer`・`aud`・`holder`・`typ`・`alg_allowlist`・`issuers`・`max_clock_skew`・`max_lifetime`・`lifetime_refs`・`lifetime_set_by`・`refresh`・`revocation`・`jti_policy`・`stored_at`・`transport`・`visible_to`・`jwe`・`log_policy`・`key_rotation`・`unknown_kid`・`jwks_cache_ttl`・`key_source`・`signing_key_scope`・`size` | （却下の行には書かない） |
 
@@ -252,7 +256,7 @@ flowchart LR
 | I29 | answer | 該当 | 対象外 |
 | I29 | token_types | [AGENT_AT, TASK_AT] | （なし） |
 | I29 | hook_checked | 束縛するのは sts で、Keycloak のマッパーは関与しない。KC_AT に cnf が付かないことは、portal が DPoP … | （なし） |
-| I29 | assumption | （なし） | 変種：送信者制約を付けない。AGENT_AT・TASK_AT は組織の網の中の部品だけが持つ（目録の DPOP は却下） |
+| I29 | assumption | （なし） | 変種：送信者制約を付けない。AGENT_AT・TASK_AT は組織の網の中の agent-runtime と invoice-mcp が… |
 | I29 | breaks_when | （なし） | エージェントの実行基盤を組織の外に置くとき、またはトークンの盗用の兆候が出たとき |
 | I30 | answer | 該当 | 対象外 |
 | I30 | token_types | [DPOP] | （なし） |
@@ -265,7 +269,7 @@ flowchart LR
 | U26 | breaks_when | （なし） | 送信者制約を DPoP か mTLS にするとき |
 | q-holder | questions.needed | True | False |
 
-**claim_lint**：記入例 error 0・warn 7・info 28、変種 error 0・warn 7・info 25（どちらも profile full。この表は、いまのリポジトリの規則での結果）
+**claim_lint**：記入例 error 0・warn 6・info 31、変種 error 0・warn 6・info 28（どちらも profile full。この表は、いまのリポジトリの規則での結果）
 
 | 規則 | 重大度 | 対象 | 出る側 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -273,13 +277,15 @@ flowchart LR
 | R8 | info | C-cnf | 記入例だけ | AGENT_AT・TASK_AT の両方に載る（重複の候補） |
 | R8 | info | DPOP | 記入例だけ | 最悪 841 バイト（ヘッダーの行で 2904）／上限 16384（nodejs-max-http-header-size）= 18% |
 | R6 | info | pairwise | 両方（中身が変わった） | 2 因子の組 60 個をすべて検討した（主体 2・発行イベント 14） → 2 因子の組 54 個をすべて検討した（主体 2・発行イベント 12） |
-| R8 | info | AGENT_AT | 両方（中身が変わった） | 最悪 1302 バイト（ヘッダーの行で 4389）／上限 16384（nodejs-max-http-header-s… → 最悪 1221 バイト（ヘッダーの行で 4315）／上限 16384（nodejs-max-http-header-s… |
-| R8 | info | TASK_AT | 両方（中身が変わった） | 最悪 1674 バイト（ヘッダーの行で 4761）／上限 16384（nodejs-max-http-header-s… → 最悪 1593 バイト（ヘッダーの行で 4687）／上限 16384（nodejs-max-http-header-s… |
+| R8 | info | AGENT_AT | 両方（中身が変わった） | 最悪 1716 バイト（ヘッダーの行で 4803）／上限 16384（nodejs-max-http-header-s… → 最悪 1634 バイト（ヘッダーの行で 3704）／上限 16384（nodejs-max-http-header-s… |
+| R8 | info | TASK_AT | 両方（中身が変わった） | 最悪 1716 バイト（ヘッダーの行で 4803）／上限 16384（nodejs-max-http-header-s… → 最悪 1634 バイト（ヘッダーの行で 3704）／上限 16384（nodejs-max-http-header-s… |
 
-規則が確かめた箇所の数（指摘が無くても、選択で検査の対象が変わる）：L11 24 → 23、L15 3 → 0、L17 13 → 12、L1a 38 → 33、L1b 38 → 33、L21 170 → 161、L23 17 → 16、L25 13 → 12、L3 20 → 19、L31 20 → 19、L4 38 → 33、L6 141 → 133、L62 10 → 5、L68 38 → 33、L7 205 → 201
+規則が確かめた箇所の数（指摘が無くても、選択で検査の対象が変わる）：L11 23 → 22、L15 3 → 0、L17 13 → 12、L1a 38 → 33、L1b 38 → 33、L21 177 → 168、L23 17 → 16、L25 13 → 12、L3 19 → 18、L31 19 → 18、L4 38 → 33、L6 148 → 140、L62 10 → 5、L68 38 → 33、L7 220 → 216
 <!-- variant:sender-none:end -->
 
-読み方：DPoP をやめると、台帳では `C-cnf` と DPoP の proof の 4 行（`C-dpop-htm`・`C-dpop-htu`・`C-dpop-ath`・`C-dpop-nonce`）が却下に変わり、目録では DPOP の行が却下、AGENT_AT・TASK_AT の運び方が Bearer になり、`required_claims` から `cnf` が外れます。カタログへの回答では、送信者制約のイベント（I29・I30・U26）が対象外になり、問い「誰が持つべきか」（q-holder）が不要になります。lint では、DPoP の proof の R8 の行と `cnf` の重複の候補が消え、AT のサイズが約 80 バイト減ります。
+読み方：DPoP をやめると、台帳では `C-cnf` と DPoP の proof の 4 行（`C-dpop-htm`・`C-dpop-htu`・`C-dpop-ath`・`C-dpop-nonce`）が却下に変わり、目録では DPOP の行が却下、AGENT_AT・TASK_AT の運び方が Bearer になり、`required_claims` から `cnf` が外れます。カタログへの回答では、送信者制約のイベント（I29・I30・U26）が対象外になり、問い「誰が持つべきか」（q-holder）が不要になります。lint では、DPoP の proof の R8 の行と `cnf` の重複の候補が消えます。サイズは、AT そのものは約 80 バイト（`cnf`）しか減りませんが、要求から DPoP のヘッダー（最悪 841 バイト）が無くなるので、R8 のヘッダーの行は約 1.1 KB 減ります（変種は `other_headers_bytes` を 3072 から 2048 にした）。
+
+**安全性の差（機械の差分には出ない）**：DPoP をやめると、漏れた AGENT_AT・TASK_AT を別の端末からそのまま再送する攻撃（ケーススタディ B23 の型。シナリオ B では送信者制約を見送った代償として通った）が、寿命 300 秒と宛先 1 つの間は再び通ります。agent-runtime は組織の網の中で動きますが、組織の外のモデルの出力に応じて動く部品なので、この例は DPoP を採りました。変種はこの危険を受け入れる比較です（PR #44 のレビュー B12）。
 
 ## 4. 発行方式の選択
 
@@ -294,7 +300,7 @@ flowchart LR
 | 送信者制約 | DPoP（`dpop`） | エージェントの実行基盤とツールサーバーに渡るトークン（AGENT_AT・TASK_AT）は、組織の外のモデルの出力に応じて動く部品が持つので、 漏れたトークンの再送（ケーススタディ B23 の型）を鍵の所持で止める。ケーススタディ C の判定（CLM-0429・CLM-0431：タスク単位のトークンを 実行基盤の DPoP の鍵で束縛）に合わせた。ポータルの KC_AT と内部の INT_AT は BFF とサービスの間だけを通るので Bearer のまま （トークン種別ごとの sender_constraint）。none にした場合の比較は design.md の 4. | [RFC 9449 §1](https://www.rfc-editor.org/rfc/rfc9449#section-1)<br>`slide:p08-rotation` |
 | AT の形式 | JWT（`jwt`） | 受け手（orders・ledger・docs・payroll・invoice-mcp・invoices）がローカルで検証する。剥奪をすぐ効かせたい経理・管理の操作だけ、ledger が Keycloak のセッションを引き直す（INT_AT_LEDGER の revocation の db_lookup） | [RFC 9068 §2.1](https://www.rfc-editor.org/rfc/rfc9068#section-2.1)<br>`slide:p01-self-contained-vs-reference` |
 | RT の方式 | ローテーション（`rotation`） | RT は portal の BFF だけが持つ。レルム corp の Revoke Refresh Token を有効にしてローテーションする（ケーススタディのレルムの設定）。 古い RT の再利用で系列を失効させるか（再利用の検知）は確かめていない（レルムの設定は、ケーススタディの実験環境 jwt-claims-casestudy@080b8da の kc/import/corp.json の revokeRefreshToken: true と同じ）。エージェントには RT を出さない（タスクごとに CIBA で取り直す） | [RFC 9700 §4.14.2](https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2) |
-| 要求の保護 | `par`、`rar`、`resource_indicators` | ポータルの認可要求は PAR で URL から外す。エージェントへの委任の要求（CIBA）と交換では、支払いの承認の内容を RAR の authorization_details で運ぶ。宛先は resource indicators で絞る（ポータルは使う API だけ、エージェントは invoice-mcp だけ、交換は invoices だけ） | [RFC 9126 §1](https://www.rfc-editor.org/rfc/rfc9126#section-1)<br>[RFC 9396 §2](https://www.rfc-editor.org/rfc/rfc9396#section-2)<br>[RFC 8707 §2](https://www.rfc-editor.org/rfc/rfc8707#section-2)<br>`slide:p09-url-browser` |
+| 要求の保護 | `par`、`rar`、`resource_indicators` | ポータルの認可要求は PAR で URL から外す。エージェントへの委任の要求（CIBA）では、支払いの承認の内容を RAR の authorization_details で運ぶ。resource indicators を使うのは組織の sts だけ（エージェントは invoice-mcp だけ、交換は invoices だけ）。Keycloak は RFC 8707 の resource パラメータに対応していないので、KC_AT の宛先は Audience マッパーで固定する（PR #44 のレビュー B07） | [RFC 9126 §1](https://www.rfc-editor.org/rfc/rfc9126#section-1)<br>[RFC 9396 §2](https://www.rfc-editor.org/rfc/rfc9396#section-2)<br>[RFC 8707 §2](https://www.rfc-editor.org/rfc/rfc8707#section-2)<br>`slide:p09-url-browser` |
 | 適合のプロファイル | なし（`none`） | 社内の業務システムで、FAPI などの規制の対象ではない。支払いは社内の請求書の API までで、外部の金融機関の API を呼ばない | — |
 
 選択から導かれる要件（`templates/registry/issuance_effects.yaml`）：条件が成り立つ行は 3 件／全 13 件。**次の表は検査ではない。** render が `check` を簡易に読み取った表示で、検査の正は `tools/claim_lint/RULES.md` の L62〜L64（#6）。「満たしている行」は、要件の場所にある台帳の行。
@@ -307,9 +313,9 @@ flowchart LR
 | `E-dpop` | `E-dpop.4` | サイズの予算に cnf を含める（AT に載るので R8 の計算に入る） | 満たす | `C-cnf` | `L62`・`L15` |
 | `E-dpop` | `E-dpop.5` | Authorization ヘッダーの方式は DPoP（Bearer ではない） | 満たす | `AGENT_AT`・`TASK_AT` | `L62`・`L15` |
 | `E-token-exchange` | `E-token-exchange.1` | 委任なら act（最も外側が今の代理者）、交換を許す相手を事前に示すなら may_act を台帳に置く | 満たす | `C-act` | `L62`・`L16` |
-| `E-token-exchange` | `E-token-exchange.2` | 交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る） | 満たさない | — | `L62`・`L16` |
+| `E-token-exchange` | `E-token-exchange.2` | 交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る） | 満たす | `H15` | `L62`・`L16` |
 | `E-rar` | `E-rar.1` | authorization_details の type の語彙を value_vocabulary で定め、持ち主を決める | 満たす | `C-authorization-details` | `L62`・`L16` |
-| `E-rar` | `E-rar.2` | 宛先ごとに絞って入れる（ホップの authorization_details） | 満たす | `H15` | `L62`・`L16` |
+| `E-rar` | `E-rar.2` | 宛先ごとに絞って入れる（ホップの authorization_details） | 満たす | `H14`・`H15` | `L62`・`L16` |
 | `E-rar` | `E-rar.3` | 配列の上限（max_items）と 1 件の上限（max_bytes）を決める | 満たす | `C-authorization-details` | `L62`・`L16` |
 <!-- render:issuance-profile:end -->
 
@@ -327,7 +333,7 @@ flowchart LR
 | `RT` | リフレッシュトークン | 採用 | Keycloak（レルム corp） → Keycloak（レルム corp 自身） | portal のサーバー | opaque | idle 1800 秒、最大 36000 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | KC_AT を 300 秒にしたまま、SSO セッションの間は社員に再ログインさせない |
 | `LOGOUT` | ログアウトトークン（Back-Channel Logout の Logout Token） | 採用 | Keycloak（レルム corp） → portal | portal のサーバー（Back-Channel Logout の受け口） | jwt（logout+jwt、RS256） | 120 秒（時計のずれ 30 秒） | なし | バックチャネルの POST | `idp`・`bff` | なし | 社員の無効化・セッションの削除を、portal の BFF のセッションに 0 秒で反映する。シナリオ B は退職・異動の直後の古いトークンでの操作 （ケーススタディ B11・B12）を重点にしており、次のリフレッシュの失敗を待つ（最大 330 秒）のでは遅い |
 | `KC_AT` | アクセストークン | 採用 | Keycloak（レルム corp） → orders・ledger・docs・payroll | portal のサーバー | jwt（at+jwt、RS256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`gateway` | なし | 社員がポータルから社内の API を呼ぶ。入口（gateway）が検証し、API ごとの内部トークン（INT_AT）に作り替える |
-| `EXT_AT` | アクセストークン | 採用 | グループ会社の IdP（Entra ID・Okta・Cognito・Auth0） → api://corp-gateway | グループ会社のアプリ | jwt（IdP ごと（Entra は JWT、Okta は application/okta-internal-at+jwt、Cognito はヘッダーに無く token_use で見分ける、Auth0 は at+jwt）、RS256） | 5400 秒（時計のずれ 30 秒） | RP のサーバー | Authorization: Bearer | `client`・`gateway` | なし | グループ会社の社員は、各社の IdP（Entra ID・Okta・Cognito・Auth0。この例では形を再現した模擬）でログインしたアプリから入口に AT を送る。 入口だけが IdP ごとの規則で検証し、組織の内部トークン（INT_AT）に作り替える。内側のサービスは EXT_AT を受けない |
+| `EXT_AT` | アクセストークン | 採用 | グループ会社の IdP（Entra ID・Okta・Cognito・Auth0） → api://corp-gateway | グループ会社のアプリ | jwt（IdP ごと（Entra は JWT、Auth0 は RFC 9068 のプロファイルを選んだときだけ at+jwt（既定は JWT）、Cognito はヘッダーに無く token_use で見分ける、Okta の値は公式文書で確かめられない（模擬の値。design.md の 12.））、RS256） | 5400 秒（時計のずれ 30 秒） | RP のサーバー | Authorization: Bearer | `client`・`gateway` | なし | グループ会社の社員は、各社の IdP（Entra ID・Okta・Cognito・Auth0。この例では形を再現した模擬）でログインしたアプリから入口に AT を送る。 入口だけが IdP ごとの規則で検証し、組織の内部トークン（INT_AT）に作り替える。内側のサービスは EXT_AT を受けない |
 | `INT_AT` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 採用 | 入口（gateway）のトークン発行サービス（sts） → orders | 入口（gateway）。受け手の API は検証だけ | jwt（corp-internal+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Authorization: Bearer | `gateway`・`api` | なし | orders 宛て。KC_AT（H4）とグループ会社の EXT_AT（H8）の両方から作る。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む |
 | `INT_AT_LEDGER` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 採用 | 入口（gateway）のトークン発行サービス（sts） → ledger | 入口（gateway）。受け手の API は検証だけ | jwt（corp-internal+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Authorization: Bearer | `gateway`・`api` | なし | ledger 宛て。社員（KC_AT）だけから作る。sid は経理の操作のたびに Keycloak のセッションを引き直すために写す。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む |
 | `INT_AT_DOCS` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 採用 | 入口（gateway）のトークン発行サービス（sts） → docs | 入口（gateway）。受け手の API は検証だけ | jwt（corp-internal+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Authorization: Bearer | `gateway`・`api` | なし | docs 宛て。部署が欠けていれば拒否する（Okta のフックの打ち切りで消えた場合。ケーススタディ B15）。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む |
@@ -350,8 +356,8 @@ flowchart LR
 
 | 種類 | 組織の上限（秒） | 例外を認める手順（承認者・記録先） | 例外にした種別（目録の ID と `lifetime_exception`） |
 | --- | --- | --- | --- |
-| アクセストークン・内部トークン・Txn-Token | 300 | 例外は認めない | なし |
-| グループ会社の AT（EXT_AT） | 組織では決められない（各 IdP の既定。Entra は 60〜90 分） | 入口で受けるだけで、内側には持ち込まない。内部トークンの寿命は EXT_AT の残りの寿命以下にする | EXT_AT（`lifetime_exception` に理由） |
+| アクセストークン・内部トークン・Txn-Token | 3600（組織の上限。`lifetime_caps.yaml`）。この設計は 300 に絞る | 上限を超えるときは、セキュリティの担当が承認して `lifetime_exception` に書く | なし |
+| グループ会社の AT（EXT_AT） | 組織の AT の上限は 3600 秒（`tools/claim_lint/lifetime_caps.yaml`）。EXT_AT は各 IdP の既定（Entra は 60〜90 分）で、組織では決められない | 入口で受けるだけで、内側には持ち込まない。内部トークンの寿命は EXT_AT の残りの寿命以下にする | EXT_AT（`lifetime_exception` に理由） |
 | ID トークン | 300 | — | なし |
 | RT・セッション | idle 1800・最大 36000 | セキュリティの担当が承認し、台帳の PR に記録する | なし |
 | DPoP の proof・クライアントの assertion | 60 | — | なし |
@@ -367,10 +373,10 @@ flowchart LR
 | 同上 | どのワークロードが Txn-Token を求めたか（q-req-wl） | 要る | `C-req-wl`（TXN） | orders・ledger が、求めたのが gateway かを照合 |
 | 同上 | 直接の通信相手は誰か（q-peer） | 要る | mTLS の X.509-SVID（通信の層） | 各サービス・ブローカー。トークンのクレームでは代えない |
 | 同上 | どこを経由したか（q-via） | 不要 | — | 経路は txn で監査ログを相関させて追う |
-| 同上 | どの取引か（q-txn） | 要る | `C-txn`・`C-tctx`（TXN） | 監査の相関だけ。認可には使わない |
+| 同上 | どの取引か（q-txn） | 要る | `C-txn`・`C-tctx`（TXN） | 監査の相関。ledger は `tctx` の operation が TXN の `scope` と食い違えば拒否するが、operation で書き込みを許さない |
 | 同上 | 誰が利用者か（q-user） | 要る | `C-user-id`（IdP をまたぐ不変の ID） | 各 API。payroll は移行中（9.3） |
 | 同上 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（INT_AT）・`C-azp`（KC_AT・IDT） | gateway |
-| 同上 | 何が承認されたか（q-authorized） | 要る | `C-roles`・`C-acr`（経理の操作） | orders・ledger |
+| 同上 | 何が承認されたか（q-authorized） | 要る | `C-scope`（INT_AT 系と TXN。宛先ごとの操作）・`C-roles`・`C-acr`（経理の操作） | gateway・orders・ledger。経理の書き込み（`ledger.post`）は INT_AT_LEDGER でだけ受け、TXN の経路は `ledger.read` だけ（B01） |
 | 同上 | どのリソース向けか（q-resource） | 要る | `C-aud`（宛先ごとに 1 つ） | 各 API |
 | 同上 | 誰が持つべきか（q-holder） | 不要 | — | KC_AT・INT_AT は BFF とサービスの間だけで運ぶ（3.1 の見送り） |
 | エージェントが社員の代わりに請求書を払う | 誰の権限で（q-sub） | 要る | `C-sub`（AGENT_AT・TASK_AT。社員のまま。交換で差し替えさせない。C15） | invoice-mcp・invoices |
@@ -381,7 +387,7 @@ flowchart LR
 | 同上 | どの取引か（q-txn） | 要る | `C-task-id`（タスクの ID） | 監査の相関 |
 | 同上 | 誰が利用者か（q-user） | 要る | `C-user-id` | invoices が請求書の持ち主と照合（C3） |
 | 同上 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`・`C-act` | invoice-mcp |
-| 同上 | 何が承認されたか（q-authorized） | 要る | `C-authorization-details`（金額・相手先・対象）・`C-approval-id`・`C-scope` | invoices が承認の DB と本文を照合（C5〜C7） |
+| 同上 | 何が承認されたか（q-authorized） | 要る | `C-authorization-details`（金額・相手先・対象）・`C-approval-id`・`C-scope`。承認の時点（CIBA）で AGENT_AT に載せ、TASK_AT はその部分集合（B04） | invoice-mcp と invoices が承認の DB と本文を照合（C5〜C7） |
 | 同上 | どのリソース向けか（q-resource） | 要る | `C-aud`（AGENT_AT は invoice-mcp だけ、TASK_AT は invoices だけ） | 受け取ったトークンを上流に渡さない（C2・C13） |
 | 同上 | 誰が持つべきか（q-holder） | 要る | `C-cnf`（`cnf.jkt`、DPoP） | invoice-mcp・invoices が proof と照合 |
 
@@ -394,14 +400,14 @@ flowchart LR
 | --- | --- | --- | --- | --- | --- |
 | `q-sub` | 誰の権限で | `sub` | `sub` | `act` | `gateway`・`orders`・`invoices`・`invoice-mcp`・`ledger`・`docs`・`portal`・`payment-worker` |
 | `q-actor` | 誰が代理して実行しているか | `act` | `act` | `sub`・`authorization_details`・`txn`・`req_wl` | `invoice-mcp`・`invoices` |
-| `q-req-wl` | どのワークロードが Txn-Token を求めたか | `req_wl` | `req_wl` | `act`・`txn` | `ledger`・`payment-worker` |
+| `q-req-wl` | どのワークロードが Txn-Token を求めたか | `req_wl` | `req_wl` | `act`・`txn` | `ledger` |
 | `q-peer` | 直接の通信相手は誰か | `mTLS の相手の ID（SPIFFE の X.509-SVID など）` | — | `act`・`req_wl` | — |
 | `q-via` | どこを経由したか | `経由を示す別の属性（AWS FAS の aws:CalledVia に当たるもの）`・`ネストした act` | — | — | — |
-| `q-txn` | どの取引か | `txn` | `txn`・`tctx` | `act` | `ledger`・`payment-worker` |
+| `q-txn` | どの取引か | `txn` | `txn`・`tctx` | `act` | `orders`・`ledger` |
 | `q-user` | 誰が利用者か | `iss と sub の組` | `iss`・`user_id` | `client_id` | `gateway`・`orders`・`ledger`・`docs`・`payroll`・`invoice-mcp`・`invoices`・`portal`・`payment-worker` |
 | `q-agent` | どのエージェント・クライアントか | `client_id`・`azp`・`act.sub`・`req_wl` | `client_id` | `sub` | `gateway`・`orders`・`invoice-mcp`・`invoices` |
-| `q-authorized` | 何が承認されたか | `scope`・`authorization_details`・`acr・amr・auth_time` | `scope`・`authorization_details`・`acr`・`roles`・`approval_id` | `tctx` | `gateway`・`invoice-mcp`・`invoices`・`ledger`・`portal`・`orders` |
-| `q-resource` | どのリソース向けか | `aud`・`resource（RFC 8707）` | `aud` | `scope` | `gateway`・`orders`・`ledger`・`docs`・`payroll`・`invoice-mcp`・`invoices`・`portal`・`payment-worker` |
+| `q-authorized` | 何が承認されたか | `scope`・`authorization_details`・`acr・amr・auth_time` | `scope`・`authorization_details`・`acr`・`roles`・`approval_id` | `tctx` | `gateway`・`orders`・`ledger`・`docs`・`payroll`・`invoice-mcp`・`invoices`・`portal` |
+| `q-resource` | どのリソース向けか | `aud`・`resource（RFC 8707）` | `aud` | `scope` | `gateway`・`orders`・`ledger`・`docs`・`payroll`・`invoice-mcp`・`invoices`・`portal` |
 | `q-holder` | 誰が持つべきか | `cnf` | `cnf` | — | `invoice-mcp`・`invoices` |
 | `q-iss` | 誰が発行したか、信頼する発行者か（pending） | `iss（許可リストと完全一致）、iss ごとの鍵` | — | — | — |
 | `q-typ` | どの種類・目的のトークンか（pending） | `ヘッダーの typ（at+jwt・txntoken+jwt・logout+jwt など）` | — | — | — |
@@ -439,11 +445,14 @@ sequenceDiagram
   P->>K: リフレッシュ【RT】（U04・I02）
   K-->>P: 新しい【KC_AT】【RT】（I02）
   U->>P: エージェントに支払いを任せる
-  G->>K: CIBA で社員の承認（I13）
-  G-->>A: 【AGENT_AT】（I13）
+  A->>G: CIBA の要求（authorization_details に支払いの内容。I13）
+  G->>P: 社員への承認の依頼（binding_message）
+  U->>P: 承認
+  P-->>G: 承認の結果
+  G-->>A: 【AGENT_AT】（承認の ID と内容つき。I13・I14）
   A->>M: ツールの呼び出し【AGENT_AT】【DPOP】（I30・U25・U26）
   M->>G: 交換【AGENT_AT】（U10・I06）
-  G-->>M: 【TASK_AT】（I06・I14・I29）
+  G-->>M: 【TASK_AT】（AGENT_AT の部分集合。I06・I29）
   M->>V: 支払い【TASK_AT】【DPOP】（U26）
   K-->>P: ログアウトの通知【LOGOUT】（I09・U07）
 ```
@@ -452,7 +461,7 @@ sequenceDiagram
 
 ## 8. ホップごとの表
 
-規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。超える場合は `narrowing_exception` に理由を書く。`upstream` を置いたホップ（H2・H4〜H7・H10〜H13）は、#6 の L16 が確かめ、指摘は 0 件です。
+規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。超える場合は `narrowing_exception` に理由を書く。`upstream` を置いたホップ（H2・H4〜H7・H10〜H13・H15）は、#6 の L16 が確かめ、warn・error の指摘は 0 件です。H15 は aud を 1 つの別の宛先に替える交換で、`aud_replacement: true` と `narrowing_exception.aud` に理由を書いた（L16 は info で記録する）。scope・寿命・独自クレーム・`authorization_details` は上流の H14 以下です（承認の ID と内容を AGENT_AT に移した。PR #44 のレビュー B04・B05）。
 
 `upstream` を置いていないホップとその理由：
 
@@ -462,7 +471,6 @@ sequenceDiagram
 | H8（グループ会社の社員の INT_AT） | 組織のクレームは入口が IdP ごとの規則で書く起点で、外部の AT とクレームの集合で比べられない | 入口が aud を呼び出し先の 1 つに、寿命を 300 秒以下かつ EXT_AT の残りの寿命以下にする |
 | H9（TXN） | Txn-Token の aud は信頼ドメインで、INT_AT の aud（リソース）と集合で比べられない | 寿命は INT_AT と同じ 300 秒を上限にする |
 | H14（AGENT_AT） | 上流はトークンではなく社員の承認（CIBA） | sts が承認の範囲で発行する |
-| H15（TASK_AT） | AGENT_AT の aud（invoice-mcp）を invoices に替える交換で、L16 の集合の比べ方では「aud が広がった」になる。承認から足す `C-approval-id`・`authorization_details` も「上流に無い独自クレーム」になる | sts が scope を AGENT_AT の scope とタスクの範囲の積に絞り、寿命を 300 秒以下にし、`sub` を差し替えさせない（C14・C15）。12. と、#6 への指摘 |
 
 <!-- render:hop-table:begin -->
 `hops.yaml` の宣言。トークンのないホップの「運ぶトークン」は —。
@@ -470,19 +478,19 @@ sequenceDiagram
 | ホップ | 種類 | 運ぶトークン | aud | scope | 寿命 | 運ぶ独自クレーム | 交換するサービス | 検証 | 検証・照合すること |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | H1 ブラウザ → portal（BFF） | `browser` | `BFFSESSION` | — | — | 36000 秒 | — | — | `local` | Cookie のセッション ID を BFF のセッションの表で引く<br>idle 1800 秒と絶対的な上限 36000 秒<br>Back-Channel Logout で消したセッションを拒む |
-| H2 portal（BFF のサーバー） → gateway（入口） | `entry` | `KC_AT` | `orders`・`ledger`・`docs`・`payroll` | `orders.read`・`ledger.read`・`docs.read`・`payslip.read` | 300 秒 | `tenant_id`・`user_id`・`roles`・`department`・`employee_id`・`idp`・`v` | — | `local` | 署名（レルム corp の JWKS、RS256 だけ）<br>iss が https://idp.example.com/realms/corp と完全に一致<br>aud に呼び出し先の API が含まれる<br>exp・iat（ずれ 30 秒）<br>ヘッダーの typ が at+jwt<br>required_claims<br>azp が portal<br>クライアントが付けた x-user-* のヘッダーを大文字小文字・アンダースコア・重複を含めて捨てる |
+| H2 portal（BFF のサーバー） → gateway（入口） | `entry` | `KC_AT` | `orders`・`ledger`・`docs`・`payroll` | `orders.read`・`ledger.read`・`ledger.post`・`docs.read`・`payslip.read` | 300 秒 | `tenant_id`・`user_id`・`roles`・`department`・`employee_id`・`idp`・`v` | — | `local` | 署名（レルム corp の JWKS、RS256 だけ）<br>iss が https://idp.example.com/realms/corp と完全に一致<br>aud に呼び出し先の API が含まれる<br>exp・iat（ずれ 30 秒）<br>ヘッダーの typ が at+jwt<br>required_claims<br>azp が portal<br>scope に呼び出し先の操作の scope がある（無ければ作り直さない）<br>クライアントが付けた x-user-* のヘッダーを大文字小文字・アンダースコア・重複を含めて捨てる |
 | H3 グループ会社のアプリ → gateway（入口） | `entry` | `EXT_AT` | `api://corp-gateway` | — | 5400 秒 | — | — | `local` | IdP ごとの iss の許可リスト（Entra は tid を置き換えた完全な iss）<br>IdP ごとの jwks_uri の鍵だけ<br>IdP ごとの種類の確認（Entra の idtyp、Okta の typ、Cognito の token_use: access、Auth0 の typ）<br>aud（Cognito は aud が無いので client_id が登録したアプリ）<br>利用者のキーは不変の ID（Entra は tid＋oid、Okta は uid、Cognito・Auth0 は sub）<br>groups の超過（_claim_names）はディレクトリで引き直す |
 | H4 gateway（入口） → orders | `reissue` | `INT_AT` | `orders` | `orders.read` | 300 秒 | `tenant_id`・`user_id`・`roles`・`idp`・`v` | gateway（sts） | `local` | 署名（sts の JWKS、ES256 だけ）<br>iss が https://sts.corp.example.com<br>aud が orders だけ<br>ヘッダーの typ が corp-internal+jwt<br>exp・iat（ずれ 30 秒）<br>required_claims<br>通信相手が gateway（mTLS の SPIFFE ID） |
-| H5 gateway（入口） → ledger | `reissue` | `INT_AT_LEDGER` | `ledger` | `ledger.read` | 300 秒 | `tenant_id`・`user_id`・`v` | gateway（sts） | `local` | 署名（sts の JWKS）<br>aud が ledger だけ<br>ヘッダーの typ が corp-internal+jwt<br>required_claims<br>経理の操作のたびに sid の Keycloak のセッションと現在の部署を引き直す（ケーススタディ B11・B12） |
+| H5 gateway（入口） → ledger | `reissue` | `INT_AT_LEDGER` | `ledger` | `ledger.read`・`ledger.post` | 300 秒 | `tenant_id`・`user_id`・`v` | gateway（sts） | `local` | 署名（sts の JWKS）<br>aud が ledger だけ<br>ヘッダーの typ が corp-internal+jwt<br>required_claims<br>経理の操作のたびに sid の Keycloak のセッションと現在の部署を引き直す（ケーススタディ B11・B12）<br>ledger.post は scope に ledger.post があり、acr が組織の MFA の値で auth_time から 900 秒以内のときだけ（付録 B） |
 | H6 gateway（入口） → docs | `reissue` | `INT_AT_DOCS` | `docs` | `docs.read` | 300 秒 | `tenant_id`・`user_id`・`department`・`v` | gateway（sts） | `local` | 署名（sts の JWKS）<br>aud が docs だけ<br>ヘッダーの typ が corp-internal+jwt<br>required_claims<br>部署が欠けていれば拒否する（Okta のフックの打ち切りで消えた場合。ケーススタディ B15） |
 | H7 gateway（入口） → payroll（社員番号をキーにする旧システム） | `reissue` | `INT_AT_PAYROLL` | `payroll` | `payslip.read` | 300 秒 | `tenant_id`・`user_id`・`employee_id`・`v` | gateway（sts） | `local` | 署名（sts の JWKS）<br>aud が payroll だけ<br>ヘッダーの typ が corp-internal+jwt<br>社員番号は文字列で、数値なら拒否する（ケーススタディ B22） |
 | H8 gateway（入口） → orders | `reissue` | `INT_AT` | `orders` | `orders.read` | 300 秒 | `tenant_id`・`user_id`・`roles`・`idp`・`v` | gateway（sts） | `local` | 署名（sts の JWKS）<br>aud が orders だけ<br>ヘッダーの typ が corp-internal+jwt<br>required_claims |
-| H9 gateway（入口） → orders | `service` | `TXN` | `https://corp.example.com` | `orders.read` | 300 秒 | — | tts | `local` | 署名（tts の JWKS）<br>ヘッダーの typ が txntoken+jwt<br>aud が信頼ドメイン<br>txn・sub・req_wl がある<br>Txn-Token ヘッダーで受け、Authorization では受けない |
-| H10 orders → ledger | `service` | `TXN` | `https://corp.example.com` | `orders.read` | 300 秒 | — | — | `local` | 署名（tts の JWKS）<br>txn が監査ログで H9 と同じ<br>呼び出し元のサービス（mTLS の SPIFFE ID）を orders と確かめ、呼び出し元と社員（sub）をそれぞれ認可する |
-| H11 ledger → ledger-db（Postgres） | `db_connection` | — | — | — | — | `tenant_id`・`user_id` | — | `none` | RLS（ENABLE と FORCE）のポリシーで、行の部署と current_setting('app.department', true) を比べる<br>監査の列に current_setting('app.user_id', true) を書く<br>文脈が未設定なら 0 行 |
+| H9 gateway（入口） → orders | `service` | `TXN` | `https://corp.example.com` | `orders.read`・`ledger.read` | 300 秒 | — | tts | `local` | 署名（tts の JWKS）<br>ヘッダーの typ が txntoken+jwt<br>aud が信頼ドメイン<br>txn・sub・req_wl がある<br>Txn-Token ヘッダーで受け、Authorization では受けない |
+| H10 orders → ledger | `service` | `TXN` | `https://corp.example.com` | `ledger.read` | 300 秒 | — | — | `local` | 署名（tts の JWKS）<br>txn が監査ログで H9 と同じ<br>呼び出し元のサービス（mTLS の SPIFFE ID）を orders と確かめ、呼び出し元と社員（sub）をそれぞれ認可する<br>TXN の scope と tctx の operation が ledger.read のときだけ受ける（経理の書き込みは受けない） |
+| H11 ledger → ledger-db（Postgres） | `db_connection` | — | — | — | — | `tenant_id`・`user_id` | — | `none` | RLS（ENABLE と FORCE）のポリシーで、行の部署と current_setting('app.department', true) を比べる<br>監査の列に current_setting('app.user_id', true) を書く<br>文脈が未設定なら 0 行<br>app.department を設定するのは ledger だけで、値は経理の操作のたびに Keycloak の管理 API で引き直した現在の部署（トークンの値ではない） |
 | H12 ledger → events（メッセージブローカー） | `broker_connection` | — | — | — | — | — | — | `none` | 接続は ledger のワークロードの ID（mTLS の X.509-SVID）で認証する<br>メッセージには主体の間接参照（ハッシュした user_id）と txn と approval の ID だけを入れ、トークンを入れない |
 | H13 events（メッセージブローカー） → payment-worker | `broker_connection` | — | — | — | — | — | — | `none` | payment-worker は自分のワークロードの ID（mTLS）で受ける<br>処理の前に approval の ID の記録が有効かを引く（利用者のトークンは持たない） |
-| H14 agent-runtime（エージェント agent:expense） → invoice-mcp | `service` | `AGENT_AT` | `invoice-mcp` | `invoices.read`・`invoices.pay` | 300 秒 | `tenant_id`・`user_id`・`task_id`・`v` | — | `local` | 署名（sts の JWKS、ES256 だけ）<br>aud が invoice-mcp だけ（受け取ったトークンを上流に渡さない）<br>DPoP の proof の htm・htu・iat・jti・ath と、cnf.jkt と proof の鍵の拇印<br>最も外側の act.sub が呼び出し元のエージェント（client_id と一致）<br>act の深さが 3 以下 |
+| H14 agent-runtime（エージェント agent:expense） → invoice-mcp | `service` | `AGENT_AT` | `invoice-mcp` | `invoices.read`・`invoices.pay` | 300 秒 | `tenant_id`・`user_id`・`task_id`・`approval_id`・`v` | — | `local` | 署名（sts の JWKS、ES256 だけ）<br>aud が invoice-mcp だけ（受け取ったトークンを上流に渡さない）<br>DPoP の proof の htm・htu・iat・jti・ath と、cnf.jkt と proof の鍵の拇印<br>最も外側の act.sub が呼び出し元のエージェント（client_id と一致）<br>act の深さが 3 以下 |
 | H15 invoice-mcp → invoices（請求書の API） | `exchange` | `TASK_AT` | `invoices` | `invoices.pay` | 300 秒 | `tenant_id`・`user_id`・`task_id`・`approval_id`・`v` | sts | `local` | 署名（sts の JWKS）<br>aud が invoices だけ<br>DPoP の proof と cnf.jkt（invoice-mcp の鍵）<br>最も外側の act.sub が invoice-mcp で、その内側が agent:expense<br>authorization_details の金額・相手先・対象（identifier）と要求の本文が一致<br>approval の ID の記録が有効<br>sub と請求書の持ち主が一致（ケーススタディ C3・C15） |
 <!-- render:hop-table:end -->
 
@@ -501,13 +509,13 @@ sequenceDiagram
 | `H2` | `KC_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | 未来の iat（ずれ 30 秒を超える）を拒否 | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `jti` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | 必須。ログには jti だけを記録する | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `azp` | ② Keycloak と外部の IdP | KC_AT の azp が portal、EXT_AT の azp が許可したクライアント。値を INT_AT の client_id に写す | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
-| `H2` | `KC_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | KC_AT の scope に openid があること（ほかは読まない） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
+| `H2` | `KC_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | KC_AT の scope に、呼び出し先の操作の scope（orders.read・ledger.read・ledger.post・docs.read・payslip.read）があること。INT_AT と TXN には、その操作の scope だけを写す（PR #44 のレビュー B02） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `acr` | ① Keycloak と外部の IdP<br>③ 入口の STS（組織の語彙に正規化） | 対応表で組織の語彙に写す | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `auth_time` | ① Keycloak（basic スコープ）<br>③ 入口の STS（KC_AT の値を写す） | KC_AT の値を INT_AT に写す | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `sid` | ① Keycloak（セッション）<br>③ 入口の STS（KC_AT の値を写す） | KC_AT の値を INT_AT に写す | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | KC_AT の値が corp。EXT_AT からは読まず、STS が corp を書く | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 対応表に無い利用者を拒否 | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
-| `H2` | `KC_AT` | `https://claims.example.com/.roles` | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）<br>③ 入口の STS（対応表） | 対応表で 4 つの語彙に写す。超過はディレクトリを引いて解決する。クライアントが送った X-User-Role などのヘッダーを、大文字小文字・アンダースコア・重複を含めて捨てる（B4・B5・B6） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
+| `H2` | `KC_AT` | `https://claims.example.com/.roles` | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）<br>③ 入口の STS（対応表） | 対応表で 4 つの語彙に写す。EXT_AT から作るときは groups を写さず、各社のディレクトリで今の所属を引き（60 秒まで再利用）、viewer・staff だけを写す（admins・editor は Keycloak の社員だけ）。超過はディレクトリを引いて解決する。クライアントが送った X-User-Role などのヘッダーを、大文字小文字・アンダースコア・重複を含めて捨てる（B4・B5・B6） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `https://claims.example.com/.department` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（KC_AT の値を写す。外部の IdP の利用者は人事の台帳から引く） | 文字列であること。無ければ拒否（Okta のフックの打ち切りで消えた場合。B15） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `https://claims.example.com/.employee_id` | ② Keycloak（User Attribute マッパー。JSON の型は String に固定）<br>③ 入口の STS（payroll 宛てだけに写す） | 文字列であること（数値なら拒否。2^53 を超える数値の誤読を防ぐ。ケーススタディ B22）。payroll 宛ての INT_AT だけに写す | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `https://claims.example.com/.v` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | 知っている版（"1"）か | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
@@ -527,6 +535,7 @@ sequenceDiagram
 | `H4` | `INT_AT` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp − iat ≤ 300 で、exp を過ぎたら拒否 | `orders` | 300 秒 |
 | `H4` | `INT_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `orders` | 300 秒 |
 | `H4` | `INT_AT` | `client_id` | ② 外部の IdP<br>③ 入口の STS（クライアント認証の結果） | 必須。記録する（呼び出し元のクライアントの監査） | `orders` | 300 秒 |
+| `H4` | `INT_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | INT_AT の scope に orders.read があること | `orders` | 300 秒 |
 | `H4` | `INT_AT` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | corp であること（配列なら拒否） | `orders` | 300 秒 |
 | `H4` | `INT_AT` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 文字列であること。注文の持ち主と照合する | `orders` | 300 秒 |
 | `H4` | `INT_AT` | `https://claims.example.com/.roles` | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）<br>③ 入口の STS（対応表） | 配列であること。4 件を超えたら拒否。語彙の外の値は無視。管理の操作は Keycloak の利用者のロールを引き直す | `orders` | 300 秒 |
@@ -537,6 +546,7 @@ sequenceDiagram
 | `H5` | `INT_AT_LEDGER` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | INT_AT の aud が ledger だけ。TXN の aud が信頼ドメイン | `ledger` | 300 秒 |
 | `H5` | `INT_AT_LEDGER` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `ledger` | 300 秒 |
 | `H5` | `INT_AT_LEDGER` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `ledger` | 300 秒 |
+| `H5` | `INT_AT_LEDGER` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 書き込みは INT_AT_LEDGER の scope に ledger.post があるときだけ。TXN だけの要求は scope が ledger.read のときだけ受ける（B01） | `ledger` | 300 秒 |
 | `H5` | `INT_AT_LEDGER` | `acr` | ① Keycloak と外部の IdP<br>③ 入口の STS（組織の語彙に正規化） | mfa でなければ 401 と WWW-Authenticate の insufficient_user_authentication（RFC 9470） | `ledger` | 300 秒 |
 | `H5` | `INT_AT_LEDGER` | `auth_time` | ① Keycloak（basic スコープ）<br>③ 入口の STS（KC_AT の値を写す） | 今 − auth_time ≤ 900 でなければ insufficient_user_authentication（max_age 900） | `ledger` | 300 秒 |
 | `H5` | `INT_AT_LEDGER` | `sid` | ① Keycloak（セッション）<br>③ 入口の STS（KC_AT の値を写す） | 重要な操作のたびに Keycloak のセッションの一覧にこの sid があるかを引く（無ければ拒否。B12） | `ledger` | 300 秒 |
@@ -548,6 +558,7 @@ sequenceDiagram
 | `H6` | `INT_AT_DOCS` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | INT_AT の aud が docs だけ | `docs` | 300 秒 |
 | `H6` | `INT_AT_DOCS` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `docs` | 300 秒 |
 | `H6` | `INT_AT_DOCS` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `docs` | 300 秒 |
+| `H6` | `INT_AT_DOCS` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | INT_AT_DOCS の scope に docs.read があること | `docs` | 300 秒 |
 | `H6` | `INT_AT_DOCS` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | corp であること | `docs` | 300 秒 |
 | `H6` | `INT_AT_DOCS` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 文字列であること | `docs` | 300 秒 |
 | `H6` | `INT_AT_DOCS` | `https://claims.example.com/.department` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（KC_AT の値を写す。外部の IdP の利用者は人事の台帳から引く） | sales か finance であること | `docs` | 300 秒 |
@@ -556,6 +567,7 @@ sequenceDiagram
 | `H7` | `INT_AT_PAYROLL` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | INT_AT の aud が payroll だけ | `payroll` | 300 秒 |
 | `H7` | `INT_AT_PAYROLL` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `payroll` | 300 秒 |
 | `H7` | `INT_AT_PAYROLL` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `payroll` | 300 秒 |
+| `H7` | `INT_AT_PAYROLL` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | INT_AT_PAYROLL の scope に payslip.read があること | `payroll` | 300 秒 |
 | `H7` | `INT_AT_PAYROLL` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | corp であること | `payroll` | 300 秒 |
 | `H7` | `INT_AT_PAYROLL` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 文字列であること。payroll は移行の後、社員番号でなくこの値で給与明細を引く（C-employee-id の移行先） | `payroll` | 300 秒 |
 | `H7` | `INT_AT_PAYROLL` | `https://claims.example.com/.employee_id` | ② Keycloak（User Attribute マッパー。JSON の型は String に固定）<br>③ 入口の STS（payroll 宛てだけに写す） | 文字列であること。数字だけで 20 文字以下 | `payroll` | 300 秒 |
@@ -566,6 +578,7 @@ sequenceDiagram
 | `H8` | `INT_AT` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp − iat ≤ 300 で、exp を過ぎたら拒否 | `orders` | 300 秒 |
 | `H8` | `INT_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `orders` | 300 秒 |
 | `H8` | `INT_AT` | `client_id` | ② 外部の IdP<br>③ 入口の STS（クライアント認証の結果） | 必須。記録する（呼び出し元のクライアントの監査） | `orders` | 300 秒 |
+| `H8` | `INT_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | INT_AT の scope に orders.read があること | `orders` | 300 秒 |
 | `H8` | `INT_AT` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | corp であること（配列なら拒否） | `orders` | 300 秒 |
 | `H8` | `INT_AT` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 文字列であること。注文の持ち主と照合する | `orders` | 300 秒 |
 | `H8` | `INT_AT` | `https://claims.example.com/.roles` | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）<br>③ 入口の STS（対応表） | 配列であること。4 件を超えたら拒否。語彙の外の値は無視。管理の操作は Keycloak の利用者のロールを引き直す | `orders` | 300 秒 |
@@ -576,14 +589,17 @@ sequenceDiagram
 | `H9` | `TXN` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | INT_AT の aud が orders だけ（文字列と配列の両方の形を受け、要素が 1 つで orders であること） | `https://corp.example.com` | 300 秒 |
 | `H9` | `TXN` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp − iat ≤ 300 で、exp を過ぎたら拒否 | `https://corp.example.com` | 300 秒 |
 | `H9` | `TXN` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `https://corp.example.com` | 300 秒 |
+| `H9` | `TXN` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | INT_AT の scope に orders.read があること | `https://corp.example.com` | 300 秒 |
+| `H9` | `TXN` | `txn` | ④ TTS | 必須。改変せずに ledger に渡す | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `iss` | ② Keycloak（レルム corp）と外部の IdP<br>③ 入口の STS（gateway）<br>④ TTS | INT_AT の iss が STS と完全一致。TXN の iss が TTS と完全一致 | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `sub` | ② Keycloak（basic スコープの sub マッパー）と外部の IdP<br>③ 入口の STS（対応表で組織の利用者 ID に置き換える） | 文字列であること。TXN の sub と INT_AT の sub が一致すること | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | INT_AT の aud が ledger だけ。TXN の aud が信頼ドメイン | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | exp − iat ≤ 300 | `https://corp.example.com` | 300 秒 |
-| `H10` | `TXN` | `txn` | ④ TTS | 必須。監査のログに記録する | `https://corp.example.com` | 300 秒 |
+| `H10` | `TXN` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 書き込みは INT_AT_LEDGER の scope に ledger.post があるときだけ。TXN だけの要求は scope が ledger.read のときだけ受ける（B01） | `https://corp.example.com` | 300 秒 |
+| `H10` | `TXN` | `txn` | ④ TTS | 必須。監査のログに記録し、支払いのイベント（H12）に値だけを写す | `https://corp.example.com` | 300 秒 |
 | `H10` | `TXN` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | 入口の SPIFFE ID であること。監査に記録する | `https://corp.example.com` | 300 秒 |
-| `H10` | `TXN` | `tctx` | ④ TTS（入口の経路の表） | tctx の operation が、要求の操作（ledger.read・ledger.post）と一致する | `https://corp.example.com` | 300 秒 |
+| `H10` | `TXN` | `tctx` | ④ TTS（入口の経路の表） | operation が TXN の scope（ledger.read）と食い違えば拒否し、監査に記録する。operation で書き込みを許さない（TXN の経路の操作は scope で決める。PR #44 のレビュー B01） | `https://corp.example.com` | 300 秒 |
 | `H11` | — | `https://claims.example.com/.tenant_id` | ledger（トークンなし） | corp であること | — | — |
 | `H11` | — | `https://claims.example.com/.user_id` | ledger（トークンなし） | 文字列であること。監査に記録する | — | — |
 | `H12` | — | — | — | — | — | — |
@@ -592,24 +608,26 @@ sequenceDiagram
 | `H14` | `AGENT_AT` | `sub` | ② Keycloak（basic スコープの sub マッパー）と外部の IdP<br>③ 入口の STS（対応表で組織の利用者 ID に置き換える） | AGENT_AT の sub を交換の subject に使い、交換の前後で sub が変わっていないこと | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | AGENT_AT の aud が invoice-mcp だけ。自分宛てでないトークンは受けず、受けたトークンを上流に渡さない（ケーススタディ C2・C13） | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `invoice-mcp` | 300 秒 |
-| `H14` | `AGENT_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の iat が今から ±60 秒の中（RFC 9449 §11.1 の受け入れる期間） | `invoice-mcp` | 300 秒 |
+| `H14` | `AGENT_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の iat が今から ±60 秒の中（窓の幅は筆者の提案。RFC 9449 §11.1 は数値を定めない） | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `jti` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の jti を 90 秒（受け入れる期間 60 秒＋ずれ 30 秒）記録し、同じ jti を拒否する | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `client_id` | ② 外部の IdP<br>③ 入口の STS（クライアント認証の結果） | AGENT_AT の client_id が act.sub と同じエージェント | `invoice-mcp` | 300 秒 |
-| `H14` | `AGENT_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 呼ばれたツールに要る scope が AGENT_AT にあること。足りなければ WWW-Authenticate で要る scope を示す | `invoice-mcp` | 300 秒 |
+| `H14` | `AGENT_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 呼ばれたツールに要る scope が AGENT_AT にあること。足りなければ WWW-Authenticate で要る scope を示す | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `act` | ⑥ 入口の STS（CIBA の委任・トークン交換） | 最も外側の act.sub が agent:expense で、直接の通信相手（mTLS の相手の ID）と一致する | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `cnf` | ⑥ 入口の STS（トークンの要求に付いた DPoP の proof の鍵） | Authorization が DPoP で、DPoP の proof の公開鍵の拇印が cnf.jkt と一致する。proof の htm・htu・iat・ath を照合し、jti を受け入れる期間の間覚えて再送を拒否する（RFC 9449 §4.3・§11.1） | `invoice-mcp` | 300 秒 |
+| `H14` | `AGENT_AT` | `authorization_details` | ⑥ 入口の STS（承認の記録から） | AGENT_AT の authorization_details の金額・相手先・対象と、ツールに渡された支払いの内容が一致する。交換の要求で同じ内容だけを求める | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `https://claims.example.com/.tenant_id` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | corp であること | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `https://claims.example.com/.user_id` | ② Keycloak（User Attribute マッパー）<br>③ 入口の STS（対応表） | 文字列であること | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `https://claims.example.com/.v` | ② Keycloak（Hardcoded claim マッパー）<br>③ 入口の STS | 知っている版か | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `https://claims.example.com/.task_id` | ⑥ 入口の STS（CIBA の委任のとき） | 文字列であること。監査に記録し、交換の要求に同じ値が引き継がれること | `invoice-mcp` | 300 秒 |
+| `H14` | `AGENT_AT` | `https://claims.example.com/.approval_id` | ⑥ 入口の STS（承認の記録から） | AGENT_AT の承認の ID の記録が有効で、ツールに渡された支払いの内容が AGENT_AT の authorization_details と一致すること。交換の要求に同じ承認を引き継ぐ | `invoice-mcp` | 300 秒 |
 | `H15` | `TASK_AT` | `iss` | ② Keycloak（レルム corp）と外部の IdP<br>③ 入口の STS（gateway）<br>④ TTS | TASK_AT の iss が STS と完全一致 | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `sub` | ② Keycloak（basic スコープの sub マッパー）と外部の IdP<br>③ 入口の STS（対応表で組織の利用者 ID に置き換える） | TASK_AT の sub が請求書の持ち主と一致し、承認の記録の持ち主とも一致する（ケーススタディ C3・C15） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | TASK_AT の aud が invoices だけ（2 つ以上なら拒否） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `exp` | ② Keycloak（レルムの寿命の設定）と外部の IdP<br>③ 入口の STS<br>④ TTS | 必須。exp を過ぎたら拒否 | `invoices` | 300 秒 |
-| `H15` | `TASK_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の iat が今から ±60 秒の中 | `invoices` | 300 秒 |
+| `H15` | `TASK_AT` | `iat` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の iat が今から ±60 秒の中（同上） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `jti` | ② Keycloak と外部の IdP<br>③ 入口の STS<br>④ TTS<br>⑥ DPoP の proof を作るクライアント | DPoP の proof の jti を 90 秒記録し、同じ jti を拒否する | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `client_id` | ② 外部の IdP<br>③ 入口の STS（クライアント認証の結果） | TASK_AT の client_id が直接の通信相手（mTLS の相手の ID）と一致する | `invoices` | 300 秒 |
-| `H15` | `TASK_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 操作（read・pay・refund）に要る scope が TASK_AT にあること（ケーススタディ C14） | `invoices` | 300 秒 |
+| `H15` | `TASK_AT` | `scope` | ② Keycloak（クライアントスコープ）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）<br>④ TTS（取引の最も狭い目的）<br>⑥ 入口の STS（CIBA の同意・交換で絞る） | 操作（read・pay・refund）に要る scope が TASK_AT にあること（ケーススタディ C14） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `act` | ⑥ 入口の STS（CIBA の委任・トークン交換） | 最も外側の act.sub が invoice-mcp で、直接の通信相手と一致する。委任の連鎖の深さが 3 以下（組織の規則。ケーススタディ C10）。act の方針表で、その代理者に許した操作だけ（C4） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `cnf` | ⑥ 入口の STS（トークンの要求に付いた DPoP の proof の鍵） | Authorization が DPoP で、DPoP の proof の公開鍵の拇印が cnf.jkt と一致する。proof の htm・htu・iat・ath を照合し、jti を受け入れる期間の間覚えて再送を拒否する（RFC 9449 §4.3・§11.1） | `invoices` | 300 秒 |
 | `H15` | `TASK_AT` | `authorization_details` | ⑥ 入口の STS（承認の記録から） | type が https://claims.example.com/rar/payment で、identifier・instructedAmount・creditorAccount が要求の本文と一致する（C5・C6）。C-approval-id の記録が有効か、支払いの前に承認の DB を引く（C7） | `invoices` | 300 秒 |
@@ -684,13 +702,13 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `jti` | `KC_AT`・`LOGOUT`・`EXT_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`TXN`・`AGENT_AT`・`TASK_AT`・`DPOP` | 5430 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange`・`reissue` | 寿命の間に変わらない（never） | — | 該当なし |
 | `client_id` | `EXT_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`AGENT_AT`・`TASK_AT` | 5430 秒 | `never` | 0 秒 | `exchange`・`reissue` | 寿命の間に変わらない（never） | — | クライアントを無効にしたら新しい発行が止まる |
 | `azp` | `KC_AT`・`IDT`・`EXT_AT` | 5430 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
-| `scope` | `KC_AT`・`AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange` | 寿命の間に変わらない（never） | — | 寿命（300 秒）の間は変わらない。タスクの範囲を変えるときは交換し直す |
+| `scope` | `KC_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`TXN`・`AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange` | 寿命の間に変わらない（never） | — | 寿命（300 秒）の間は変わらない。タスクの範囲を変えるときは交換し直す |
 | `act` | `AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 委任を取り消したら、STS は交換を断る。発行済みの AGENT_AT・TASK_AT は寿命（300 秒）まで残る（ケーススタディ C9） |
 | `cnf` | `AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 該当なし |
 | `htm` | `DPOP` | 90 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
 | `htu` | `DPOP` | 90 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
 | `ath` | `DPOP` | 90 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
-| `authorization_details` | `TASK_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 承認を取り消したら交換を断る。発行済みの TASK_AT は寿命（300 秒）まで残るので、invoices は支払いの前に承認の記録の状態を引く |
+| `authorization_details` | `AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 承認を取り消したら交換を断る。発行済みの TASK_AT は寿命（300 秒）まで残るので、invoices は支払いの前に承認の記録の状態を引く |
 | `txn` | `TXN` | 330 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 該当なし |
 | `req_wl` | `TXN` | 330 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 該当なし |
 | `tctx` | `TXN` | 330 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 該当なし |
@@ -705,13 +723,13 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `email_verified` | `IDT` | 330 秒 | 86400 秒 | 36000 秒 | `login`・`refresh` | — | — | 表示だけ |
 | `https://claims.example.com/.tenant_id` | `KC_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange`・`reissue` | 寿命の間に変わらない（never） | — | 値は変わらない |
 | `https://claims.example.com/.user_id` | `KC_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange`・`reissue` | 寿命の間に変わらない（never） | — | 退職で対応表から外すと新しい発行が止まる。発行済みのトークンは寿命まで残る |
-| `https://claims.example.com/.roles` | `KC_AT`・`INT_AT` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh`・`reissue` | — | — | ロールを外しても、INT_AT の受け入れの上限（330 秒）の間は残る。管理の操作では、orders が Keycloak の利用者のロールを引き直す（ケーススタディの freshness） |
+| `https://claims.example.com/.roles` | `KC_AT`・`INT_AT` | 330 秒 | 390 秒 | 390 秒 | `login`・`refresh`・`reissue` | — | — | 社員（Keycloak）のロールを外しても、INT_AT の受け入れの上限（330 秒）の間は残る。管理の操作では、orders が Keycloak の利用者のロールを引き直す（ケーススタディの freshness）。 グループ会社の社員は、EXT_AT の groups を写すと剥奪の反映が EXT_AT の受け入れの上限（5430 秒）と INT_AT の 330 秒の和（最悪 5760 秒）になり、 Keycloak を引き直す対策も効かない。そこで入口は EXT_AT の groups を写さず、INT_AT を作るたびに各社のディレクトリで今の所属を引く（結果は 60 秒まで キャッシュする。遅れの最悪は 60＋330＝390 秒で、volatility もこれに合わせた。ディレクトリ参照は p50 50.7 ms、ケーススタディの測定）。 さらに、EXT_AT から作る INT_AT には admins・editor を写さず（viewer・staff だけ）、グループ会社の社員の管理・編集の操作は受けない（PR #44 のレビュー B03） |
 | `https://claims.example.com/.department` | `KC_AT`・`INT_AT_DOCS` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh`・`reissue` | — | — | 異動しても INT_AT の受け入れの上限（330 秒）の間は残る。docs はこれを許す。ledger は操作のたびに引き直すので古い値を使わない（INT_AT の revocation の db_lookup） |
 | `https://claims.example.com/.employee_id` | `KC_AT`・`INT_AT_PAYROLL` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`reissue` | 寿命の間に変わらない（never） | — | 値は変わらない |
 | `https://claims.example.com/.idp` | `KC_AT`・`INT_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`reissue` | 寿命の間に変わらない（never） | — | 値は変わらない |
 | `https://claims.example.com/.v` | `KC_AT`・`INT_AT`・`INT_AT_LEDGER`・`INT_AT_DOCS`・`INT_AT_PAYROLL`・`AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh`・`exchange`・`reissue` | 寿命の間に変わらない（never） | — | 該当なし |
 | `https://claims.example.com/.task_id` | `AGENT_AT`・`TASK_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | タスクを取り消したら交換を断る。発行済みのトークンは寿命（300 秒）まで残る（C9。交換のたびに取り消しを確かめる） |
-| `https://claims.example.com/.approval_id` | `TASK_AT` | 330 秒 | 0 秒 | 0 秒 | `exchange` | 超える（TASK_AT 330 秒 > 許容 0 秒） | TASK_AT：DB の確認（0 秒） | 承認の取り消しは即時に反映が要る（volatility 0）。TASK_AT の受け入れの上限（300 秒＋ずれ 30 秒）はこれより長いので、トークンの値に頼らず、invoices が支払いの前に承認の DB で記録の状態を引いて拒否する（遅れ 0 秒。TASK_AT の revocation の db_lookup）。鮮度の表（design.md の 9.2）の「問い合わせに切り替える」の行 |
+| `https://claims.example.com/.approval_id` | `AGENT_AT`・`TASK_AT` | 330 秒 | 0 秒 | 0 秒 | `exchange` | 超える（AGENT_AT 330 秒・TASK_AT 330 秒 > 許容 0 秒） | AGENT_AT：DB の確認（0 秒）<br>TASK_AT：DB の確認（0 秒） | 承認の取り消しは即時に反映が要る（volatility 0）。TASK_AT の受け入れの上限（300 秒＋ずれ 30 秒）はこれより長いので、トークンの値に頼らず、invoices が支払いの前に承認の DB で記録の状態を引いて拒否する（遅れ 0 秒。TASK_AT の revocation の db_lookup）。鮮度の表（design.md の 9.2）の「問い合わせに切り替える」の行 |
 
 **3. セッションと RT の寿命**
 
@@ -776,8 +794,8 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | クレーム（台帳の ID） | 反映までに許す秒数 | 載る種別と受け入れの上限（秒） | 対策 | 対策を書いた台帳・目録の列 |
 | --- | --- | --- | --- | --- |
-| `C-approval-id` | 0（承認の取り消しは即時） | TASK_AT、330 | 問い合わせに切り替える：invoices が支払いの前に承認の DB で記録の状態を引いて拒否する | `C-approval-id` の `on_revoke`・`enforced_at`、TASK_AT の `revocation`（db_lookup、遅れ 0） |
-| `C-roles` | 330 | INT_AT、330 | 許容と同じなので超えない。管理の操作だけは orders が Keycloak のロールを引き直す | `C-roles` の `on_revoke` |
+| `C-approval-id` | 0（承認の取り消しは即時） | AGENT_AT・TASK_AT、330 | 問い合わせに切り替える：invoice-mcp が AGENT_AT を受けるたびに、invoices が支払いの前に、承認の DB で記録の状態を引いて拒否する | `C-approval-id` の `on_revoke`・`enforced_at`、AGENT_AT・TASK_AT の `revocation`（db_lookup、遅れ 0） |
+| `C-roles` | 390 | INT_AT、330（ただしグループ会社の社員は値の出どころの EXT_AT が最大 5430 秒） | 社員は許容の中。管理の操作だけは orders が Keycloak のロールを引き直す。グループ会社の社員は、EXT_AT の groups を写すと最悪 5760 秒古くなり、Keycloak の引き直しも効かないので、入口が INT_AT を作るたびに各社のディレクトリで今の所属を引き（60 秒まで再利用。最悪 390 秒）、さらに viewer・staff だけを写して管理・編集を受けない（B03） | `C-roles` の `on_revoke`・`propagation_delay`・`enforced_at` |
 | `C-department` | 330 | INT_AT_DOCS、330 | 超えない（docs は 330 秒の遅れを許す）。ledger は部署をトークンから読まず、操作のたびに引き直す（B11） | `C-department` の `on_revoke`、INT_AT_LEDGER の `revocation` |
 | `C-sid` | never（値は変わらない。変わるのはセッションの有無） | INT_AT_LEDGER、330 | ledger は重要な操作のたびにセッションの有無を引き直す（B12） | `C-sid` の `on_revoke` |
 | `C-name`・`C-email` | 86400 | IDT、330 | 超えない（表示だけ） | — |
@@ -801,15 +819,15 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `C-iss` | `iss` | 採用 | — | 受け手ごとに受け入れる iss を 1 つに固定する。内側のサービスは STS の iss だけ、入口は Keycloak と外部の IdP の iss だけを受ける。iss と鍵の組で検証し、別の発行者の鍵で署名した偽の iss を拒否する | 外部の IdP の発行者は、入口の許可リストにある 4 つ（Entra は 1 つの顧客テナントに固定）だけ | [RFC 9068 §4](https://www.rfc-editor.org/rfc/rfc9068#section-4)<br>`slide:p00-incident-signature-valid`<br>`slide:p03-absorb-idp-differences` | jwt-claims-casestudy@080b8da:B7<br>jwt-claims-casestudy@080b8da:B10<br>jwt-claims-casestudy@080b8da:G9<br>jwt-claims-casestudy@080b8da:G10 | 新しい IdP か、Entra の別のテナントを受け入れるとき |
 | `C-sub` | `sub` | 採用 | — | 委任のトークン（AGENT_AT・TASK_AT）でも sub は利用者のまま保ち、エージェントは act に書く。受け手は sub で請求書の持ち主と照合し、交換で sub を差し替えたトークンを拒否する（ケーススタディ C15） | 入口が IdP ごとの不変の ID（Keycloak の sub、Entra の tid と oid、Okta の uid、Cognito・Auth0 の sub）から組織の利用者 ID を引く対応表を持つ | [RFC 8693 §4.1](https://www.rfc-editor.org/rfc/rfc8693#section-4.1)<br>`slide:p05-one-request-carries`<br>`slide:p04-immutable-identifiers` | jwt-claims-casestudy@080b8da:B13<br>jwt-claims-casestudy@080b8da:B14<br>jwt-claims-casestudy@080b8da:C3<br>jwt-claims-casestudy@080b8da:C15 | 同じ人が 2 つの IdP で別の利用者として現れ、名寄せの規則が要るとき |
-| `C-aud` | `aud` | 採用 | — | ホップごとに宛先を 1 つに絞り、受け取ったトークンを別の宛先へ転送させない（ケーススタディ B3・C2・C13）。外部の IdP の宛先の表し方の違い（Cognito は aud がない）は入口で吸収する | STS は resource indicator の値を 1 つだけ受け、その値を aud に書く | [RFC 8707 §2](https://www.rfc-editor.org/rfc/rfc8707#section-2)<br>`slide:p06-narrow-downstream`<br>`slide:p10-mcp-authorization` | jwt-claims-casestudy@080b8da:B3<br>jwt-claims-casestudy@080b8da:B16<br>jwt-claims-casestudy@080b8da:C2<br>jwt-claims-casestudy@080b8da:C13 | 1 つのトークンで 2 つ以上のサービスを呼ぶ設計にするとき |
+| `C-aud` | `aud` | 採用 | — | ホップごとに宛先を 1 つに絞り、受け取ったトークンを別の宛先へ転送させない（ケーススタディ B3・C2・C13）。外部の IdP の宛先の表し方の違い（Cognito は aud がない）は入口で吸収する | KC_AT の aud は Keycloak の Audience マッパーで固定する（Keycloak は RFC 8707 の resource パラメータに対応していない）。組織の sts は resource indicator の値を 1 つだけ受け、その値を aud に書く | [RFC 8707 §2](https://www.rfc-editor.org/rfc/rfc8707#section-2)<br>`slide:p06-narrow-downstream`<br>`slide:p10-mcp-authorization` | jwt-claims-casestudy@080b8da:B3<br>jwt-claims-casestudy@080b8da:B16<br>jwt-claims-casestudy@080b8da:C2<br>jwt-claims-casestudy@080b8da:C13 | 1 つのトークンで 2 つ以上のサービスを呼ぶ設計にするとき |
 | `C-exp` | `exp` | 採用 | — | 種別ごとの寿命（どれも 300 秒以下）を強制する。剥奪が反映されるまでの上限がこの値で決まる | 受け手の時計は NTP で合わせ、ずれは 30 秒まで | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p08-token-types-lifetimes` | jwt-claims-casestudy@080b8da:G6<br>jwt-claims-casestudy@080b8da:G7 | 種別の寿命を変えるとき |
 | `C-iat` | `iat` | 採用 | — | 寿命の検査（exp − iat）と、DPoP の proof の受け入れる期間（作ってから 60 秒まで）を決める | 時計のずれは 30 秒まで | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>[RFC 9449 §4.3](https://www.rfc-editor.org/rfc/rfc9449#section-4.3) | jwt-claims-casestudy@080b8da:G7 | DPoP の proof の受け入れる期間を変えるとき |
 | `C-nbf` | `nbf` | 既定どおり | — | 外部の IdP が出すものを入口で検証する。組織のトークンには載せない（入口の作り直しで落とす） | — | [RFC 7519 §4.1.5](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5) | — | — |
 | `C-jti` | `jti` | 採用 | — | ログでトークンを指す唯一の値（トークン全文の代わりに記録する）。DPoP の proof では、同じ jti の proof の再送を受け入れる期間の間拒否する（slide:p01-client-made-jwts） | DPoP の proof の jti の記録は、受け入れる期間（60 秒）＋ずれの間だけ持てば足りる | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>[RFC 9449 §11.1](https://www.rfc-editor.org/rfc/rfc9449#section-11.1) | — | DPoP の受け手を水平に増やし、jti の記録を共有しなければならなくなったとき |
 | `C-client-id` | `client_id` | 採用 | — | STS が書くトークンでは RFC 9068 の REQUIRED に合わせて必ず出す。外部の IdP（Auth0・Cognito）の AT では、入口が許可したクライアントかを確かめる（Cognito は aud の代わり） | クライアントの ID は STS のクライアントの登録で一意 | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p10-four-questions` | jwt-claims-casestudy@080b8da:B16<br>jwt-claims-casestudy@080b8da:C4 | 動的なクライアント登録を受け入れるとき |
 | `C-azp` | `azp` | 既定どおり | — | Keycloak・外部の IdP が出すものを、入口が呼び出し元のクライアントの確認に読む。組織のトークンには client_id に写す | — | `slide:p03-confusing-differences` | — | — |
-| `C-scope` | `scope` | 採用 | — | エージェントのタスクの範囲を、交換のたびに上流以下に絞る（返金の範囲を求めても与えない。ケーススタディ C14）。KC_AT では入口だけが読む | STS の交換は、要求された scope と subject_token の scope の積だけを出す | [RFC 9068 §2.2.3](https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3)<br>`slide:p10-per-tool-scopes`<br>`slide:p05-scope-vs-role` | jwt-claims-casestudy@080b8da:C14 | エージェントのツールを増やすとき（語彙と max_items を見直す） |
-| `C-act` | `act` | 採用 | — | 受け手は「今の代理者」を最も外側の act.sub で読み、直接の通信相手（mTLS の相手の ID）と一致するかを確かめる。過去の代理者（管理コンソールなど）の権限で動かさない（ケーススタディ C4） | STS だけが act を書き、交換のたびに今の代理者を外側に足す | [RFC 8693 §4.1](https://www.rfc-editor.org/rfc/rfc8693#section-4.1)<br>`slide:p05-one-request-carries`<br>`slide:p10-agent-identity` | jwt-claims-casestudy@080b8da:C4<br>jwt-claims-casestudy@080b8da:C10<br>jwt-claims-casestudy@080b8da:C12 | Keycloak の標準トークン交換に移す（Keycloak 26.8 の標準トークン交換は act を出さない。ケーススタディの実測）とき |
+| `C-scope` | `scope` | 採用 | — | 宛先ごと・取引ごとに操作の範囲を上流以下に絞る。入口は KC_AT の scope に呼び出し先の操作があるときだけ作り直し、INT_AT・TXN にはその操作だけを写す。エージェントのタスクの範囲は交換のたびに絞る（返金の範囲を求めても与えない。ケーススタディ C14） | STS の交換は、要求された scope と subject_token の scope の積だけを出す | [RFC 9068 §2.2.3](https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3)<br>`slide:p10-per-tool-scopes`<br>`slide:p05-scope-vs-role` | jwt-claims-casestudy@080b8da:C14 | エージェントのツールを増やすとき（語彙と max_items を見直す） |
+| `C-act` | `act` | 採用 | — | 受け手は「今の代理者」を最も外側の act.sub で読み、直接の通信相手（mTLS の相手の ID）と一致するかを確かめる。過去の代理者（管理コンソールなど）の権限で動かさない（ケーススタディ C4） | STS だけが act を書き、交換のたびに今の代理者を外側に足す | [RFC 8693 §4.1](https://www.rfc-editor.org/rfc/rfc8693#section-4.1)<br>`slide:p05-one-request-carries`<br>`slide:p10-agent-identity` | jwt-claims-casestudy@080b8da:C4<br>jwt-claims-casestudy@080b8da:C10<br>jwt-claims-casestudy@080b8da:C12 | Keycloak の標準トークン交換に移すとき（Keycloak 26.8 の標準トークン交換は既定では act を出さない。ケーススタディの実測。プレビューの機能 token-exchange-delegation を有効にすれば出す） |
 | `C-cnf` | `cnf` | 採用 | — | エージェントの実行基盤とツールが持つ DPoP の鍵にトークンを束縛し、漏れたトークンを別の端末から使えないようにする（ケーススタディ B23 の見送りの代償を、P4 の部分では払わない） | agent-runtime と invoice-mcp は、鍵を取り出せない保管（HSM など）で DPoP の鍵を持つ | [RFC 9449 §6.1](https://www.rfc-editor.org/rfc/rfc9449#section-6.1)<br>`slide:p08-rotation` | jwt-claims-casestudy@080b8da:B23 | 送信者制約を「なし」にするとき（variants/sender-none.yaml の比較） |
 | `C-dpop-htm` | `htm` | 採用 | — | proof を別のメソッドの要求に使い回させない | DPoP を使う（C-cnf と同じ） | [RFC 9449 §4.3](https://www.rfc-editor.org/rfc/rfc9449#section-4.3) | — | 送信者制約を「なし」にするとき |
 | `C-dpop-htu` | `htu` | 採用 | — | proof を別の宛先の要求に使い回させない | 入口で URI を書き換えない（書き換えるなら受け手が元の URI を知る手段が要る） | [RFC 9449 §4.3](https://www.rfc-editor.org/rfc/rfc9449#section-4.3) | — | invoice-mcp・invoices の前に URI を書き換える部品を置くとき |
@@ -861,13 +879,13 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-jti` | `jti` | 発行者・クライアントの乱数 | ② Keycloak と外部の IdP（設定できる主体：platform）<br>③ 入口の STS（設定できる主体：platform）<br>④ TTS（設定できる主体：platform）<br>⑥ DPoP の proof を作るクライアント（設定できる主体：client） | `I01`・`I02`・`I06`・`I09`・`I13`・`I21`・`I22`・`I30` | `login`・`refresh`・`exchange`・`reissue` | `never` | 0 秒 |
 | `C-client-id` | `client_id` | STS のクライアントの登録 | ② 外部の IdP（設定できる主体：platform）<br>③ 入口の STS（クライアント認証の結果）（設定できる主体：platform） | `I01`・`I06`・`I13`・`I21` | `exchange`・`reissue` | `never` | 0 秒 |
 | `C-azp` | `azp` | IdP のクライアントの登録 | ② Keycloak と外部の IdP（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
-| `C-scope` | `scope` | STS のクライアントごとの許可（エージェント・ツールの登録） | ② Keycloak（クライアントスコープ）（設定できる主体：platform）<br>⑥ 入口の STS（CIBA の同意・交換で絞る）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I13` | `login`・`refresh`・`exchange` | `never` | 0 秒 |
+| `C-scope` | `scope` | STS のクライアントごとの許可（エージェント・ツールの登録） | ② Keycloak（クライアントスコープ）（設定できる主体：platform）<br>③ 入口の STS（作り直しで呼び出し先の操作だけに絞る）（設定できる主体：platform）<br>④ TTS（取引の最も狭い目的）（設定できる主体：platform）<br>⑥ 入口の STS（CIBA の同意・交換で絞る）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I13`・`I21`・`I22` | `login`・`refresh`・`exchange` | `never` | 0 秒 |
 | `C-act` | `act` | STS の委任の記録（利用者がエージェントに与えた委任） | ⑥ 入口の STS（CIBA の委任・トークン交換）（設定できる主体：platform） | `I06`・`I13` | `exchange` | `never` | 0 秒 |
 | `C-cnf` | `cnf` | トークンの要求に付いた DPoP の proof の公開鍵 | ⑥ 入口の STS（トークンの要求に付いた DPoP の proof の鍵）（設定できる主体：platform） | `I06`・`I13`・`I29` | `exchange` | `never` | 0 秒 |
 | `C-dpop-htm` | `htm` | クライアントの要求 | ⑥ DPoP の proof を作るクライアント（設定できる主体：client） | `I30` | `never` | `never` | 0 秒 |
 | `C-dpop-htu` | `htu` | クライアントの要求 | ⑥ DPoP の proof を作るクライアント（設定できる主体：client） | `I30` | `never` | `never` | 0 秒 |
 | `C-dpop-ath` | `ath` | クライアントが持つ AT | ⑥ DPoP の proof を作るクライアント（設定できる主体：client） | `I30` | `never` | `never` | 0 秒 |
-| `C-authorization-details` | `authorization_details` | 承認の記録（STS の承認の DB） | ⑥ 入口の STS（承認の記録から）（設定できる主体：platform） | `I06`・`I14` | `exchange` | `never` | 0 秒 |
+| `C-authorization-details` | `authorization_details` | 承認の記録（STS の承認の DB） | ⑥ 入口の STS（承認の記録から）（設定できる主体：platform） | `I13`・`I06`・`I14` | `exchange` | `never` | 0 秒 |
 | `C-txn` | `txn` | TTS の乱数 | ④ TTS（設定できる主体：platform） | `I22` | `reissue` | `never` | 0 秒 |
 | `C-req-wl` | `req_wl` | TTS に接続したワークロードの mTLS の証明書（SPIFFE の X.509-SVID） | ④ TTS（要求したワークロードの mTLS の相手の ID）（設定できる主体：platform） | `I22` | `reissue` | `never` | 0 秒 |
 | `C-tctx` | `tctx` | TTS の経路と操作の表 | ④ TTS（入口の経路の表）（設定できる主体：platform） | `I22` | `reissue` | `never` | 0 秒 |
@@ -883,13 +901,13 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-typ-claim` | `typ` | Keycloak | ② Keycloak（設定できる主体：platform） | `I01`・`I02` | — | `never` | 0 秒 |
 | `C-tenant-id` | `https://claims.example.com/.tenant_id` | 台帳（このファイル）と STS の設定 | ② Keycloak（Hardcoded claim マッパー）（設定できる主体：platform）<br>③ 入口の STS（設定できる主体：platform） | `I01`・`I02`・`I06`・`I13`・`I21` | `login`・`refresh`・`exchange`・`reissue` | `never` | 0 秒 |
 | `C-user-id` | `https://claims.example.com/.user_id` | 人事の社員の台帳 | ② Keycloak（User Attribute マッパー）（設定できる主体：platform）<br>③ 入口の STS（対応表）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I13`・`I21` | `login`・`refresh`・`exchange`・`reissue` | `never` | 0 秒 |
-| `C-roles` | `https://claims.example.com/.roles` | Keycloak のレルムロールと、外部の IdP のグループ（ディレクトリ） | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）（設定できる主体：platform）<br>③ 入口の STS（対応表）（設定できる主体：platform） | `I01`・`I02`・`I21` | `login`・`refresh`・`reissue` | 330 秒 | 330 秒 |
+| `C-roles` | `https://claims.example.com/.roles` | Keycloak のレルムロールと、外部の IdP のグループ（ディレクトリ） | ② Keycloak（User Realm Role マッパー。Full scope allowed はオフ）（設定できる主体：platform）<br>③ 入口の STS（対応表）（設定できる主体：platform） | `I01`・`I02`・`I21` | `login`・`refresh`・`reissue` | 390 秒 | 390 秒 |
 | `C-department` | `https://claims.example.com/.department` | 人事の社員の台帳 | ② Keycloak（User Attribute マッパー）（設定できる主体：platform）<br>③ 入口の STS（KC_AT の値を写す。外部の IdP の利用者は人事の台帳から引く）（設定できる主体：platform） | `I01`・`I02`・`I21` | `login`・`refresh`・`reissue` | 330 秒 | 330 秒 |
 | `C-employee-id` | `https://claims.example.com/.employee_id` | 人事の社員の台帳 | ② Keycloak（User Attribute マッパー。JSON の型は String に固定）（設定できる主体：platform）<br>③ 入口の STS（payroll 宛てだけに写す）（設定できる主体：platform） | `I01`・`I02`・`I21` | `login`・`refresh`・`reissue` | `never` | 0 秒 |
 | `C-idp` | `https://claims.example.com/.idp` | 入口の IdP の許可リスト | ② Keycloak（Hardcoded claim マッパー。値 keycloak）（設定できる主体：platform）<br>③ 入口の STS（iss から決める）（設定できる主体：platform） | `I01`・`I02`・`I21` | `login`・`refresh`・`reissue` | `never` | 0 秒 |
 | `C-v` | `https://claims.example.com/.v` | 台帳（このファイル） | ② Keycloak（Hardcoded claim マッパー）（設定できる主体：platform）<br>③ 入口の STS（設定できる主体：platform） | `I01`・`I02`・`I06`・`I13`・`I21` | `login`・`refresh`・`exchange`・`reissue` | `never` | 0 秒 |
 | `C-task-id` | `https://claims.example.com/.task_id` | STS の委任の記録 | ⑥ 入口の STS（CIBA の委任のとき）（設定できる主体：platform） | `I06`・`I13` | `exchange` | `never` | 0 秒 |
-| `C-approval-id` | `https://claims.example.com/.approval_id` | 承認の記録（STS の承認の DB） | ⑥ 入口の STS（承認の記録から）（設定できる主体：platform） | `I06`・`I14` | `exchange` | 0 秒 | 0 秒 |
+| `C-approval-id` | `https://claims.example.com/.approval_id` | 承認の記録（STS の承認の DB） | ⑥ 入口の STS（承認の記録から）（設定できる主体：platform） | `I13`・`I06`・`I14` | `exchange` | 0 秒 | 0 秒 |
 <!-- render:data-sources:end -->
 
 ## 11. カタログへの回答
@@ -975,8 +993,9 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 点 | 確かめていないこと | 確かめ方の案 | 関係する台帳・目録の ID |
 | --- | --- | --- | --- |
 | 発行方式の選択が 1 つ | 台帳 v1 の `issuance_profile` は設計書に 1 つで、社員の BFF（送信者制約なし）とエージェントの実行基盤（DPoP）の 2 つのクライアントを書き分けられない。この例は DPoP と書き、社員の経路の値は目録の行の `sender_constraint` で表した | #3 に、クライアントごとの発行方式を書ける形を提案する | `issuance_profile`、KC_AT・AGENT_AT |
-| H15 の交換を L16 で確かめていない | aud を替える交換と、承認から足すクレームを、L16 の集合の比べ方では「広げた」と判定するため、`upstream` を置いていない（8.） | #6 に、宛先を 1 つに替える交換と、制限を足すクレームの扱いを提案する | H15、`C-approval-id`、`C-authorization-details` |
-| Txn-Token の `req_wl`・`tctx` | 草案のクレームで IANA に登録されていない。#6 の L1b は、最初は「未登録の名前」として error にした。草案が定める名前は組織の名前空間に移せないので、この PR で L1b を「草案の節を `registered_ref` に書き、`spec_version` に同じ版があれば warn」に直した（`tools/claim_lint/RULES.md`）。規則の変更として #6 で確かめてほしい | 草案が RFC になったら、登録名と節で `registered_ref` を書き直す | `C-req-wl`・`C-tctx` |
+| グループ会社の社員のディレクトリ参照 | 入口が INT_AT を作るたびに各社のディレクトリで所属を引く（B03 の対策）費用と、ディレクトリが止まったときの扱い（拒否）を測っていない。ケーススタディの p50 50.7 ms は Entra の模擬の値 | 負荷の試験 | `C-roles` |
+| Okta の AT の typ | `application/okta-internal-at+jwt` は Okta の公式文書で確かめられなかった（ケーススタディの値。模擬） | Okta の Custom AS で発行して確かめる | 目録の EXT_AT |
+| Txn-Token の `req_wl`・`tctx` | 草案のクレームで IANA に登録されていない。草案が定める名前は組織の名前空間に移せないので、#6 の L1b に、草案の版と名前の許可リスト（`tools/claim_lint/draft_claims.yaml`。草案 -11 の req_wl §9.2・tctx §9.2.3・rctx §9.2.2）を置き、そこに載る組だけを warn にした（PR #44 のレビュー B06）。規則の変更として #6 で確かめてほしい | 草案が RFC になったら、登録名と節で `registered_ref` を書き直す | `C-req-wl`・`C-tctx` |
 | Keycloak corp の AT の `client_id` | シナリオ A の見本（2026-11-22）で `client_id` が無かったことから、corp でも無いとした（`C-kc-client-id` は却下）。corp では確かめていない | corp で AT を発行して確かめる | `C-kc-client-id`、`C-azp` |
 | 組織の名前空間を出すマッパー | corp のレルムで、User Attribute のマッパーが `https://claims.example.com/` の中に値を出すことを測っていない | Client Scopes の Evaluate で確かめる | `C-department`・`C-employee-id` |
 | RT の再利用の検知 | Keycloak で古い RT を使ったときに系列を失効させるかを確かめていない | 実行テスト（#8） | RT の `rt_rotation` |
@@ -1004,7 +1023,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | 操作 | 求める `acr`・`max_age` | 照合する受け手 | 足りないときの扱い |
 | --- | --- | --- | --- |
-| 経理の操作（ledger） | 組織の語彙の MFA の値（入口が各 IdP の `acr`・`amr` から正規化）、`auth_time` から 900 秒以内 | ledger | `insufficient_user_authentication`（RFC 9470 §3）で追加の認証を求める |
+| 経理の操作（ledger。`ledger.post`） | 組織の語彙の MFA の値（入口が各 IdP の `acr`・`amr` から正規化）、`auth_time` から 900 秒以内 | ledger が INT_AT_LEDGER で照合する。orders からの TXN の経路では `ledger.post` を受けない（TXN には `acr`・`auth_time`・`sid` が無いので、この経路で書き込みを許すと追加認証と鮮度の確認を飛ばせる。B01） | `insufficient_user_authentication`（RFC 9470 §3）で追加の認証を求める |
 
 ### C. 結果・応答の完全性
 

@@ -3,11 +3,12 @@
 # 記入例（シナリオ B＋C：社内業務システムと AI エージェントの委任）。推奨ではない。この前提での一例。
 # ホップごとの宣言（台帳 v1：templates/registry/hops.schema.json）。「下流は上流を超えない」（slide:p06-narrow-downstream）を、
 # aud・scope・寿命・独自クレーム（組織の名前空間の行だけ）・交換を担うサービスで宣言する。
-# upstream を置いたホップでは、claim_lint の L16（#6）が「上流を超えない」を確かめる。次の 3 つのホップは upstream を置いていない（design.md の 8. と 12.）：
+# upstream を置いたホップでは、claim_lint の L16（#6）が「上流を超えない」を確かめる。次の 4 つのホップは upstream を置いていない（design.md の 8.）：
 #   H3・H8 … グループ会社の IdP の AT（EXT_AT）から、入口が組織のクレームを作る起点。上流の外部の AT には組織のクレームが無く、集合で比べられない
 #   H9    … Txn-Token の起点。Txn-Token の aud は信頼ドメインで、リソースの宛先（INT_AT の aud）と集合で比べられない
-#   H15   … MCP のツールサーバーの交換。AGENT_AT は invoice-mcp だけを宛先にする（MCP の認可が求める）ので、交換で得る invoices 宛ては
-#           集合の上では上流に無い。絞り込み（scope・寿命・authorization_details）は note に書き、交換を担う sts が強制する
+#   H14   … AGENT_AT の起点。上流はトークンではなく社員の承認（CIBA）
+# H15（MCP のツールサーバーの交換）は upstream: H14 を置き、aud を 1 つの別の宛先に替えることを aud_replacement と narrowing_exception.aud で
+# 宣言した（PR #44 のレビュー B04・B05）。scope・寿命・独自クレーム・authorization_details は L16 が上流と比べる
 hops:
   # ---------------------------------------------------------------- 社員のポータル（P1）から入口へ
   - id: H1
@@ -30,14 +31,16 @@ hops:
     upstream: H1
     token_type: KC_AT
     aud: [orders, ledger, docs, payroll]
-    scope: [orders.read, ledger.read, docs.read, payslip.read]
+    scope: [orders.read, ledger.read, ledger.post, docs.read, payslip.read]
     max_lifetime: 300
     custom_claims: [C-tenant-id, C-user-id, C-roles, C-department, C-employee-id, C-idp, C-v]
     exchanger: null
     validates:
       mode: local
-      checks: ["署名（レルム corp の JWKS、RS256 だけ）", iss が https://idp.example.com/realms/corp と完全に一致, aud に呼び出し先の API が含まれる, "exp・iat（ずれ 30 秒）", ヘッダーの typ が at+jwt, required_claims, azp が portal, クライアントが付けた x-user-* のヘッダーを大文字小文字・アンダースコア・重複を含めて捨てる]
-    note: 上流はセッションなので L16 は比べない。aud と scope は、portal が resource indicators で使う API だけを求めた結果
+      checks: ["署名（レルム corp の JWKS、RS256 だけ）", iss が https://idp.example.com/realms/corp と完全に一致, aud に呼び出し先の API が含まれる, "exp・iat（ずれ 30 秒）", ヘッダーの typ が at+jwt, required_claims, azp が portal, scope に呼び出し先の操作の scope がある（無ければ作り直さない）, クライアントが付けた x-user-* のヘッダーを大文字小文字・アンダースコア・重複を含めて捨てる]
+    note: >-
+      上流はセッションなので L16 は比べない。aud は Keycloak の Audience マッパーで固定した 4 つの API（Keycloak は RFC 8707 の resource パラメータに
+      対応していないので、portal は宛先を要求で絞れない。PR #44 のレビュー B07）。scope は portal のクライアントスコープで決まる。宛先を 1 つに絞るのは入口の作り直し（H4〜H7）
 
   - id: H3
     from: グループ会社のアプリ
@@ -78,13 +81,13 @@ hops:
     upstream: H2
     token_type: INT_AT_LEDGER
     aud: [ledger]
-    scope: [ledger.read]
+    scope: [ledger.read, ledger.post]
     max_lifetime: 300
     custom_claims: [C-tenant-id, C-user-id, C-v]
     exchanger: gateway（sts）
     validates:
       mode: local
-      checks: ["署名（sts の JWKS）", aud が ledger だけ, ヘッダーの typ が corp-internal+jwt, required_claims, 経理の操作のたびに sid の Keycloak のセッションと現在の部署を引き直す（ケーススタディ B11・B12）]
+      checks: ["署名（sts の JWKS）", aud が ledger だけ, ヘッダーの typ が corp-internal+jwt, required_claims, 経理の操作のたびに sid の Keycloak のセッションと現在の部署を引き直す（ケーススタディ B11・B12）, "ledger.post は scope に ledger.post があり、acr が組織の MFA の値で auth_time から 900 秒以内のときだけ（付録 B）"]
     note: ledger はロールではなく部署で決める。部署はトークンから読まず、経理の操作のたびに Keycloak の管理 API で引き直す（ケーススタディ B11 の freshness。design.md の 9.2）。そのため INT_AT_LEDGER には部署を載せない（KC_AT の部分集合だけを写す）
 
   - id: H6
@@ -143,7 +146,7 @@ hops:
     kind: service
     token_type: TXN
     aud: ["https://corp.example.com"]
-    scope: [orders.read]
+    scope: [orders.read, ledger.read]
     max_lifetime: 300
     custom_claims: []
     exchanger: tts
@@ -161,14 +164,17 @@ hops:
     upstream: H9
     token_type: TXN
     aud: ["https://corp.example.com"]
-    scope: [orders.read]
+    scope: [ledger.read]
     max_lifetime: 300
     custom_claims: []
     exchanger: null
     validates:
       mode: local
-      checks: ["署名（tts の JWKS）", txn が監査ログで H9 と同じ, 呼び出し元のサービス（mTLS の SPIFFE ID）を orders と確かめ、呼び出し元と社員（sub）をそれぞれ認可する]
-    note: orders は Txn-Token を改変せずに渡す。ledger は INT_AT を受けない（orders の INT_AT を下流へ渡さない）
+      checks: ["署名（tts の JWKS）", txn が監査ログで H9 と同じ, 呼び出し元のサービス（mTLS の SPIFFE ID）を orders と確かめ、呼び出し元と社員（sub）をそれぞれ認可する, "TXN の scope と tctx の operation が ledger.read のときだけ受ける（経理の書き込みは受けない）"]
+    note: >-
+      orders は Txn-Token を改変せずに渡す（orders の INT_AT は下流へ渡さない）。この経路で ledger が受けるのは読み取り（ledger.read）だけ。
+      経理の書き込み（ledger.post）は、追加認証（acr・auth_time）とセッション・部署の引き直しが掛かる H5 の INT_AT_LEDGER でだけ受ける
+      （PR #44 のレビュー B01：TXN には acr・auth_time・sid が無く、orders を経由すると MFA と鮮度の確認を飛ばせた）
 
   # ---------------------------------------------------------------- データ層と非同期（P5・M_data_layer）
   - id: H11
@@ -184,12 +190,12 @@ hops:
     exchanger: null
     validates:
       mode: none
-      checks: ["RLS（ENABLE と FORCE）のポリシーで、行の部署と current_setting('app.department', true) を比べる", "監査の列に current_setting('app.user_id', true) を書く", 文脈が未設定なら 0 行]
+      checks: ["RLS（ENABLE と FORCE）のポリシーで、行の部署と current_setting('app.department', true) を比べる", "監査の列に current_setting('app.user_id', true) を書く", 文脈が未設定なら 0 行, "app.department を設定するのは ledger だけで、値は経理の操作のたびに Keycloak の管理 API で引き直した現在の部署（トークンの値ではない）"]
     connection_max_lifetime: 1800
     note: >-
       ledger はサービスの資格情報で接続し、社員の AT を DB に渡さない。文脈は取引ごとに set_config（第 3 引数 true）で設定し直し、コミットで消える。
       接続の寿命（プールの最大 1800 秒）はトークンの寿命（300 秒）より長いので、社員のクレームは接続ではなく取引ごとに注入する（slide:p07-lifetime-mismatch）。
-      部署（C-department）は DB の側で社員の表から引くので、トークンからは写さない
+      部署はトークンから写さない。ledger が操作のたびに Keycloak で引き直した現在の部署を app.department に設定する（PR #44 のレビュー B11）
 
   - id: H12
     from: ledger
@@ -236,19 +242,26 @@ hops:
     aud: [invoice-mcp]
     scope: [invoices.read, invoices.pay]
     max_lifetime: 300
-    custom_claims: [C-tenant-id, C-user-id, C-task-id, C-v]
+    custom_claims: [C-tenant-id, C-user-id, C-task-id, C-approval-id, C-v]
+    authorization_details: ["https://claims.example.com/rar/payment"]
     exchanger: null
     validates:
       mode: local
       checks: ["署名（sts の JWKS、ES256 だけ）", aud が invoice-mcp だけ（受け取ったトークンを上流に渡さない）, DPoP の proof の htm・htu・iat・jti・ath と、cnf.jkt と proof の鍵の拇印, 最も外側の act.sub が呼び出し元のエージェント（client_id と一致）, act の深さが 3 以下]
-    note: AGENT_AT は sts が CIBA で、社員の承認の後に出す（I13）。上流はトークンではない（社員の承認）ので upstream を置かない
+    note: >-
+      AGENT_AT は sts が CIBA で、社員の承認の後に出す（I13）。上流はトークンではない（社員の承認）ので upstream を置かない。
+      承認の ID と内容（authorization_details）は、承認の時点（CIBA）で AGENT_AT に載せる。交換の TASK_AT はその部分集合（PR #44 のレビュー B04）
 
   - id: H15
     from: invoice-mcp
     to: invoices（請求書の API）
     kind: exchange
+    upstream: H14
     token_type: TASK_AT
     aud: [invoices]
+    aud_replacement: true
+    narrowing_exception:
+      aud: MCP の認可は AGENT_AT の宛先を invoice-mcp だけにし、受け取ったトークンを上流に渡すことを禁じる。交換は宛先を invoices の 1 つに替える絞り込みで、宛先を足していない
     scope: [invoices.pay]
     max_lifetime: 300
     custom_claims: [C-tenant-id, C-user-id, C-task-id, C-approval-id, C-v]
@@ -260,5 +273,4 @@ hops:
     note: >-
       invoice-mcp が AGENT_AT を subject_token にして sts で交換する（I06・U10）。sts は、scope を AGENT_AT の scope（invoices.read・invoices.pay）と
       タスクの範囲の積に絞り（ケーススタディ C14）、寿命を 300 秒以下にし、sub を差し替えさせない（C15）、委任の取り消しと深さ（3）を確かめる。
-      aud は invoices に替わる（MCP の認可は AGENT_AT を invoice-mcp だけに向けることを求める）ので、L16 の集合の比べ方では上流を置けない。
-      組織のクレームのうち C-approval-id と authorization_details は、承認の記録から sts が足す（design.md の 12.）
+      aud は invoices の 1 つに替わる（aud_replacement）。承認の ID と authorization_details は AGENT_AT にすでにあり、TASK_AT はその部分集合
