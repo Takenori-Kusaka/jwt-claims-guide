@@ -43,6 +43,8 @@ jobs:
         run: python tools/claim_lint templates/examples/scenario-a --profile lite
       - name: claim_lint semantic rule tests (L1a-L73 of #6, pass and fail cases, scenario A false positives)
         run: python -m pytest -q -rs tools/tests/test_claim_lint_semantic.py
+      - name: claim_lint purpose rule tests (L11-L14 of #18, declaration consistency)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_purpose.py
       - name: claim_lint diff tests (L10, breaking changes against a git ref)
         run: python -m pytest -q -rs tools/tests/test_claim_lint_diff.py
       - name: claim_lint diff on scenario A against main (L10)

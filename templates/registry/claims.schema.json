@@ -666,7 +666,8 @@
     "revisit_trigger": {
      "type": "string",
      "minLength": 1,
-     "pattern": "\\S"
+     "pattern": "\\S",
+     "$comment": "Trace: req:p10-vendor-features.R2"
     },
     "refs": {
      "type": "array",
@@ -927,8 +928,13 @@
     },
     "volatility": {
      "anyOf": [
-      {"type": "integer", "minimum": 0},
-      {"const": "never"}
+      {
+       "type": "integer",
+       "minimum": 0
+      },
+      {
+       "const": "never"
+      }
      ],
      "description": "Seconds allowed between a change of the value and its reflection; 0: the change must be reflected at once. never: the value does not change during the life of a token that carries it (per-token values such as exp or jti, immutable identifiers such as sub). Compared with max_lifetime of the carrying token types (L5 of #6)",
      "$comment": "Trace: req:p11-registry-fields.R10"
@@ -1115,7 +1121,8 @@
        "check"
       ]
      },
-     "maxItems": 30
+     "maxItems": 30,
+     "$comment": "Trace: req:p05-coarse-fine-layers.R5 req:p06-validation-split.R4"
     },
     "max_bytes": {
      "type": "integer",
@@ -1414,7 +1421,8 @@
      "maxItems": 10,
      "minItems": 1,
      "uniqueItems": true,
-     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)"
+     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)",
+     "$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"
     },
     "note": {
      "type": "string"

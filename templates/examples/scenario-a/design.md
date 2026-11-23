@@ -4,7 +4,7 @@
 > **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
 
 - **生成の区間**：`<!-- render:<節>:begin -->` と `<!-- render:<節>:end -->` の間は、`python tools/claim_lint render templates/examples/scenario-a --write` が台帳から書き直す（#19、`tools/claim_lint/RENDER.md`）。手で直さず、台帳を直してから生成し直す。CI は `render --check` で、区間が台帳から生成し直したものと違えば失敗する。区間の外は手で書く
-- 版：0.2.2（#6 の意味の規則が求める宣言を足した版）。0.2.1 は #19 で生成の区間に置き換えた版（前の版は 0.2.0）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
+- 版：0.2.3（#18 の目的と仕組みの規則が求める宣言を足した版）。0.2.2 は #6 の意味の規則が求める宣言を足した版。0.2.1 は #19 で生成の区間に置き換えた版（前の版は 0.2.0）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
 - 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
@@ -12,7 +12,7 @@
 ## 1. CI の結果　〔縮小 Lite：生成〕
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 5、info 6**（claims 25・token_types 18・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 6、info 6**（claims 25・token_types 18・catalog_events 62）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -27,6 +27,7 @@
 | `L72` | warn | `C-user-id` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
 | `L72` | warn | `C-roles` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
 | `L72` | warn | `C-v` | 共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（slide:p11-pre-add-questions-1 の「答えられない問いが残るなら共有クレームにしない」） |
+| `L11` | warn | `C-scope` | AT に scope を載せるのに、認可の判断に使う宣言（enforced_at）がない。載せるなら判断に使い、使わないなら載せない（OWASP ASVS 5.0.0 10.3.2） |
 
 R8 AT：ヘッダー 86・ペイロード 599・署名 256 バイト（ceil(4/3*86) + ceil(4/3*599) + ceil(4/3*256) + 2 = 115 + 799 + 342 + 2 = 1258; + 7 (Bearer) = 1265）。nginx-large-client-header-buffers 1280／8192 バイト、nodejs-max-http-header-size 3328／16384 バイト
 <!-- render:ci-result:end -->
@@ -157,13 +158,13 @@ AT は BFF・API・経路の nginx が読め、IDT は BFF だけが読む。JWE
 
 | ID | 問い | 問いの一覧の仕組み | 答える台帳の行（answers） | 答えに使わない行（does_not_answer） | 照合する場所 |
 | --- | --- | --- | --- | --- | --- |
-| `q-sub` | 誰の権限で | `sub` | `sub` | — | `saas-api` |
+| `q-sub` | 誰の権限で | `sub` | `sub` | — | `saas-api`・`saas-web` |
 | `q-actor` | 誰が代理して実行しているか | `act` | — | — | — |
 | `q-req-wl` | どのワークロードが Txn-Token を求めたか | `req_wl` | — | — | — |
 | `q-peer` | 直接の通信相手は誰か | `mTLS の相手の ID（SPIFFE の X.509-SVID など）` | — | — | — |
 | `q-via` | どこを経由したか | `経由を示す別の属性（AWS FAS の aws:CalledVia に当たるもの）`・`ネストした act` | — | — | — |
 | `q-txn` | どの取引か | `txn` | — | — | — |
-| `q-user` | 誰が利用者か | `iss と sub の組` | `iss` | — | `saas-api` |
+| `q-user` | 誰が利用者か | `iss と sub の組` | `iss` | — | `saas-api`・`saas-web` |
 | `q-agent` | どのエージェント・クライアントか | `client_id`・`azp`・`act.sub`・`req_wl` | `azp` | — | `saas-api` |
 | `q-authorized` | 何が承認されたか | `scope`・`authorization_details`・`acr・amr・auth_time` | `roles` | — | `saas-api` |
 | `q-resource` | どのリソース向けか | `aud`・`resource（RFC 8707）` | `aud` | — | `saas-api`・`saas-web` |
@@ -500,6 +501,7 @@ R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak �
 
 ## 13. 前の版との差分
 
+- 0.2.3：claim_lint の目的と仕組みの規則（#18。宣言の整合の検査）が求める宣言を足した。判断は変えていない。足したもの：`catalog_answers.yaml` の `questions`（問いの一覧の 11 問のそれぞれが要るか。中身は 6. の表と同じ。L13）、`C-iss`・`C-sub` の saas-web（BFF）の `enforced_at`（ID トークンの iss を許可リストと、認可要求を送ったレルムの issuer と照合する〔OpenID Connect Core 1.0 §3.1.3.7〕、sub をセッションに結びつける。L11）。残した warn は L11 の 1 件（C-scope：Keycloak が外せない scope=openid を AT に載せるが判断に使わない。ASVS 5.0.0 10.3.2 は載せるなら判断に使うとするので、正しい指摘。6. の「何が承認されたか」の行のとおり、この設計は逸脱を選んだ）
 - 0.2.2：claim_lint の意味の規則（#6）が求める宣言を足した。判断（採否・値）は変えていない。足したもの：`C-sid` の `registered_ref`（OpenID Connect Front-Channel Logout 1.0 §3。L1a）、`enforced_at` の `against`（何と照合するか。15 件）と `with`（`C-user-id` は `C-sub` と、`C-iss` の 3 つ目は `C-tenant-id` と照合する。L9・L31）、IDT の `max_clock_skew: 30`（L27）、`catalog_answers.yaml` の `lite_criteria`（Lite の判定の 5 問。multitenant が Yes なので `--profile lite` では L73 の warn が出る）。値の途中の「 #」から後ろがコメントとして消えていた 3 か所（C-auth-time の note、C-roles の on_revoke、AT の note）を引用符で囲んだ（#39 と同じ直し）。残した warn は L72 の 3 件（C-user-id・C-roles・C-v の追加前の 25 問がまだ無い。#4 で書く）。R8 の info から iss・sub・aud・azp の 4 件（ID トークンと AT の両方の仕様が定める登録名）が消えた
 - 0.2.1：#19 の `claim-lint render` で、縮小 Lite の〔生成〕の節（1. CI の結果、4. 発行方式の選択、5. トークン目録、8. ホップごとの表、10. 判断の行、11. カタログへの回答の集計）を、台帳から生成する区間（`<!-- render:<節>:begin -->`〜`end`）に置き換えた。8. に矢印ごとの表、10. にデータ源の表を足し、6. と 9. には手で書いた表の確かめ用の生成の表を足した。手で書いた要約の表（4. の理由の要約、5. の却下 9 種類をまとめた行、10. の理由の要点）は、台帳の全文の行に置き換わった。`claims.yaml`・`token_types.yaml` の 3 か所で、値の中の「 #」から後ろが YAML のコメントとして落ちていたので、引用符で囲んだ（生成の表で見つかった）。判断（採否・値）は変えていない
 - 0.2.0：台帳 v1（#3）に移し替えた。`claims.yaml` に `data_category`・`confidential_from`・`identifier_properties`・`rejection_kind` などを足し、`authoritative_writer` を段階ごとの配列（`configurable_by` つき）に、`integrity_until` を構造にした。`token_types.yaml` にカタログの残りの 9 種類の却下の行と `visible_to`・`jwe`・鍵の取り直しの規則などを足した。8. の表の中身を `hops.yaml` に宣言した。判断（採否・値）は変えていない
