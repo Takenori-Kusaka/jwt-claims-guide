@@ -227,11 +227,13 @@ def live_revoked(ctx, r):
             else:
                 ctx.env.set_user('t1', 'alice', enabled=False)
             t_rev = time.time()
+            stolen = tr['access_token']
+            t_use = time.time()   # right after the revocation, before the AT's exp (issued 3 s earlier, lifetime 20 s)
+            r.accept(f'{how}：取り消しの直後（発行から {t_use - t_issue:.1f} 秒）に、盗まれた AT（BFF の外の写し）を使う＝exp_only の残り',
+                     lambda: api.list_invoices(stolen, 't1', t_use))
             ev = _drive(ctx, api, bff, 't1', t_rev, t_rev + bound + 10)
             end = next((e[0] for e in ev if e[1] == 'bff-session-ended'), None)
             r.add(f'{how}：取り消しから BFF のセッションが終わるまで', f'{bound} 秒以内', {'seconds': end, 'events': ev[-4:]}, end is not None and end <= bound)
-            stolen = tr['access_token']
-            r.accept(f'{how}：盗まれた AT（BFF の外）を exp の前に使う＝exp_only の残り', lambda: api.list_invoices(stolen, 't1', time.time()) if time.time() < t_issue + SHORT['lifetime'] else [])
             wait = t_issue + bound + 1 - time.time()
             if wait > 0:
                 time.sleep(wait)
@@ -338,7 +340,7 @@ def live_pool(ctx, r):
     r.note('PgBouncer の transaction pooling は試していない（接続は psycopg の 1 本を使い回した）')
 
 
-@case('negative_tests#db-context-override', env='live', expected='アプリのロールで RLS をすり抜ける主体が 0 件。弱い設定では各項目を検出する。SET ROLE で所有者になれない', title='DB の文脈の上書き・すり抜け（A04）')
+@case('negative_tests#db-context-override', env='live', expected='アプリのロールで RLS をすり抜ける主体（SET ROLE で移れるロールを含む）が 0 件。弱い設定では各項目を検出する。SET ROLE で所有者になれない', title='DB の文脈の上書き・すり抜け（A04）')
 def live_override(ctx, r):
     with db.connect(ctx.env, 'app_rls', ctx.pg_pw['app_rls'], autocommit=True) as c:
         hits = db.bypass_actors(c, 'app')
@@ -357,4 +359,4 @@ def live_override(ctx, r):
               {'view_rows': leak, 'definer_count': n}, leak == 2 and n == 2)
     with db.connect(ctx.env, 'app_bypass', ctx.pg_pw['app_bypass'], autocommit=True) as c:
         hits = db.bypass_actors(c, 'broken')
-        r.add('A04：弱い設定の broken スキーマ（BYPASSRLS のアプリのロールで照会）', '5 項目すべてで検出', hits, all(hits.values()))
+        r.add('A04：弱い設定の broken スキーマ（BYPASSRLS のアプリのロールで照会）', '6 項目すべてで検出', hits, all(hits.values()))

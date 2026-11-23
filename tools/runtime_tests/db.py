@@ -41,6 +41,8 @@ CREATE POLICY tenant_isolation ON broken.invoices USING (tenant_id = current_set
 ALTER TABLE broken.invoices OWNER TO app_bypass;
 CREATE VIEW broken.all_invoices AS SELECT * FROM broken.invoices;
 ALTER VIEW broken.all_invoices OWNER TO app_bypass;
+CREATE MATERIALIZED VIEW broken.invoice_totals AS SELECT tenant_id, sum(amount) AS total FROM broken.invoices GROUP BY tenant_id;
+ALTER MATERIALIZED VIEW broken.invoice_totals OWNER TO app_bypass;
 CREATE FUNCTION broken.count_all() RETURNS bigint LANGUAGE sql SECURITY DEFINER AS 'SELECT count(*) FROM broken.invoices';
 ALTER FUNCTION broken.count_all() OWNER TO app_bypass;
 GRANT USAGE ON SCHEMA broken TO app_rls, app_bypass; GRANT SELECT ON broken.invoices, broken.all_invoices TO app_rls;
@@ -73,7 +75,8 @@ def set_tenant_status(env, tenant, status):
 
 
 BYPASS_QUERIES = {
-    'app role is superuser or BYPASSRLS': "SELECT rolname FROM pg_roles WHERE rolname = current_user AND (rolsuper OR rolbypassrls)",
+    # current_user and every role it can SET ROLE to (membership): a member of a BYPASSRLS or superuser role can switch to it
+    'app role is superuser or BYPASSRLS': "SELECT r.rolname FROM pg_roles r WHERE pg_has_role(current_user, r.oid, 'MEMBER') AND (r.rolsuper OR r.rolbypassrls)",
     'app role owns a table of the schema': "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
                                           "WHERE n.nspname = %(s)s AND c.relkind IN ('r','p') AND pg_has_role(current_user, c.relowner, 'MEMBER')",
     'table without RLS or without FORCE': "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
@@ -81,6 +84,7 @@ BYPASS_QUERIES = {
     'SECURITY DEFINER function': "SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = %(s)s AND p.prosecdef",
     'view without security_invoker': "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = %(s)s "
                                     "AND c.relkind = 'v' AND NOT coalesce('security_invoker=true' = ANY (c.reloptions) OR 'security_invoker=on' = ANY (c.reloptions), false)",
+    'materialized view (RLS does not apply)': "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = %(s)s AND c.relkind = 'm'",
 }
 
 

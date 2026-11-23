@@ -1,7 +1,7 @@
 {
  "run": {
   "env": "live",
-  "started_utc": "2026-11-23T07:05:25+00:00",
+  "started_utc": "2026-11-23T07:59:43+00:00",
   "environment": {
    "python": "3.14.6",
    "os": "Windows-11-10.0.26300-SP0",
@@ -16,7 +16,7 @@
     "keycloak": 38080,
     "postgres": 35432
    },
-   "keycloak_boot_s": 32.1,
+   "keycloak_boot_s": 31.6,
    "containers_removed": true
   }
  },
@@ -30,7 +30,7 @@
    "lint": [],
    "slides": [],
    "ok": true,
-   "seconds": 0.235,
+   "seconds": 0.253,
    "checks": [
     {
      "name": "alice（t1）の AT で /t1 を一覧（Postgres の RLS つき）",
@@ -109,7 +109,7 @@
     "p08-logout"
    ],
    "ok": true,
-   "seconds": 0.163,
+   "seconds": 0.157,
    "checks": [
     {
      "name": "ID トークン（ヘッダーの typ='JWT'）を /t1 に送る",
@@ -149,7 +149,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.303,
+   "seconds": 0.288,
    "checks": [
     {
      "name": "bob（t2）の AT で /t1",
@@ -211,7 +211,7 @@
     "p06-grant-types"
    ],
    "ok": true,
-   "seconds": 0.146,
+   "seconds": 0.153,
    "checks": [
     {
      "name": "軽量アクセストークンのクレーム名（記録）",
@@ -257,7 +257,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.069,
+   "seconds": 0.053,
    "checks": [
     {
      "name": "t1 の AT の kid",
@@ -295,7 +295,7 @@
     "p12-review-viewpoints"
    ],
    "ok": true,
-   "seconds": 0.161,
+   "seconds": 0.17,
    "checks": [
     {
      "name": "alice が自分の請求書 2",
@@ -334,7 +334,7 @@
     "p03-entra-scp-roles-groups"
    ],
    "ok": true,
-   "seconds": 0.2,
+   "seconds": 0.197,
    "checks": [
     {
      "name": "saas-web の AT",
@@ -371,7 +371,7 @@
     "p04-type"
    ],
    "ok": true,
-   "seconds": 0.044,
+   "seconds": 0.04,
    "checks": [
     {
      "name": "saas-web の AT と AT.issuer.schema.json",
@@ -405,7 +405,7 @@
     "p10-token-exchange-not-narrowing"
    ],
    "ok": true,
-   "seconds": 3.152,
+   "seconds": 3.141,
    "checks": [
     {
      "name": "元のトークン（subject_token）",
@@ -415,9 +415,9 @@
        "mcp-tools",
        "account"
       ],
-      "scope": "openid profile aud-mcp email",
-      "exp": 1795417863,
-      "iat": 1795417563,
+      "scope": "openid aud-mcp email profile",
+      "exp": 1795421121,
+      "iat": 1795420821,
       "azp": "portal",
       "act": null,
       "https://claims.example.com/": {
@@ -432,7 +432,7 @@
      "observed": {
       "status": 200,
       "aud": "invoices",
-      "scope": "profile email aud-invoices",
+      "scope": "aud-invoices email profile",
       "has_act": false,
       "exp_minus_subject_exp": 3,
       "error": null,
@@ -479,7 +479,7 @@
        "orders",
        "account"
       ],
-      "scope": "aud-orders profile email",
+      "scope": "email aud-orders profile",
       "has_act": false,
       "exp_minus_subject_exp": 3,
       "error": null,
@@ -497,7 +497,7 @@
      "observed": {
       "status": 200,
       "aud": "account",
-      "scope": "profile email",
+      "scope": "email profile",
       "has_act": false,
       "exp_minus_subject_exp": 3,
       "error": null,
@@ -567,7 +567,7 @@
     "p03-keycloak-aud-lightweight"
    ],
    "ok": true,
-   "seconds": 0.472,
+   "seconds": 0.452,
    "checks": [
     {
      "name": "無効にする前の交換",
@@ -602,13 +602,19 @@
     "p08-revocation-propagation"
    ],
    "ok": true,
-   "seconds": 46.895,
+   "seconds": 46.969,
    "checks": [
+    {
+     "name": "admin_logout：取り消しの直後（発行から 3.1 秒）に、盗まれた AT（BFF の外の写し）を使う＝exp_only の残り",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
     {
      "name": "admin_logout：取り消しから BFF のセッションが終わるまで",
      "expected": "22 秒以内",
      "observed": {
-      "seconds": 17.08,
+      "seconds": 17.09,
       "events": [
        [
         14.07,
@@ -616,7 +622,7 @@
         2
        ],
        [
-        15.07,
+        15.08,
         "ok",
         2
        ],
@@ -626,18 +632,12 @@
         2
        ],
        [
-        17.08,
+        17.09,
         "bff-session-ended",
         "refresh failed: 400 invalid_grant: Session not active"
        ]
       ]
      },
-     "ok": true
-    },
-    {
-     "name": "admin_logout：盗まれた AT（BFF の外）を exp の前に使う＝exp_only の残り",
-     "expected": "accept",
-     "observed": "accepted",
      "ok": true
     },
     {
@@ -647,10 +647,16 @@
      "ok": true
     },
     {
+     "name": "user_disabled：取り消しの直後（発行から 3.2 秒）に、盗まれた AT（BFF の外の写し）を使う＝exp_only の残り",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
      "name": "user_disabled：取り消しから BFF のセッションが終わるまで",
      "expected": "22 秒以内",
      "observed": {
-      "seconds": 17.08,
+      "seconds": 17.09,
       "events": [
        [
         14.07,
@@ -658,7 +664,7 @@
         2
        ],
        [
-        15.07,
+        15.08,
         "ok",
         2
        ],
@@ -668,18 +674,12 @@
         2
        ],
        [
-        17.08,
+        17.09,
         "bff-session-ended",
         "refresh failed: 400 invalid_grant: User disabled"
        ]
       ]
      },
-     "ok": true
-    },
-    {
-     "name": "user_disabled：盗まれた AT（BFF の外）を exp の前に使う＝exp_only の残り",
-     "expected": "accept",
-     "observed": "accepted",
      "ok": true
     },
     {
@@ -709,7 +709,7 @@
     "p08-stale-claims"
    ],
    "ok": true,
-   "seconds": 33.265,
+   "seconds": 33.198,
    "checks": [
     {
      "name": "approver を外してから、API が見るロールから approver が消えるまで",
@@ -732,7 +732,7 @@
     {
      "name": "停止から拒否までの時間",
      "expected": "次の要求（AT の exp を待たない）",
-     "observed": "2.8 ms",
+     "observed": "2.4 ms",
      "ok": true
     }
    ],
@@ -752,7 +752,7 @@
     "p08-rotation"
    ],
    "ok": true,
-   "seconds": 0.094,
+   "seconds": 0.095,
    "checks": [
     {
      "name": "使い終えた RT1 を再提示",
@@ -789,7 +789,7 @@
     "p07-data-layer-checklist"
    ],
    "ok": true,
-   "seconds": 0.252,
+   "seconds": 0.236,
    "checks": [
     {
      "name": "A12：SET LOCAL app.tenant = $1（パラメータ）",
@@ -848,7 +848,7 @@
    "id": "test:negative_tests#db-context-override",
    "env": "live",
    "title": "DB の文脈の上書き・すり抜け（A04）",
-   "expected": "アプリのロールで RLS をすり抜ける主体が 0 件。弱い設定では各項目を検出する。SET ROLE で所有者になれない",
+   "expected": "アプリのロールで RLS をすり抜ける主体（SET ROLE で移れるロールを含む）が 0 件。弱い設定では各項目を検出する。SET ROLE で所有者になれない",
    "requirements": [
     "p07-data-layer-checklist.R11",
     "p07-trust-boundary.R3"
@@ -859,7 +859,7 @@
     "p07-trust-boundary"
    ],
    "ok": true,
-   "seconds": 0.057,
+   "seconds": 0.058,
    "checks": [
     {
      "name": "A04：設計どおりの app スキーマ（app_rls で照会）",
@@ -869,7 +869,8 @@
       "app role owns a table of the schema": [],
       "table without RLS or without FORCE": [],
       "SECURITY DEFINER function": [],
-      "view without security_invoker": []
+      "view without security_invoker": [],
+      "materialized view (RLS does not apply)": []
      },
      "ok": true
     },
@@ -902,7 +903,7 @@
     },
     {
      "name": "A04：弱い設定の broken スキーマ（BYPASSRLS のアプリのロールで照会）",
-     "expected": "5 項目すべてで検出",
+     "expected": "6 項目すべてで検出",
      "observed": {
       "app role is superuser or BYPASSRLS": [
        "app_bypass"
@@ -918,6 +919,9 @@
       ],
       "view without security_invoker": [
        "all_invoices"
+      ],
+      "materialized view (RLS does not apply)": [
+       "invoice_totals"
       ]
      },
      "ok": true

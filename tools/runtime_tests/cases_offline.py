@@ -55,11 +55,12 @@ def golden_a(ctx, r):
 def golden_b(ctx, r):
     led = B.Ledger(ctx.k.jwks_b())
     led.record_start(txn_payload())
-    r.accept('TXN を Txn-Token ヘッダーで ledger に送る', lambda: led.accept({'Txn-Token': mint_txn(ctx.k)}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW))
+    r.accept('TXN を Txn-Token ヘッダーで ledger に送る', lambda: led.accept({'Txn-Token': mint_txn(ctx.k)}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW))
     inv = B.Invoices(ctx.k.jwks_b(), approvals={'appr-1': 'active'})
     body = {'invoice': 'inv-1', 'amount': 120000, 'creditor': 'JP00-1234-5678'}
-    r.accept('TASK_AT で承認どおりの支払い', lambda: inv.pay(mint_sts(ctx.k, task_payload()), body, B.MCP_ID, NOW))
-    r.add('iss に example を含む', 'example を含む', [B.TRUST_DOMAIN, 'https://sts.corp.example.com'], True)
+    r.accept('TASK_AT で承認どおりの支払い', lambda: inv.pay(mint_sts(ctx.k, task_payload()), body, B.D.mcp, NOW))
+    isss = [txn_payload()['iss'], task_payload()['iss'], agent_payload()['iss']]
+    r.add('見本の iss に example を含む', 'すべて example を含む', isss, all('example' in i for i in isss))
 
 
 # ================================================================ header and algorithm
@@ -96,6 +97,8 @@ def jku_x5u(ctx, r):
         h = dict(at_header(ctx.k.t1), **{p: url})
         r.reject(f'正しい t1 の署名に {p} を足したもの', _list(api, ctx.tok(header=h)), 'header-key-param')
     r.add('検証の間に URL を取得した回数', 0, len(ctx.fetched), len(ctx.fetched) == 0)
+    h = dict(at_header(ctx.k.t1), crit=['exp-policy'], **{'exp-policy': 'lenient'})
+    r.reject('正しい t1 の署名に、受け手の知らない crit（exp-policy）を足したもの（RFC 7515 §4.1.11）', _list(api, ctx.tok(header=h)), 'crit-unknown')
 
 
 @case('negative_tests#embedded-jwk', expected='header-key-param で拒否', title='ヘッダーの jwk・x5c')
@@ -149,7 +152,7 @@ def aud_wrong(ctx, r):
     p = changed(txn_payload(), ['aud'], 'https://partner.example.com')
     led.record_start(p)
     r.reject('シナリオ B：Txn-Token の aud が信頼ドメイン（https://corp.example.com）の外', lambda: led.accept(
-        {'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW), 'aud-mismatch')
+        {'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW), 'aud-mismatch')
 
 
 @case('negative_tests#typ-wrong', expected='typ-mismatch で拒否。application/at+jwt は受ける', title='typ の誤り')
@@ -240,6 +243,8 @@ def case_variant(ctx, r):
     c = api.authorize(ctx.tok(changed(at_payload(), [NS, 'roles'], ['Approver', 'TENANT-ADMIN'])), 't1', NOW)
     r.add('roles=["Approver","TENANT-ADMIN"]（語彙と大文字小文字が違う）', 'ロールとして数えない（[]）', c['roles'], c['roles'] == [])
     r.reject('aud="Saas-Api"', _list(api, ctx.tok(changed(at_payload(), ['aud'], 'Saas-Api'))), 'aud-mismatch')
+    r.reject('roles=["approver","tenant-admin","approver"]（台帳の C-roles の max_items 2 を超える）',
+             _list(api, ctx.tok(changed(at_payload(), [NS, 'roles'], ['approver', 'tenant-admin', 'approver']))), 'claim-value')
 
 
 # ================================================================ tenants and objects (scenario A)
@@ -295,7 +300,7 @@ def _ledger(ctx):
 def txn_as_at(ctx, r):
     led = _ledger(ctx)
     t = mint_txn(ctx.k)
-    r.reject('ledger に Authorization: Bearer <Txn-Token>', lambda: led.accept({'Authorization': 'Bearer ' + t}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW), 'txn-token-in-authorization')
+    r.reject('ledger に Authorization: Bearer <Txn-Token>', lambda: led.accept({'Authorization': 'Bearer ' + t}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW), 'txn-token-in-authorization')
     tts, _ = B.load_design()
     from validator import JwksCache, TokenValidator
     orders = TokenValidator(tts['INT_AT'], 'orders', JwksCache({'https://sts.corp.example.com': {'keys': [ctx.k.sts.jwk()]},
@@ -311,27 +316,31 @@ def txn_remint(ctx, r):
         p = changed(txn_payload(), path, val)
         if path == ['txn']:
             led.record_start(changed(txn_payload(), ['txn'], 'txn-0002-original'))
-        r.reject(f'TTS が作り直して {name}（署名は正しい）', lambda p=p: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW),
+        r.reject(f'TTS が作り直して {name}（署名は正しい）', lambda p=p: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW),
                  ('txn-changed', 'unknown-txn', 'aud-mismatch'))
     found = B.remint_violations(txn_payload(), changed(txn_payload(), ['exp'], NOW + 900))
     r.add('作り直しで exp を延ばした（検査の関数）', '指摘あり', found, bool(found))
     r.add('改変せずに渡した（正規）', '指摘なし', B.remint_violations(txn_payload(), txn_payload()), not B.remint_violations(txn_payload(), txn_payload()))
 
 
-@case('negative_tests#nested-act', expected='入れ子の act だけを変えたトークンを拒否。今の代理者は最も外側の act.sub だけ', lint=['L12'], title='入れ子の act')
+@case('negative_tests#nested-act', expected='認可は最も外側の act だけで決まる。入れ子の act に特権の主体を入れても権限は増えず、入れ子の act があること自体では拒否しない', lint=['L12'], title='入れ子の act')
 def nested_act(ctx, r):
     inv = B.Invoices(ctx.k.jwks_b(), approvals={'appr-1': 'active'})
     body = {'invoice': 'inv-1', 'amount': 120000, 'creditor': 'JP00-1234-5678'}
-    p = changed(task_payload(), ['act', 'act', 'sub'], 'admin-console')
-    r.reject('入れ子の act.act.sub だけを admin-console に変えた（署名は正しい）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.MCP_ID, NOW), 'delegation-chain-mismatch')
+    adm = changed(task_payload(), ['act', 'act', 'sub'], 'admin-console')
+    adm = changed(adm, ['scope'], 'invoices.pay invoices.refund')
+    r.reject('入れ子の act.act.sub を admin-console にし、scope に invoices.refund を足したトークンで返金（今の代理者 invoice-mcp に返金は許されていない）',
+             lambda: inv.refund(mint_sts(ctx.k, adm), body, B.D.mcp, NOW), 'actor-not-allowed')
+    out = r.accept('同じトークンで支払い（入れ子の act は判断に使わないので、拒否もしない）', lambda: inv.pay(mint_sts(ctx.k, adm), body, B.D.mcp, NOW))
+    r.add('その支払いの今の代理者', '最も外側の act.sub（invoice-mcp）', (out or {}).get('actor'), (out or {}).get('actor') == B.D.mcp)
     p = changed(task_payload(), ['act'], {'sub': 'admin-console', 'act': {'sub': 'invoice-mcp', 'act': {'sub': 'agent:expense'}}})
-    r.reject('最も外側を admin-console にし、invoice-mcp を内側に入れた（内側を読む受け手なら通る）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.MCP_ID, NOW), 'actor-mismatch')
+    r.reject('最も外側を admin-console にし、invoice-mcp を内側に入れた（内側を読む受け手なら通る）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.D.mcp, NOW), 'actor-mismatch')
     p = changed(task_payload(), ['act', 'act', 'act'], {'sub': 'x', 'act': {'sub': 'y'}})
-    r.reject('委任の連鎖の深さ 4（組織の規則は 3 まで）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.MCP_ID, NOW), 'delegation-too-deep')
+    r.reject('委任の連鎖の深さ 4（組織の規則 max_delegation_depth 3。名前は読まない）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.D.mcp, NOW), 'delegation-too-deep')
     r.reject('最も外側の act.sub と mTLS の相手が違う', lambda: inv.pay(mint_sts(ctx.k, task_payload()), body, 'other-tool', NOW), 'actor-mismatch')
     p = changed(task_payload(), ['act'], DELETE)
-    r.reject('act が無い（利用者のトークンを借りた形、ケーススタディ C12）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.MCP_ID, NOW), 'missing-claim')
-    r.accept('正規の連鎖（invoice-mcp ← agent:expense）', lambda: inv.pay(mint_sts(ctx.k, task_payload()), body, B.MCP_ID, NOW))
+    r.reject('act が無い（利用者のトークンを借りた形、ケーススタディ C12）', lambda: inv.pay(mint_sts(ctx.k, p), body, B.D.mcp, NOW), 'missing-claim')
+    r.accept('正規の連鎖（invoice-mcp ← agent:expense）', lambda: inv.pay(mint_sts(ctx.k, task_payload()), body, B.D.mcp, NOW))
 
 
 @case('negative_tests#req-wl-changed', expected='req_wl だけを変えたトークンを拒否', title='req_wl だけを変えた')
@@ -340,9 +349,9 @@ def req_wl_changed(ctx, r):
     good = mint_txn(ctx.k)
     h, _, s = good.split('.')
     tampered = h + '.' + b64e(json.dumps(changed(txn_payload(), ['req_wl'], 'spiffe://corp.example.com/orders'), separators=(',', ':')).encode()) + '.' + s
-    r.reject('req_wl だけを書き換えた（署名はそのまま）', lambda: led.accept({'Txn-Token': tampered}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW), 'bad-signature')
+    r.reject('req_wl だけを書き換えた（署名はそのまま）', lambda: led.accept({'Txn-Token': tampered}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW), 'bad-signature')
     p = changed(txn_payload(), ['req_wl'], 'spiffe://corp.example.com/orders')
-    r.reject('TTS が req_wl=orders で発行した（入口以外が Txn-Token を求めた）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW), 'req-wl-not-allowed')
+    r.reject('TTS が req_wl=orders で発行した（入口以外が Txn-Token を求めた）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW), 'req-wl-not-allowed')
     r.reject('mTLS の相手が orders でない', lambda: led.accept({'Txn-Token': good}, {'operation': 'ledger.read'}, 'spiffe://corp.example.com/docs', NOW), 'peer-mismatch')
 
 
@@ -350,13 +359,13 @@ def req_wl_changed(ctx, r):
 def tctx_mismatch(ctx, r):
     led = _ledger(ctx)
     t = mint_txn(ctx.k)
-    r.reject('本文の operation=ledger.post、tctx は ledger.read', lambda: led.accept({'Txn-Token': t}, {'operation': 'ledger.post'}, B.ORDERS_ID, NOW), 'tctx-body-mismatch')
+    r.reject('本文の operation=ledger.post、tctx は ledger.read', lambda: led.accept({'Txn-Token': t}, {'operation': 'ledger.post'}, B.D.ledger_peer, NOW), 'tctx-body-mismatch')
     p = txn_payload(scope='orders.read ledger.read', operation='ledger.post')
     led.record_start(p)
-    r.reject('tctx.operation=ledger.post（scope は ledger.read）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.post'}, B.ORDERS_ID, NOW), 'tctx-scope-mismatch')
+    r.reject('tctx.operation=ledger.post（scope は ledger.read）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.post'}, B.D.ledger_peer, NOW), 'tctx-scope-mismatch')
     p = changed(txn_payload(), ['tctx'], {'operation': 'ledger.read', 'amount': 1})
     led.record_start(p)
-    r.reject('tctx に語彙に無い項目（amount）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.ORDERS_ID, NOW), 'tctx-shape')
+    r.reject('tctx に語彙に無い項目（amount）', lambda: led.accept({'Txn-Token': mint_txn(ctx.k, p)}, {'operation': 'ledger.read'}, B.D.ledger_peer, NOW), 'tctx-shape')
     r.note('シナリオ B の tctx の項目は operation だけ（claims.yaml C-tctx の value_vocabulary）。#8 の本文の「本文の数量」は、この記入例では承認の金額（approval-mismatch）で確かめる')
 
 
@@ -366,12 +375,14 @@ def approval_mismatch(ctx, r):
     inv = B.Invoices(ctx.k.jwks_b(), approvals=appr)
     t = mint_sts(ctx.k, task_payload())
     ok = {'invoice': 'inv-1', 'amount': 120000, 'creditor': 'JP00-1234-5678'}
-    r.reject('金額を 1,200,000 に変えた（ケーススタディ C5）', lambda: inv.pay(t, dict(ok, amount=1200000), B.MCP_ID, NOW), 'approval-mismatch')
-    r.reject('相手先の口座を変えた（C6）', lambda: inv.pay(t, dict(ok, creditor='JP99-0000-0000'), B.MCP_ID, NOW), 'approval-mismatch')
+    r.reject('金額を 1,200,000 に変えた（ケーススタディ C5）', lambda: inv.pay(t, dict(ok, amount=1200000), B.D.mcp, NOW), 'approval-mismatch')
+    r.reject('相手先の口座を変えた（C6）', lambda: inv.pay(t, dict(ok, creditor='JP99-0000-0000'), B.D.mcp, NOW), 'approval-mismatch')
     p = changed(task_payload(), ['authorization_details'], [])
-    r.reject('authorization_details が空', lambda: inv.pay(mint_sts(ctx.k, p), ok, B.MCP_ID, NOW), 'approval-missing')
+    r.reject('authorization_details が空', lambda: inv.pay(mint_sts(ctx.k, p), ok, B.D.mcp, NOW), 'approval-missing')
+    p = changed(task_payload(), ['scope'], 'invoices.read')
+    r.reject('承認どおりでも scope に invoices.pay が無い', lambda: inv.pay(mint_sts(ctx.k, p), ok, B.D.mcp, NOW), 'scope-missing')
     appr['appr-1'] = 'revoked'
-    r.reject('承認を取り消した後（C7。トークンの exp を待たない）', lambda: inv.pay(t, ok, B.MCP_ID, NOW), 'approval-not-active')
+    r.reject('承認を取り消した後（C7。トークンの exp を待たない）', lambda: inv.pay(t, ok, B.D.mcp, NOW), 'approval-not-active')
 
 
 @case('negative_tests#passthrough-rejected', expected='MCP サーバー宛ての AGENT_AT を上流の invoices に送ると aud-mismatch', title='トークンのパススルー')
@@ -379,10 +390,9 @@ def passthrough(ctx, r):
     inv = B.Invoices(ctx.k.jwks_b(), approvals={'appr-1': 'active'})
     t = mint_sts(ctx.k, agent_payload())
     ok = {'invoice': 'inv-1', 'amount': 120000, 'creditor': 'JP00-1234-5678'}
-    r.reject('invoice-mcp が受けた AGENT_AT をそのまま invoices に送る（ケーススタディ C2）', lambda: inv.pay(t, ok, B.MCP_ID, NOW), 'aud-mismatch')
+    r.reject('invoice-mcp が受けた AGENT_AT をそのまま invoices に送る（ケーススタディ C2）', lambda: inv.pay(t, ok, B.D.mcp, NOW), 'aud-mismatch')
     p = changed(agent_payload(), ['aud'], ['invoice-mcp', 'invoices'])
-    r.reject('宛先を複数にした広いトークン（C13。H14 は invoice-mcp だけ）', lambda: inv.pay(mint_sts(ctx.k, p), ok, B.MCP_ID, NOW), ('actor-mismatch', 'delegation-chain-mismatch'))
-    r.note('2 つ目は aud には invoices を含むので aud の検査は通り、act（agent:expense が今の代理者）で落ちる。宛先を 1 つにする規則は発行者（sts）と L16 で守る')
+    r.reject('宛先を複数にした広いトークン（C13。H15 は aud が invoices だけ）', lambda: inv.pay(mint_sts(ctx.k, p), ok, B.D.mcp, NOW), 'aud-mismatch')
 
 
 @case('negative_tests#rar-unknown-type', expected='知らない type・フィールド・actions の authorization_details を sts が invalid_authorization_details で拒否', title='知らない authorization_details')
@@ -440,6 +450,10 @@ def exchange_offline(ctx, r):
         f = narrowing.check(fx['subject'], d, kc_hop, audience_scopes=fx['audience_scopes'])
         want = probe == 'scope_not_granted'
         r.add(f'ケーススタディの実測 {probe}（aud={d["aud"]}）', '指摘あり（orders が出た）' if want else '指摘 0', f, bool(f) == want)
+    d = dict(fx['probes']['narrow_to_invoices'], scope='aud-invoices aud-orders email profile')
+    f = narrowing.check(fx['subject'], d, kc_hop, audience_scopes=fx['audience_scopes'])
+    r.add('aud は invoices だけのまま、scope に宛先を運ぶ aud-orders が付いた交換（Keycloak の audience スコープの規則だけが見つける）',
+          '「aud-orders carries audience orders」の指摘だけ', f, len(f) == 1 and 'scope aud-orders carries audience orders' in f[0])
 
 
 # ================================================================ consumer contract
@@ -464,7 +478,7 @@ def declared_reads(ctx, r):
     _, claims = load_design(DESIGN)
     rows = list(claims.values())
     log = _reads(api, ctx.tok())
-    r.add('参照の saas-api が読んだメンバー', '台帳のどれかの行', sorted(f'{a}{b}' for a, b in log), True)
+    r.note('参照の saas-api が読んだメンバー：' + '、'.join(sorted(f'{a}{b}' for a, b in log)))
     v = contract.violations(log, rows, 'saas-api')
     r.add('台帳のとおり（consumers に saas-api）', '違反 0', v, not v)
     e = contract.schema_errors(at_payload(), os.path.join(DESIGN, 'schemas', 'AT.consumer.schema.json'))

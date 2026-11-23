@@ -18,11 +18,6 @@ from validator import JwksCache, Reject, TokenValidator  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(HERE))
 DESIGN = os.path.join(ROOT, 'templates', 'examples', 'scenario-b')
 NS = 'https://claims.example.com/'
-TRUST_DOMAIN = 'https://corp.example.com'
-GATEWAY_ID = 'spiffe://corp.example.com/gateway'   # the only workload allowed to request a TXN (C-req-wl assumption)
-ORDERS_ID = 'spiffe://corp.example.com/orders'
-MCP_ID = 'invoice-mcp'
-AGENT_ID = 'agent:expense'
 PAYMENT_TYPE = 'https://claims.example.com/rar/payment'
 RAR_FIELDS = {'type', 'actions', 'identifier', 'instructedAmount', 'creditorAccount'}
 IDENTITY_HEADER_PREFIX = 'x-user-'
@@ -33,6 +28,44 @@ def load_design(design_dir=DESIGN):
     tts = yaml.safe_load(open(os.path.join(design_dir, 'token_types.yaml'), encoding='utf-8'))['token_types']
     claims = yaml.safe_load(open(os.path.join(design_dir, 'claims.yaml'), encoding='utf-8'))['claims']
     return {t['id']: t for t in tts}, {c['id']: c for c in claims}
+
+
+def load_hops(design_dir=DESIGN):
+    return {h['id']: h for h in yaml.safe_load(open(os.path.join(design_dir, 'hops.yaml'), encoding='utf-8'))['hops']}
+
+
+def service(name):
+    """'gateway（入口）' -> 'gateway': the service name of a hops.yaml from / to."""
+    return name.split('（', 1)[0].strip()
+
+
+class Design:
+    """The values the receivers compare with, read from the scenario B registry (not constants).
+
+    - trust domain: TXN aud. SPIFFE IDs are spiffe://<host of the trust domain>/<service of hops.yaml>, the naming
+      convention of this harness (claims.yaml C-req-wl says only "the gateway's SPIFFE ID")
+    - who may request a TXN (req_wl): the `from` of H9, the hop where the TXN starts
+    - the peer of ledger: the `from` of H10; the peer and current actor at invoices: the `from` of H15
+    - the aud at invoices: TASK_AT aud, compared as exactly that value (H15 checks: aud が invoices だけ)
+    - the operations of each current actor (H15 checks: act の方針表で、その代理者に許した操作だけ): the H15 scope
+    """
+
+    def __init__(self, design_dir=DESIGN):
+        self.tts, self.claims = load_design(design_dir)
+        self.hops = load_hops(design_dir)
+        self.trust_domain = self.tts['TXN']['aud'][0]
+        self.host = self.trust_domain.split('://', 1)[1].rstrip('/')
+        self.txn_requester = self.spiffe(service(self.hops['H9']['from']))
+        self.ledger_peer = self.spiffe(service(self.hops['H10']['from']))
+        self.mcp = service(self.hops['H15']['from'])
+        self.invoices_aud = list(self.tts['TASK_AT']['aud'])
+        self.actor_ops = {self.mcp: {s.split('.', 1)[1] for s in self.hops['H15']['scope']}}   # invoice-mcp: {pay}
+
+    def spiffe(self, svc):
+        return f'spiffe://{self.host}/{svc}'
+
+
+D = Design()   # the values of the committed example, for the tests
 
 
 # ---------------------------------------------------------------- edge (gateway): identity headers from the client
@@ -65,10 +98,10 @@ def naive_edge_filter(raw_headers):
 # ---------------------------------------------------------------- ledger (H10): Txn-Token
 class Ledger:
     def __init__(self, jwks_by_iss, design_dir=DESIGN):
-        tts, claims = load_design(design_dir)
-        self.txn_tt = tts['TXN']
-        self.vocab = claims['C-tctx']['value_vocabulary']['values']
-        self.v = TokenValidator(self.txn_tt, TRUST_DOMAIN, JwksCache(jwks_by_iss))
+        self.d = Design(design_dir)
+        self.txn_tt = self.d.tts['TXN']
+        self.vocab = self.d.claims['C-tctx']['value_vocabulary']['values']
+        self.v = TokenValidator(self.txn_tt, self.d.trust_domain, JwksCache(jwks_by_iss))
         self.audit = {}  # txn -> claims seen at the start of the chain (H9), the audit log the design compares with
 
     def record_start(self, claims):
@@ -88,9 +121,9 @@ class Ledger:
         if not tok:
             raise Reject('missing-txn-token')
         c = self.v.verify(tok, now)
-        if c.get('req_wl') != GATEWAY_ID:
+        if c.get('req_wl') != self.d.txn_requester:
             raise Reject('req-wl-not-allowed', repr(c.get('req_wl')))
-        if peer != ORDERS_ID:
+        if peer != self.d.ledger_peer:
             raise Reject('peer-mismatch', repr(peer))
         start = self.audit.get(c['txn'])
         if start is None:
@@ -111,47 +144,78 @@ class Ledger:
 
 
 def remint_violations(up, down):
-    """A Txn-Token passed on or re-minted must keep txn, sub, aud, req_wl and must not widen scope (draft-11 §13.6)."""
+    """Differences between the Txn-Token at the start of the chain (up) and the one received (down).
+
+    From draft-ietf-oauth-transaction-tokens-11: §13.15 (a replacement Txn-Token keeps txn, sub and aud) and §13.6 (the
+    scope issued is the same as or narrower than the subject token's), so a widened scope is a finding. Two more are
+    ORGANIZATION rules of the scenario B example, not rules of the draft (findings marked "org rule"):
+      - req_wl unchanged: §13.15 does not name req_wl (it asks to keep the call chain); the example uses req_wl to record
+        which entry point started the transaction (claims.yaml C-req-wl), and a changed req_wl breaks that record
+      - exp not extended: §13.15 allows (MAY) a replacement that lives longer than the original; the example keeps the
+        lifetime at most the original's (hops.yaml H9 note: 寿命は INT_AT と同じ 300 秒を上限にする)
+    """
     out = []
-    for k in ('txn', 'sub', 'aud', 'req_wl'):
+    for k in ('txn', 'sub', 'aud'):
         if up.get(k) != down.get(k):
-            out.append(f'{k} changed')
+            out.append(f'{k} changed (draft-11 §13.15)')
     us, ds = set(str(up.get('scope', '')).split()), set(str(down.get('scope', '')).split())
     if not ds <= us:
-        out.append(f'scope widened by {sorted(ds - us)}')
+        out.append(f'scope widened by {sorted(ds - us)} (draft-11 §13.6)')
+    if up.get('req_wl') != down.get('req_wl'):
+        out.append('req_wl changed (org rule: C-req-wl)')
     if down.get('exp', 0) > up.get('exp', 0):
-        out.append('exp extended')
+        out.append('exp extended (org rule: H9 note)')
     return out
 
 
 # ---------------------------------------------------------------- invoices (H15): TASK_AT with act and authorization_details
 class Invoices:
+    """invoices (H15). Authorization reads the outermost act only: RFC 8693 §4.1 says the nested act claims are
+    informational and are not used for access control. A nested act is therefore never a reason to grant anything,
+    and a token is not rejected for what its nested act says. One ORGANIZATION rule counts the chain without reading it:
+    the depth limit (TASK_AT max_delegation_depth 3, the casestudy's depth_rule). The H15 check of the example
+    「その内側が agent:expense」 would read the nested act for a decision; this receiver does not implement it (returned
+    to the owners of the example, #6 / #18).
+    """
+
     def __init__(self, jwks_by_iss, design_dir=DESIGN, approvals=None):
-        tts, claims = load_design(design_dir)
-        self.v = TokenValidator(tts['TASK_AT'], 'invoices', JwksCache(jwks_by_iss))
-        self.max_depth = tts['TASK_AT'].get('max_delegation_depth', 3)
+        self.d = Design(design_dir)
+        tt = self.d.tts['TASK_AT']
+        self.v = TokenValidator(tt, self.d.invoices_aud[0], JwksCache(jwks_by_iss))
+        self.max_depth = tt.get('max_delegation_depth', 3)
         self.approvals = approvals if approvals is not None else {}
         self.owners = {'inv-1': 'u1', 'inv-2': 'u2'}
 
-    def pay(self, token, body, peer, now):
+    def _authorize(self, token, op, peer, now):
         c = self.v.verify(token, now)
+        aud = c.get('aud')
+        if (aud if isinstance(aud, list) else [aud]) != self.d.invoices_aud:   # H15: aud が invoices だけ
+            raise Reject('aud-mismatch', f'aud {aud!r} is not exactly {self.d.invoices_aud}')
         act = c.get('act')
         if not isinstance(act, dict) or not isinstance(act.get('sub'), str):
             raise Reject('act-missing')
-        # the CURRENT actor is the outermost act only (RFC 8693 §4.1); the nested ones are history
-        if act['sub'] != MCP_ID or peer != MCP_ID:
-            raise Reject('actor-mismatch', f'outermost act.sub {act["sub"]!r}, peer {peer!r}')
-        inner = act.get('act')
-        if not isinstance(inner, dict) or inner.get('sub') != AGENT_ID:
-            raise Reject('delegation-chain-mismatch', f'inner act {inner!r}')
+        actor = act['sub']   # the CURRENT actor: the outermost act only (RFC 8693 §4.1)
+        if actor != peer:
+            raise Reject('actor-mismatch', f'outermost act.sub {actor!r}, peer {peer!r}')
+        if op not in self.d.actor_ops.get(actor, set()):
+            raise Reject('actor-not-allowed', f'{actor!r} may not {op}')
         depth, cur = 0, act
         while isinstance(cur, dict):
             depth += 1
             cur = cur.get('act')
-        if depth > self.max_depth:
+        if depth > self.max_depth:   # organization rule (max_delegation_depth); the names in the chain are not read
             raise Reject('delegation-too-deep', str(depth))
-        if 'invoices.pay' not in str(c.get('scope', '')).split():
-            raise Reject('scope-missing', 'invoices.pay')
+        if f'invoices.{op}' not in str(c.get('scope', '')).split():
+            raise Reject('scope-missing', f'invoices.{op}')
+        return c, actor
+
+    def refund(self, token, body, peer, now):
+        """An operation that no current actor of the example may do (the H15 scope is invoices.pay only)."""
+        c, actor = self._authorize(token, 'refund', peer, now)
+        return {'refunded': body.get('invoice'), 'actor': actor}
+
+    def pay(self, token, body, peer, now):
+        c, actor = self._authorize(token, 'pay', peer, now)
         if self.owners.get(body.get('invoice')) != c['sub']:
             raise Reject('not-owner')
         ad = c.get('authorization_details')
@@ -164,7 +228,7 @@ class Invoices:
         appr = c.get(NS, {}).get('approval_id')
         if self.approvals.get(appr) != 'active':
             raise Reject('approval-not-active', repr(appr))
-        return {'paid': body['invoice'], 'by': c['sub'], 'actor': act['sub']}
+        return {'paid': body['invoice'], 'by': c['sub'], 'actor': actor}
 
 
 # ---------------------------------------------------------------- sts: authorization_details of a request (RFC 9396 §5)

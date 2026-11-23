@@ -13,7 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jose import DuplicateMember, b64d, public_from_jwk, strict_json, verify_sig  # noqa: E402
 
-HEADER_KEY_PARAMS = ('jku', 'x5u', 'jwk', 'x5c')  # RFC 8725 §3.10 / slide:p01-dangerous-header-params
+HEADER_KEY_PARAMS = ('jku', 'x5u', 'jwk', 'x5c')  # jku/x5u: RFC 8725 §3.10 (fetching them is SSRF); jwk/x5c: RFC 7515 §4.1.3/§4.1.6 (a key in the token is trusted only if bound to configured keys); slide:p01-dangerous-header-params
 
 
 class Reject(Exception):

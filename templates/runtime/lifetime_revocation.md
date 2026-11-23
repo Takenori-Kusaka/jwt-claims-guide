@@ -32,14 +32,17 @@
 - BFF は AT の期限でリフレッシュし、そのときに Keycloak がロールを評価し直す・セッションの終了を返すので、BFF の側の遅れも「AT の残りの寿命」以下です。
 - 比に乗らないのは、ネットワークと Keycloak の応答の時間（数十ミリ秒）と、テストの要求の間隔（1 秒）だけです。これらは縮めた設定では相対的に大きく効くので、縮めた設定で上限の内に入れば、本番の値でも上限の内に入ります（保守側の誤差）。
 - 逆に、縮めた設定では見えないもの：Keycloak の SSO セッションの idle（1800 秒）と最大（36000 秒）、JWKS のキャッシュ（3600 秒）は縮めていません。テストの数十秒の間には効かないので、結果に影響しません。
+- 時計のずれ（2 秒）は、IdP と受け手が同じホストにいるので、実際には使われていない（設定の値として受け入れの上限に効くだけ）。BFF の経路の遅れには、受け手のずれは関係しない。ずれそのものの扱いは、オフラインの `expired`・`nbf-future` で境界を確かめる
+- 鍵の削除の反映（JWKS のキャッシュの TTL 3600 秒）は、このテストの対象外。参照の受け手は TTL を実装していない（未知の kid の取り直しの間隔と負のキャッシュだけを実装し、`untrusted-key` で確かめる）
 
 <a id="role-revocation"></a>
 
 ## 3. ロールの剥奪（revocation-latency）
 
 - 手順：縮めた設定のレルム t1 で、参照の BFF が alice でログインし、1 秒ごとに API を呼ぶ。2 秒後に管理 API で alice から approver を外す。API が見るロール（その時点の AT の名前空間の roles）から approver が消えるまでの時間を測る
-- 記録（2026-11-23、`research/runtime/run-live-2026-11-23.md`）：18.1 秒。縮めた上限 22 秒の内（本番の比に直すと約 272 秒で、330 秒の内）
+- 記録（2026-11-23、`research/runtime/run-live-2026-11-23.md`）：18.1 秒。縮めた上限 22 秒の内
 - 読み方：approver は、BFF が AT の期限（発行から 20 秒）でリフレッシュした新しい AT から消えた。剥奪は発行から約 2 秒後なので、期待は約 18 秒
+- 本番の値での見積もり：剥奪の時刻は縮めていない（発行から 2 秒）ので、18.1 秒を比で直す意味はない。この経路の最悪は、AT が発行された直後に剥奪した場合の「寿命＋要求の間隔」で、本番の値では約 301 秒（寿命 300 秒＋テストの要求の間隔 1 秒）。宣言した上限 330 秒の内に入る。受け手のずれ 30 秒は、BFF の外に写した AT を受け手が直接受けるときにだけ足される（exp_only の上限 330 秒）
 
 <a id="tenant-suspension"></a>
 
@@ -54,24 +57,25 @@
 ## 5. IdP 側のセッションの終了と BFF のセッション（revoked-token-rejected、A03）
 
 - 手順：縮めた設定のレルム t1 で、参照の BFF が alice でログインし、1 秒ごとに API を呼ぶ。3 秒後に、(1) 管理 API で alice のセッションを消す、(2) 別の回で alice を無効にする。BFF のセッションが終わるまでの時間を測る。あわせて、BFF の外に写した AT（盗まれた AT）を使う
-- 記録（2026-11-23）：(1)・(2) とも、取り消しから約 17 秒で BFF のリフレッシュが失敗し（(1) は `invalid_grant: Session not active`、(2) は `invalid_grant: User disabled`）、BFF のセッションが終わった。縮めた上限 22 秒の内。盗まれた AT は exp の前は通り、発行から 23 秒後は expired で拒否された
+- 記録（2026-11-23）：(1)・(2) とも、取り消しから約 17 秒で BFF のリフレッシュが失敗し（(1) は `invalid_grant: Session not active`、(2) は `invalid_grant: User disabled`）、BFF のセッションが終わった。縮めた上限 22 秒の内。盗まれた AT（BFF の外の写し）は、取り消しの直後（発行から約 3 秒、exp の前）に受け手が受理し（exp_only の残り）、発行から 23 秒後は expired で拒否された
 - 読み方：BFF は、AT が期限切れになるまでリフレッシュしないので、取り消しの後も AT の残りの寿命の間は要求が通る。これは設計が許した遅れ（330 秒）で、ログアウトトークンを却下した前提（token_types.yaml の LOGOUT の assumption）どおり
+- 注：「失効を受け取る」手段は、この設計ではリフレッシュの失敗だけ（ログアウトトークンと SET は却下。token_types.yaml の LOGOUT・SET）。p08-revocation-propagation.R2 はこの手段で確かめた
 
 <a id="rt-reuse"></a>
 
 ## 6. RT の再提示（rt-reuse）
 
 - 手順：リフレッシュで RT1 を RT2 に替えた後、RT1 を再提示し、続けて RT2 でリフレッシュする（Keycloak 26.8.0、Revoke Refresh Token ON、refreshTokenMaxReuse 0）
-- 記録（2026-11-23）：RT1 は `invalid_grant: Maximum allowed refresh token reuse exceeded` で拒否された。続く RT2 も `invalid_grant: Session doesn't have required client` で拒否された。**系列の新しい RT も失効した**
-- 読み方：シナリオ A の台帳は `reuse_detection: unverified` としていた。この観測は、Keycloak 26.8.0 のこの設定で、古い RT の再提示が系列の RT まで失効させることを示す。台帳の値を変えるかは、記入例の担当（#16・#3）で決める（この PR では変えていない）
+- 記録（2026-11-23、`research/runtime/keycloak-observations-2026-11-23.md` の 2.）：RT1 は `invalid_grant: Maximum allowed refresh token reuse exceeded` で拒否された。続く RT2 も `invalid_grant: Session doesn't have required client` で拒否された。独立点検（PR #48）の再現では、順番を逆にしても（攻撃者が先に RT1 を使い、正規の利用者が RT1 を再提示する）攻撃者の RT2 が失効した。ただし、消えたのは **クライアントのセッション** で、利用者の SSO のセッションは残った
+- 読み方：観測は Keycloak 26.8.0 のこの設定（`revokeRefreshToken: true`・`refreshTokenMaxReuse: 0`。`tools/runtime_tests/kc.py`）に依存する。BFF のセッションは終わるが、SSO のセッションは続く。また refreshTokenMaxReuse 0 では、BFF が同じ RT で並行してリフレッシュするだけで正規の利用者がログアウトする（BFF のリフレッシュは直列にする。`筆者の提案：Keycloak の RT のローテーションでは BFF のリフレッシュを利用者ごとに直列にする（追跡 #8）`、`template:modules/M_idp_keycloak#refresh-token-settings`）。シナリオ A の台帳は `reuse_detection: unverified` のままで、要件 `p08-rotation.R3` は未着手のまま。値を直すかは記入例の担当（#16・#3）が決める
 
 <a id="exchange-lifetime"></a>
 
 ## 7. 交換で出たトークンの寿命（exchange-narrowing）
 
 - 手順：レルム corp で carol の AT を取り、3 秒後に mcp-tools が交換する（ケーススタディと同じ 5 通り）
-- 記録（2026-11-23）：交換で出た AT の exp は、元の AT の exp より約 3 秒後だった（交換の時刻から 300 秒）。**Keycloak 26.8.0 の標準の交換（V2）は、この設定では元のトークンの exp で新しいトークンの寿命を抑えない**。検査（`narrowing.py`）は「exp extended」と指摘する
-- 読み方：L16 の「寿命が上流より長い」に当たる。シナリオ B の H15 は sts が寿命を 300 秒以下に抑えると宣言している（交換を Keycloak に替えるなら、この差を設計で扱う）
+- 記録（2026-11-23、`research/runtime/keycloak-observations-2026-11-23.md` の 1.）：交換で出た AT の exp は、元の AT の exp より約 3 秒後だった（交換の時刻から 300 秒）。独立点検（PR #48）の再現では、寿命 20 秒のレルムで 15 秒後に交換すると +16 秒、元が期限切れになった後の交換は 400 だった。**Keycloak 26.8.0 の標準の交換（V2）は、新しいトークンの寿命を元のトークンの exp で抑えない。1 回の交換で延びるのは元の残りの寿命までで、上限はおよそ寿命 1 本分（300 秒）**。検査（`narrowing.py`）は「exp extended」と指摘する
+- 読み方：L16 の「寿命が上流より長い」に当たる。RFC 8693 は exp を元で抑えることを求めていないので、Keycloak の不具合ではなく、設計で扱うこと。交換を重ねる構成では、ホップの数だけ延びうる（試していない）。シナリオ B の H15 は sts が寿命を 300 秒以下に抑えると宣言している。交換を Keycloak に替えるなら、受け手が `exp` と元の `exp` を比べるか、交換の寿命を短くするかを設計に書く
 
 ## 8. テストの環境で設計と違えたこと
 

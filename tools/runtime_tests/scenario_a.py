@@ -141,7 +141,7 @@ class SaasApi:
 
 
 class Bff:
-    """saas-web: holds AT and RT server-side; refreshes before expiry; ends its own session when a refresh fails.
+    """saas-web: holds AT and RT server-side; refreshes when the AT has expired (now >= issued + lifetime); ends its own session when a refresh fails.
 
     refresh(rt) -> token response dict or raises; the BFF session ends on the first failure (token_types BFFSESSION
     revocation refresh_failure, design: IdP-side session end / user disabled is noticed within the 330 s bound).

@@ -1,6 +1,6 @@
 # 実行テストの記録（#8、env=offline）
 
-- 開始（UTC）：2026-11-23T07:07:39+00:00
+- 開始（UTC）：2026-11-23T07:57:50+00:00
 - 環境：{"python": "3.14.6", "os": "Windows-11-10.0.26300-SP0", "cryptography": "50.0.0", "pyyaml": "6.0.3"}
 - 生のトークン・鍵・パスワードは記録しない。試験用の利用者の復号したクレームだけを記録する
 
@@ -10,7 +10,7 @@
 | `test:golden_tokens#scenario-b-tokens` | PASS | 3/3 | — | — | 見本の TXN・TASK_AT を参照の ledger・invoices が受理する |
 | `test:negative_tests#alg-none` | PASS | 4/4 | p01-attack-patterns.R1・p01-dangerous-header-params.R1・p01-validation-order.R2・p12-antipatterns-1.R1 | L17 | alg-not-allowed で拒否 |
 | `test:negative_tests#alg-confusion` | PASS | 3/3 | p01-attack-patterns.R1・p01-dangerous-header-params.R2・p12-antipatterns-1.R1 | — | alg-not-allowed で拒否（HS256 は許可リストに無い） |
-| `test:negative_tests#jku-x5u` | PASS | 5/5 | p01-dangerous-header-params.R4 | L25 | header-key-param で拒否し、URL を 1 回も取得しない |
+| `test:negative_tests#jku-x5u` | PASS | 6/6 | p01-dangerous-header-params.R4 | L25 | header-key-param で拒否し、URL を 1 回も取得しない |
 | `test:negative_tests#embedded-jwk` | PASS | 2/2 | p01-dangerous-header-params.R5 | L25 | header-key-param で拒否 |
 | `test:negative_tests#untrusted-key` | PASS | 6/6 | p00-incident-signature-valid.R1・p01-key-rotation-jwks.R1・p01-validation-order.R3・p12-antipatterns-1.R5 | — | unknown-kid・bad-signature で拒否。未知の kid での JWKS の取り直しは 300 秒に 1 回まで |
 | `test:negative_tests#iss-mismatch` | PASS | 10/10 | p01-validation-order.R4・p02-registered-claims.R1 | — | iss-not-allowed で拒否（完全一致だけを受ける） |
@@ -21,21 +21,21 @@
 | `test:negative_tests#missing-required` | PASS | 9/9 | p01-library-defaults.R2・p01-validation-order.R8・p03-cognito-token-use.R3・p03-confusing-differences.R4 | L7 | missing-claim（iss は iss-not-allowed）で拒否。aud は文字列と配列の両方を受ける |
 | `test:negative_tests#missing-required-claim` | PASS | 9/9 | p03-absorb-idp-differences.R5・p03-custom-claim-injection.R1・p04-absent-null-false-empty.R3・p04-forward-compatibility.R2・p04-reject-missing-required.R4・p06-grant-types.R4 | L37・L7 | missing-claim で拒否（fail closed）。roles の欠落は「ロールなし」で受ける |
 | `test:negative_tests#duplicate-claim` | PASS | 4/4 | p01-attack-patterns.R6 | — | duplicate-member で拒否 |
-| `test:negative_tests#case-variant` | PASS | 5/5 | p04-case-and-characters.R3 | — | 大文字小文字だけが違う値は別の値として扱い、照合に通らない |
+| `test:negative_tests#case-variant` | PASS | 6/6 | p04-case-and-characters.R3 | — | 大文字小文字だけが違う値は別の値として扱い、照合に通らない |
 | `test:negative_tests#tenant-mismatch` | PASS | 7/7 | p00-incident-signature-valid.R2・p01-attack-patterns.R3・p02-tenant-org.R3・p05-multitenancy.R3・p05-multitenancy.R6・p06-flow-multitenant-saas.R2・p08-reissue-triggers.R1・p12-antipatterns-1.R4 | L9 | tenant-iss-mismatch・tenant-path-mismatch・claim-type で拒否 |
 | `test:negative_tests#bola-other-owner` | PASS | 4/4 | p05-bola.R5・p06-validation-split.R5・p12-review-viewpoints.R13 | — | 他人の請求書は not-found（他テナントと同じ答え） |
 | `test:negative_tests#revocation-latency` | PASS | 4/4 | p04-token-is-snapshot.R3・p08-revocation-propagation.R2・p08-stale-claims.R3 | — | テナントの停止は次の要求で拒否（0 秒）。ロールの剥奪は受け入れの上限（330 秒）の後に効く |
 | `test:negative_tests#txn-token-as-at` | PASS | 2/2 | p06-transaction-tokens.R2 | L43 | Authorization ヘッダーの Txn-Token は txn-token-in-authorization、AT の受け手では typ-mismatch |
 | `test:negative_tests#txn-remint-immutable` | PASS | 6/6 | p06-transaction-tokens.R5 | L16・L44 | txn・sub・aud・req_wl を変えた、または scope を広げた Txn-Token は txn-changed で拒否 |
-| `test:negative_tests#nested-act` | PASS | 6/6 | p02-delegation-client.R1・p05-confused-deputy.R2・p06-audit-trail.R2・p10-delegation-chain-depth.R4・p10-four-questions.R6 | L12 | 入れ子の act だけを変えたトークンを拒否。今の代理者は最も外側の act.sub だけ |
+| `test:negative_tests#nested-act` | PASS | 8/8 | p02-delegation-client.R1・p05-confused-deputy.R2・p06-audit-trail.R2・p10-delegation-chain-depth.R4・p10-four-questions.R6 | L12 | 認可は最も外側の act だけで決まる。入れ子の act に特権の主体を入れても権限は増えず、入れ子の act があること自体では拒否しない |
 | `test:negative_tests#req-wl-changed` | PASS | 3/3 | p06-validation-split.R3 | — | req_wl だけを変えたトークンを拒否 |
 | `test:negative_tests#tctx-mismatch` | PASS | 3/3 | p06-transaction-tokens.R9 | L11 | 本文の操作が tctx と食い違う要求を拒否 |
-| `test:negative_tests#approval-mismatch` | PASS | 4/4 | p10-agent-checklist.R7・p10-human-approval-evidence.R3 | L11 | 承認と食い違う金額・相手先・対象、取り消した承認を拒否 |
+| `test:negative_tests#approval-mismatch` | PASS | 5/5 | p10-agent-checklist.R7・p10-human-approval-evidence.R3 | L11 | 承認と食い違う金額・相手先・対象、取り消した承認を拒否 |
 | `test:negative_tests#passthrough-rejected` | PASS | 2/2 | p10-mcp-authorization.R3 | L41 | MCP サーバー宛ての AGENT_AT を上流の invoices に送ると aud-mismatch |
 | `test:negative_tests#rar-unknown-type` | PASS | 4/4 | p05-coarse-fine-layers.R3 | — | 知らない type・フィールド・actions の authorization_details を sts が invalid_authorization_details で拒否 |
 | `test:negative_tests#spoofed-identity-header` | PASS | 10/10 | p06-header-forwarding.R1・p06-header-forwarding.R2・p06-header-forwarding.R3・p11-pre-add-questions-2.R5・p12-antipatterns-2.R5 | L72・L8 | x-user-* はどの綴りでも除去、重複は duplicate-header で拒否。素朴な除去は変種を通す |
-| `test:negative_tests#exchange-narrowing` | PASS | 9/9 | p03-keycloak-aud-lightweight.R4・p06-narrow-downstream.R3・p10-delegation-chain-depth.R2・p10-token-exchange-not-narrowing.R1・p10-token-exchange-not-narrowing.R4 | L16 | 交換で出たトークンが上流を超えたら指摘する。正規の交換は指摘 0 |
-| `test:consumer_contract#declared-reads` | PASS | 7/7 | p00-claims-are-contracts.R7・p11-schema-contract-tests.R4 | — | 受け手が読むクレームはすべて台帳の consumers に受け手がある。consumers から外すと失敗する |
+| `test:negative_tests#exchange-narrowing` | PASS | 10/10 | p03-keycloak-aud-lightweight.R4・p06-narrow-downstream.R3・p10-delegation-chain-depth.R2・p10-token-exchange-not-narrowing.R1・p10-token-exchange-not-narrowing.R4 | L16 | 交換で出たトークンが上流を超えたら指摘する。正規の交換は指摘 0 |
+| `test:consumer_contract#declared-reads` | PASS | 6/6 | p00-claims-are-contracts.R7・p11-schema-contract-tests.R4 | — | 受け手が読むクレームはすべて台帳の consumers に受け手がある。consumers から外すと失敗する |
 | `test:consumer_contract#unknown-claim-ignored` | PASS | 2/2 | p04-forward-compatibility.R1 | — | 未知のクレームを足しても受理する |
 | `test:consumer_contract#issued-claims-present` | PASS | 2/2 | p03-auth0-namespace.R2・p03-entra-scp-roles-groups.R4 | — | 発行されたトークンに、台帳で AT に載ると宣言した採用の独自クレームが全部ある |
 | `test:consumer_contract#type-shape-match` | PASS | 5/5 | p04-type.R1 | — | 発行されたトークンが台帳から生成した issuer 適合のスキーマ（型・形）に合う |
@@ -56,7 +56,7 @@
 | --- | --- | --- | --- |
 | TXN を Txn-Token ヘッダーで ledger に送る | accept | accepted | OK |
 | TASK_AT で承認どおりの支払い | accept | accepted | OK |
-| iss に example を含む | example を含む | ["https://corp.example.com", "https://sts.corp.example.com"] | OK |
+| 見本の iss に example を含む | すべて example を含む | ["https://tts.corp.example.com", "https://sts.corp.example.com", "https://sts.corp.example.com"] | OK |
 
 ## `test:negative_tests#alg-none`（alg=none）
 
@@ -84,6 +84,7 @@
 | x5u で攻撃者の鍵の場所を指し、攻撃者の鍵で署名 | reject header-key-param | header-key-param | OK |
 | 正しい t1 の署名に x5u を足したもの | reject header-key-param | header-key-param | OK |
 | 検証の間に URL を取得した回数 | 0 | 0 | OK |
+| 正しい t1 の署名に、受け手の知らない crit（exp-policy）を足したもの（RFC 7515 §4.1.11） | reject crit-unknown | crit-unknown | OK |
 
 ## `test:negative_tests#embedded-jwk`（ヘッダーの jwk・x5c）
 
@@ -217,6 +218,7 @@
 | user_id が sub の大文字 | reject user-id-mismatch | user-id-mismatch | OK |
 | roles=["Approver","TENANT-ADMIN"]（語彙と大文字小文字が違う） | ロールとして数えない（[]） | [] | OK |
 | aud="Saas-Api" | reject aud-mismatch | aud-mismatch | OK |
+| roles=["approver","tenant-admin","approver"]（台帳の C-roles の max_items 2 を超える） | reject claim-value | claim-value | OK |
 
 ## `test:negative_tests#tenant-mismatch`（別テナント・テナントの食い違い）
 
@@ -265,16 +267,18 @@
 | TTS が作り直して sub を変えた（署名は正しい） | reject txn-changed|unknown-txn|aud-mismatch | txn-changed | OK |
 | TTS が作り直して aud を変えた（署名は正しい） | reject txn-changed|unknown-txn|aud-mismatch | aud-mismatch | OK |
 | TTS が作り直して scope を広げた（ledger.post）（署名は正しい） | reject txn-changed|unknown-txn|aud-mismatch | txn-changed | OK |
-| 作り直しで exp を延ばした（検査の関数） | 指摘あり | ["exp extended"] | OK |
+| 作り直しで exp を延ばした（検査の関数） | 指摘あり | ["exp extended (org rule: H9 note)"] | OK |
 | 改変せずに渡した（正規） | 指摘なし | [] | OK |
 
 ## `test:negative_tests#nested-act`（入れ子の act）
 
 | 確かめたこと | 期待 | 観測 | 判定 |
 | --- | --- | --- | --- |
-| 入れ子の act.act.sub だけを admin-console に変えた（署名は正しい） | reject delegation-chain-mismatch | delegation-chain-mismatch | OK |
+| 入れ子の act.act.sub を admin-console にし、scope に invoices.refund を足したトークンで返金（今の代理者 invoice-mcp に返金は許されていない） | reject actor-not-allowed | actor-not-allowed | OK |
+| 同じトークンで支払い（入れ子の act は判断に使わないので、拒否もしない） | accept | accepted | OK |
+| その支払いの今の代理者 | 最も外側の act.sub（invoice-mcp） | invoice-mcp | OK |
 | 最も外側を admin-console にし、invoice-mcp を内側に入れた（内側を読む受け手なら通る） | reject actor-mismatch | actor-mismatch | OK |
-| 委任の連鎖の深さ 4（組織の規則は 3 まで） | reject delegation-too-deep | delegation-too-deep | OK |
+| 委任の連鎖の深さ 4（組織の規則 max_delegation_depth 3。名前は読まない） | reject delegation-too-deep | delegation-too-deep | OK |
 | 最も外側の act.sub と mTLS の相手が違う | reject actor-mismatch | actor-mismatch | OK |
 | act が無い（利用者のトークンを借りた形、ケーススタディ C12） | reject missing-claim | missing-claim | OK |
 | 正規の連鎖（invoice-mcp ← agent:expense） | accept | accepted | OK |
@@ -304,6 +308,7 @@
 | 金額を 1,200,000 に変えた（ケーススタディ C5） | reject approval-mismatch | approval-mismatch | OK |
 | 相手先の口座を変えた（C6） | reject approval-mismatch | approval-mismatch | OK |
 | authorization_details が空 | reject approval-missing | approval-missing | OK |
+| 承認どおりでも scope に invoices.pay が無い | reject scope-missing | scope-missing | OK |
 | 承認を取り消した後（C7。トークンの exp を待たない） | reject approval-not-active | approval-not-active | OK |
 
 ## `test:negative_tests#passthrough-rejected`（トークンのパススルー）
@@ -311,9 +316,7 @@
 | 確かめたこと | 期待 | 観測 | 判定 |
 | --- | --- | --- | --- |
 | invoice-mcp が受けた AGENT_AT をそのまま invoices に送る（ケーススタディ C2） | reject aud-mismatch | aud-mismatch | OK |
-| 宛先を複数にした広いトークン（C13。H14 は invoice-mcp だけ） | reject actor-mismatch|delegation-chain-mismatch | actor-mismatch | OK |
-
-- 注：2 つ目は aud には invoices を含むので aud の検査は通り、act（agent:expense が今の代理者）で落ちる。宛先を 1 つにする規則は発行者（sts）と L16 で守る
+| 宛先を複数にした広いトークン（C13。H15 は aud が invoices だけ） | reject aud-mismatch | aud-mismatch | OK |
 
 ## `test:negative_tests#rar-unknown-type`（知らない authorization_details）
 
@@ -352,18 +355,20 @@
 | 作った TASK_AT で tenant_id を変えた | 指摘あり | ["custom claim tenant_id changed 'corp' -> 'other'"] | OK |
 | ケーススタディの実測 narrow_to_invoices（aud=invoices） | 指摘 0 | [] | OK |
 | ケーススタディの実測 scope_not_granted（aud=['orders', 'account']） | 指摘あり（orders が出た） | ["aud ['orders', 'account'] is not the declared single replacement ['invoices'] (added ['orders', 'account'])", "scope aud-orders carries audience orders, which is neither upstream nor the declared target"] | OK |
+| aud は invoices だけのまま、scope に宛先を運ぶ aud-orders が付いた交換（Keycloak の audience スコープの規則だけが見つける） | 「aud-orders carries audience orders」の指摘だけ | ["scope aud-orders carries audience orders, which is neither upstream nor the declared target"] | OK |
 
 ## `test:consumer_contract#declared-reads`（読むクレームの宣言）
 
 | 確かめたこと | 期待 | 観測 | 判定 |
 | --- | --- | --- | --- |
-| 参照の saas-api が読んだメンバー | 台帳のどれかの行 | ["aud", "azp", "exp", "https://claims.example.com/", "https://claims.example.com/roles", "https://claims.example.com/tenant_id", "https://claims.example.com/user_id", "https://claims.example.com/v", "iat", "iss", "jti", "sub"] | OK |
 | 台帳のとおり（consumers に saas-api） | 違反 0 | [] | OK |
 | 読むクレームの型：台帳から生成した今の版の consumer のスキーマ（AT.consumer.schema.json） | スキーマの誤り 0 | [] | OK |
 | C-roles の consumers から saas-api を外す | 契約テストが失敗する（違反 1 件以上） | ["https://claims.example.com/roles (C-roles): saas-api is not in consumers []"] | OK |
 | C-tenant-id の consumers から saas-api を外す | 契約テストが失敗する（違反 1 件以上） | ["https://claims.example.com/tenant_id (C-tenant-id): saas-api is not in consumers []"] | OK |
 | C-azp の consumers から saas-api を外す | 契約テストが失敗する（違反 1 件以上） | ["azp (C-azp): saas-api is not in consumers []"] | OK |
 | 受け手が email を読まないこと（AT に載せない宣言と一致） | email を読まない | false | OK |
+
+- 注：参照の saas-api が読んだメンバー：aud、azp、exp、https://claims.example.com/、https://claims.example.com/roles、https://claims.example.com/tenant_id、https://claims.example.com/user_id、https://claims.example.com/v、iat、iss、jti、sub
 
 ## `test:consumer_contract#unknown-claim-ignored`（未知のクレームを無視する）
 

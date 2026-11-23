@@ -219,6 +219,8 @@ Lite での扱い（`research/template-design/gate1.md` の 10.、`tools/claim_l
 
 ケーススタディの実測（26.8.0）：標準の交換で出たトークンに act はありませんでした。
 
+#8 の実測（26.8.0、レルムの既定のまま）：交換で出た AT の `exp` は交換の時刻から寿命 1 本分で、元の AT の `exp` より後でした（元の発行の 3 秒後の交換で +3 秒。独立点検の再現では寿命 20 秒・15 秒後の交換で +16 秒。元が期限切れなら交換は 400）。下の 9. の「AT は subject token の exp を超えない（既定）」という文書の記述と食い違うので、交換のホップの寿命は受け手か交換のサービスで確かめます（`research/runtime/keycloak-observations-2026-11-23.md`、`test:negative_tests#exchange-narrowing`）。
+
 記入欄：
 
 | 決めること | 選んだ候補（書き手が書く） | 理由（書き手が書く） | 台帳・目録の ID |
@@ -241,7 +243,8 @@ Lite での扱い（`research/template-design/gate1.md` の 10.、`tools/claim_l
 | --- | --- | --- | --- | --- |
 | Revoke Refresh Token（レルムの Tokens タブ） | 有効にすると、リフレッシュで RT を失効させ、新しい RT を出す。オフラインのトークンも 1 回限りになる | 文書 | 公開クライアントで有効にするか（RFC 9700 §4.14.2） | Keycloak Server Administration Guide（26.8.2）「Offline access」、RFC 9700 §4.14.2 |
 | Revoke Refresh Token の既定 | 無効 | ガイドのスライド（文書のこの節に既定の記載は見つからなかった。ソースの要約も false） | 既定のまま使っていないか | slide:p08-rotation |
-| 古い RT の再利用での系列の失効（再利用の検知） | 確かめていない | — | 再利用の検知を前提にしないか | slide:p08-rotation |
+| 古い RT の再利用での系列の失効（再利用の検知） | 26.8.0・Revoke Refresh Token 有効・Refresh Token Max Reuse 0 の実測では、使い終えた RT を再提示すると拒否され、同じ系列の新しい RT も失効した（どちらが先に使っても同じ）。消えるのはクライアントのセッションで、利用者の SSO のセッションは残る | 実測（#8） | 再利用の検知を前提にするなら、この設定と版を台帳に書いたか。SSO のセッションが残ることを受け入れるか | research/runtime/keycloak-observations-2026-11-23.md、slide:p08-rotation |
+| 並行するリフレッシュ | Refresh Token Max Reuse 0 では、同じ RT での 2 つ目のリフレッシュが再提示として扱われ、上の失効で正規の利用者がログアウトする | 実測からの推論（#8。並行のリフレッシュそのものは試していない） | BFF のリフレッシュを利用者のセッションごとに直列にしたか | 筆者の提案：Keycloak の RT のローテーションでは BFF のリフレッシュを利用者ごとに直列にする（追跡 #8）、research/runtime/keycloak-observations-2026-11-23.md |
 | 交換で出す RT | 要求元が refresh_token を求め、クライアントの「Allow refresh token in Standard Token Exchange」が No（既定）でないときだけ出る。AT・ID トークンは subject token の exp を超えない（既定。互換のスイッチ「Allow exchange token expiration after subject token expiration」を有効にすると上限が外れる）が、RT はセッションが続く限り元の期限を超えうる（文書の警告） | 文書 | 交換で RT を出すか | Keycloak Securing Applications（26.8.2）「Standard token exchange」 |
 
 記入欄：

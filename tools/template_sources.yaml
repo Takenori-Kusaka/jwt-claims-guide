@@ -29,6 +29,7 @@ tracking_issues:
   3: クレーム台帳 v1
   4: 設計書テンプレートの MVP
   6: claim-lint の意味の規則
+  8: 実行での照合の確認
   16: 縦の一本（シナリオ A）と関門 1
   17: claim-lint の網羅の規則
   19: claim-lint render

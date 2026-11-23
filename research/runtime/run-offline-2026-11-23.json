@@ -1,7 +1,7 @@
 {
  "run": {
   "env": "offline",
-  "started_utc": "2026-11-23T07:07:39+00:00",
+  "started_utc": "2026-11-23T07:57:50+00:00",
   "environment": {
    "python": "3.14.6",
    "os": "Windows-11-10.0.26300-SP0",
@@ -19,7 +19,7 @@
    "lint": [],
    "slides": [],
    "ok": true,
-   "seconds": 0.105,
+   "seconds": 0.108,
    "checks": [
     {
      "name": "t1 の見本の AT で t1 の請求書を一覧する",
@@ -61,7 +61,7 @@
    "lint": [],
    "slides": [],
    "ok": true,
-   "seconds": 0.542,
+   "seconds": 0.582,
    "checks": [
     {
      "name": "TXN を Txn-Token ヘッダーで ledger に送る",
@@ -76,10 +76,11 @@
      "ok": true
     },
     {
-     "name": "iss に example を含む",
-     "expected": "example を含む",
+     "name": "見本の iss に example を含む",
+     "expected": "すべて example を含む",
      "observed": [
-      "https://corp.example.com",
+      "https://tts.corp.example.com",
+      "https://sts.corp.example.com",
       "https://sts.corp.example.com"
      ],
      "ok": true
@@ -109,7 +110,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.102,
+   "seconds": 0.101,
    "checks": [
     {
      "name": "alg=none（署名なし）",
@@ -195,7 +196,7 @@
     "p01-dangerous-header-params"
    ],
    "ok": true,
-   "seconds": 0.105,
+   "seconds": 0.106,
    "checks": [
     {
      "name": "jku で攻撃者の鍵の場所を指し、攻撃者の鍵で署名",
@@ -226,6 +227,12 @@
      "expected": 0,
      "observed": 0,
      "ok": true
+    },
+    {
+     "name": "正しい t1 の署名に、受け手の知らない crit（exp-policy）を足したもの（RFC 7515 §4.1.11）",
+     "expected": "reject crit-unknown",
+     "observed": "crit-unknown",
+     "ok": true
     }
    ],
    "notes": [],
@@ -246,7 +253,7 @@
     "p01-dangerous-header-params"
    ],
    "ok": true,
-   "seconds": 0.105,
+   "seconds": 0.102,
    "checks": [
     {
      "name": "ヘッダーの jwk に自前の公開鍵を入れ、その鍵で署名",
@@ -340,7 +347,7 @@
     "p02-registered-claims"
    ],
    "ok": true,
-   "seconds": 0.107,
+   "seconds": 0.112,
    "checks": [
     {
      "name": "iss='https://idp.example.com/realms/t1/'（t1 の鍵で正しく署名）",
@@ -447,7 +454,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.391,
+   "seconds": 0.404,
    "checks": [
     {
      "name": "aud='saas-web'",
@@ -568,7 +575,7 @@
     "p08-logout"
    ],
    "ok": true,
-   "seconds": 0.106,
+   "seconds": 0.11,
    "checks": [
     {
      "name": "ヘッダーの typ='JWT'",
@@ -645,7 +652,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.106,
+   "seconds": 0.105,
    "checks": [
     {
      "name": "exp ちょうど＋30 秒（受け入れの上限 330 秒の境界）",
@@ -700,7 +707,7 @@
     "p01-validation-order"
    ],
    "ok": true,
-   "seconds": 0.105,
+   "seconds": 0.104,
    "checks": [
     {
      "name": "nbf が 31 秒先",
@@ -751,7 +758,7 @@
     "p03-confusing-differences"
    ],
    "ok": true,
-   "seconds": 0.207,
+   "seconds": 0.214,
    "checks": [
     {
      "name": "iss を欠く",
@@ -837,7 +844,7 @@
     "p06-grant-types"
    ],
    "ok": true,
-   "seconds": 0.107,
+   "seconds": 0.108,
    "checks": [
     {
      "name": "名前空間の tenant_id を欠く（マッパーやフックの打ち切りを模擬）",
@@ -910,7 +917,7 @@
     "p01-attack-patterns"
    ],
    "ok": true,
-   "seconds": 0.103,
+   "seconds": 0.104,
    "checks": [
     {
      "name": "sub が 2 回（後勝ちのパーサーなら carol になる）",
@@ -984,6 +991,12 @@
      "expected": "reject aud-mismatch",
      "observed": "aud-mismatch",
      "ok": true
+    },
+    {
+     "name": "roles=[\"approver\",\"tenant-admin\",\"approver\"]（台帳の C-roles の max_items 2 を超える）",
+     "expected": "reject claim-value",
+     "observed": "claim-value",
+     "ok": true
     }
    ],
    "notes": [],
@@ -1017,7 +1030,7 @@
     "p12-antipatterns-1"
    ],
    "ok": true,
-   "seconds": 0.106,
+   "seconds": 0.105,
    "checks": [
     {
      "name": "t2 のトークンでパス /t1 を一覧",
@@ -1082,7 +1095,7 @@
     "p12-review-viewpoints"
    ],
    "ok": true,
-   "seconds": 0.109,
+   "seconds": 0.103,
    "checks": [
     {
      "name": "alice が自分の請求書 2 を読む",
@@ -1129,7 +1142,7 @@
     "p08-stale-claims"
    ],
    "ok": true,
-   "seconds": 0.109,
+   "seconds": 0.102,
    "checks": [
     {
      "name": "停止前の要求",
@@ -1178,7 +1191,7 @@
     "p06-transaction-tokens"
    ],
    "ok": true,
-   "seconds": 0.553,
+   "seconds": 0.554,
    "checks": [
     {
      "name": "ledger に Authorization: Bearer <Txn-Token>",
@@ -1212,7 +1225,7 @@
     "p06-transaction-tokens"
    ],
    "ok": true,
-   "seconds": 0.275,
+   "seconds": 0.29,
    "checks": [
     {
      "name": "TTS が作り直して txn を変えた（署名は正しい）",
@@ -1242,7 +1255,7 @@
      "name": "作り直しで exp を延ばした（検査の関数）",
      "expected": "指摘あり",
      "observed": [
-      "exp extended"
+      "exp extended (org rule: H9 note)"
      ],
      "ok": true
     },
@@ -1260,7 +1273,7 @@
    "id": "test:negative_tests#nested-act",
    "env": "offline",
    "title": "入れ子の act",
-   "expected": "入れ子の act だけを変えたトークンを拒否。今の代理者は最も外側の act.sub だけ",
+   "expected": "認可は最も外側の act だけで決まる。入れ子の act に特権の主体を入れても権限は増えず、入れ子の act があること自体では拒否しない",
    "requirements": [
     "p02-delegation-client.R1",
     "p05-confused-deputy.R2",
@@ -1279,12 +1292,24 @@
     "p10-four-questions"
    ],
    "ok": true,
-   "seconds": 0.271,
+   "seconds": 0.306,
    "checks": [
     {
-     "name": "入れ子の act.act.sub だけを admin-console に変えた（署名は正しい）",
-     "expected": "reject delegation-chain-mismatch",
-     "observed": "delegation-chain-mismatch",
+     "name": "入れ子の act.act.sub を admin-console にし、scope に invoices.refund を足したトークンで返金（今の代理者 invoice-mcp に返金は許されていない）",
+     "expected": "reject actor-not-allowed",
+     "observed": "actor-not-allowed",
+     "ok": true
+    },
+    {
+     "name": "同じトークンで支払い（入れ子の act は判断に使わないので、拒否もしない）",
+     "expected": "accept",
+     "observed": "accepted",
+     "ok": true
+    },
+    {
+     "name": "その支払いの今の代理者",
+     "expected": "最も外側の act.sub（invoice-mcp）",
+     "observed": "invoice-mcp",
      "ok": true
     },
     {
@@ -1294,7 +1319,7 @@
      "ok": true
     },
     {
-     "name": "委任の連鎖の深さ 4（組織の規則は 3 まで）",
+     "name": "委任の連鎖の深さ 4（組織の規則 max_delegation_depth 3。名前は読まない）",
      "expected": "reject delegation-too-deep",
      "observed": "delegation-too-deep",
      "ok": true
@@ -1334,7 +1359,7 @@
     "p06-validation-split"
    ],
    "ok": true,
-   "seconds": 0.28,
+   "seconds": 0.286,
    "checks": [
     {
      "name": "req_wl だけを書き換えた（署名はそのまま）",
@@ -1373,7 +1398,7 @@
     "p06-transaction-tokens"
    ],
    "ok": true,
-   "seconds": 0.267,
+   "seconds": 0.292,
    "checks": [
     {
      "name": "本文の operation=ledger.post、tctx は ledger.read",
@@ -1416,7 +1441,7 @@
     "p10-human-approval-evidence"
    ],
    "ok": true,
-   "seconds": 0.267,
+   "seconds": 0.291,
    "checks": [
     {
      "name": "金額を 1,200,000 に変えた（ケーススタディ C5）",
@@ -1434,6 +1459,12 @@
      "name": "authorization_details が空",
      "expected": "reject approval-missing",
      "observed": "approval-missing",
+     "ok": true
+    },
+    {
+     "name": "承認どおりでも scope に invoices.pay が無い",
+     "expected": "reject scope-missing",
+     "observed": "scope-missing",
      "ok": true
     },
     {
@@ -1461,7 +1492,7 @@
     "p10-mcp-authorization"
    ],
    "ok": true,
-   "seconds": 0.275,
+   "seconds": 0.286,
    "checks": [
     {
      "name": "invoice-mcp が受けた AGENT_AT をそのまま invoices に送る（ケーススタディ C2）",
@@ -1470,15 +1501,13 @@
      "ok": true
     },
     {
-     "name": "宛先を複数にした広いトークン（C13。H14 は invoice-mcp だけ）",
-     "expected": "reject actor-mismatch|delegation-chain-mismatch",
-     "observed": "actor-mismatch",
+     "name": "宛先を複数にした広いトークン（C13。H15 は aud が invoices だけ）",
+     "expected": "reject aud-mismatch",
+     "observed": "aud-mismatch",
      "ok": true
     }
    ],
-   "notes": [
-    "2 つ目は aud には invoices を含むので aud の検査は通り、act（agent:expense が今の代理者）で落ちる。宛先を 1 つにする規則は発行者（sts）と L16 で守る"
-   ],
+   "notes": [],
    "error": null
   },
   {
@@ -1546,7 +1575,7 @@
     "p12-antipatterns-2"
    ],
    "ok": true,
-   "seconds": 0.103,
+   "seconds": 0.101,
    "checks": [
     {
      "name": "'X-User-Id' を入口で除去",
@@ -1721,6 +1750,14 @@
       "scope aud-orders carries audience orders, which is neither upstream nor the declared target"
      ],
      "ok": true
+    },
+    {
+     "name": "aud は invoices だけのまま、scope に宛先を運ぶ aud-orders が付いた交換（Keycloak の audience スコープの規則だけが見つける）",
+     "expected": "「aud-orders carries audience orders」の指摘だけ",
+     "observed": [
+      "scope aud-orders carries audience orders, which is neither upstream nor the declared target"
+     ],
+     "ok": true
     }
    ],
    "notes": [],
@@ -1741,27 +1778,8 @@
     "p11-schema-contract-tests"
    ],
    "ok": true,
-   "seconds": 0.212,
+   "seconds": 0.206,
    "checks": [
-    {
-     "name": "参照の saas-api が読んだメンバー",
-     "expected": "台帳のどれかの行",
-     "observed": [
-      "aud",
-      "azp",
-      "exp",
-      "https://claims.example.com/",
-      "https://claims.example.com/roles",
-      "https://claims.example.com/tenant_id",
-      "https://claims.example.com/user_id",
-      "https://claims.example.com/v",
-      "iat",
-      "iss",
-      "jti",
-      "sub"
-     ],
-     "ok": true
-    },
     {
      "name": "台帳のとおり（consumers に saas-api）",
      "expected": "違反 0",
@@ -1805,7 +1823,9 @@
      "ok": true
     }
    ],
-   "notes": [],
+   "notes": [
+    "参照の saas-api が読んだメンバー：aud、azp、exp、https://claims.example.com/、https://claims.example.com/roles、https://claims.example.com/tenant_id、https://claims.example.com/user_id、https://claims.example.com/v、iat、iss、jti、sub"
+   ],
    "error": null
   },
   {
@@ -1821,7 +1841,7 @@
     "p04-forward-compatibility"
    ],
    "ok": true,
-   "seconds": 0.105,
+   "seconds": 0.102,
    "checks": [
     {
      "name": "最上位に未知のクレーム 2 つ",
@@ -1951,7 +1971,7 @@
     "p11-contract-test-gaps"
    ],
    "ok": true,
-   "seconds": 0.112,
+   "seconds": 0.11,
    "checks": [
     {
      "name": "区切り文字：roles を配列から空白区切りの文字列に",

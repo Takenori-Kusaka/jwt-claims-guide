@@ -104,8 +104,8 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - スライド：`slide:p01-dangerous-header-params`
 - 題材と環境：シナリオ A。オフライン（CI）
 - 作るトークン・要求：ヘッダーの jku・x5u で攻撃者の鍵の場所を指し、攻撃者の鍵で署名したトークン。正しい t1 の署名に jku・x5u を足しただけのトークン
-- 期待する結果：`header-key-param` で拒否し、検証の間に URL を 1 回も取得しない（取得の回数を数える）
-- 注：key_source.header_key_params は reject（台帳のスキーマが固定する）なので、正しい署名に足しただけでも拒否する
+- 期待する結果：`header-key-param` で拒否し、検証の間に URL を 1 回も取得しない（取得の回数を数える）。あわせて、正しい署名に受け手の知らない `crit`（exp-policy）を足したヘッダーを `crit-unknown` で拒否する（RFC 7515 §4.1.11）
+- 注：key_source.header_key_params は reject（台帳のスキーマが固定する）なので、正しい署名に足しただけでも拒否する。jku・x5u をたどらない根拠は RFC 8725 §3.10（取得が SSRF になる）
 
 <a id="embedded-jwk"></a>
 
@@ -120,6 +120,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - 題材と環境：シナリオ A。オフライン（CI）
 - 作るトークン・要求：ヘッダーの jwk に自前の公開鍵を入れ、その鍵で署名したトークン。x5c に自前の証明書を入れたトークン
 - 期待する結果：`header-key-param` で拒否する
+- 注：jwk・x5c は RFC 8725 には出てこない。トークンに入った鍵や証明書は、設定した鍵に結びつけない限り信頼しない（RFC 7515 §4.1.3・§4.1.6）
 
 <a id="untrusted-key"></a>
 
@@ -176,7 +177,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - スライド：`slide:p01-attack-patterns`、`slide:p01-client-made-jwts`、`slide:p01-dangerous-header-params`、`slide:p01-id-token-vs-access-token`、`slide:p01-validation-order`、`slide:p03-cognito-token-use`、`slide:p06-flow-browser-to-db`、`slide:p06-return-results`、`slide:p08-logout`
 - 題材と環境：シナリオ A。オフライン（CI）・実物（Keycloak 26.8.0・Postgres 16、手元）
 - 作るトークン・要求：オフライン：ヘッダーの typ を JWT・jwt・logout+jwt・txntoken+jwt・dpop+jwt・at+JWT+extra・無しにしたトークン、ID トークンの形のトークン。実物：Keycloak がレルム t1 で発行した ID トークン
-- 期待する結果：`typ-mismatch` で拒否する。`application/at+jwt`（RFC 9068 §2.1 の別の書き方）は受ける
+- 期待する結果：`typ-mismatch` で拒否する。`application/at+jwt` は受ける（受け手の検証の手順は RFC 9068 §4。§2.1 は発行者が `at+jwt` を付ける規則）
 - 注：型の名前は大文字小文字を区別しない（RFC 7515 §4.1.9）ので、比べる前に小文字にする
 
 <a id="expired"></a>
@@ -263,8 +264,8 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - claim-lint：—（宣言で表せないので、静的な規則はない）
 - スライド：`slide:p04-case-and-characters`
 - 題材と環境：シナリオ A。オフライン（CI）
-- 作るトークン・要求：tenant_id を T1、パスのテナントを T1、user_id を sub の大文字、roles を Approver・TENANT-ADMIN、aud を Saas-Api にしたトークン
-- 期待する結果：値を変換せずに完全一致で比べる：`tenant-iss-mismatch`・`tenant-path-mismatch`・`user-id-mismatch`・`aud-mismatch` で拒否し、語彙と違うロールは数えない
+- 作るトークン・要求：tenant_id を T1、パスのテナントを T1、user_id を sub の大文字、roles を Approver・TENANT-ADMIN、aud を Saas-Api にしたトークン。あわせて roles を 3 件にしたトークン（台帳の C-roles の max_items 2 を超える）
+- 期待する結果：値を変換せずに完全一致で比べる：`tenant-iss-mismatch`・`tenant-path-mismatch`・`user-id-mismatch`・`aud-mismatch` で拒否し、語彙と違うロールは数えない。roles が 3 件なら `claim-value` で拒否する
 - 注：iss の大文字小文字は iss-mismatch で確かめる
 
 ## 4. テナントとオブジェクト（シナリオ A）
@@ -343,7 +344,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - 題材と環境：シナリオ A。実物（Keycloak 26.8.0・Postgres 16、手元）
 - 作るトークン・要求：リフレッシュで RT1 を RT2 に替えた後、使い終えた RT1 を再提示し、続けて RT2 でリフレッシュする
 - 期待する結果：RT1 は `invalid_grant` で拒否される。RT2 も失効する（Keycloak 26.8.0、Revoke Refresh Token ON、refreshTokenMaxReuse 0）
-- 注：シナリオ A の token_types.yaml は RT の reuse_detection を unverified としている。観測の結果は [lifetime_revocation.md](lifetime_revocation.md#rt-reuse)
+- 注：シナリオ A の token_types.yaml は RT の reuse_detection を unverified としている。観測は Keycloak 26.8.0・revokeRefreshToken true・refreshTokenMaxReuse 0 に依存し、消えるのはクライアントのセッション（SSO のセッションは残る）。台帳の値が unverified のままなので、要件 `p08-rotation.R3` は未着手のまま。観測の詳細は [lifetime_revocation.md](lifetime_revocation.md#rt-reuse) と `research/runtime/keycloak-observations-2026-11-23.md`
 
 ## 6. 交換で絞られているか
 
@@ -360,7 +361,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - 題材と環境：シナリオ B・ケーススタディ。オフライン（CI）・実物（Keycloak 26.8.0・Postgres 16、手元）
 - 作るトークン・要求：オフライン：シナリオ B の H14（AGENT_AT）→ H15（TASK_AT）の交換を作り、scope・aud・exp・承認の金額・独自クレームを 1 つずつ広げる。ケーススタディの実測の値（`tools/runtime_tests/fixtures/kc_exchange_casestudy.json`）。実物：ケーススタディと同じレルム corp で、mcp-tools が carol の AT（aud mcp-tools）を 5 通りに交換する
 - 期待する結果：正規の交換は指摘 0。広げたものはすべて指摘する。実物では scope=aud-orders の交換で元のトークンに無い orders 宛てが出ることを再現し、検査が指摘する。invoices だけへの交換は aud・scope・独自クレームの指摘 0。交換の時刻から 300 秒の新しい exp が出るので、元のトークンの後に交換すると寿命の延長を指摘する
-- 注：検査の規則は `tools/runtime_tests/narrowing.py`（L16 の実行版）。Keycloak の「宛先だけを運ぶスコープ」（aud-orders など）は aud として比べる
+- 注：検査の規則は `tools/runtime_tests/narrowing.py`（L16 の実行版）。Keycloak の「宛先だけを運ぶスコープ」（aud-orders など）は aud として比べる。aud は宛先どおりで、scope に別の宛先を運ぶ aud-orders だけが付いた交換も作り、この規則だけが見つけることを確かめる（オフライン）
 
 <a id="disabled-subject-exchange"></a>
 
@@ -405,6 +406,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - 題材と環境：シナリオ B。オフライン（CI）
 - 作るトークン・要求：TTS が正しく署名し直したうえで、txn・sub・aud を変えた、または scope に ledger.post を足した Txn-Token。作り直しで exp を延ばしたもの（検査の関数）
 - 期待する結果：`txn-changed`・`unknown-txn`・`aud-mismatch` で拒否する（監査のログの H9 の値と比べる）。exp の延長も指摘する
+- 注：草案（draft-ietf-oauth-transaction-tokens-11）の規則は、§13.15（置き換えでは txn・sub・aud を変えない）と §13.6（発行の scope は元と同じか狭い）。**req_wl を変えないことと exp を延ばさないことは、記入例の組織の規則**で、草案の規則ではない。§13.15 は req_wl を挙げず、元より長い寿命の置き換えを MAY としている。記入例は、req_wl で取引を始めた入口を記録し（claims.yaml の C-req-wl）、寿命を元以下にする（hops.yaml の H9 の note）ので、この 2 つも指摘する（`筆者の提案：Txn-Token の作り直しで req_wl と exp を元のままにする（追跡 #8）`）
 
 <a id="nested-act"></a>
 
@@ -417,9 +419,9 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - claim-lint：`lint:L12`
 - スライド：`slide:p02-delegation-client`、`slide:p05-confused-deputy`、`slide:p06-audit-trail`、`slide:p10-delegation-chain-depth`、`slide:p10-four-questions`
 - 題材と環境：シナリオ B。オフライン（CI）
-- 作るトークン・要求：入れ子の act.act.sub だけを admin-console に変えたトークン（署名は正しい）、最も外側を admin-console にして invoice-mcp を内側に入れたトークン、深さ 4 の連鎖、mTLS の相手と違う act.sub、act の無いトークン
-- 期待する結果：`delegation-chain-mismatch`・`actor-mismatch`・`delegation-too-deep`・`missing-claim` で拒否する。今の代理者は最も外側の act.sub だけ（RFC 8693 §4.1）
-- 注：L12 は「入れ子の act を q-actor の答えにしていないか」を宣言で見る。このテストは受け手が実際に外側だけを読むかを見る
+- 作るトークン・要求：入れ子の act.act.sub を特権の主体（admin-console）にし、scope に invoices.refund を足したトークン（署名は正しい）で返金と支払い。最も外側を admin-console にして invoice-mcp を内側に入れたトークン、深さ 4 の連鎖、mTLS の相手と違う act.sub、act の無いトークン
+- 期待する結果：認可は最も外側の act.sub（今の代理者）だけで決まる。入れ子に admin-console があっても返金は `actor-not-allowed`（invoice-mcp に許した操作は H15 の scope の pay だけ）、支払いは invoice-mcp として通る（入れ子の act があること自体では拒否しない）。外側が admin-console なら `actor-mismatch`、深さ 4 は `delegation-too-deep`、act が無ければ `missing-claim`
+- 注：RFC 8693 §4.1 は、入れ子の act は情報であり、アクセス制御には最も外側の act だけを使うとしている。そのため参照の受け手は、入れ子の act の中身を判断に使わない。深さの上限（TASK_AT の max_delegation_depth 3、ケーススタディの depth_rule）は連鎖の長さだけを数える**組織の規則**で、RFC の規則ではない。記入例の H15 の checks「その内側が agent:expense」は入れ子の act を判断に使う書き方なので、参照の受け手は実装していない（記入例の担当 #6・#18 に返す）。L12 は「入れ子の act を q-actor の答えにしていないか」を宣言で見る
 
 <a id="req-wl-changed"></a>
 
@@ -433,7 +435,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - スライド：`slide:p06-validation-split`
 - 題材と環境：シナリオ B。オフライン（CI）
 - 作るトークン・要求：req_wl だけを書き換えたトークン（署名はそのまま）、TTS が req_wl=orders で発行したトークン、mTLS の相手が orders でない要求
-- 期待する結果：`bad-signature`・`req-wl-not-allowed`・`peer-mismatch` で拒否する。req_wl（どのワークロードが求めたか）と直接の通信相手（mTLS）は別々に確かめる
+- 期待する結果：`bad-signature`・`req-wl-not-allowed`・`peer-mismatch` で拒否する。req_wl（どのワークロードが求めたか）と直接の通信相手（mTLS）は別々に確かめる。照合の値は定数でなく台帳から引く：req_wl の期待値は H9 の from（gateway）、ledger の相手は H10 の from（orders）。SPIFFE ID は `spiffe://<TXN の aud のホスト>/<サービス名>` とする（このテストの命名の約束。台帳の C-req-wl は「入口の SPIFFE ID」とだけ書く）。確かめたのは ledger の 1 か所だけ
 
 <a id="tctx-mismatch"></a>
 
@@ -462,7 +464,7 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - スライド：`slide:p10-agent-checklist`、`slide:p10-human-approval-evidence`
 - 題材と環境：シナリオ B。オフライン（CI）
 - 作るトークン・要求：承認と違う金額（C5）・相手先の口座（C6）の支払い、空の authorization_details、承認を取り消した後の支払い（C7）
-- 期待する結果：`approval-mismatch`・`approval-missing`・`approval-not-active` で拒否する。取り消しはトークンの exp を待たない
+- 期待する結果：`approval-mismatch`・`approval-missing`・`approval-not-active` で拒否する。取り消しはトークンの exp を待たない。承認どおりでも scope に invoices.pay が無ければ `scope-missing`
 
 <a id="passthrough-rejected"></a>
 
@@ -476,8 +478,8 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - スライド：`slide:p10-mcp-authorization`
 - 題材と環境：シナリオ B。オフライン（CI）
 - 作るトークン・要求：invoice-mcp が受けた AGENT_AT（aud invoice-mcp）をそのまま invoices に送る（C2）。宛先を invoice-mcp と invoices の 2 つにした広いトークン（C13）
-- 期待する結果：1 つ目は `aud-mismatch`、2 つ目は今の代理者の照合（`actor-mismatch`・`delegation-chain-mismatch`）で拒否する
-- 注：2 つ目は aud の検査では落ちない。宛先を 1 つにする規則は発行者（sts）と L16 で守る
+- 期待する結果：どちらも `aud-mismatch`。invoices は aud が TASK_AT の aud（invoices）とちょうど一致するものだけを受ける（H15 の checks「aud が invoices だけ」）
+- 注：2 つ目は aud に invoices を含むので、「含むか」だけを見る検証（validator.py）は通す。H15 の「だけ」は invoices の受け手が別に照合する
 
 <a id="rar-unknown-type"></a>
 
@@ -535,8 +537,8 @@ python tools/runtime_tests/run.py --env offline --select negative_tests#alg-none
 - claim-lint：—（宣言で表せないので、静的な規則はない）
 - スライド：`slide:p07-data-layer-checklist`、`slide:p07-trust-boundary`
 - 題材と環境：シナリオ A。実物（Keycloak 26.8.0・Postgres 16、手元）
-- 作るトークン・要求：app_rls で、RLS をすり抜ける主体を照会する（superuser・BYPASSRLS、テーブルの所有者、FORCE の無いテーブル、SECURITY DEFINER の関数、security_invoker の無いビュー）。SET ROLE・SET SESSION AUTHORIZATION で所有者になる。比べるために、弱い設定の broken スキーマ（BYPASSRLS のロールが所有し、FORCE が無く、ビューと SECURITY DEFINER の関数がある）
-- 期待する結果：設計どおりの app スキーマでは 5 項目すべて 0 件、SET ROLE は権限エラー。broken スキーマでは 5 項目すべてを検出し、ビューと関数を通すと文脈 t1 でも t2 の行が見える（すり抜けの実例）
+- 作るトークン・要求：app_rls で、RLS をすり抜ける主体を照会する（superuser・BYPASSRLS のロール（SET ROLE で移れるロールを含む）、テーブルの所有者、FORCE の無いテーブル、SECURITY DEFINER の関数、security_invoker の無いビュー、RLS が掛からないマテリアライズドビュー）。SET ROLE・SET SESSION AUTHORIZATION で所有者になる。比べるために、弱い設定の broken スキーマ（BYPASSRLS のロールが所有し、FORCE が無く、ビュー・マテリアライズドビュー・SECURITY DEFINER の関数がある）
+- 期待する結果：設計どおりの app スキーマでは 6 項目すべて 0 件、SET ROLE は権限エラー。broken スキーマでは 6 項目すべてを検出し、ビューと関数を通すと文脈 t1 でも t2 の行が見える（すり抜けの実例）
 - 注：アプリのロールが自分で set_config を呼べることは Postgres では防げない。SQL をパラメータで組むことで守る（観点書の q-db-context-parameterized）
 
 ## 9. まだ作っていないテスト
