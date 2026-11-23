@@ -1,0 +1,8 @@
+{
+ "_note": "Issued on 2026-11-23 by a throw-away Keycloak 26.8.0 container (start-dev) with realm t1 created from tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.import.json, user alice, client saas-web, authorization code + PKCE S256 (measure.py), then shifted on the server: mapper plan added, accessTokenLifespan 3600, Full Scope Allowed on.. Only the decoded header and payload are kept (no compact token, no signature); the signing key existed only in that container, which was removed. Access token of I01.",
+ "issued_on": "2026-11-23",
+ "header_json": "{\"alg\":\"RS256\",\"typ\" : \"at+jwt\",\"kid\" : \"emX4iJ4X3n-f2epASFfNtC313EwPW8_A12EzcHeRr_U\"}",
+ "payload_json": "{\"exp\":1795419441,\"iat\":1795415841,\"auth_time\":1795415841,\"jti\":\"onrtac:9eb44b6b-a5c9-12a2-f1ac-949d18f0e27f\",\"iss\":\"http://localhost:28080/realms/t1\",\"aud\":\"saas-api\",\"sub\":\"9673ef3b-d22f-49c1-bd3b-d7697517e94e\",\"typ\":\"Bearer\",\"azp\":\"saas-web\",\"sid\":\"dlgdwRs2eFuSrGBZ1H7jlnnA\",\"scope\":\"openid\",\"https://claims.example.com/\":{\"tenant_id\":\"t1\",\"user_id\":\"9673ef3b-d22f-49c1-bd3b-d7697517e94e\",\"v\":\"1\",\"roles\":[\"approver\",\"tenant-admin\",\"offline_access\",\"default-roles-t1\",\"uma_authorization\"]},\"plan\":\"gold\"}",
+ "token_length": 1135,
+ "sig_bytes": 256
+}

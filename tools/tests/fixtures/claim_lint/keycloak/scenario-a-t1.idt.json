@@ -1,0 +1,8 @@
+{
+ "_note": "Issued on 2026-11-23 by a throw-away Keycloak 26.8.0 container (start-dev) with realm t1 created from tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.import.json, user alice, client saas-web, authorization code + PKCE S256 (measure.py). Only the decoded header and payload are kept (no compact token, no signature); the signing key existed only in that container, which was removed. ID token of I01.",
+ "issued_on": "2026-11-23",
+ "header_json": "{\"alg\":\"RS256\",\"typ\" : \"JWT\",\"kid\" : \"emX4iJ4X3n-f2epASFfNtC313EwPW8_A12EzcHeRr_U\"}",
+ "payload_json": "{\"exp\":1795416140,\"iat\":1795415840,\"auth_time\":1795415840,\"jti\":\"1f02ee54-d634-52e8-53cd-894841ea6797\",\"iss\":\"http://localhost:28080/realms/t1\",\"aud\":\"saas-web\",\"sub\":\"9673ef3b-d22f-49c1-bd3b-d7697517e94e\",\"typ\":\"ID\",\"azp\":\"saas-web\",\"nonce\":\"7TVWIH2svg2lgpDWKFpF0g\",\"sid\":\"qW1LDqJb2WVTG4_FpIRl5fm-\",\"at_hash\":\"9qRexFRD2s3W68tJhGhjlA\",\"email_verified\":true,\"name\":\"alice Test\",\"email\":\"alice@example.com\"}",
+ "token_length": 995,
+ "sig_bytes": 256
+}

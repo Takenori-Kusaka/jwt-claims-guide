@@ -1,0 +1,104 @@
+{
+ "_note": "Scenario A (templates/examples/scenario-a) realm t1 as the design describes it, for #30. Derived from jwt-claims-casestudy@080b8da kc/import/t1.json (realm settings, roles, user alice) and research/template-design/gate1.md (client saas-web-a of the vertical slice), with the client named saas-web as in the registry. Fed to Keycloak 26.8.0 through the admin REST API (POST /admin/realms, without this _note key) by tools/tests/fixtures/claim_lint/keycloak/measure.py; scenario-a-t1.export.json is what Keycloak wrote back. The file holds no secret: measure.py sets a random client secret and a random password for alice at run time, and the container was removed after the run.",
+ "realm": "t1",
+ "enabled": true,
+ "accessTokenLifespan": 300,
+ "accessCodeLifespan": 60,
+ "ssoSessionIdleTimeout": 1800,
+ "ssoSessionMaxLifespan": 36000,
+ "revokeRefreshToken": true,
+ "refreshTokenMaxReuse": 0,
+ "roles": {
+  "realm": [
+   {"name": "approver"},
+   {"name": "tenant-admin"}
+  ]
+ },
+ "scopeMappings": [
+  {"client": "saas-web", "roles": ["approver", "tenant-admin"]}
+ ],
+ "clients": [
+  {
+   "clientId": "saas-web",
+   "enabled": true,
+   "publicClient": false,
+   "clientAuthenticatorType": "client-secret",
+   "standardFlowEnabled": true,
+   "implicitFlowEnabled": false,
+   "directAccessGrantsEnabled": false,
+   "serviceAccountsEnabled": false,
+   "frontchannelLogout": false,
+   "redirectUris": ["http://localhost:28081/callback"],
+   "webOrigins": [],
+   "protocol": "openid-connect",
+   "fullScopeAllowed": false,
+   "defaultClientScopes": ["basic"],
+   "optionalClientScopes": [],
+   "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "access.token.header.type.rfc9068": "true",
+    "standard.token.exchange.enabled": "false",
+    "client.use.lightweight.access.token.enabled": "false",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "post.logout.redirect.uris": "http://localhost:28081/"
+   },
+   "protocolMappers": [
+    {"name": "tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-hardcoded-claim-mapper",
+     "config": {"claim.name": "https://claims\\.example\\.com/.tenant_id", "claim.value": "t1", "jsonType.label": "String",
+                "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true"}},
+    {"name": "user_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper",
+     "config": {"user.attribute": "id", "claim.name": "https://claims\\.example\\.com/.user_id", "jsonType.label": "String",
+                "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true"}},
+    {"name": "roles", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-realm-role-mapper",
+     "config": {"claim.name": "https://claims\\.example\\.com/.roles", "multivalued": "true", "jsonType.label": "String",
+                "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true"}},
+    {"name": "v", "protocol": "openid-connect", "protocolMapper": "oidc-hardcoded-claim-mapper",
+     "config": {"claim.name": "https://claims\\.example\\.com/.v", "claim.value": "1", "jsonType.label": "String",
+                "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true"}},
+    {"name": "aud-saas-api", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+     "config": {"included.client.audience": "saas-api",
+                "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false", "introspection.token.claim": "true"}},
+    {"name": "name", "protocol": "openid-connect", "protocolMapper": "oidc-full-name-mapper",
+     "config": {"access.token.claim": "false", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "false"}},
+    {"name": "email", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper",
+     "config": {"user.attribute": "email", "claim.name": "email", "jsonType.label": "String",
+                "access.token.claim": "false", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "false"}},
+    {"name": "email_verified", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper",
+     "config": {"user.attribute": "emailVerified", "claim.name": "email_verified", "jsonType.label": "boolean",
+                "access.token.claim": "false", "id.token.claim": "true", "userinfo.token.claim": "true", "introspection.token.claim": "false"}}
+   ]
+  },
+  {
+   "clientId": "saas-api",
+   "enabled": true,
+   "publicClient": false,
+   "clientAuthenticatorType": "client-secret",
+   "standardFlowEnabled": false,
+   "implicitFlowEnabled": false,
+   "directAccessGrantsEnabled": false,
+   "serviceAccountsEnabled": false,
+   "protocol": "openid-connect",
+   "fullScopeAllowed": false,
+   "defaultClientScopes": [],
+   "optionalClientScopes": [],
+   "attributes": {
+    "standard.token.exchange.enabled": "false",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+   },
+   "protocolMappers": []
+  }
+ ],
+ "users": [
+  {
+   "username": "alice",
+   "enabled": true,
+   "email": "alice@example.com",
+   "emailVerified": true,
+   "firstName": "alice",
+   "lastName": "Test",
+   "realmRoles": ["approver", "tenant-admin", "default-roles-t1"]
+  }
+ ]
+}

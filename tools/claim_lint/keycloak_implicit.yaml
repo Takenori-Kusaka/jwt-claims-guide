@@ -1,0 +1,41 @@
+# Claims that Keycloak writes into a token without any protocol mapper of the realm (#30, tools/claim_lint/DRIFT.md).
+# claim_lint import keycloak adds them to the statically computed claims of each token, so that the static view can be
+# compared with the registry. A claim is listed only when it was seen in a token that Keycloak actually issued and no
+# mapper of the stored export writes it (test_keycloak_drift.py checks that the static view of the stored export equals
+# the claims of the stored tokens, claim by claim).
+keycloak_version: 26.8.0
+measured_on: "2026-11-23"
+measured_with: tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.*.json (authorization code + PKCE, then a refresh)
+access:
+  - {claim: exp}
+  - {claim: iat}
+  - {claim: jti}
+  - {claim: iss}
+  - {claim: typ}
+  - {claim: azp}
+  - {claim: sid, when: the token belongs to a user session (not client credentials)}
+  - {claim: scope}
+id:
+  - {claim: exp}
+  - {claim: iat}
+  - {claim: jti}
+  - {claim: iss}
+  - {claim: aud}
+  - {claim: sub}
+  - {claim: typ}
+  - {claim: azp}
+  - {claim: sid, when: the token belongs to a user session}
+  - {claim: nonce, when: the authorization request carries nonce}
+  - {claim: at_hash, when: an access token is issued with the ID token}
+# Claims that a lightweight access token keeps although no mapper adds them (Keycloak Server Administration Guide
+# 26.8.2 "Using lightweight access token"; #4 facts K13). Not measured here (scenario A does not use lightweight tokens).
+lightweight_access:
+  - {claim: exp}
+  - {claim: iat}
+  - {claim: jti}
+  - {claim: iss}
+  - {claim: typ}
+  - {claim: azp}
+  - {claim: sid, when: the token belongs to a user session}
+  - {claim: scope}
+  - {claim: cnf, when: the token is sender-constrained}

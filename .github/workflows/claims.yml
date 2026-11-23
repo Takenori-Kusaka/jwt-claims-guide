@@ -55,6 +55,17 @@ jobs:
         run: python tools/claim_lint render templates/examples/scenario-a --validate tools/tests/fixtures/claim_lint/golden/token.json --token-type AT --schema-kind issuer
       - name: render tests (one-line change, drift detection, schema generation, an unknown claim fails the issuer schema)
         run: python -m pytest -q -rs tools/tests/test_claim_lint_render.py
+      - name: import keycloak - the stored normalized realm of scenario A is what the stored export gives (#30)
+        run: |
+          python -m tools.claim_lint import keycloak tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.export.json -o "$RUNNER_TEMP/observed.yaml"
+          diff -u tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.observed.yaml "$RUNNER_TEMP/observed.yaml"
+      - name: drift - scenario A Keycloak 26.8.0 realm and issued tokens (AT, ID token, refreshed AT) against the registry (#30)
+        run: |
+          k=tools/tests/fixtures/claim_lint/keycloak
+          python -m tools.claim_lint drift templates/examples/scenario-a $k/scenario-a-t1.observed.yaml \
+            --token AT=$k/scenario-a-t1.at.json --token IDT=$k/scenario-a-t1.idt.json --token AT=$k/scenario-a-t1.at-refresh.json
+      - name: drift tests (normalization, static view vs issued tokens, deliberately shifted configurations, #30)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_drift.py
       - name: Registry v1 tests (schemas, questions wording, issuance effects, README columns, REF, casestudy_check)
         run: python -m pytest -q -rs tools/tests/test_registry_v1.py
       - name: Casestudy check (ORG names and types, carry decisions vs templates/casestudy-deviations.yaml; pinned commit and sha256)
