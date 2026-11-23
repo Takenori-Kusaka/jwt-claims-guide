@@ -98,6 +98,14 @@ R6 の目標（2 因子の組をすべて一度は検討する）は、組み合
 | `採用`・`却下` | `refs`・`assumption`・`revisit_trigger` のうち 2 つ以上（#3 の「判断」の区分） |
 | トークン種別 | `id`・`kind`・`decision`・`rationale`・`format`。`採用`・`既定どおり` は `purpose`・`issuer`・`holder`・`max_lifetime`・`stored_at`・`transport`・`revocation`・`visible_to`（RT とセッションは `idle_timeout` も）。JWT はさらに `typ`・`alg_allowlist`・`issuers`・`key_rotation`・`jwe`（使わないなら `{used: false}`。v1 で `visible_to`・`jwe` を足した）。ヘッダー（Authorization・Cookie）で運ぶ JWT は `size`（R8 の入力） |
 
+`--profile lite`（縮小 Lite。`research/template-design/gate1.md` の 10.、#4）では、上の表から次を減らします（`core.py` の `LITE_GENERATED`・`LITE_UNREAD_KEEP`）。台帳の README の 2.「縮小 Lite の印」と同じ規則です。
+
+| 行の種類 | Lite で必須にしない列 |
+| --- | --- |
+| `採用`・`既定どおり`で、`consumers` が空でない行 | 生成する列：`issue_events`・`propagation_delay`・`status`・`issuers`（IdP モジュール・カタログ・`token_types`・既定の状態から生成する）。単一値（`shape` が `array` でない）の `overflow_strategy`（既定は上限で固定） |
+| `既定どおり`で `consumers: []` の行（IdP が出すが誰も読まない行） | `namespace`・`type`・`shape`・`max_bytes`（配列は `max_items` も）・`pii_category`・`carried_in`・`data_category`・`confidential_from` だけを必須にし、ほかの載せる行の列は求めない（R8 の計算と判断に要るものだけ） |
+| トークン種別の `却下` の行 | 変えない（`kind`・`decision`・`rationale` に加えて、スキーマが `format` を求める） |
+
 スライド 134（slide:p11-registry-fields）の 12 の項目は、載せる行の必須の列に入っています。項目と列の対応は `templates/registry/README.md` の「スライド 134 の 12 項目と台帳の列」にあります。12 番目の「変更履歴」は列ではなく Git の履歴で持ちます。
 
 ## R8 の計算

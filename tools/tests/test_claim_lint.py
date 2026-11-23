@@ -93,6 +93,31 @@ def test_r1_fail_token_type_without_lifetime(tmp_path):
     assert any(f['target'] == 'token_type AT' and 'max_lifetime' in f['message'] for f in by(res, 'R1', 'error'))
 
 
+def test_r1_lite_does_not_ask_for_generated_columns(tmp_path):
+    """--profile lite: the reduced Lite (gate1.md 10., #4) generates issue_events, propagation_delay, status, issuers,
+    and a 既定どおり row that nobody reads keeps only what R8 and the decision need."""
+    docs = load_example()
+    read = claim(docs, 'C-tenant-id')
+    for k in ('issue_events', 'propagation_delay', 'status', 'issuers'):
+        read.pop(k, None)
+    unread = next(c for c in docs['claims']['claims'] if c['decision'] == '既定どおり' and c.get('consumers') == [])
+    for k in ('description', 'not_meaning', 'owner', 'source_system', 'log_policy'):
+        unread.pop(k, None)
+    lite = {f['target'] for f in by(lint(tmp_path, docs, profile='lite'), 'R1', 'error')}
+    assert read['id'] not in lite and unread['id'] not in lite
+    full = {(f['target'], f['message']) for f in by(lint(tmp_path, docs), 'R1', 'error')}
+    assert (read['id'], '必須の列 issue_events が空') in full and (unread['id'], '必須の列 owner が空') in full
+
+
+def test_r1_lite_still_asks_for_hand_written_columns(tmp_path):
+    docs = load_example()
+    claim(docs, 'C-tenant-id').pop('owner')
+    unread = next(c for c in docs['claims']['claims'] if c['decision'] == '既定どおり' and c.get('consumers') == [])
+    unread.pop('max_bytes')
+    msgs = {(f['target'], f['message']) for f in by(lint(tmp_path, docs, profile='lite'), 'R1', 'error')}
+    assert ('C-tenant-id', '必須の列 owner が空') in msgs and (unread['id'], '必須の列 max_bytes が空') in msgs
+
+
 # ------------------------------------------------------------------ R2
 def test_r2_pass(tmp_path):
     assert not by(lint(tmp_path, load_example()), 'R2')

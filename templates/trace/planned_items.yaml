@@ -141,6 +141,13 @@ items:
   - {ref: template:modules/M_data_layer#db-identity, issue: "#4", origin: issue, title: 誰として DB に接続するか}
   - {ref: template:modules/M_data_layer#masking-rls-bypass, issue: "#4", origin: issue, title: マスキングと RLS をすり抜ける主体}
   - {ref: template:claim_request, issue: "#4", origin: issue, title: クレームを追加する前の 25 問（スライド 142・143）}
+  - {ref: template:00_core#issuance-profile, issue: "#4", origin: issue, title: "発行方式の選択（クライアントの種類・grant・送信者制約・AT の形式・RT の方式・要求の保護。トークン目録の前。issuance_profile から生成）"}
+  - {ref: template:modules/M_sender_constraint#dpop-vs-mtls, issue: "#4", origin: issue, title: "M_sender_constraint：DPoP と mTLS の選び方（cnf.jkt・cnf.x5t#S256 と受け手の照合）"}
+  - {ref: template:modules/M_sender_constraint#tls-termination, issue: "#4", origin: issue, title: "M_sender_constraint：入口で TLS を終端するときに証明書を下流へ渡す方法"}
+  - {ref: template:modules/M_sender_constraint#dpop-nonce-jti, issue: "#4", origin: issue, title: "M_sender_constraint：DPoP の nonce と、jti を使い回した proof を拒否する仕組み"}
+  - {ref: template:modules/M_sender_constraint#rt-rotation, issue: "#4", origin: issue, title: "M_sender_constraint：RT のローテーションとの関係（スライド 107）"}
+  - {ref: template:modules/M_sender_constraint#registry-effects, issue: "#4", origin: issue, title: "M_sender_constraint：選択で台帳・目録がどう変わるか（issuance_effects.yaml の E-dpop・E-mtls）"}
+  - {ref: template:claim_request#form, issue: "#4", origin: issue, title: "追加前の 25 問の記入の様式（25 行の表。回答欄は必須、台帳から写す問いと手書きの問いの印）"}
 
   # ---------------------------------------------------------------- #5 レビュー教材
   - {ref: review:perspectives#role-issuer, issue: "#5", origin: issue, title: 観点書：発行者の役割}

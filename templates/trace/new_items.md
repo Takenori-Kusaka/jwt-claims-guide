@@ -115,7 +115,7 @@
 | `template:claim_request#q23` | 追加前の 25 問の第 23 問の回答欄 | `p11-pre-add-questions-2.R11` |
 | `template:claim_request#q24` | 追加前の 25 問の第 24 問の回答欄 | `p11-pre-add-questions-2.R12` |
 | `template:claim_request#q25` | 追加前の 25 問の第 25 問の回答欄 | `p11-pre-add-questions-2.R13` |
-| `template:claim_request#gate` | 答えられない問いが残るなら共有クレームにせずローカルな属性にとどめる判定 | `p11-pre-add-questions-1.R13` |
+| `template:claim_request#gate` | 答えられない問いが残るなら共有クレームにせずローカルな属性にとどめる判定 | `p09-do-not-carry.R7`, `p11-pre-add-questions-1.R13` |
 
 ## #5（86 件）
 

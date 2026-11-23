@@ -126,7 +126,7 @@
       "null"
      ],
      "description": "Service that exchanges or reissues the token for this hop (null when the token is passed as is)",
-     "$comment": "Trace: req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2 req:p02-delegation-client.R3 req:p03-absorb-idp-differences.R1 req:p04-reject-missing-required.R3 req:p04-single-issuer.R4 req:p10-token-exchange-not-narrowing.R2"
     },
     "validates": {
      "type": "object",

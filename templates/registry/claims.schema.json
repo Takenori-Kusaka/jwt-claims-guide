@@ -26,6 +26,7 @@
     "additionalProperties": false,
     "properties": {
      "namespace": {
+      "$comment": "Trace: req:p05-scope-vs-role.R3",
       "type": "string",
       "minLength": 1,
       "pattern": "\\S"
@@ -277,6 +278,7 @@
      "description": "Why a row has no row in the casestudy claim list (catalog_refs: [])"
     },
     "registered_ref": {
+     "$comment": "Trace: req:p10-four-questions.R7",
      "$ref": "#/$defs/ref"
     },
     "type": {
@@ -288,7 +290,7 @@
       "object"
      ],
      "description": "JSON type of one value (of each element when shape is array). Exactly one type",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p11-registry-fields.R2"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R2"
     },
     "shape": {
      "enum": [
@@ -297,7 +299,7 @@
       "space_delimited"
      ],
      "description": "single value, JSON array, or one string of space-delimited values (scope). Declared so that consumers do not read the form differently",
-     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R3 req:p02-scope.R7 req:p11-registry-fields.R2"
+     "$comment": "Trace: req:p00-claims-are-contracts.R3 req:p00-why-hard.R1 req:p00-why-hard.R3 req:p02-scope.R7 req:p11-registry-fields.R2 req:p03-keycloak-mappers.R5"
     },
     "allowed_values": {
      "type": "object",
@@ -550,7 +552,7 @@
       "not_used_because"
      ],
      "description": "Where the author looked before creating the claim (IANA, specs, IdP documents) and why the nearest existing claim is not used",
-     "$comment": "Trace: req:p02-check-before-creating.R3"
+     "$comment": "Trace: req:p02-check-before-creating.R3 req:p02-check-before-creating.R1"
     },
     "path": {
      "type": "array",
@@ -616,6 +618,7 @@
      "description": "SD-JWT VC claim metadata display (§5.6.2): label per locale; dir is ltr, rtl or auto (default auto, §5.5). Same name and meaning"
     },
     "decision": {
+     "$comment": "Trace: req:p11-ownership.R5",
      "enum": [
       "採用",
       "却下",
@@ -651,6 +654,7 @@
      "description": "For 却下・代替あり: the claim used instead (registry row or casestudy row)"
     },
     "rationale": {
+     "$comment": "Trace: req:p11-ownership.R5",
      "type": "string",
      "minLength": 1,
      "pattern": "\\S"
@@ -661,6 +665,7 @@
      "pattern": "\\S"
     },
     "revisit_trigger": {
+     "$comment": "Trace: req:p12-priorities-deferrals.R4",
      "type": "string",
      "minLength": 1,
      "pattern": "\\S"
@@ -674,6 +679,7 @@
      }
     },
     "answers": {
+     "$comment": "Trace: req:p10-agent-identity.R4",
      "type": "array",
      "items": {
       "type": "string",
@@ -703,7 +709,7 @@
       "protocol"
      ],
      "description": "identifier: matches a subject or object; authz: decides access; display: shown only; protocol: protocol mechanics (exp, jti, nonce ...). A name is display only; matching uses the paired immutable ID",
-     "$comment": "Trace: req:p04-immutable-identifiers.R2"
+     "$comment": "Trace: req:p04-immutable-identifiers.R2 req:p04-carry-or-query.R1 req:p05-cross-tenant.R1"
     },
     "issuers": {
      "type": "array",
@@ -749,7 +755,7 @@
       "normalization"
      ],
      "description": "When the claim relays a value from an upstream issuer (broker, SAML, another IdP, declarative mapping): the upstream iss and the normalization rule to the organization key",
-     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4"
+     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4 req:p03-absorb-idp-differences.R3"
     },
     "authoritative_writer": {
      "type": "array",
@@ -799,7 +805,7 @@
      "maxItems": 6,
      "minItems": 1,
      "description": "The one authoritative writer per stage (L4 of #6 checks uniqueness), and who can change its setting",
-     "$comment": "Trace: req:p04-case-and-characters.R2 req:p11-registry-fields.R5"
+     "$comment": "Trace: req:p04-case-and-characters.R2 req:p11-registry-fields.R5 req:p09-minimize-derived.R2"
     },
     "modifiers": {
      "type": "array",
@@ -881,7 +887,7 @@
      "minLength": 1,
      "pattern": "\\S",
      "description": "Authoritative source of the value (owned by the department responsible for its meaning)",
-     "$comment": "Trace: req:p11-registry-fields.R10"
+     "$comment": "Trace: req:p11-registry-fields.R10 req:p05-pep-pdp.R2"
     },
     "verification_method": {
      "type": "string",
@@ -928,7 +934,7 @@
       {"const": "never"}
      ],
      "description": "Seconds allowed between a change of the value and its reflection; 0: the change must be reflected at once. never: the value does not change during the life of a token that carries it (per-token values such as exp or jti, immutable identifiers such as sub). Compared with max_lifetime of the carrying token types (L5 of #6)",
-     "$comment": "Trace: req:p11-registry-fields.R10"
+     "$comment": "Trace: req:p11-registry-fields.R10 req:p08-stale-claims.R1"
     },
     "recompute_trigger": {
      "type": "array",
@@ -978,7 +984,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Services allowed to read the claim (the contract; [] when nobody reads it)",
-     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6"
+     "$comment": "Trace: req:p00-claims-are-contracts.R6 req:p11-registry-fields.R6 req:p04-forward-compatibility.R3 req:p11-change-procedure.R3"
     },
     "consumer_access_path": {
      "type": "array",
@@ -1102,7 +1108,7 @@
      "type": "integer",
      "minimum": 1,
      "description": "Worst-case number of elements when shape is array",
-     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p04-carry-or-query.R3 req:p04-size-budget.R1 req:p11-registry-fields.R7"
+     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p04-carry-or-query.R3 req:p04-size-budget.R1 req:p11-registry-fields.R7 req:p04-size-budget.R4"
     },
     "typical_items": {
      "type": "integer",
@@ -1122,7 +1128,7 @@
       ]
      },
      "description": "What happens above max_bytes / max_items. Truncation is not a value (no silent loss)",
-     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p04-size-budget.R2 req:p06-edge-exchange.R3 req:p11-registry-fields.R7"
+     "$comment": "Trace: req:p02-roles-groups-entitlements.R4 req:p04-size-budget.R2 req:p06-edge-exchange.R3 req:p11-registry-fields.R7 req:p04-reject-missing-required.R2"
     },
     "confidential_from": {
      "type": "array",
@@ -1272,6 +1278,7 @@
      "description": "Properties of an identifier (input of L3, L52 of #6). Separate from volatility"
     },
     "recipients_external": {
+     "$comment": "Trace: req:p09-pairwise-identifiers.R2",
      "type": "array",
      "items": {
       "type": "object",
@@ -1329,7 +1336,7 @@
       "ハッシュ化して記録",
       "記録しない"
      ],
-     "$comment": "Trace: req:p11-registry-fields.R8"
+     "$comment": "Trace: req:p11-registry-fields.R8 req:p08-async-processing.R2 req:p09-logs-traces.R3"
     },
     "status": {
      "enum": [
@@ -1342,6 +1349,7 @@
      "$comment": "Trace: req:p11-registry-fields.R11"
     },
     "sunset_on": {
+     "$comment": "Trace: req:p11-change-procedure.R5",
      "type": "string",
      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
     },
