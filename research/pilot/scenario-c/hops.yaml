@@ -1,0 +1,49 @@
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../../templates/registry/hops.schema.json
+# ホップごとの宣言（templates/registry/README.md の 3.4）。シナリオ C。交換のホップ（H2）は Lite でも手で書く
+hops:
+- id: H1
+  from: agent
+  to: "https://invoice-mcp.example.com/mcp"
+  kind: service
+  token_type: AGENT_AT
+  aud: ["https://invoice-mcp.example.com/mcp"]
+  scope: [invoices:read, invoices:pay]
+  max_lifetime: 300
+  custom_claims: []
+  authorization_details: [payment]
+  exchanger: null
+  validates:
+    mode: local
+    checks: [iss, aud, exp, typ, cnf（mTLS の相手の証明書）, act の最も外側が mTLS の相手, scope にツールの操作]
+- id: H2
+  from: "https://invoice-mcp.example.com/mcp"
+  to: "https://invoices.example.com"
+  kind: exchange
+  upstream: H1
+  token_type: TOOL_AT
+  aud: ["https://invoices.example.com"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: ツールサーバー宛ての AGENT_AT を、STS の交換で請求書の API の 1 つの宛先に置き換える（パススルーの禁止。MCP の必須チェック 3）
+  scope: [invoices:read, invoices:pay]
+  max_lifetime: 60
+  custom_claims: []
+  authorization_details: [payment]
+  exchanger: STS（https://sts.example.com のトークン交換。subject_token は AGENT_AT、actor はツールサーバーの mTLS）
+  validates:
+    mode: local
+    checks: [iss, aud, exp と exp − iat ≤ 60, typ, cnf（mTLS の相手の証明書）, act の最も外側が mTLS の相手で深さ 2 以下, scope と行為者の方針, sub と請求書の持ち主, authorization_details と支払いの要求の一致と承認の記録の状態]
+- id: H3
+  from: portal
+  to: "https://invoices.example.com"
+  kind: service
+  token_type: PORTAL_AT
+  aud: ["https://invoices.example.com"]
+  scope: [invoices:read, invoices:pay, invoices:refund]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: [iss, aud, exp, typ, cnf（mTLS の相手の証明書）, act が無いので client_id が mTLS の相手, sub と請求書の持ち主]

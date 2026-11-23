@@ -1,0 +1,377 @@
+# template_version: 0.2.0
+# カタログの全イベントへの回答（tools/claim_lint/RULES.md の R2）。シナリオ C。パイロット #9 のブラインド記入（LLM による記入）
+# 対象外なら assumption（起きない前提）と breaks_when（前提が崩れる条件）を書く
+lite_criteria:
+  crosses_boundary:
+    answer: false
+    reason: >-
+      組織は 1 つで、エージェント・MCP のツールサーバー・請求書の API・STS はすべて社内の網にある。取引先・外部の IdP・別の組織にトークンは渡らない。
+      ただし悪意ある MCP サーバー（C13）は社内にあっても信頼しない部品として扱う（境界は越えないが、信頼もしない）
+  multitenant:
+    answer: false
+    reason: 組織は 1 つで、テナントを表す値を持たない（§7 の 9 の判断。台帳の C-tenant）
+  delegation_or_exchange:
+    answer: true
+    reason: 利用者からエージェントへの委任と、ツールサーバーの RFC 8693 のトークン交換がある（この設計の主題）
+  new_issuer:
+    answer: true
+    reason: 委任と交換のためのトークン発行サービス（STS）を、この設計で新しく使う。実物の IdP（Keycloak）は使わない（§7 の 8 の判断）
+  regulated:
+    answer: false
+    reason: 社内の請求書の支払いで、FAPI・医療などの規制の対象ではない。振込先の口座は個人情報として扱う（台帳の C-authorization-details）
+idp:
+  name: org-sts
+  version: "1.0（この設計で作る組織のトークン発行サービス。製品ではない）"
+  enumerable: true
+  trigger_list_source:
+    url: "https://sts.example.com/.well-known/oauth-authorization-server"
+    verified_on: "2026-11-24"
+  trigger_list:
+    - {trigger: "grant_type=authorization_code（同意画面＋PKCE）", events: [I01]}
+    - {trigger: "grant_type=refresh_token", events: [I02]}
+    - {trigger: "grant_type=urn:ietf:params:oauth:grant-type:token-exchange", events: [I06]}
+    - {trigger: "トークン要求の authorization_details（RFC 9396 §6）", events: [I14]}
+    - {trigger: "mTLS の証明書への束縛（RFC 8705 §3）", events: [I29]}
+    - {trigger: "資格情報の再設定による委任の一括失効と再同意", events: [I26]}
+    - trigger: "grant_type=client_credentials"
+      out_of_scope: {assumption: "STS はこの grant を実装しない。ツールサーバーの広い自分の ID で上流を読む経路を作らない", breaks_when: "利用者のいない定期の処理をツールサーバーに足すとき"}
+    - trigger: "grant_type=password"
+      out_of_scope: {assumption: "STS はこの grant を実装しない。利用者の資格情報をエージェントに渡さない", breaks_when: "古いクライアントの移行で資格情報を直接送る要望が出たとき"}
+outside_enumeration:
+  answer: >-
+    要求の概要の脅威（C2〜C15）と正規の利用（C1・C8・C11）を、カタログのイベントに 1 つずつ当てて、どのイベントにも当たらない契機を探した。
+    見つかったのは 3 つ：承認の記録の二重の使用（同じ承認で 2 回支払う）、MCP の長い SSE のストリームの途中での期限切れ、同じ利用者の別のタスクへの同意の使い回し。
+    どれも下の found の扱いにした
+  respondent: Claude（LLM。パイロット #9 の書き手。人による確認は未実施）
+  date: "2026-11-24"
+  searched:
+    - "パイロットの要求の概要（brief-C.md）の 3.〜7."
+    - "templates/profiles/P4_ai_agent_delegation.md の 1.〜9."
+    - "MCP Authorization（2026-07-28） https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization"
+    - "RFC 8693 §2.1・§4.1・§4.4 https://www.rfc-editor.org/rfc/rfc8693"
+    - "org-sts の grant の一覧（この設計の issuance_profile.grants と idp.trigger_list）"
+    - "templates/catalog/issue_events.yaml と templates/catalog/use_events.yaml の全行"
+  found:
+    - {name: 承認の記録の二重の使用, handled_as: "設計に足した：請求書の API が支払いのたびに承認の記録を DB で引き、使った承認を消費する（台帳の C-authorization-details、目録の db_lookup）"}
+    - {name: MCP の SSE のストリームの途中での期限切れ, handled_as: "カタログの U23 に戻した：ツールサーバーはストリームを AGENT_AT の exp で閉じる"}
+    - {name: 同じ利用者の別のタスクへの同意の使い回し, handled_as: "カタログの I11 に戻した：STS はエージェントのクライアントに prompt=none を許さず、タスクごとに同意画面を出す"}
+questions:
+  q-sub: {needed: true, reason: 請求書の持ち主の照合（C3・C15）に使う}
+  q-actor: {needed: true, reason: 今の行為者を mTLS の相手と照合し、行為者の方針で操作を判断する（C4）}
+  q-req-wl: {needed: false, reason: Txn-Token を使わない（目録の TXN_TOKEN は却下）。要求したワークロードは act の最も外側と mTLS の相手で分かる}
+  q-peer: {needed: true, reason: act と cnf を照合する相手, channel: "mTLS の相手の証明書（組織の PKI のワークロードの ID）"}
+  q-via: {needed: true, reason: 監査で連鎖をたどる, channel: "STS の交換の監査ログ（交換の元と出した jti、actor）と請求書の API の監査ログ"}
+  q-txn: {needed: true, reason: どのタスクの操作かを監査で結ぶ, channel: "STS の委任（タスク）の記録と jti の対応。支払いは authorization_details の approval_id"}
+  q-user: {needed: true, reason: 請求書の持ち主の照合}
+  q-agent: {needed: true, reason: 行為者ごとの方針（読む・支払う・返金する）を当てる}
+  q-authorized: {needed: true, reason: タスクの範囲（C14）と人の承認の内容（C5・C6・C7）}
+  q-resource: {needed: true, reason: パススルー（C2）と再送（C13）を宛先で拒否する}
+  q-holder: {needed: true, reason: 借用（C12）と再送（C2・C13）を送信者制約で拒否する}
+subject_states:
+  unused_layers:
+    ID: ID トークンを出さない（目録の ID_TOKEN は却下）。エージェントは利用者のログインの結果を読む RP ではない
+    内部トークン: 入口で作り直す内部トークンを使わない（目録の INTERNAL_TOKEN は却下）。STS が宛先ごとの AT を直接出す
+    Logout Token: Back-Channel Logout を使わない（目録の LOGOUT_TOKEN は却下）。委任の取り消しは交換と取り直しの拒否で届かせる
+    RP・BFF のセッション: エージェント・ツールサーバーは利用者のセッションを持たない。ポータルのセッションは P1 の設計で扱う（範囲の外）
+  states:
+    subject-states/invited:
+      AT: {result: 影響なし, basis: 招待の段階では利用者はまだ同意できず、STS は委任の AT を出さない}
+      RT: {result: 影響なし, basis: 委任が無いので RT も無い。招待は STS の利用者台帳だけを変える}
+      IdP のセッション: {result: 影響なし, basis: 招待はセッションを作らない。招待を受けた後の初回のログインで作る}
+    subject-states/active:
+      AT: {result: 発行, basis: 利用者が同意画面でタスクを承認すると、STS が AGENT_AT を出す（I01）。ツールの呼び出しのたびに TOOL_AT を交換で出す（I06）}
+      RT: {result: 発行, basis: 同意と同時に、そのタスクの AGENT_RT を出す（最大 8 時間、エージェントの証明書に束縛）}
+      IdP のセッション: {result: 発行, basis: 同意画面の前の利用者のログインで STS のセッションを作る（無操作 30 分・最大 8 時間）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: 手元の AGENT_AT は exp（最悪 330 秒）まで残るが、交換のたびに STS が利用者の状態を確かめて拒否するので、請求書には最悪 90 秒で届かなくなる}
+      RT: {result: 失効, basis: STS は利用者の停止で、その利用者のすべての委任の RT の系列を失効させる（取り直しのたびに状態を確かめる）}
+      IdP のセッション: {result: 失効, basis: STS は停止した利用者のセッションを消す（この設計の STS の規則。同意も取り消しも停止の後はできない）}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 停止と同じく AGENT_AT は exp まで残る。交換は主体が無いので拒否され、請求書の API でも持ち主が無く 404}
+      RT: {result: 失効, basis: 利用者の削除で、委任の記録と RT の系列を STS の DB から消す}
+      IdP のセッション: {result: 失効, basis: 利用者の削除でセッションを消す（STS の規則）}
+    subject-states/tenant-switch:
+      AT: {result: 影響なし, basis: 組織は 1 つでテナントの切り替えがない（lite_criteria の multitenant は No）。AT にテナントを載せない}
+      RT: {result: 影響なし, basis: テナントの切り替えが無いので RT の再発行もない。将来テナントを足すときは M_multitenancy で見直す}
+      IdP のセッション: {result: 影響なし, basis: テナントを持たないので、STS のセッションを切り替える操作がない}
+    subject-states/role-change:
+      AT: {result: 影響なし, basis: 利用者の役割をトークンに載せない（C-roles は却下）。行為者の方針は請求書の API が設定で都度当てるので、変更は次の要求から効く}
+      RT: {result: 影響なし, basis: 取り直しでは scope を委任の記録と行為者の方針の積で決め直すので、方針の変更は次の取り直しで AT に反映される}
+      IdP のセッション: {result: 影響なし, basis: STS のセッションは同意の画面だけに使い、役割を持たない}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: 手元の AGENT_AT は exp まで残るが、資格情報の再設定で委任を一括で取り消すので、交換が拒否され請求書には最悪 90 秒で届かなくなる（I26）}
+      RT: {result: 失効, basis: 資格情報の再設定（乗っ取りの疑い）で、その利用者のすべての委任の RT を失効させる。続けるには利用者が同意し直す}
+      IdP のセッション: {result: 失効, basis: 資格情報の再設定で、ほかの STS のセッションを消す}
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当}
+    ワークロード: {answer: 該当}
+    システム: {answer: 対象外, reason: 夜間バッチ・運用者の代理操作（Impersonate）・break-glass をこの設計の STS で扱わない。管理コンソールの操作は別の設計}
+  combinations:
+    - {subject: 利用者, event: I01, stage: ①, note: 利用者が STS にログインして同意画面に進む。STS のセッションだけを作り、エージェントには利用者の資格情報も ID トークンも渡らない}
+    - {subject: ワークロード, event: I01, stage: ②, note: エージェントが認可コードを mTLS で交換し、sub＝利用者・act＝エージェント・cnf＝エージェントの証明書の AGENT_AT を得る}
+    - {subject: 利用者, event: I01, stage: ②, note: 同意したタスクの scope は利用者の同意とエージェントの方針の積。利用者の持たない操作は出ない}
+    - {subject: ワークロード, event: I01, stage: ①, note: エージェント自身は認証の段階に関わらない（同意画面のリダイレクトを受けるだけ）。ワークロードの認証は ② のクライアント認証}
+    - {subject: ワークロード, event: I02, stage: ②, note: 取り直しで STS は委任の状態・利用者の状態・行為者の方針を確かめ直す。取り消し後は refresh_failure}
+    - {subject: 利用者, event: I02, stage: ②, note: 利用者の停止・資格情報の再設定は RT の系列の失効になり、取り直しが拒否される}
+    - {subject: ワークロード, event: I06, stage: ②, note: ツールサーバーが actor として交換を要求する。actor は mTLS の主体で、要求の値では決めない}
+    - {subject: ワークロード, event: I06, stage: ③, note: 交換で sub を写し、act を入れ子にして深さ 2 以下を確かめ、aud を請求書の API 1 つに置き換え、scope と authorization_details を部分集合に絞る}
+    - {subject: 利用者, event: I06, stage: ③, note: 交換の要求で別の利用者を指定しても sub は subject_token から写す（C15）}
+    - {subject: 利用者, event: I06, stage: ②, note: 委任を取り消した利用者のための交換は、交換のたびに STS が委任の記録を確かめて拒否する（C9）}
+    - {subject: 利用者, event: I14, stage: ⑥, note: 人の承認の記録（金額・相手先・請求書）を STS が authorization_details に写す。エージェントの申告から作らない}
+    - {subject: ワークロード, event: I14, stage: ⑥, note: エージェントは approval_id だけを要求に入れ、STS は記録が承認済みで持ち主が sub のときだけ載せる（C7）}
+    - {subject: ワークロード, event: I29, stage: ②, note: AGENT_AT・TOOL_AT・AGENT_RT を要求したワークロードの証明書に束縛する（cnf の x5t#S256）}
+    - {subject: 利用者, event: I29, stage: ②, note: 利用者自身のポータルのトークン（PORTAL_AT）もポータルの証明書に束縛するので、エージェントが借りても使えない（C12）}
+    - {subject: 利用者, event: I26, stage: ①, note: 資格情報の再設定は利用者の認証の段階で起き、STS はその利用者のすべての委任を取り消す}
+    - {subject: 利用者, event: I26, stage: ②, note: 再設定の後のタスクは同意のやり直しで新しい AGENT_AT・AGENT_RT を出す}
+    - {subject: ワークロード, event: I26, stage: ②, note: エージェントの手元の RT は再設定で失効し、取り直しが拒否される。エージェントは利用者に同意のやり直しを求める}
+    - {subject: ワークロード, event: I26, stage: ①, note: ワークロードの証明書は利用者の資格情報と独立で、再設定の影響を受けない（PKI で別に管理する）}
+answers:
+- event: I01
+  answer: 該当
+  token_types: [AUTHORIZATION_CODE, AGENT_AT, AGENT_RT, SESSION, PORTAL_AT]
+  note: 利用者が STS の同意画面でタスクを承認し、エージェントが認可コード＋PKCE を mTLS で交換する。PORTAL_AT もポータルのログインで出るが、その流れは P1 の設計（範囲の外）
+- event: I02
+  answer: 該当
+  token_types: [AGENT_AT, AGENT_RT]
+  note: エージェントがタスクの間に AGENT_RT で AGENT_AT を取り直す。ローテーションし、委任の状態を確かめ直す
+- event: I03
+  answer: 対象外
+  assumption: 発行者は組織の STS で、Keycloak の軽量アクセストークンの機能を使わない
+  breaks_when: STS を Keycloak に置き換える（§7 の 8 の判断を変える）とき
+- event: I04
+  answer: 対象外
+  assumption: STS は ROPC（password の grant）を実装しない。エージェントは利用者の資格情報を扱わない
+  breaks_when: 資格情報を直接送るクライアントを STS に載せる要望が出たとき
+- event: I05
+  answer: 対象外
+  assumption: STS は client credentials を実装せず、ツールサーバーの広い自分の ID で上流を読む経路をなくす
+  breaks_when: 利用者のいない定期の処理（集計など）をエージェント・ツールサーバーに足すとき
+- event: I06
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: ツールサーバーが AGENT_AT を subject_token にして交換する。sub を写し、act を入れ子にし、深さ・取り消し・scope の部分集合を確かめる。RT は出さない
+- event: I07
+  answer: 対象外
+  assumption: 入力の限られた端末のクライアントが無い。エージェントはサーバー側で動き、同意は利用者のブラウザで行う
+  breaks_when: 音声端末・CLI から利用者がエージェントに委任する画面を作るとき
+- event: I08
+  answer: 対象外
+  assumption: offline_access の scope を作らない。AGENT_RT の最大寿命は委任の期間（8 時間）で、利用者のいない長期の委任を出さない
+  breaks_when: 数日にわたるタスクを利用者の再同意なしで続けたい要望が出たとき
+- event: I09
+  answer: 対象外
+  assumption: ログアウトトークンを出さない（目録の LOGOUT_TOKEN は却下）。エージェントは利用者のセッションを持たない
+  breaks_when: エージェントが利用者のログイン状態に従って止まる必要が出たとき
+- event: I10
+  answer: 対象外
+  assumption: STS は response_type=code だけを許し、フロントチャネルでトークンを返さない
+  breaks_when: トークンをブラウザで直接受け取るクライアントを STS に載せるとき
+- event: I11
+  answer: 対象外
+  assumption: STS はエージェントのクライアントに prompt=none を許さず、タスクごとに同意画面を出す（同意の使い回しを防ぐ）
+  breaks_when: 同じ範囲のタスクを利用者の操作なしで繰り返し始める要望が出たとき
+- event: I12
+  answer: 対象外
+  assumption: 支払いの強い確認は人の承認の記録で行い、RFC 9470 の追加認証の応答を使わない
+  breaks_when: 承認の記録を使わずに、利用者の再認証だけで支払いを許す操作を足すとき
+- event: I13
+  answer: 対象外
+  assumption: 人の承認は承認のサービスが記録し（この設計の範囲の外）、STS は記録を引くだけで CIBA で本人に確かめない
+  breaks_when: 承認のサービスをやめ、STS が支払いの承認を本人の端末に直接求めるとき
+- event: I14
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT]
+  note: 支払いのタスクで、STS が承認の記録から authorization_details（type payment）を作って AGENT_AT に載せ、交換で TOOL_AT に部分集合を写す
+- event: I15
+  answer: 対象外
+  assumption: JWT のアサーショングラントを実装しない。ワークロードの認証は mTLS（tls_client_auth）
+  breaks_when: 証明書を持てないワークロード（サーバーレスなど）がエージェントになるとき
+- event: I16
+  answer: 対象外
+  assumption: 組織は 1 つで、別の組織の AS のトークンを得る必要がない
+  breaks_when: エージェントが他社の SaaS のツールを利用者の代わりに呼ぶとき
+- event: I17
+  answer: 対象外
+  assumption: 利用者のログインは STS 自身で行い、外部の IdP を経由しない
+  breaks_when: 社外の協力者・取引先の担当者が委任する利用者になるとき
+- event: I18
+  answer: 対象外
+  assumption: 外部の ID を利用者に結びつけない（外部の IdP を使わない）
+  breaks_when: 外部の IdP を足して、既存の利用者とのリンクが要るとき
+- event: I19
+  answer: 対象外
+  assumption: STS は管理者・運用者の代理操作（なりすまし）を実装せず、管理コンソールを委任の行為者として許さない（C4 の連鎖を STS が作らない）
+  breaks_when: 運用者が利用者の代わりに請求書を操作する業務を足すとき（2.2 の Full の節で扱う）
+- event: I20
+  answer: 対象外
+  assumption: ワークロードの ID は組織の PKI の X.509 の証明書で、JWT の形のワークロードの ID（JWT-SVID・CI の OIDC）を使わない
+  breaks_when: エージェントを Kubernetes のサービスアカウントのトークンなど JWT で認証する基盤に移すとき
+- event: I21
+  answer: 対象外
+  assumption: 入口で外部のトークンを作り直す構成ではない。STS が宛先ごとの AT を直接出す
+  breaks_when: 請求書の API の前に入口（API ゲートウェイ）を置き、内部トークンに変えるとき
+- event: I22
+  answer: 対象外
+  assumption: Txn-Token を使わない（目録の TXN_TOKEN は却下）。上流は請求書の API の 1 段
+  breaks_when: 請求書の API がさらに別のサービスを呼ぶようになったとき
+- event: I23
+  answer: 対象外
+  assumption: SSF・CAEP の SET を出さない。取り消しは TOOL_AT を 60 秒にして交換のたびに確かめる
+  breaks_when: 取り消しを 90 秒より早く届かせる要求が出たとき、または AGENT_AT だけで完結する操作が増えたとき
+- event: I24
+  answer: 対象外
+  assumption: 組織は 1 つで、テナント・組織の切り替えがない
+  breaks_when: 子会社などの別の組織の請求書を扱い、テナントを切り替えるとき
+- event: I25
+  answer: 対象外
+  assumption: 利用者の登録・招待は既存の利用者台帳の業務で、委任のトークンはログイン済みの利用者にだけ出す
+  breaks_when: エージェントへの委任を、登録の直後の初回ログインで同時に始める画面を作るとき
+- event: I26
+  answer: 該当
+  token_types: [AGENT_AT, AGENT_RT, SESSION]
+  note: 資格情報の再設定で STS はその利用者のすべての委任を取り消し、RT を失効させる。続けるときは同意のやり直しで新しい AGENT_AT・AGENT_RT を出す
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを使わない（目録の STATUS_LIST_TOKEN は却下）
+  breaks_when: 受け手が交換を経ずに長い寿命のトークンの失効を確かめる必要が出たとき
+- event: I28
+  answer: 対象外
+  assumption: クライアント認証は tls_client_auth で、client assertion を作らない
+  breaks_when: 証明書を持てないクライアントを STS に載せるとき
+- event: I29
+  answer: 該当
+  token_types: [AGENT_AT, AGENT_RT, TOOL_AT, PORTAL_AT]
+  note: すべての AT・RT を要求したワークロードの mTLS の証明書に束縛する（cnf の x5t#S256）。C2・C12・C13 を拒否する
+- event: I30
+  answer: 対象外
+  assumption: 送信者制約は mTLS で、DPoP の proof を作らない
+  breaks_when: TLS を途中で終端する入口・メッシュを経路に置くとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求に Request Object を使わない。STS が承認の記録とエージェントの方針から内容を決め直す
+  breaks_when: 認可要求の内容をブラウザから隠す必要が出たとき（承認の詳細を要求に入れるなど）
+- event: I32
+  answer: 対象外
+  assumption: 認可応答は RFC 9207 の iss パラメータで照合し、JARM を使わない
+  breaks_when: 認可応答の全体の改ざんを防ぐ要求が出たとき
+- event: I33
+  answer: 対象外
+  assumption: イントロスペクションを使わず、受け手は JWT を手元で検証する
+  breaks_when: AT を不透明にしてイントロスペクションに切り替えるとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報（OID4VCI）を出さない
+  breaks_when: エージェントに検証可能な資格情報を持たせる計画が出たとき
+- event: U01
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  note: ツールサーバーは AGENT_AT を、請求書の API は TOOL_AT と PORTAL_AT を Bearer で受け、iss・aud・exp・typ・cnf・act・scope を手元で検証する
+- event: U02
+  answer: 対象外
+  assumption: 請求書の API はアプリの照会で持ち主（sub）を条件にし、DB の接続の文脈（SET LOCAL・RLS）を使わない
+  breaks_when: 請求書の DB に行単位の制御を入れる、または DB に利用者の文脈を渡すとき（M_data_layer）
+- event: U03
+  answer: 対象外
+  assumption: ID トークンを出さない（目録の ID_TOKEN は却下）
+  breaks_when: エージェントが利用者の表示名などのログインの結果を読む必要が出たとき
+- event: U04
+  answer: 該当
+  token_types: [AGENT_RT]
+  note: エージェントが AGENT_RT を mTLS で提示して取り直す。ローテーションし、委任の取り消しの後は拒否される
+- event: U05
+  answer: 対象外
+  assumption: 受け手はイントロスペクションを使わない。取り消しは交換・取り直しで STS が確かめる
+  breaks_when: ツールサーバーが AGENT_AT（300 秒）を寿命より前に止める必要が出たとき
+- event: U06
+  answer: 対象外
+  assumption: エージェント・ツールサーバーは RP として利用者をログアウトさせない。利用者は STS の画面で直接ログアウト・取り消しをする
+  breaks_when: ポータルのログアウトで委任も止めたい要望が出たとき（P1 の設計と合わせる）
+- event: U07
+  answer: 対象外
+  assumption: ログアウトトークンを受ける RP がいない（目録の LOGOUT_TOKEN は却下）
+  breaks_when: エージェントが利用者のセッションに従う必要が出たとき
+- event: U08
+  answer: 対象外
+  assumption: UserInfo を呼ばない。エージェントに利用者の属性を渡さない
+  breaks_when: エージェントが利用者の連絡先・氏名を使うタスクを足すとき
+- event: U09
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  note: ツールサーバー・請求書の API・STS は未知の kid で JWKS を取り直す（最短 60 秒、失敗時は最後に取れた鍵）。鍵は使う 1 日前に公開する
+- event: U10
+  answer: 該当
+  token_types: [AGENT_AT]
+  note: ツールサーバーが AGENT_AT を subject_token として STS に提示する。STS は subject_token の宛先がツールサーバー自身で、cnf が actor の証明書と同じことを確かめる
+- event: U11
+  answer: 対象外
+  assumption: 入口でトークンをヘッダーに転記しない。各ホップがトークンを直接検証する
+  breaks_when: 請求書の API の前に入口を置き、クレームをヘッダーで渡すとき
+- event: U12
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: ツールサーバーから請求書の API へのサービス間の呼び出しで、mTLS（ワークロードの ID）と TOOL_AT の act で文脈を運ぶ。Txn-Token は使わない
+- event: U13
+  answer: 該当
+  token_types: [AGENT_AT, AGENT_RT]
+  note: エージェントのタスクは利用者の操作と非同期に続く。手元の AT が切れたら RT で取り直し、取り消しの後は取り直しが拒否されて止まる（最大 8 時間）
+- event: U14
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  note: 監査ログには sub（ハッシュ）・act の連鎖・client_id・jti・approval_id を残し、トークンの全文と authorization_details の振込先は残さない
+- event: U15
+  answer: 該当
+  token_types: [AGENT_RT]
+  note: 利用者が STS の画面で委任を取り消す（C9）。その委任の RT の系列を失効させ、以後の交換を拒否する
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを使わない
+  breaks_when: 交換を経ずに受け手が失効を確かめる必要が出たとき
+- event: U17
+  answer: 対象外
+  assumption: SET を受ける部品を作らない（I23 と同じ前提）
+  breaks_when: 取り消しを 90 秒より早く届かせる要求が出たとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない。エージェントはブラウザのセッションを持たない
+  breaks_when: エージェントの画面をブラウザで利用者に見せるとき
+- event: U19
+  answer: 対象外
+  assumption: 請求書の API の応答・Webhook に署名しない（社内の mTLS の中で返す）
+  breaks_when: 支払いの結果を取引先・銀行に Webhook で返すとき
+- event: U20
+  answer: 対象外
+  assumption: 請求書の API は信頼ドメインをまたぐ取引先の API を呼ばない（この設計の範囲で）
+  breaks_when: 支払いの実行を外部の銀行の API に委ねるとき
+- event: U21
+  answer: 対象外
+  assumption: 認可の判断と承認の記録の照会の結果をキャッシュしない（JWKS のキャッシュは U09）
+  breaks_when: 請求書の API の負荷で承認の記録の照会をキャッシュしたくなったとき
+- event: U22
+  answer: 該当
+  token_types: [AUTHORIZATION_CODE, SESSION]
+  note: 認可コードだけがリダイレクトの URL を通る（60 秒・1 回限り・PKCE）。STS のセッションは Cookie。AT・RT は URL にもブラウザにも置かない
+- event: U23
+  answer: 該当
+  token_types: [AGENT_AT]
+  note: MCP の SSE のストリームは AGENT_AT の exp で閉じ、エージェントは取り直した AT でつなぎ直す。ストリームの途中の要求も毎回検証する
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で資格情報を得ない（社内の網だけ）
+  breaks_when: ツールサーバー・請求書の API をクラウドの資源に移し、JWT でロールを引き受けるとき
+- event: U25
+  answer: 該当
+  token_types: [AGENT_AT]
+  note: エージェントが MCP のツールサーバーを AGENT_AT で呼ぶ。MCP の必須チェック表（設計書の 2. の P4 の表）で確かめる
+- event: U26
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  note: 受け手は mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する
+- event: U27
+  answer: 該当
+  token_types: [AGENT_AT, TOOL_AT]
+  note: scope に無い操作（返金など）は 403 と insufficient_scope で拒否する。ただしツールからの引き上げの要求はタスクの範囲を超えるので STS が拒否する（C14）
+- event: U28
+  answer: 対象外
+  assumption: クレームを分析基盤に複製しない
+  breaks_when: エージェントの利用の分析のために監査ログを分析基盤に流すとき
