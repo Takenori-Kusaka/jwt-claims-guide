@@ -1,0 +1,69 @@
+{
+ "what": "Playwright (Chromium) network log of the design-document viewer (#36), tools/tests/test_claims_viewer_ui.py::test_local_files_make_no_network_request",
+ "page": "docs/claims/index.html served by a local HTTP server (as GitHub Pages serves docs/)",
+ "browser": "chromium 151.0.7922.34",
+ "csp": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'",
+ "initial_load_requests": [
+  {
+   "method": "GET",
+   "url": "<origin>/claims/",
+   "type": "document"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/app.css",
+   "type": "stylesheet"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/js-yaml-4.1.1.min.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/meta.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/trace.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/app.js",
+   "type": "script"
+  }
+ ],
+ "local_files_opened": [
+  "templates/examples/scenario-a/claims.yaml",
+  "templates/examples/scenario-a/token_types.yaml",
+  "templates/examples/scenario-a/hops.yaml",
+  "templates/examples/scenario-a/catalog_answers.yaml"
+ ],
+ "screens_visited_after_opening": [
+  "#/local/claims",
+  "#/local/claim/C-tenant-id",
+  "#/local/tokens",
+  "#/local/hops",
+  "#/local/catalog",
+  "#/local/profile",
+  "#/local/lifecycle"
+ ],
+ "requests_while_opening_and_viewing_local_files": [],
+ "fetch_attempts_from_the_page": [
+  "blocked https://example.com/leak",
+  "blocked <origin>/claims/index.html"
+ ],
+ "requests_made_by_those_attempts": [],
+ "csp_violations": [
+  {
+   "directive": "connect-src",
+   "blocked": "https://example.com/leak"
+  },
+  {
+   "directive": "connect-src",
+   "blocked": "<origin>/claims/index.html"
+  }
+ ]
+}

@@ -71,6 +71,13 @@ jobs:
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)
         run: python -m pytest -q -rs tools/tests/test_catalog_check.py
+      - name: Viewer data (docs/claims/data/) match the YAML (#36; fix with python tools/build_claims_viewer.py)
+        run: python tools/build_claims_viewer.py --check
+      - name: Viewer build tests (drift detection, every schema column has a heading, CSP, pinned js-yaml, README links)
+        run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
+      # The browser tests of the viewer (tools/tests/test_claims_viewer_ui.py: rendering, filters, every column on the
+      # detail screen, no network in local-file mode) need Playwright and Chromium, which this job does not install;
+      # they are skipped here and run locally (README.md, 設計書のビューアー).
 
   secret-scan:
     runs-on: ubuntu-latest
