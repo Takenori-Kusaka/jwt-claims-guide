@@ -4,7 +4,7 @@
 
 対応表（`requirements.yaml`）を作るときに、どの issue の本文にもない成果物が必要になったものの一覧です。各 issue の本文に書き足すかどうかは、担当の issue で決めます。書き足さない場合は、`planned_items.yaml` の項目を別の成果物に付け替えるか、要件を「扱わない」にします。
 
-提案の件数：259 件
+提案の件数：260 件
 
 ## #3（32 件）
 
@@ -92,7 +92,7 @@
 | `template:00_core#priorities-deferrals` | 組織の種類ごとの重点と見送り、その効果・費用・見直しの条件 | `p12-priorities-deferrals.R3`, `p12-priorities-deferrals.R4`, `p12-priorities-deferrals.R5` |
 | `template:claim_request#q01` | 追加前の 25 問の第 1 問の回答欄 | `p11-pre-add-questions-1.R1` |
 | `template:claim_request#q02` | 追加前の 25 問の第 2 問の回答欄 | `p11-pre-add-questions-1.R2` |
-| `template:claim_request#q03` | 追加前の 25 問の第 3 問の回答欄 | `p10-four-questions.R7`, `p11-pre-add-questions-1.R3`, `p12-review-viewpoints.R1` |
+| `template:claim_request#q03` | 追加前の 25 問の第 3 問の回答欄 | `p02-registered-claims.R7`, `p02-scope.R3`, `p10-four-questions.R7`, `p11-pre-add-questions-1.R3`, `p12-review-viewpoints.R1` |
 | `template:claim_request#q04` | 追加前の 25 問の第 4 問の回答欄 | `p11-pre-add-questions-1.R4` |
 | `template:claim_request#q05` | 追加前の 25 問の第 5 問の回答欄 | `p11-pre-add-questions-1.R5` |
 | `template:claim_request#q06` | 追加前の 25 問の第 6 問の回答欄 | `p11-pre-add-questions-1.R6` |
@@ -117,10 +117,11 @@
 | `template:claim_request#q25` | 追加前の 25 問の第 25 問の回答欄 | `p11-pre-add-questions-2.R13` |
 | `template:claim_request#gate` | 答えられない問いが残るなら共有クレームにせずローカルな属性にとどめる判定 | `p09-do-not-carry.R7`, `p11-pre-add-questions-1.R13` |
 
-## #5（86 件）
+## #5（87 件）
 
 | 成果物 | 内容 | 使う要件 |
 | --- | --- | --- |
+| `review:perspectives#q-key-rotation` | 観点書：公開鍵を JWKS から取り、知らない kid の取り直しと鍵の公開・廃止の順序を決めたか（PR #45 の点検で role-operations から付け替え） | `p01-key-rotation-jwks.R5` |
 | `review:perspectives#q-shared-validator` | 全受け手が組織共通の検証部品で検証し、独自の読み方をしていないか | `p00-why-hard.R2`, `p01-library-defaults.R4` |
 | `review:perspectives#q-payload-readable` | 署名つき JWT のペイロードは持つ者・経由する全ホップが読めることを前提に、載せる値を選んでいるか | `p01-jwt-structure.R2` |
 | `review:perspectives#q-validate-before-read` | 受け入れの確認（署名・iss・aud・exp・typ）を終える前に独自クレームを読む実装がないか | `p01-validation-order.R9`, `p01-attack-patterns.R7` |
@@ -142,7 +143,7 @@
 | `review:perspectives#q-operator-act` | 運用者の操作が委任のトークン（sub と act）で行われ、両方が記録されているか | `p05-system-privileges.R3` |
 | `review:perspectives#q-break-glass` | break-glass に承認の ID と短い期限があるか | `p05-system-privileges.R5` |
 | `review:perspectives#q-cross-tenant-identity` | テナントをまたいだ暗黙の名寄せをしていないか、複合キーを使っているか | `p05-cross-tenant.R2` |
-| `review:contrasts/scope-vs-role` | 対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方） | `p05-scope-vs-role.R1` |
+| `review:contrasts/scope-vs-role#misuse` | 対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方） | `p05-scope-vs-role.R1` |
 | `review:perspectives#q-hook-adds-raw-pii` | 発行時フックが生の個人情報を足していないか | `p06-issuance-hook.R4` |
 | `review:perspectives#q-step-up-by-rs` | 高リスクの操作で、受け手が acr・auth_time を見て追加認証を求めるか | `p06-step-up-approval.R2` |
 | `review:perspectives#q-rar-per-audience` | authorization_details を宛先ごとに絞っているか | `p06-step-up-approval.R3` |

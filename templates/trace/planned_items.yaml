@@ -157,6 +157,7 @@ items:
   - {ref: review:perspectives#role-privacy, issue: "#5", origin: issue, title: 観点書：個人情報}
   - {ref: review:perspectives#role-client, issue: "#5", origin: issue, title: 観点書：クライアントの実装（保存場所）}
   - {ref: review:perspectives#q-hop-lifetime, issue: "#5", origin: issue, title: ホップごとに寿命が上流を超えていないか}
+  - {ref: review:perspectives#q-key-rotation, issue: "#5", origin: proposed, title: "観点書：公開鍵を JWKS から取り、知らない kid の取り直しと鍵の公開・廃止の順序を決めたか（PR #45 の点検で role-operations から付け替え）"}
   - {ref: review:perspectives#q-freshness-mitigation, issue: "#5", origin: issue, title: 寿命が鮮度の許容時間を超えるクレームに対策があるか}
   - {ref: review:perspectives#q-revocation-delivery, issue: "#5", origin: issue, title: 剥奪がどの手段で何秒以内に届くか}
   - {ref: review:perspectives#q-long-running, issue: "#5", origin: issue, title: 長時間の処理でトークンをどう扱うか}
@@ -165,10 +166,10 @@ items:
   - {ref: review:decision_tree#keep-sub-exchange, issue: "#5", origin: issue, title: 下流が利用者の権限で動く → sub を保って交換}
   - {ref: review:decision_tree#txn-tctx, issue: "#5", origin: issue, title: 取引の内容を固定 → Txn-Token の tctx}
   - {ref: review:decision_tree#peer-mtls, issue: "#5", origin: issue, title: 直接の通信相手 → mTLS・SPIFFE}
-  - {ref: review:contrasts/act-txn-workload, issue: "#5", origin: issue, title: 対比表：act と Txn-Token とワークロード認証}
-  - {ref: review:contrasts/id-vs-access-token, issue: "#5", origin: issue, title: 対比表：ID トークンとアクセストークン}
-  - {ref: review:contrasts/signed-vs-enforced, issue: "#5", origin: issue, title: 対比表：署名で守られていることと受け手が照合していること}
-  - {ref: review:contrasts/four-lifetimes, issue: "#5", origin: issue, title: 対比表：寿命の 4 つの層}
+  - {ref: review:contrasts/act-txn-workload#misuse, issue: "#5", origin: issue, title: 対比表：act と Txn-Token とワークロード認証}
+  - {ref: review:contrasts/id-vs-access-token#misuse, issue: "#5", origin: issue, title: 対比表：ID トークンとアクセストークン}
+  - {ref: review:contrasts/signed-vs-enforced#misuse, issue: "#5", origin: issue, title: 対比表：署名で守られていることと受け手が照合していること}
+  - {ref: review:contrasts/four-lifetimes#misuse, issue: "#5", origin: issue, title: 対比表：寿命の 4 つの層}
   - {ref: review:escalation#draft-spec, issue: "#5", origin: issue, title: 専門家に回す：草案の仕様に依存}
   - {ref: review:escalation#custom-crypto, issue: "#5", origin: issue, title: 専門家に回す：独自の暗号}
   - {ref: review:escalation#delegation-depth, issue: "#5", origin: issue, title: 専門家に回す：委任の深さが 2 以上}
@@ -422,7 +423,7 @@ items:
   - {ref: review:perspectives#q-operator-act, issue: "#5", origin: proposed, title: "運用者の操作が委任のトークン（sub と act）で行われ、両方が記録されているか"}
   - {ref: review:perspectives#q-break-glass, issue: "#5", origin: proposed, title: "break-glass に承認の ID と短い期限があるか"}
   - {ref: review:perspectives#q-cross-tenant-identity, issue: "#5", origin: proposed, title: "テナントをまたいだ暗黙の名寄せをしていないか、複合キーを使っているか"}
-  - {ref: review:contrasts/scope-vs-role, issue: "#5", origin: proposed, title: "対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方）"}
+  - {ref: review:contrasts/scope-vs-role#misuse, issue: "#5", origin: proposed, title: "対比表：scope と role（守る相手、トークンに入る範囲、IdP ごとの表し方）"}
   - {ref: review:perspectives#q-hook-adds-raw-pii, issue: "#5", origin: proposed, title: "発行時フックが生の個人情報を足していないか"}
   - {ref: review:perspectives#q-step-up-by-rs, issue: "#5", origin: proposed, title: "高リスクの操作で、受け手が acr・auth_time を見て追加認証を求めるか"}
   - {ref: review:perspectives#q-rar-per-audience, issue: "#5", origin: proposed, title: "authorization_details を宛先ごとに絞っているか"}

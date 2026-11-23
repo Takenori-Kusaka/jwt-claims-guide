@@ -35,7 +35,7 @@
 ## 2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_authz_pdp#carry-or-query`
-<!-- req:p01-self-contained-vs-reference.R1 req:p04-token-is-snapshot.R2 req:p04-carry-or-query.R1 req:p04-size-budget.R4 req:p05-authz-models.R2 req:p06-issuance-hook.R3 req:p08-decision-table.R4 req:p09-do-not-carry.R5 -->
+<!-- req:p01-self-contained-vs-reference.R1 req:p04-token-is-snapshot.R2 req:p04-carry-or-query.R1 req:p04-size-budget.R4 req:p05-authz-models.R2 req:p06-issuance-hook.R3 req:p08-decision-table.R4 req:p09-do-not-carry.R5 req:p04-carry-or-query.R5 req:p12-antipatterns-2.R1 -->
 
 決めること：判定の入力をトークンに載せるか、都度 PDP・DB・UserInfo に問い合わせるか。トークンは発行時点の写しで、発行後の変更は届きません。
 

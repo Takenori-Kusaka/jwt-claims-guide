@@ -6,6 +6,7 @@
 rfcs:
   7009: OAuth 2.0 Token Revocation
   7515: JSON Web Signature (JWS)
+  7516: JSON Web Encryption (JWE)
   7519: JSON Web Token (JWT)
   7662: OAuth 2.0 Token Introspection
   8693: OAuth 2.0 Token Exchange

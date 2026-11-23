@@ -87,7 +87,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "scope on this hop. Downstream does not widen it",
-     "$comment": "Trace: req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2 req:p02-scope.R2"
     },
     "max_lifetime": {
      "type": [
@@ -107,7 +107,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Registry rows of organization claims carried on this hop (or the values copied, for a DB hop)",
-     "$comment": "Trace: req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2 req:p06-step-up-approval.R3 req:p09-minimize-derived.R4 req:p09-checklist.R4"
     },
     "authorization_details": {
      "type": "array",
@@ -155,7 +155,7 @@
       "checks"
      ],
      "description": "What the receiver of the hop checks and whether it validates locally (accepted until exp) or asks the issuer",
-     "$comment": "Trace: req:p08-revocation-propagation.R4"
+     "$comment": "Trace: req:p08-revocation-propagation.R4 req:p06-header-forwarding.R4"
     },
     "connection_max_lifetime": {
      "type": [

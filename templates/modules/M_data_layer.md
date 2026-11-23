@@ -14,7 +14,7 @@
 ## 1. DB の文脈を設定する主体と、経路の選択〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_data_layer#db-context-setter`
-<!-- req:p07-three-db-paths.R1 req:p07-three-db-paths.R2 req:p07-row-level-security.R4 req:p07-data-layer-checklist.R1 -->
+<!-- req:p07-three-db-paths.R1 req:p07-three-db-paths.R2 req:p07-row-level-security.R4 req:p07-data-layer-checklist.R1 req:p07-trust-boundary.R1 -->
 
 決めること：トークンのクレームがデータ層に届く経路と、「DB の文脈を設定するのは誰か」。経路を選ぶ前に、設定する主体を図に書き、その主体以外が書ける経路を残さないようにします（slide:p07-three-db-paths）。
 
@@ -114,7 +114,7 @@ DB・ブローカーがトークンを検証する（経路 B）ときに確か�
 ## 4. マスキングと RLS をすり抜ける主体〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_data_layer#masking-rls-bypass`
-<!-- req:p07-row-level-security.R3 req:p07-masking.R3 req:p07-data-layer-checklist.R6 -->
+<!-- req:p07-row-level-security.R3 req:p07-masking.R3 req:p07-data-layer-checklist.R6 req:p07-masking.R2 -->
 
 決めること：行単位の制御とマスキングの外にいる主体の一覧と、それを通常の経路から外す方法。
 

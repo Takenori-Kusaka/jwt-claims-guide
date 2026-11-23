@@ -98,7 +98,7 @@
 ## 4. 派生値〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_privacy_minimization#derived-values`
-<!-- req:p09-minimize-derived.R1 req:p09-minimize-derived.R2 -->
+<!-- req:p09-minimize-derived.R1 req:p09-minimize-derived.R2 req:p09-checklist.R2 -->
 
 決めること：受け手が要るのが値そのものか、判定か。判定で足りるなら、元の値を明かさない派生値（例：生年月日ではなく「18 歳以上か」）を載せ、判定の書き手を発行者に限ります。
 
@@ -201,7 +201,7 @@
 ## 8. 監査ログ自体の保護〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_privacy_minimization#audit-log-protection`
-<!-- req:p09-logs-traces.R5 -->
+<!-- req:p09-logs-traces.R5 req:p09-checklist.R9 -->
 
 決めること：監査ログそのものを機微な情報として扱い、誰が読めるか、いつまで残すかを決めます。ハッシュ化した主体も、照合の表があれば元に戻せます。
 

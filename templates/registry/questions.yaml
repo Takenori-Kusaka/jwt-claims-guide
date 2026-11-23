@@ -14,6 +14,7 @@
 # 件数：questions 11 件、pending 4 件
 questions:
   - id: q-sub
+    trace: "req:p06-validation-split.R6"
     text: 誰の権限で
     slides: [p05-one-request-carries, p06-audit-trail]
     mechanisms:
@@ -123,6 +124,7 @@ questions:
       - {kind: guide-slide, id: p10-four-questions}
 
   - id: q-holder
+    trace: "req:p02-keys-events-identity-assurance.R1"
     text: 誰が持つべきか
     slides: [p10-four-questions]
     mechanisms:
@@ -147,6 +149,7 @@ pending:
     reason: スライドの表は「typ｜トークンの種類」で、問いの形の文言がない
     tracking: "#3"
   - id: q-auth-strength
+    trace: "req:p06-step-up-approval.R2"
     proposed_text: どの強さで、いつ認証されたか
     mechanisms_hint: acr・amr・auth_time
     nearest_slides: [p02-auth-strength-session, p10-four-questions]

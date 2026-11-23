@@ -8,16 +8,16 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 750
-  未着手: 496
-  実装済み: 211
+  未着手: 402
+  実装済み: 305
   後回し: 42
   扱わない: 1
-  core_未着手: 324
-  core_実装済み: 166
+  core_未着手: 264
+  core_実装済み: 226
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 172
-  full_実装済み: 45
+  full_未着手: 138
+  full_実装済み: 79
   full_後回し: 42
   full_扱わない: 1
 
@@ -353,7 +353,7 @@ requirements:
     text: "署名つき JWT のペイロードは誰でも読めるとして、秘密にしたい情報を入れない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-payload-readable, registry:claims#pii_category]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-jwt-structure.R3
     slide: slide:p01-jwt-structure
@@ -502,8 +502,8 @@ requirements:
     slide: slide:p01-key-rotation-jwks
     text: "公開鍵をコードに埋め込まない。ローテーションの頻度が変わっても追従できるようにする"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-operations]
-    status: 未着手
+    planned_items: [review:perspectives#q-key-rotation]
+    status: 実装済み
     tier: full
   # ---- 14 slide:p01-client-made-jwts
   - id: p01-client-made-jwts.R1
@@ -539,7 +539,7 @@ requirements:
     slide: slide:p01-id-token-vs-access-token
     text: "API に渡すのはアクセストークンとし、ID トークンを API に送らない・受け入れない"
     owner_issue: "#5"
-    planned_items: [review:contrasts/id-vs-access-token, test:negative_tests#typ-wrong]
+    planned_items: [review:contrasts/id-vs-access-token#misuse, test:negative_tests#typ-wrong]
     status: 未着手
     tier: core
   - id: p01-id-token-vs-access-token.R2
@@ -705,7 +705,7 @@ requirements:
     text: "iat を認証した時刻として使わない（auth_time を使う）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-auth-context-semantics, registry:claims#not_meaning]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-registered-claims.R5
     slide: slide:p02-registered-claims
@@ -725,8 +725,8 @@ requirements:
     slide: slide:p02-registered-claims
     text: "登録クレームと同じ意味の独自クレームを別名で作らない"
     owner_issue: "#5"
-    planned_items: [review:perspectives#q-registered-synonym, template:claim_request, registry:claims#registered_ref]
-    status: 未着手
+    planned_items: [review:perspectives#q-registered-synonym, template:claim_request#q03, registry:claims#registered_ref]
+    status: 実装済み
     tier: core
   # ---- 21 slide:p02-name-categories
   - id: p02-name-categories.R1
@@ -777,7 +777,7 @@ requirements:
     text: "sub_id と sub を組み合わせて主体を決めない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-identifier-choice]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-user-identifier.R5
     slide: slide:p02-user-identifier
@@ -835,7 +835,7 @@ requirements:
     text: "同じ文字列がどの受け手・どの IdP でも同じ意味・位置だと仮定しない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-value-vocabulary, registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-roles-groups-entitlements.R4
     slide: slide:p02-roles-groups-entitlements
@@ -857,21 +857,21 @@ requirements:
     text: "scope を利用者の全権限と読まない（クライアントに委ねた範囲として扱う）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-scope-semantics, registry:claims#not_meaning]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-scope.R2
     slide: slide:p02-scope
     text: "各スコープが aud のリソースにとって意味を持つようにする"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-scope-semantics, registry:hops#scope]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-scope.R3
     slide: slide:p02-scope
     text: "独自の権限オブジェクトを作る前に、authorization_details の type で表せないかを検討する"
     owner_issue: "#5"
-    planned_items: [review:decision_tree#rar-vs-custom, template:claim_request]
-    status: 未着手
+    planned_items: [review:decision_tree#rar-vs-custom, template:claim_request#q03]
+    status: 実装済み
     tier: core
   - id: p02-scope.R4
     slide: slide:p02-scope
@@ -889,10 +889,10 @@ requirements:
     tier: core
   - id: p02-scope.R6
     slide: slide:p02-scope
-    text: "同じ API では scope か authorization_details の一方を使う"
+    text: "同じ API では scope か authorization_details の一方を使う（推奨。RFC 9396 §3.1 は主に移行のための併用を認める。併用するならどちらで何を決めるかを台帳に書く）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-scope-semantics]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-scope.R7
     slide: slide:p02-scope
@@ -914,14 +914,14 @@ requirements:
     text: "amr の mfa を保証の水準の代わりにしない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-auth-context-semantics, registry:claims#not_meaning]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-auth-strength-session.R3
     slide: slide:p02-auth-strength-session
     text: "認証の時刻は auth_time を使い、iat（発行時刻）と区別する"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-auth-context-semantics]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-auth-strength-session.R4
     slide: slide:p02-auth-strength-session
@@ -934,8 +934,8 @@ requirements:
     slide: slide:p02-auth-strength-session
     text: "sid をアプリのセッション ID とせず、ID トークンの exp をログインセッションの寿命としない"
     owner_issue: "#5"
-    planned_items: [review:contrasts/four-lifetimes, template:00_core#lifecycle]
-    status: 未着手
+    planned_items: [review:contrasts/four-lifetimes#misuse, template:00_core#lifecycle]
+    status: 実装済み
     tier: core
   - id: p02-auth-strength-session.R6
     slide: slide:p02-auth-strength-session
@@ -949,7 +949,7 @@ requirements:
     slide: slide:p02-delegation-client
     text: "認可に使うのは最上位のクレームと最も外側の act だけにする"
     owner_issue: "#18"
-    planned_items: [lint:L12, test:negative_tests#nested-act, review:contrasts/act-txn-workload]
+    planned_items: [lint:L12, test:negative_tests#nested-act, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p02-delegation-client.R2
@@ -977,7 +977,7 @@ requirements:
     slide: slide:p02-delegation-client
     text: "sub だけを見ず、エージェントや別サービス経由の操作を act で本人の操作と区別する"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p02-delegation-client.R6
@@ -993,7 +993,7 @@ requirements:
     text: "端末・鍵への結び付けは cnf を使い、独自のクレームを作らない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-reuse-standard-structure, registry:questions#q-holder]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-keys-events-identity-assurance.R2
     slide: slide:p02-keys-events-identity-assurance
@@ -1007,7 +1007,7 @@ requirements:
     text: "関連するトークンの相関 ID には txn を使い、独自の名前で作り直さない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-reuse-standard-structure]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-keys-events-identity-assurance.R4
     slide: slide:p02-keys-events-identity-assurance
@@ -1107,7 +1107,7 @@ requirements:
     text: "組織の台帳に、同じ意味のクレームが別名で既にないかを確かめる"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-registered-synonym]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p02-check-before-creating.R6
     slide: slide:p02-check-before-creating
@@ -1618,7 +1618,7 @@ requirements:
     text: "4 つの問い（認可に使うか・変わらないか・小さいか・全受け手が要るか）にすべて「はい」のものだけを載せ、台帳に登録する"
     owner_issue: "#5"
     planned_items: [review:decision_tree#carry-or-query, template:modules/M_authz_pdp#carry-or-query]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 50 slide:p04-claim-names
   - id: p04-claim-names.R1
@@ -1741,7 +1741,7 @@ requirements:
     text: "受け手の式では真偽値を true と明示的に比べ、必須のクレームで欠落時に通す既定値（orValue(true) など）を使わない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-consumer-expression]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 54 slide:p04-absent-null-false-empty
   - id: p04-absent-null-false-empty.R1
@@ -1863,7 +1863,7 @@ requirements:
     slide: slide:p04-split-by-writer
     text: "Txn-Token の rctx は要求時点の環境の値として扱い、TTS が決めた認可の詳細（tctx）と区別する"
     owner_issue: "#4"
-    planned_items: [template:profiles/P5_internal_propagation#txn-token, review:contrasts/act-txn-workload]
+    planned_items: [template:profiles/P5_internal_propagation#txn-token, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   # ---- 58 slide:p04-size-budget
@@ -2137,7 +2137,7 @@ requirements:
     slide: slide:p05-one-request-carries
     text: "誰の権限で（sub）と誰が実行しているか（act・req_wl・mTLS の相手）を、別々のクレーム・チャネルで運び、1 つに混ぜない"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-sub, registry:questions#q-actor, registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-sub, registry:questions#q-actor, registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p05-one-request-carries.R2
@@ -2152,7 +2152,7 @@ requirements:
     text: "認可は元の利用者の権限で判断し、仲介するサービスの権限で判断しない（ASVS 8.3.3）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-original-principal]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-one-request-carries.R4
     slide: slide:p05-one-request-carries
@@ -2172,14 +2172,14 @@ requirements:
     slide: slide:p05-one-request-carries
     text: "今の代理者は最も外側の act だけで判断し、入れ子の内側の act（過去の代理者）をアクセス制御に使わない（RFC 8693 §4.1）"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p05-one-request-carries.R7
     slide: slide:p05-one-request-carries
     text: "Txn-Token の req_wl（求めたワークロード）を直接の通信相手とみなさない。直接の相手は mTLS（SPIFFE など）で確かめる"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-req-wl, registry:questions#q-peer, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   # ---- 67 slide:p05-authz-models
@@ -2231,7 +2231,7 @@ requirements:
     text: "トークンが有効かどうかだけで認可せず、提示された文脈も判断に使う（IR 8587 §4.1.4）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-validity-not-authz]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 69 slide:p05-coarse-fine-layers
   - id: p05-coarse-fine-layers.R1
@@ -2274,8 +2274,8 @@ requirements:
     slide: slide:p05-scope-vs-role
     text: "scope はクライアントに委ねた範囲で利用者の全権限ではないとし、受け手は scope と role の両方を確かめる"
     owner_issue: "#5"
-    planned_items: [review:contrasts/scope-vs-role, review:perspectives#q-scope-and-role]
-    status: 未着手
+    planned_items: [review:contrasts/scope-vs-role#misuse, review:perspectives#q-scope-and-role]
+    status: 実装済み
     tier: full
   - id: p05-scope-vs-role.R2
     slide: slide:p05-scope-vs-role
@@ -2354,7 +2354,7 @@ requirements:
     text: "緊急時の特権（break-glass）は、承認（RAR・CIBA）の ID と短い期限を確かめる"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-break-glass, template:00_core#system-privileges]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-system-privileges.R6
     slide: slide:p05-system-privileges
@@ -2426,7 +2426,7 @@ requirements:
     text: "テナントをまたいだ暗黙の名寄せ（idp クレームなどによる）をしない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-cross-tenant-identity, template:modules/M_multitenancy#cross-tenant]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-cross-tenant.R3
     slide: slide:p05-cross-tenant
@@ -2483,7 +2483,7 @@ requirements:
     text: "ゲートウェイや WAF で BOLA を防げる前提にしない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-object-level-authz]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-bola.R5
     slide: slide:p05-bola
@@ -2497,7 +2497,7 @@ requirements:
     slide: slide:p05-confused-deputy
     text: "委任の連鎖は act のネストで記録して見せる"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-actor, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p05-confused-deputy.R2
@@ -2512,7 +2512,7 @@ requirements:
     text: "仲介するサービスは、呼び出し元のための処理を自分の広い権限で下流に依頼しない（自分のための代理かを確かめる）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-original-principal]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-confused-deputy.R4
     slide: slide:p05-confused-deputy
@@ -2605,7 +2605,7 @@ requirements:
     text: "生の個人情報（生年月日など）をフックで足さない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-hook-adds-raw-pii, registry:claims#pii_category]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-issuance-hook.R5
     slide: slide:p06-issuance-hook
@@ -2763,14 +2763,14 @@ requirements:
     text: "acr・auth_time を発行時点の事実として扱い、追加認証の起動をクレームでなく受け手の判断にする"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-step-up-by-rs, registry:questions#q-auth-strength]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-step-up-approval.R3
     slide: slide:p06-step-up-approval
     text: "承認の内容（authorization_details）を JWT に入れるときは宛先ごとに絞る"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-rar-per-audience, registry:hops#custom_claims]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-step-up-approval.R4
     slide: slide:p06-step-up-approval
@@ -2826,8 +2826,8 @@ requirements:
     slide: slide:p06-narrow-downstream
     text: "act のネストや RFC 8693 の交換が縮小を保証しないこと、Txn-Token の寿命が元より長くてよいことを対比表に書く"
     owner_issue: "#5"
-    planned_items: [review:contrasts/act-txn-workload, review:contrasts/four-lifetimes]
-    status: 未着手
+    planned_items: [review:contrasts/act-txn-workload#misuse, review:contrasts/four-lifetimes#misuse]
+    status: 実装済み
     tier: core
   # ---- 85 slide:p06-validation-split
   - id: p06-validation-split.R1
@@ -2870,7 +2870,7 @@ requirements:
     text: "内部の呼び出しでも元の利用者の権限で判断し、仲介サービスの権限で判断しない"
     owner_issue: "#5"
     planned_items: [review:decision_tree#keep-sub-exchange, registry:questions#q-sub]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-validation-split.R7
     slide: slide:p06-validation-split
@@ -2884,7 +2884,7 @@ requirements:
     text: "入口を通らない経路を範囲の図に書き、その経路でも検証があることを確かめる"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-gateway-bypass-path, template:00_core#scope-boundary]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 86 slide:p06-access-context
   - id: p06-access-context.R1
@@ -2892,7 +2892,7 @@ requirements:
     text: "「今どこから来たか」（IP・ネットワーク・端末）の判断をトークンのクレームに頼らず、PEP が要求ごとに接続から得た値で行う"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-access-context-from-pep, lint:L5]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-access-context.R2
     slide: slide:p06-access-context
@@ -2913,7 +2913,7 @@ requirements:
     text: "X-Forwarded-For などクライアントが偽装できるヘッダー由来の文脈を判断に使わない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-access-context-from-pep, review:perspectives#role-attacker]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 87 slide:p06-header-forwarding
   - id: p06-header-forwarding.R1
@@ -2942,14 +2942,14 @@ requirements:
     text: "署名を検証せずに取り出したクレーム（extract_only_without_validation など）を認可に使わない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-unverified-claim-extraction, registry:hops#validates]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p06-header-forwarding.R5
     slide: slide:p06-header-forwarding
     text: "ヘッダーだけを見て JWT を確かめないサービスに、入口を通らずに届く経路を残さない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-gateway-bypass-path]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p06-header-forwarding.R6
     slide: slide:p06-header-forwarding
@@ -2985,7 +2985,7 @@ requirements:
     text: "署名されたトークン内の txn を監査に、改ざんできる traceparent を観測だけに使い分ける"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-trace-id-trust]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p06-audit-trail.R5
     slide: slide:p06-audit-trail
@@ -3042,7 +3042,7 @@ requirements:
     slide: slide:p06-flow-browser-to-db
     text: "ID トークンを API に送らない"
     owner_issue: "#5"
-    planned_items: [review:contrasts/id-vs-access-token, test:negative_tests#typ-wrong]
+    planned_items: [review:contrasts/id-vs-access-token#misuse, test:negative_tests#typ-wrong]
     status: 未着手
     tier: core
   - id: p06-flow-browser-to-db.R3
@@ -3221,7 +3221,7 @@ requirements:
     text: "アクセス元の文脈は、PEP が要求ごとに評価する（項目 9）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-access-context-from-pep, review:perspectives#checklist-p06-flow]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p06-flow-checklist.R10
     slide: slide:p06-flow-checklist
@@ -3250,7 +3250,7 @@ requirements:
     text: "文脈を設定する主体以外が書ける経路を残さない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-db-context-writers]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p07-three-db-paths.R4
     slide: slide:p07-three-db-paths
@@ -3294,14 +3294,14 @@ requirements:
     text: "注入型の分離では、注入者以外が同じ接続・取引で任意の SQL を流せないようにする（RESET ROLE で戻せるため）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-db-context-writers, template:modules/M_data_layer#db-context-setter]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-trust-boundary.R2
     slide: slide:p07-trust-boundary
     text: "セッション変数による分離に、全 SQL に明示的なテナントの条件を付ける規約とレビューを併用する"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-sql-tenant-predicate]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-trust-boundary.R3
     slide: slide:p07-trust-boundary
@@ -3344,7 +3344,7 @@ requirements:
     text: "文脈の値は文字列の連結でなくパラメータで渡す"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-db-context-parameterized]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 99 slide:p07-db-token-auth
   - id: p07-db-token-auth.R1
@@ -3395,7 +3395,7 @@ requirements:
     text: "剥奪が開いた接続に届かないことを前提に、すぐ止める手段（DB 側の主体の削除）を書く"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-revocation-delivery, template:00_core#lifecycle-db-connection]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-lifetime-mismatch.R4
     slide: slide:p07-lifetime-mismatch
@@ -3424,7 +3424,7 @@ requirements:
     text: "サービス ID でアプリだけで認可する型では、全 SQL にテナントの条件があることを確かめる"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-sql-tenant-predicate]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p07-connect-as-whom.R4
     slide: slide:p07-connect-as-whom
@@ -3446,7 +3446,7 @@ requirements:
     text: "DDM と RLS だけで機微データを守らず、最小権限と監査を併用する"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-ddm-rls-only, template:modules/M_data_layer#masking-rls-bypass]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p07-masking.R3
     slide: slide:p07-masking
@@ -3560,15 +3560,15 @@ requirements:
     slide: slide:p08-four-lifetimes
     text: "独自クレームごとに、寿命の 4 つの層（トークン・値の鮮度・セッションと RT・定義）を別々に書く"
     owner_issue: "#5"
-    planned_items: [review:contrasts/four-lifetimes, template:00_core#freshness, template:00_core#definition-lifecycle]
-    status: 未着手
+    planned_items: [review:contrasts/four-lifetimes#misuse, template:00_core#freshness, template:00_core#definition-lifecycle]
+    status: 実装済み
     tier: core
   - id: p08-four-lifetimes.R2
     slide: slide:p08-four-lifetimes
     text: "セッションと RT の寿命がトークンの寿命より長いことを前提に、剥奪がどの手段で届くかを決める"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-revocation-delivery]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 107 slide:p08-token-types-lifetimes
   - id: p08-token-types-lifetimes.R1
@@ -3582,8 +3582,8 @@ requirements:
     slide: slide:p08-token-types-lifetimes
     text: "ID トークン（アサーション）の有効期間を、セッションの長さと混同しない"
     owner_issue: "#5"
-    planned_items: [review:contrasts/four-lifetimes, review:contrasts/id-vs-access-token]
-    status: 未着手
+    planned_items: [review:contrasts/four-lifetimes#misuse, review:contrasts/id-vs-access-token#misuse]
+    status: 実装済み
     tier: core
   - id: p08-token-types-lifetimes.R3
     slide: slide:p08-token-types-lifetimes
@@ -3626,14 +3626,14 @@ requirements:
     text: "AT の期限を当てにした実装（期限切れで剥奪が効く前提など）をしない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-relies-on-at-expiry]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p08-choosing-lifetime.R4
     slide: slide:p08-choosing-lifetime
     text: "短くする利点（漏えい時の期間・剥奪の反映）と代償（リフレッシュの負荷・IdP 停止の影響）を比べて寿命の理由を書く"
     owner_issue: "#5"
     planned_items: [review:perspectives#role-operations, template:00_core#lifetime-policy]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-choosing-lifetime.R5
     slide: slide:p08-choosing-lifetime
@@ -3734,7 +3734,7 @@ requirements:
     text: "サイレント再認証では auth_time が変わらないことを前提に、認証の新しさは iat でなく auth_time で判断する"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-auth-context-semantics]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 112 slide:p08-rotation
   - id: p08-rotation.R1
@@ -3899,7 +3899,7 @@ requirements:
     text: "ワーカーは交換で sub＝利用者・act＝自分の分単位のトークンを作り直し、下流は act を確かめて記録する"
     owner_issue: "#5"
     planned_items: [review:decision_tree#keep-sub-exchange, review:perspectives#q-long-running, template:00_core#lifecycle]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-async-processing.R5
     slide: slide:p08-async-processing
@@ -3921,14 +3921,14 @@ requirements:
     text: "利用者の文脈が要らない処理だけをサービス自身の ID で動かし、利用者の sub を捏造しない"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-system-actor-no-fake-sub]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p08-downstream-after-expiry.R3
     slide: slide:p08-downstream-after-expiry
     text: "期限切れ後の下流呼び出しは、ワークロード ID での交換で短命トークンを作り直し、可否を毎回 AS が承認記録と利用者の状態から決める"
     owner_issue: "#5"
     planned_items: [review:decision_tree#keep-sub-exchange, template:00_core#lifecycle]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-downstream-after-expiry.R4
     slide: slide:p08-downstream-after-expiry
@@ -3972,7 +3972,7 @@ requirements:
     text: "寿命の数字より先に「剥奪をどれだけ早く効かせたいか」を決め、数字をそこから導く"
     owner_issue: "#5"
     planned_items: [review:decision_tree#lifetime-by-situation, template:00_core#lifetime-policy]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p08-decision-table.R2
     slide: slide:p08-decision-table
@@ -3986,7 +3986,7 @@ requirements:
     text: "FAPI 対象の機密クライアントは短命・送信者制約の AT とし、ローテーションせず、RS が失効状態を確かめる"
     owner_issue: "#5"
     planned_items: [review:decision_tree#lifetime-by-situation, registry:token_types#sender_constraint]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-decision-table.R4
     slide: slide:p08-decision-table
@@ -4000,7 +4000,7 @@ requirements:
     text: "サービス間のワークロードのトークンはできるだけ短くし、RT を持たないか短くし、ID・鍵の廃止で止める"
     owner_issue: "#5"
     planned_items: [review:decision_tree#lifetime-by-situation, registry:token_types#refresh]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-decision-table.R6
     slide: slide:p08-decision-table
@@ -4035,8 +4035,8 @@ requirements:
     slide: slide:p09-jws-is-readable
     text: "署名は改ざんの検出であり秘匿ではないことを、対比表に書く"
     owner_issue: "#5"
-    planned_items: [review:contrasts/signed-vs-enforced]
-    status: 未着手
+    planned_items: [review:contrasts/signed-vs-enforced#misuse]
+    status: 実装済み
     tier: core
   # ---- 121 slide:p09-do-not-carry
   - id: p09-do-not-carry.R1
@@ -4079,7 +4079,7 @@ requirements:
     text: "接続元の詳細（IP・端末の識別子）をトークンに載せず、PEP で都度取得する"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-access-context-from-pep]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p09-do-not-carry.R7
     slide: slide:p09-do-not-carry
@@ -4115,7 +4115,7 @@ requirements:
     text: "機能に必要な最小限のクレームだけを受け手ごとに出す"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-minimal-per-recipient, registry:claims#consumers, registry:hops#custom_claims]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 123 slide:p09-pairwise-identifiers
   - id: p09-pairwise-identifiers.R1
@@ -4137,7 +4137,7 @@ requirements:
     text: "ペアワイズの識別子に識別情報を含めず、推測できない値にする"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-pairwise-external, registry:token_types#subject_type]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p09-pairwise-identifiers.R4
     slide: slide:p09-pairwise-identifiers
@@ -4231,7 +4231,7 @@ requirements:
     text: "障害調査で共有する HAR ファイル・ログからトークンが漏れないよう、共有前の除去を運用で決める"
     owner_issue: "#5"
     planned_items: [review:perspectives#role-operations]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p09-url-browser.R4
     slide: slide:p09-url-browser
@@ -4253,21 +4253,21 @@ requirements:
     text: "チェック：値ではなく判定（派生値）で足りないか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-derived-value, template:modules/M_privacy_minimization#derived-values]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p09-checklist.R3
     slide: slide:p09-checklist
     text: "チェック：外部の受け手にペアワイズの sub を使うか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-pairwise-external, registry:token_types#subject_type]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p09-checklist.R4
     slide: slide:p09-checklist
     text: "チェック：受け手ごとに必要なクレームだけを出すか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-minimal-per-recipient, registry:hops#custom_claims]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p09-checklist.R5
     slide: slide:p09-checklist
@@ -4295,14 +4295,14 @@ requirements:
     text: "チェック：記録するヘッダーを許可リストにしているか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-token-logging, registry:token_types#log_policy]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p09-checklist.R9
     slide: slide:p09-checklist
     text: "チェック：監査ログ自体を機微な情報として守るか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-audit-log-protected, template:modules/M_privacy_minimization#audit-log-protection]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 129 slide:p10-agent-identity
   - id: p10-agent-identity.R1
@@ -4352,7 +4352,7 @@ requirements:
     slide: slide:p10-four-questions
     text: "エージェント・クライアントは client_id・azp・act.sub・req_wl で表し、現在のアクターは最も外側の act とする"
     owner_issue: "#3"
-    planned_items: [registry:questions#q-actor, registry:questions#q-req-wl, review:contrasts/act-txn-workload]
+    planned_items: [registry:questions#q-actor, registry:questions#q-req-wl, review:contrasts/act-txn-workload#misuse]
     status: 未着手
     tier: core
   - id: p10-four-questions.R3
@@ -4582,14 +4582,14 @@ requirements:
     text: "委任トークンは署名し、テナントを検証し、失効でき、ログを残す（CVE-2025-55241 の逆）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-internal-delegation-token, lint:L17, lint:L9]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p10-delegation-chain-depth.R6
     slide: slide:p10-delegation-chain-depth
     text: "委任の深さが 2 以上の設計は専門家に回す"
     owner_issue: "#5"
     planned_items: [review:escalation#delegation-depth]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 136 slide:p10-vendor-features
   - id: p10-vendor-features.R1
@@ -4612,7 +4612,7 @@ requirements:
     text: "規則の根拠には IR 8587・MCP 仕様・RFC を使い、白書と草案は方向性として示して必須とは書かない"
     owner_issue: "#5"
     planned_items: [review:escalation#draft-spec, template:CONTRIBUTING#evidence-types]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p10-guidance-standards.R2
     slide: slide:p10-guidance-standards
@@ -4627,7 +4627,7 @@ requirements:
     text: "チェック：エージェントを独立した ID として登録したか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-agent-own-identity, template:profiles/P4_ai_agent_delegation#agent-identity]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p10-agent-checklist.R2
     slide: slide:p10-agent-checklist
@@ -4683,7 +4683,7 @@ requirements:
     text: "チェック：sub・全アクター・txn・承認 ID を相関できるか"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-audit-correlation, template:profiles/P4_ai_agent_delegation#audit-correlation]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 140 slide:p11-why-govern
   - id: p11-why-govern.R1
@@ -4984,7 +4984,7 @@ requirements:
     text: "製品の独自クレームを組織の契約にせず、入口で act・client_id など標準のクレームにそろえる"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-idp-diff-absorbed, registry:claims#upstream_issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-translation-layer.R6
     slide: slide:p11-translation-layer
@@ -5313,8 +5313,8 @@ requirements:
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：署名を確かめずに中身で認可しない。必ず検証してから読む"
     owner_issue: "#5"
-    planned_items: [review:perspectives#ap-1-2, review:contrasts/signed-vs-enforced, review:perspectives#role-consumer]
-    status: 未着手
+    planned_items: [review:perspectives#ap-1-2, review:contrasts/signed-vs-enforced#misuse, review:perspectives#role-consumer]
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-1.R3
     slide: slide:p12-antipatterns-1
@@ -5342,14 +5342,14 @@ requirements:
     text: "アンチパターン：email・upn を利用者のキーにせず、iss＋sub（Entra は tid＋oid）を使う"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-1-6, review:perspectives#role-attacker, lint:L3]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-1.R7
     slide: slide:p12-antipatterns-1
     text: "アンチパターン：本人が書ける属性から権限のクレームを作らない"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-1-7, review:perspectives#role-attacker, lint:L31, registry:claims#provenance]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-1.R8
     slide: slide:p12-antipatterns-1
@@ -5364,28 +5364,28 @@ requirements:
     text: "アンチパターン：グループ・ロールを全部トークンに詰めず、粗いロールだけにして細かい権限は PDP に置く"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-2-1, review:perspectives#role-issuer, template:modules/M_authz_pdp#carry-or-query, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-2.R2
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：変わりやすい権限を焼き込まず、短命化・都度判定・失効の伝播で対処する"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-2-2, review:perspectives#q-freshness-mitigation, lint:L5]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-2.R3
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：型を決めない・配列を区切り文字列にすることを避け、台帳で型を 1 つに固定する"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-2-3, review:perspectives#role-consumer, registry:claims#type, registry:claims#shape]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-2.R4
     slide: slide:p12-antipatterns-2
     text: "アンチパターン：名前空間なしの独自クレームを作らない"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-2-4, review:perspectives#role-issuer, lint:L1b]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-antipatterns-2.R5
     slide: slide:p12-antipatterns-2
@@ -5420,7 +5420,7 @@ requirements:
     text: "アンチパターン：署名がなく、取り消せず、ログも残らない内部の代理トークンを作らない"
     owner_issue: "#5"
     planned_items: [review:perspectives#ap-2-9, review:perspectives#q-internal-delegation-token, lint:L17]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 155 slide:p12-review-viewpoints
   - id: p12-review-viewpoints.R1
@@ -5428,14 +5428,14 @@ requirements:
     text: "レビューの観点 定義：既存のクレームで表せないか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-definition, template:claim_request#q03, lint:L1a]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R2
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 定義：名前空間・型・無いときの意味を決めたか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-definition, registry:claims#namespace, registry:claims#type, registry:claims#absent_semantics]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R3
     slide: slide:p12-review-viewpoints
@@ -5449,28 +5449,28 @@ requirements:
     text: "レビューの観点 発行：書けるのは 1 つの発行者だけか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-issuance, lint:L4]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R5
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 発行：フックの失敗で欠けたら拒否できるか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-issuance, lint:L7, lint:R3b]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R6
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 発行：サイズの上限を確かめたか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-issuance, lint:R8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R7
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 伝搬：下流ほど aud・scope・寿命を絞るか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-propagation, lint:L16, template:00_core#hop-table]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R8
     slide: slide:p12-review-viewpoints
@@ -5484,28 +5484,28 @@ requirements:
     text: "レビューの観点 伝搬：ヘッダーに移すとき同名ヘッダーを除去するか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-propagation, lint:L8]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R10
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 検証：共通の検証部品を使うか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-validation, template:modules/M_token_validation#shared-validator]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R11
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 検証：alg・iss・aud・exp・typ を確かめるか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-validation, lint:L17, template:modules/M_token_validation#issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R12
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 検証：必須クレームの欠落を拒否するか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-validation, lint:L7]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R13
     slide: slide:p12-review-viewpoints
@@ -5519,21 +5519,21 @@ requirements:
     text: "レビューの観点 認可：テナントを保存データと照合するか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-authorization, lint:L9, template:modules/M_multitenancy#data-layer-filter]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R15
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 認可：書き手で値を区別するか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-authorization, registry:claims#provenance, lint:L31]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R16
     slide: slide:p12-review-viewpoints
     text: "レビューの観点 運用：変更の手順と互換期間があるか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-operations, template:00_core#definition-lifecycle]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R17
     slide: slide:p12-review-viewpoints
@@ -5547,7 +5547,7 @@ requirements:
     text: "レビューの観点 運用：失効の伝え方を決めたか"
     owner_issue: "#5"
     planned_items: [review:perspectives#stage-operations, review:perspectives#q-revocation-delivery, registry:token_types#revocation]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p12-review-viewpoints.R19
     slide: slide:p12-review-viewpoints
@@ -5603,7 +5603,7 @@ requirements:
 # 教材（対比表・用語集・判断の木・観点書）に使うスライド。知識のスライドは全件
 teaching:
   - slide: slide:p00-incident-signature-valid  # 5
-    use: [review:contrasts/signed-vs-enforced, review:perspectives#role-attacker, calib:errors#tenant-unchecked]
+    use: [review:contrasts/signed-vs-enforced#misuse, review:perspectives#role-attacker, calib:errors#tenant-unchecked]
     note: "Storm-0558・CVE-2025-55241・nOAuth・GitHub Actions の sub を、「署名は正しいが受け入れてはいけない」の典型の誤用と、埋め込む誤りの題材に使う"
   - slide: slide:p00-terminology  # 7
     use: [template:glossary]

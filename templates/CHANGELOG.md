@@ -40,6 +40,12 @@
 - `casestudy-deviations.yaml`：シナリオ B の前提（B＋C の組み合わせ）と、carry 21 件・not_in_example 30 件
 - claim_lint の L1b：草案が定める名前のうち、`tools/claim_lint/draft_claims.yaml` に固定したもの（Txn-Token の草案 -11 の `req_wl`・`tctx`・`rctx`）だけを warn にした。架空の草案・草案に無い名前・認可に使う名前は error のまま（#4、PR #44 の点検 B06）
 - claim_lint の L16：トークン交換のホップで、aud を行き先の 1 つの宛先に替えるもの（`aud_replacement: true`、上流の aud に交換を求めるサービス、`narrowing_exception.aud` の理由）は info。条件を欠けば error。寿命の例外は Txn-Token だけ。scope・authorization_details・独自クレームには例外を設けない。Txn-Token を渡すホップの scope も上流と比べる（PR #44 の再点検）（#4、PR #44 の点検 B05。`hops.schema.json` に `aud_replacement` を足し、`narrowing_exception` を文字列かオブジェクトにした。任意の列の追加なのでマイナー）
+- `review/`（#5、レビュー教材の MVP。版は 0.4.0）：`perspectives.md`（観点書。スライド 148 の 6 段を骨格に 168 問（うち 7 問はシナリオ B の較正で、1 問は PR #45 の点検で追加）。追加前の 25 問・アンチパターンの専用の問い 17・各 Part のチェックリストを段の下に置き、各問いに見る欄・No のとき・対比表・lint・実行テスト・根拠を付けた。役割ごとの索引、スライドの行との対応、シナリオ A・B の指摘との較正の表）、`decision_tree.md`、`contrasts/`（`act` と Txn-Token とワークロード認証、ID トークンとアクセストークン、署名と照合、寿命の 4 つの層、JWS と JWE、scope と role と RAR、載せるか問い合わせるか、名前と識別子の 8 本）、`escalation.md`、`procedure.md`（1 名で行う場合、LLM の一次スクリーニング）、`rationale_rubric.md`、`report_template.md`、`escaped_defects.md`、`metrics.md`、`README.md`
+- `examples/scenario-b/review-report.md`：観点書でシナリオ B（コミット `a6aad45`）を改めてレビューしたレポートと、PR #44 の指摘 B01〜B15 との較正（#5）
+- `tools/review_check.py`：レビュー教材の問い ID・見る欄・根拠・リンクの解決と、`review:` の成果物を持つ要件の印を確かめる（#5。CI は `.github/workflows/trace.yml`）
+- 対応表（#22）：#5 の要件 94 件を実装済みにした。台帳のスキーマ・問いの一覧・テンプレート・`RULES.md` の、その要件が指す箇所に `req:` の印だけを足した（中身は変えていない）。`review:contrasts/<名前>`（アンカーなし）を `#misuse` に付け替えた。`template:claim_request`（アンカーなし）を指していた #5 の 2 件を `#q03` に付け替えた。`CONTRIBUTING.md` に `evidence-types` のアンカーを足した
+- `tools/template_sources.yaml`：RFC 7516（JWE）を足した（#5）
+- `modules/M_token_validation.md` の `library-config`：検討の行「未検証の値を流すモード」を足した（#5、PR #45 の再点検。観点書の `q-no-unverified-passthrough-mode` が見る欄）。`review/rationale_rubric.md` は採点の決まりと RR7 を足したので 0.5.0
 
 ### 変更
 

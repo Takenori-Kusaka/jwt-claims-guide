@@ -40,7 +40,7 @@
 ## 2. 発行者（iss）〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#issuer`
-<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 -->
+<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 req:p12-review-viewpoints.R11 -->
 
 決めること：受け入れる発行者の許可リストと、発行者ごとの鍵の取得元。鍵がその発行者のものであることを確かめます（別の発行者の鍵で署名したトークンを、その発行者のものとして受けない）。
 
@@ -233,6 +233,7 @@
 | 時刻のずれ | ライブラリの既定のずれ（例：5 分）を確かめ、組織の値に設定したか | 組織の値に設定する | slide:p01-library-defaults |
 | 署名鍵そのものの確認 | 署名鍵そのものを確かめる設定が既定で無効のライブラリ（Microsoft.IdentityModel など）で、有効にしたか | 有効にする／確かめない | slide:p01-library-defaults |
 | 照合の一覧 | どのクレームを何と照合するか（`iss` と鍵、テナントと `iss`、`aud` と自分）を書いたか | 台帳の `enforced_at` に書く | slide:p00-incident-signature-valid |
+| 未検証の値を流すモード | 検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たないか。持つなら、本番で無効にする方法と、それを確かめる拒否のテストがあるか | 持たない／本番で無効にする（方法を書く） | slide:p11-pre-add-questions-2、slide:p01-library-defaults |
 
 記入欄：
 
@@ -246,7 +247,7 @@
 ## 11. 組織共通の検証部品〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#shared-validator`
-<!-- req:p00-why-hard.R2 req:p00-incident-signature-valid.R5 req:p01-library-defaults.R4 req:p11-contract-test-gaps.R3 req:p11-translation-layer.R3 req:p11-pre-add-questions-2.R4 -->
+<!-- req:p00-why-hard.R2 req:p00-incident-signature-valid.R5 req:p01-library-defaults.R4 req:p11-contract-test-gaps.R3 req:p11-translation-layer.R3 req:p11-pre-add-questions-2.R4 req:p12-review-viewpoints.R10 -->
 
 決めること：検証と解析を各サービスに任せず、アルゴリズム・発行者・宛先・必須クレームを固定した組織共通の部品を配るか。配るなら、その部品だけを通してクレームを読ませる方法。
 

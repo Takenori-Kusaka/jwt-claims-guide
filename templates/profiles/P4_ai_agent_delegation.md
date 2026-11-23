@@ -49,7 +49,7 @@
 ## 2. エージェントの ID〔Full：記入／Lite：参照〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#agent-identity`
-<!-- req:p10-agent-identity.R1 -->
+<!-- req:p10-agent-identity.R1 req:p10-agent-checklist.R1 -->
 
 決めること：エージェントを独立した主体として登録するか。共有のアカウントや、利用者のトークンをそのまま使う形にしないこと。
 
@@ -193,7 +193,7 @@
 ## 8. 監査の相関〔Full：記入／Lite：参照〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#audit-correlation`
-<!-- req:p10-agent-identity.R5 req:p10-per-tool-scopes.R3 req:p10-human-approval-evidence.R4 req:p11-pre-add-questions-2.R9 -->
+<!-- req:p10-agent-identity.R5 req:p10-per-tool-scopes.R3 req:p10-human-approval-evidence.R4 req:p11-pre-add-questions-2.R9 req:p10-agent-checklist.R9 -->
 
 決めること：委任の連鎖を、資格情報（`act`）とログの両方でたどれるようにする項目。誰の権限で（`sub`）、誰が実行したか（全アクター）、どの取引か（`txn`）、何の承認か（承認 ID）、スコープの引き上げ（相関 ID）を、別々の項目で記録します。
 

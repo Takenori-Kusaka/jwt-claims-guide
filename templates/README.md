@@ -34,6 +34,7 @@
 | [registry/](registry/) | 台帳のスキーマ（`claims`・`token_types`・`hops`）、問いの一覧、発行方式の効果（#3） |
 | [catalog/](catalog/) | 発行・利用イベントのカタログ（#2） |
 | [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR） |
+| [review/](review/) | レビュー教材（#5）：観点書・判断の木・対比表・専門家に回す基準・手順・理由の採点基準・レポートの様式・レビュー後の欠陥の記録・指標 |
 | [trace/](trace/) | ガイドのスライドとの対応表（#22） |
 
 P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュールは #21（後回し）です。
@@ -185,7 +186,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 
 ## 点検状況
 
-> 人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/templates-conventions-2026-11-22.md`）。テンプレート一式（#4）は、別の LLM のセッションで点検した（記録：`research/reviews/templates-mvp-2026-11-23.md`。材料は `research/reviews/templates-mvp-facts.md`）。作成者の 1 日以上空けた見直しは未実施。
+> 人による点検は未実施。作成とは別の LLM のセッションで点検した。作成者の 1 日以上空けた見直しは未実施（記録：`research/reviews/templates-conventions-2026-11-22.md`）。テンプレート一式（#4）は、別の LLM のセッションで点検した（記録：`research/reviews/templates-mvp-2026-11-23.md`。材料は `research/reviews/templates-mvp-facts.md`）。作成者の 1 日以上空けた見直しは未実施。レビュー教材（#5）は、作成とは別の LLM のセッションで点検する前の状態（材料は `research/reviews/review-materials-facts.md`）。
 
 点検の手順と表示の決まりは [CONTRIBUTING.md](CONTRIBUTING.md) の「3. 点検者についての取り決め」にあります。人による点検は、協力者が見つかったときに #20 で行います。
 
@@ -195,6 +196,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 python tools/new_design.py designs/my-service   # 空の設計書を作る（#4）
 python tools/template_check.py                  # テンプレートの項目 ID・根拠の形と実在・記入欄が空か（#4）
 python tools/check_slide_refs.py templates      # slide:<id> の実在
+python tools/review_check.py                    # レビュー教材の問い ID・見る欄・根拠・リンクと、対応表の印（#5）
 python tools/claim_lint templates/examples/scenario-a --profile lite
 python tools/claim_lint render templates/examples/scenario-a --check
 ```
