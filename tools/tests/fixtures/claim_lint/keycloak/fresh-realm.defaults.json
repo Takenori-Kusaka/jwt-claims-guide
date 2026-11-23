@@ -1,0 +1,95 @@
+{
+ "_note": "Measured on 2026-11-23 with Keycloak 26.8.0 (start-dev) through the admin REST API (measure.py).",
+ "realm_rep_sent": {
+  "realm": "fresh",
+  "enabled": true
+ },
+ "client_rep_sent": {
+  "clientId": "probe"
+ },
+ "client_as_returned": {
+  "clientId": "probe",
+  "publicClient": false,
+  "standardFlowEnabled": true,
+  "directAccessGrantsEnabled": false,
+  "implicitFlowEnabled": false,
+  "serviceAccountsEnabled": false,
+  "fullScopeAllowed": true,
+  "defaultClientScopes": [
+   "web-origins",
+   "acr",
+   "roles",
+   "profile",
+   "basic",
+   "email"
+  ],
+  "optionalClientScopes": [
+   "address",
+   "phone",
+   "organization",
+   "offline_access",
+   "microprofile-jwt"
+  ],
+  "attributes": {
+   "realm_client": "false",
+   "client.secret.creation.time": "1795415842"
+  }
+ },
+ "default_roles_composites": [
+  "manage-account",
+  "offline_access",
+  "uma_authorization",
+  "view-profile"
+ ],
+ "realm_defaults": {
+  "accessTokenLifespan": 300,
+  "accessCodeLifespan": 60,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "revokeRefreshToken": false,
+  "refreshTokenMaxReuse": 0,
+  "offlineSessionIdleTimeout": 2592000,
+  "defaultSignatureAlgorithm": "RS256",
+  "defaultDefaultClientScopes": [
+   "AuthnContextClassRef",
+   "acr",
+   "basic",
+   "email",
+   "profile",
+   "role_list",
+   "roles",
+   "saml_organization",
+   "web-origins"
+  ],
+  "defaultOptionalClientScopes": [
+   "address",
+   "microprofile-jwt",
+   "offline_access",
+   "organization",
+   "phone"
+  ]
+ },
+ "new_user_token_realm_access": {
+  "roles": [
+   "default-roles-fresh",
+   "offline_access",
+   "uma_authorization"
+  ]
+ },
+ "new_user_token_scope": "openid email profile",
+ "exchange_without_switch": {
+  "status": 400,
+  "body": {
+   "error": "invalid_request",
+   "error_description": "Standard token exchange is not enabled for the requested client"
+  }
+ },
+ "requester_attributes_before": {
+  "realm_client": "false"
+ },
+ "exchange_with_switch": {
+  "status": 200,
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "error": null
+ }
+}

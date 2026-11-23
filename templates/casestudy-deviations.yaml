@@ -12,7 +12,7 @@
 #   - 記入例の「採用・既定どおり」を「載せる」、「却下」を「載せない」とする
 #   - 載せる／載せないが違えば kind: carry、同じでも条件付き採用の条件（入口の正規化でのみ等）と違う使い方をしていれば kind: condition
 #   - kind: not_in_example は、ケーススタディが「載せる」と判定したのに、記入例のどの行も参照しない一覧表の行（reason が必須）
-# シナリオ A：比べた参照 41 件（#16 の 32 件に、同じクレームの RFC 7519 などの行 9 件を足した）、carry 8 件、condition 1 件、
+# シナリオ A：比べた参照 42 件（#16 の 32 件に、同じクレームの RFC 7519 などの行 9 件と、#30 の at_hash の 1 件を足した）、carry 9 件、condition 1 件、
 # not_in_example 20 件（ケーススタディが載せるとした 54 件のうち、記入例が参照しないもの）（casestudy_commit: 080b8da）
 # シナリオ B（B＋C の組み合わせ。scenario_premises の B）：carry 21 件、not_in_example 30 件（ケーススタディが B で載せるとした 109 件のうち、記入例が参照しないもの）。比べた参照の数は casestudy_check の refs
 casestudy_commit: 080b8da
@@ -30,6 +30,7 @@ scenario_premises:
 deviations:
   - {scenario: A, id: CLM-0228, example_row: C-auth-time, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: Keycloak の basic スコープが sub と一緒に出す。外すには sub だけの独自のスコープが要り、API は読まないので既定のまま残した}
   - {scenario: A, id: CLM-0229, example_row: C-auth-time, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: CLM-0228 と同じ（ID トークンの側）}
+  - {scenario: A, id: CLM-0701, example_row: C-at-hash, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: Keycloak 26.8.0 が AT と一緒に出す ID トークンに必ず載せ、マッパーでは外せない（2026-11-23 の実測。claim_lint drift の D1、#30）。BFF は読まない点はケーススタディの判定と同じ}
   - {scenario: A, id: CLM-0198, example_row: C-typ-claim, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」で、外せないクレームとされている"}
   - {scenario: A, id: CLM-0243, example_row: C-sid, kind: carry, casestudy: 不採用・不要, example: 既定どおり, reason: 同上（sid も外せないクレーム）}
   - {scenario: A, id: CLM-0405, example_row: C-client-id, kind: carry, casestudy: 採用, example: 却下, reason: Keycloak 26.8.0 が認可コードの発行で出した AT に client_id が無かった（2026-11-22 の見本トークン）。同じ情報を azp で読む}

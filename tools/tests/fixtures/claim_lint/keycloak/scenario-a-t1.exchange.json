@@ -1,0 +1,24 @@
+{
+ "_note": "Measured on 2026-11-23 with Keycloak 26.8.0 (start-dev), realm t1 from scenario-a-t1.import.json (measure.py --step exchange). saas-api exchanges the access token that saas-web obtained (aud saas-api).",
+ "without_switch": {
+  "status": 400,
+  "error_description": "Standard token exchange is not enabled for the requested client"
+ },
+ "with_switch_on_saas_api": {
+  "status": 200,
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "claims": [
+   "azp",
+   "exp",
+   "iat",
+   "iss",
+   "jti",
+   "scope",
+   "sid",
+   "sub",
+   "typ"
+  ],
+  "aud": null,
+  "azp": "saas-api"
+ }
+}

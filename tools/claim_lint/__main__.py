@@ -40,6 +40,12 @@ def main(argv=None):
     if argv[:1] == ['render']:  # python tools/claim_lint render ... (#19, tools/claim_lint/RENDER.md)
         from claim_lint import render
         return render.main(argv[1:])
+    if argv[:1] == ['import']:  # python tools/claim_lint import keycloak ... (#30, tools/claim_lint/DRIFT.md)
+        from claim_lint import keycloak
+        return keycloak.main(argv[1:])
+    if argv[:1] == ['drift']:  # python tools/claim_lint drift DESIGN_DIR OBSERVED (#30, tools/claim_lint/DRIFT.md)
+        from claim_lint import drift
+        return drift.main(argv[1:])
     ap = argparse.ArgumentParser(prog='claim_lint', description='Check a claim design (registry, token types, catalogue answers).')
     ap.add_argument('design_dir')
     ap.add_argument('--profile', choices=('lite', 'full'), default='full', help='lite downgrades R2 and R4 to warn (R6 is warn in both)')

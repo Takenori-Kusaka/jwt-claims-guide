@@ -756,6 +756,12 @@ def payload_schema(d, tt, kind):
         props[ns] = o
     # an aud of the consumer schema may be a string or an array (RFC 7519 §4.1.3), so a receiver is not broken by
     # an issuer that starts sending several audiences; the issuer schema keeps the registry's shape
+    # the issuer schema allows only the token type's audiences (PR #47 check, 3: maxLength alone let a short foreign
+    # audience such as "account" through)
+    if strict and isinstance(props.get('aud'), dict) and tt.get('aud'):
+        a = props['aud']
+        target = a['items'] if a.get('type') == 'array' and isinstance(a.get('items'), dict) else a
+        target['enum'] = list(tt['aud'])
     if not strict and isinstance(props.get('aud'), dict):
         a = props['aud']
         props['aud'] = {k: v for k, v in a.items() if k not in ('type', 'items')}

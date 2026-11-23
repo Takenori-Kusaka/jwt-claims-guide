@@ -1,0 +1,8 @@
+{
+ "_note": "Issued on 2026-11-23 by a throw-away Keycloak 26.8.0 container (start-dev) with realm t1 created from tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.import.json, user alice, client saas-web, authorization code + PKCE S256 (measure.py). Only the decoded header and payload are kept (no compact token, no signature); the signing key existed only in that container, which was removed. Access token of the refresh (I02).",
+ "issued_on": "2026-11-23",
+ "header_json": "{\"alg\":\"RS256\",\"typ\" : \"at+jwt\",\"kid\" : \"emX4iJ4X3n-f2epASFfNtC313EwPW8_A12EzcHeRr_U\"}",
+ "payload_json": "{\"exp\":1795416140,\"iat\":1795415840,\"auth_time\":1795415840,\"jti\":\"onrtrt:d3c31d29-1ecf-0132-a219-6b38de6b80d4\",\"iss\":\"http://localhost:28080/realms/t1\",\"aud\":\"saas-api\",\"sub\":\"9673ef3b-d22f-49c1-bd3b-d7697517e94e\",\"typ\":\"Bearer\",\"azp\":\"saas-web\",\"sid\":\"qW1LDqJb2WVTG4_FpIRl5fm-\",\"scope\":\"openid\",\"https://claims.example.com/\":{\"tenant_id\":\"t1\",\"user_id\":\"9673ef3b-d22f-49c1-bd3b-d7697517e94e\",\"v\":\"1\",\"roles\":[\"approver\",\"tenant-admin\"]}}",
+ "token_length": 1042,
+ "sig_bytes": 256
+}

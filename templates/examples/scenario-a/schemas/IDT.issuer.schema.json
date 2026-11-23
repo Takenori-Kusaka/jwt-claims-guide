@@ -21,7 +21,10 @@
    "description": "AT では宛先の API（saas-api）。ID トークンではクライアント（saas-web）",
    "$comment": "C-aud",
    "type": "string",
-   "maxLength": 8
+   "maxLength": 8,
+   "enum": [
+    "saas-web"
+   ]
   },
   "exp": {
    "description": "有効期限（UNIX 時刻の秒）",
@@ -32,6 +35,12 @@
    "description": "発行の時刻（UNIX 時刻の秒）",
    "$comment": "C-iat",
    "type": "integer"
+  },
+  "jti": {
+   "description": "トークンの ID。Keycloak 26.8 の AT では、発行の種類を表す接頭辞と UUID（見本では認可コードで onrtac:＋UUID、リフレッシュで onrtrt:＋UUID）。ID トークンでは UUID だけ",
+   "$comment": "C-jti",
+   "type": "string",
+   "maxLength": 43
   },
   "auth_time": {
    "description": "利用者が認証した時刻",
@@ -55,6 +64,12 @@
    "$comment": "C-sid",
    "type": "string",
    "maxLength": 36
+  },
+  "at_hash": {
+   "description": "同じ応答で出た AT のハッシュ（左半分の base64url）",
+   "$comment": "C-at-hash",
+   "type": "string",
+   "maxLength": 43
   },
   "nonce": {
    "description": "認可要求で BFF が送った値の写し",
