@@ -74,6 +74,7 @@ class Ctx:
         self.cid = {c.get('id'): c for c in self.claims}
         self.hop = {h.get('id'): h for h in self.hops}
         self.iana = {x['name']: x for x in (_load(os.path.join(HERE, 'iana_jwt_claims.yaml')).get('claims') or [])}
+        self.drafts = _load(os.path.join(HERE, 'draft_claims.yaml')).get('drafts') or {}
         self.reserved = _load(os.path.join(HERE, 'idp_reserved.yaml')).get('idps') or {}
         self.caps = _load(caps_path or os.path.join(HERE, 'lifetime_caps.yaml')).get('caps') or {}
         self.effects = _load(os.path.join(root, 'templates', 'registry', 'issuance_effects.yaml')).get('effects') or []
@@ -149,6 +150,22 @@ def _iss_match(pattern, iss):
     return re.match(rx, iss) is not None
 
 
+def _draft_defined(c, drafts):
+    """The name is pinned in draft_claims.yaml for the exact draft (name and version) that registered_ref cites and
+    spec_version lists, and the claim is not used for authorization or identification (PR #44 review B06)."""
+    ref = c.get('registered_ref') or {}
+    m = re.match(r'^(draft-[a-z0-9-]+-\d{2}) §[0-9.]+$', str(ref.get('id') or ''))
+    if not m or ref.get('kind') != 'spec' or m.group(1) not in (c.get('spec_version') or []):
+        return None
+    d = drafts.get(m.group(1)) or {}
+    if c.get('name') not in (d.get('claims') or {}) or c.get('usage') in ('authz', 'identifier'):
+        return None
+    sec = re.search(r' (§[0-9.]+)$', str(ref.get('id') or ''))
+    if not sec or sec.group(1) != d['claims'][c.get('name')]:
+        return None  # the section that defines the name must be cited (PR #44 re-check)
+    return m.group(1)
+
+
 def rule_l1b(x):
     declared = {n.get('namespace') for n in x.claims_doc.get('namespaces') or []}
     for c in x.adopted_claims():
@@ -158,6 +175,13 @@ def rule_l1b(x):
             if c.get('decision') == '既定どおり' and not c.get('consumers'):
                 x.add('L1b', cid, f"IdP が既定で出す私的名 {c.get('name')}（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない"
                                   '（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す', INFO)
+            elif _draft_defined(c, x.drafts):
+                # a name that a versioned draft itself defines (Txn-Token req_wl, tctx; #4 scenario B): the name belongs to
+                # the draft, so it cannot move into the organization's namespace. Still unregistered: warn (L14 asks for
+                # spec_version and revisit_trigger)
+                x.add('L1b', cid, f"未登録の名前 {c.get('name')} は草案（{c['registered_ref'].get('id')}）が定める名前"
+                                  '（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、'
+                                  '登録・改名されたときの見直しの条件を確かめる', WARN)
             else:
                 x.add('L1b', cid, f"未登録の名前 {c.get('name')} を名前空間なしで使っている。IANA の登録名を使うか、組織の名前空間"
                                   '（namespaces）の下に置く（衝突に強い名前、RFC 7519 §4.2・§4.3）')
@@ -454,6 +478,41 @@ def rule_l15(x):
 SEV_WIDEN = WARN
 
 
+def _narrowing_exceptions(h):
+    """narrowing_exception: a string is the reason for a longer max_lifetime (Txn-Token only); an object may give aud (with
+    aud_replacement) and max_lifetime (Txn-Token only). scope and authorization_details never widen (draft-ietf-oauth-
+    transaction-tokens-11 §13.6: same or narrower), and extra custom_claims have no exception."""
+    e = h.get('narrowing_exception')
+    if isinstance(e, str):
+        return {'max_lifetime': e}
+    return e if isinstance(e, dict) else {}
+
+
+def _service_name(text):
+    """The service of a hop's from / to: the text before the first space or full-width bracket."""
+    return re.split(r'[\s（(]', str(text or '').strip(), maxsplit=1)[0]
+
+
+def _aud_replacement_problem(h, up):
+    """None when the hop may replace aud (PR #44 re-check): a token-exchange hop, one concrete aud equal to the hop's
+    destination service, and the upstream token addressed the requesting service."""
+    aud = h.get('aud') or []
+    if h.get('kind') != 'exchange':
+        return 'aud_replacement は交換（kind: exchange）のホップだけ。作り直しのホップは上流の aud の部分集合にする'
+    if len(aud) != 1:
+        return f'aud_replacement の aud は 1 つ（いまは {len(aud)} 個）'
+    a = str(aud[0])
+    if '*' in a or '{' in a or a.endswith('/'):
+        return f'aud_replacement の aud {a} は 1 つの具体的な宛先でない（ワイルドカード・入口全体の宛先は不可）'
+    if a != _service_name(h.get('to')):
+        return f"aud_replacement の aud {a} がホップの行き先（{_service_name(h.get('to'))}）と一致しない"
+    if _service_name(h.get('from')) not in [str(x) for x in (up.get('aud') or [])]:
+        return f"上流（{up.get('id')}）の aud に、交換を求めるサービス（{_service_name(h.get('from'))}）が無い"
+    if _empty(_narrowing_exceptions(h).get('aud')):
+        return 'aud_replacement には narrowing_exception.aud の理由が要る'
+    return None
+
+
 def rule_l16(x):
     for h in x.hops:
         up = x.hop.get(h.get('upstream'))
@@ -466,23 +525,39 @@ def rule_l16(x):
             x.count('L16')
         if extra and up_tt is not None and up_tt.get('kind') != 'session':
             x.add('L16', hid, f"独自クレーム {'・'.join(extra)} が上流（{up.get('id')}）に無い")
-        if h.get('kind') not in ('exchange', 'reissue') and not (h.get('kind') == 'service' and h.get('token_type') != up.get('token_type')):
+        kind = (x.tt.get(h.get('token_type')) or {}).get('kind')
+        exchange_like = h.get('kind') in ('exchange', 'reissue') or (h.get('kind') == 'service' and h.get('token_type') != up.get('token_type'))
+        txn_pass = kind == 'txn_token' and up.get('token_type') == h.get('token_type')
+        if not exchange_like and not txn_pass:
             continue
         if up_tt is None or up_tt.get('kind') == 'session':
             continue
         x.count('L16.widen')
-        for k, label in (('aud', 'aud'), ('scope', 'scope'), ('authorization_details', 'authorization_details')):
+        exc = _narrowing_exceptions(h)
+        dims = (('scope', 'scope'),) if txn_pass else (('aud', 'aud'), ('scope', 'scope'), ('authorization_details', 'authorization_details'))
+        for k, label in dims:
             wide = sorted(set(h.get(k) or []) - set(up.get(k) or []))
-            if wide:
-                x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない）", SEV_WIDEN)
+            if not wide:
+                continue
+            if k == 'aud' and h.get('aud_replacement') is True:
+                problem = _aud_replacement_problem(h, up)
+                if problem is None:
+                    x.add('L16', hid, f"aud を上流（{up.get('id')}）の {'・'.join(map(str, up.get('aud') or []))} から、行き先の 1 つの宛先 "
+                                      f"{h['aud'][0]} に替える（aud_replacement。理由：{exc['aud']}）", INFO)
+                else:
+                    x.add('L16', hid, problem, ERROR)
+                continue
+            x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない"
+                              f"{'。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6' if kind == 'txn_token' else ''}）", SEV_WIDEN)
         ml, uml = h.get('max_lifetime'), up.get('max_lifetime')
         if isinstance(ml, int) and isinstance(uml, int) and ml > uml:
-            kind = (x.tt.get(h.get('token_type')) or {}).get('kind')
-            if kind == 'txn_token' and not _empty(h.get('narrowing_exception')):
-                x.add('L16', hid, f"Txn-Token の寿命 {ml} 秒が上流の {uml} 秒を超える。仕様は認めている（draft-ietf-oauth-transaction-tokens-11 §6）"
-                                  f"ので、narrowing_exception の理由を記録として扱う", INFO)
+            reason = exc.get('max_lifetime')
+            if kind == 'txn_token' and isinstance(reason, str) and len(reason.strip()) >= 10:
+                x.add('L16', hid, f"Txn-Token の寿命 {ml} 秒が上流の {uml} 秒を超える。仕様は認めている（draft-ietf-oauth-transaction-tokens-11 §6・§13.15）"
+                                  f"ので、narrowing_exception の理由を記録として扱う：{reason}", INFO)
             else:
-                x.add('L16', hid, f"寿命 {ml} 秒が上流（{up.get('id')}）の {uml} 秒を超える（下流ほど絞る。組織の規則、author-proposal）", SEV_WIDEN)
+                x.add('L16', hid, f"寿命 {ml} 秒が上流（{up.get('id')}）の {uml} 秒を超える（下流ほど絞る。組織の規則、author-proposal。"
+                                  '寿命の例外は Txn-Token の作り直しだけで、理由は 10 字以上）', SEV_WIDEN)
 
 
 # ------------------------------------------------------------------ L17 / L25 / L27: validation settings

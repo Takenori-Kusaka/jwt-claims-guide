@@ -1,0 +1,79 @@
+# template_version: 0.3.0
+# 記入例（シナリオ B＋C）の変種：送信者制約を「なし」にした場合（#4 の「発行方式がクレーム設計に効くことを、記入例で確かめる」）。
+# 変わる行だけを持つ上書き。記入例そのもの（../*.yaml）は既定の設計（sender_constraint: dpop）のまま。
+# 比べ方：python tools/variant_compare.py templates/examples/scenario-b templates/examples/scenario-b/variants/sender-none.yaml
+#   （design.md の 4. の区間 variant:sender-none は --write で生成し、CI は --check で食い違いを検出する）
+# 合わせ方の規則（行は id・event で合わせる、_replace・_delete・_unset）は tools/variant_compare.py の冒頭
+name: sender-none
+description: 送信者制約を none にする（ケーススタディ B の「送信者制約は見送り」と同じ）。AGENT_AT・TASK_AT は Bearer になり、DPoP の proof と cnf の行は要らなくなる。クライアントは機密のままなので、公開クライアントの RT の要件（E-public-no-sender-constraint）は成り立たない
+files:
+  token_types.yaml:
+    issuance_profile:
+      sender_constraint:
+        value: none
+        rationale: 変種。エージェントの実行基盤とツールサーバーのトークンも Bearer にする。agent-runtime は組織の外のモデルの出力に応じて動く部品で、漏れたトークンを別の端末から再送する攻撃（ケーススタディ B23 の型。B では見送りの代償として通った）が、寿命 300 秒と宛先 1 つの間は再び通る。その危険を受け入れる比較
+    token_types:
+      - id: AGENT_AT
+        sender_constraint: none
+        transport: authorization_bearer
+        required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
+        # DPoP のヘッダー（最悪 841 バイト）が要求から無くなるので、ほかのヘッダーの見積もりを 3072 から 2048 にする（PR #44 のレビュー B12）
+        size: {"signing": {"alg": "ES256"}, "header": {"params": [{"name": "alg", "type": "string", "max_bytes": 5}, {"name": "typ", "type": "string", "max_bytes": 6}, {"name": "kid", "type": "string", "max_bytes": 22}]}, "path": ["nodejs-max-http-header-size"], "other_headers_bytes": 2048}
+      - id: TASK_AT
+        sender_constraint: none
+        transport: authorization_bearer
+        required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
+        size: {"signing": {"alg": "ES256"}, "header": {"params": [{"name": "alg", "type": "string", "max_bytes": 5}, {"name": "typ", "type": "string", "max_bytes": 6}, {"name": "kid", "type": "string", "max_bytes": 22}]}, "path": ["nodejs-max-http-header-size"], "other_headers_bytes": 2048}
+      - id: DPOP
+        _replace: true
+        kind: dpop_proof
+        decision: 却下
+        rationale: 送信者制約を付けない（issuance_profile.sender_constraint は none）
+        assumption: AGENT_AT・TASK_AT を持つ agent-runtime と invoice-mcp は組織の網の中で動き、寿命 300 秒と宛先 1 つで、漏れても使える時間と相手が限られる。agent-runtime が組織の外のモデルの出力に応じて動く点は変わらず、再送（B23 の型）の危険は残る
+        revisit_trigger: エージェントの実行基盤を組織の外（利用者の端末・外部の SaaS）に置くとき、またはトークンの盗用の兆候が出たとき
+        format: jwt
+  claims.yaml:
+    claims:
+      - {id: C-cnf, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: "変種：送信者制約を付けないので、鍵の拇印（cnf.jkt）を載せない。AGENT_AT・TASK_AT を持つ者は誰でも使える（Bearer）"}
+      - {id: C-dpop-htm, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
+      - {id: C-dpop-htu, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
+      - {id: C-dpop-ath, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
+      - {id: C-dpop-nonce, decision: 却下, rejection_kind: 不要, carried_in: null, rationale: 変種：DPoP の proof を使わない}
+      - id: C-iat
+        description: 発行の時刻（UNIX 時刻の秒）
+        rationale: 寿命の検査（exp − iat）に使う
+        carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+      - id: C-jti
+        description: トークンごとに一意の ID
+        rationale: ログでトークンを指す唯一の値（トークン全文の代わりに記録する）
+        carried_in: [KC_AT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+  hops.yaml:
+    hops:
+      - id: H14
+        validates:
+          mode: local
+          checks: ["署名（sts の JWKS、ES256 だけ）", aud が invoice-mcp だけ（受け取ったトークンを上流に渡さない）, 最も外側の act.sub が呼び出し元のエージェント（client_id と一致）, act の深さが 3 以下]
+      - id: H15
+        validates:
+          mode: local
+          checks: ["署名（sts の JWKS）", aud が invoices だけ, 最も外側の act.sub が invoice-mcp で、その内側が agent:expense, "authorization_details の金額・相手先・対象（identifier）と要求の本文が一致", approval の ID の記録が有効, sub と請求書の持ち主が一致（ケーススタディ C3・C15）]
+  catalog_answers.yaml:
+    questions:
+      q-holder: {needed: false, reason: 変種：送信者制約を付けない。持つべき者はトークンで示さず、寿命 300 秒と宛先 1 つで抑える, note: null}
+    answers:
+      - event: I29
+        _replace: true
+        answer: 対象外
+        assumption: 変種：送信者制約を付けない。AGENT_AT・TASK_AT は組織の網の中の agent-runtime と invoice-mcp が持つ（目録の DPOP は却下）。再送（B23 の型）の危険は受け入れる
+        breaks_when: エージェントの実行基盤を組織の外に置くとき、またはトークンの盗用の兆候が出たとき
+      - event: I30
+        _replace: true
+        answer: 対象外
+        assumption: 変種：DPoP の proof を作らない（目録の DPOP は却下）
+        breaks_when: 送信者制約を DPoP にするとき（記入例の既定の設計）
+      - event: U26
+        _replace: true
+        answer: 対象外
+        assumption: 変種：送信者制約つきのトークンを使わない。受け手は Bearer として検証する
+        breaks_when: 送信者制約を DPoP か mTLS にするとき
+      - {event: U25, token_types: [AGENT_AT]}

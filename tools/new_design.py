@@ -48,7 +48,13 @@ def build(dirpath):
     files['claims.yaml'] = header(dirpath, 'claims.schema.json', [
         '台帳（templates/registry/README.md の 3.1）。行は 1 つも無い状態から始める。記入例の行を写さない（理由の写し書きを防ぐ。#4 の方針）',
         '組織の名前空間に共有クレームを足すなら、先に claim_request_<名前>.md（templates/claim_request.md）を書く']) + yaml.safe_dump(
-        {'scenario': None, 'namespaces': [], 'claims': []}, allow_unicode=True, sort_keys=False)
+        {'scenario': None, 'namespaces': [],
+         # the fixed vocabulary of data_category (templates/registry/README.md 9.; the schema requires it). Keep it unless
+         # the organization pins another version; verified_on is the day the writer opened the vocabulary
+         'data_category_vocabulary': {'name': 'fideslang', 'version': '3.1.4',
+                                      'url': 'https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv',
+                                      'license': 'CC-BY-4.0', 'verified_on': ''},
+         'claims': []}, allow_unicode=True, sort_keys=False)
     rows = [{'id': k['id'].upper(), 'kind': k['id'], 'decision': '却下', 'rationale': '', 'format': None} for k in kinds]
     profile = {k: {'value': None, 'rationale': ''} for k in (
         'client_type', 'client_auth', 'grants', 'sender_constraint', 'at_format', 'rt_strategy', 'request_protection',

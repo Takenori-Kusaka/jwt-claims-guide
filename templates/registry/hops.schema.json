@@ -204,9 +204,23 @@
      "description": "Claims copied into headers on this hop (L8: inbound headers of the same name are dropped)"
     },
     "narrowing_exception": {
-     "type": "string",
-     "minLength": 1,
-     "pattern": "\\S"
+     "description": "Why this hop goes beyond its upstream. A string (10 characters or more) is the reason for a longer max_lifetime, accepted only on a Txn-Token hop (draft-ietf-oauth-transaction-tokens-11 §6, §13.15). An object may give aud (with aud_replacement on a token-exchange hop) and max_lifetime (Txn-Token only). scope and authorization_details never widen (§13.6) and extra custom_claims have no exception (L16)",
+     "oneOf": [
+      {"type": "string", "minLength": 10, "pattern": "\\S"},
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "minProperties": 1,
+       "properties": {
+        "aud": {"type": "string", "minLength": 10, "pattern": "\\S"},
+        "max_lifetime": {"type": "string", "minLength": 10, "pattern": "\\S"}
+       }
+      }
+     ]
+    },
+    "aud_replacement": {
+     "description": "A token-exchange hop (kind exchange) that replaces aud with one concrete audience equal to the hop's destination service, when the upstream token addressed the requesting service (narrowing by replacement, slide:p06-narrow-downstream). Needs narrowing_exception.aud. Not for reissue hops, which keep a subset of the upstream aud (L16)",
+     "type": "boolean"
     },
     "note": {
      "type": "string"

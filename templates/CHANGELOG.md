@@ -35,6 +35,11 @@
 - 対応表（#22）：#4 の要件 122 件を実装済みにした（core 92・full 30。うち 11 件は #6・#18 の規則（L3・L5・L6・L9・L14・L18・L23・L43・R8）の行に印を足して実装済みにした）。`template:00_core#issuance-profile`・`template:modules/M_sender_constraint#…`（5 件）・`template:claim_request#form` を planned_items に足し、送信者制約・クライアントの種類・PAR に関係する要件（7 件）に結び直した。`template:claim_request`（アンカーなし）を指していた 5 件は、`#form`・`#gate` に付け替えた。台帳のスキーマと問いの一覧には、#4 の要件の `req:` の印だけを足した（列は変えていない）
 
 - PR #43 の独立点検の反映（#4。記録：`research/reviews/templates-mvp-2026-11-23.md`）：事実の誤り・過大・不一致の 13 件を直した。`tools/new_design.py`（空の設計書。GETTING_STARTED は記入例を写させない）、`tools/template_sources.yaml`（RFC と追跡 issue の固定の一覧）と `template_check` の T3（RFC・issue・パスの実在、形の絞り込み）・T4（記入欄の全列）・T6（見出しのアンカー）、シナリオ A の追加前の 25 問 3 ファイル（`claim_request_user_id.md`・`claim_request_roles.md`・`claim_request_v.md`）、L72 を error に（Lite も同じ）、`count_lite_fields --current` の Lite で Full のみの列を数えない
+- `examples/scenario-b/`：シナリオ B（社内業務システム）＋C（AI エージェントの委任）の Full の記入例（P1＋P4＋P5。#4）。台帳 46 行（廃止予定の行 `C-employee-id` を含む）、トークン目録 24 行、ホップ 15 行、カタログへの回答 62 件、共有クレームごとの追加前の 25 問 9 ファイル、設計書（Full）、送信者制約を none にした変種（`variants/sender-none.yaml`）と、その比較（設計書の 3.3）
+- `tools/variant_compare.py`：記入例に差分だけの上書きを当て、台帳・目録・ホップ・カタログへの回答・lint の結果の違いを表にする（`--write`・`--check`。#4）
+- `casestudy-deviations.yaml`：シナリオ B の前提（B＋C の組み合わせ）と、carry 21 件・not_in_example 30 件
+- claim_lint の L1b：草案が定める名前のうち、`tools/claim_lint/draft_claims.yaml` に固定したもの（Txn-Token の草案 -11 の `req_wl`・`tctx`・`rctx`）だけを warn にした。架空の草案・草案に無い名前・認可に使う名前は error のまま（#4、PR #44 の点検 B06）
+- claim_lint の L16：トークン交換のホップで、aud を行き先の 1 つの宛先に替えるもの（`aud_replacement: true`、上流の aud に交換を求めるサービス、`narrowing_exception.aud` の理由）は info。条件を欠けば error。寿命の例外は Txn-Token だけ。scope・authorization_details・独自クレームには例外を設けない。Txn-Token を渡すホップの scope も上流と比べる（PR #44 の再点検）（#4、PR #44 の点検 B05。`hops.schema.json` に `aud_replacement` を足し、`narrowing_exception` を文字列かオブジェクトにした。任意の列の追加なのでマイナー）
 
 ### 変更
 

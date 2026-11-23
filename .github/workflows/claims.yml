@@ -59,6 +59,14 @@ jobs:
         run: python -m pytest -q -rs tools/tests/test_registry_v1.py
       - name: Casestudy check (ORG names and types, carry decisions vs templates/casestudy-deviations.yaml; pinned commit and sha256)
         run: python tools/casestudy_check.py templates/examples/scenario-a
+      - name: claim_lint on the scenario B worked example (Full, P1+P4+P5, #4)
+        run: python tools/claim_lint templates/examples/scenario-b --also-scan templates/examples/scenario-b/design.md
+      - name: render --check on scenario B (generated regions and payload schemas)
+        run: python tools/claim_lint render templates/examples/scenario-b --check
+      - name: Scenario B sender-constraint comparison (DPoP vs none) matches design.md 3.3
+        run: python tools/variant_compare.py templates/examples/scenario-b templates/examples/scenario-b/variants/sender-none.yaml --check templates/examples/scenario-b/design.md
+      - name: Casestudy check on scenario B
+        run: python tools/casestudy_check.py templates/examples/scenario-b
       - name: Event catalogue (#2) - columns, seed-list closure, subject-state matrix, sources.md counts
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)

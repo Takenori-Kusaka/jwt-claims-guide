@@ -1,0 +1,726 @@
+# template_version: 0.3.0
+# 記入例（シナリオ B＋C：社内業務システムと AI エージェントの委任。Keycloak 26.8 のレルム corp と、Entra ID・Okta・Cognito・Auth0 の
+# 形を再現した模擬）。推奨ではない。この前提での一例。Full なので、「対象外」はすべて assumption と breaks_when を手で書いた（inherit は使わない）。
+# カタログ（templates/catalog/issue_events.yaml・use_events.yaml）の全イベントへの回答。件数と割合は design.md の 11.（render の catalog-summary）。
+# idp：設計書の IdP はレルム corp の Keycloak 26.8（R3 は 1 つの IdP を見る）。Entra ID・Okta・Cognito・Auth0 はケーススタディの模擬で、
+# グループ会社のアプリが入口に AT（EXT_AT）を提示するだけ（組織のクライアントへの発行は Keycloak と sts）。そのため 4 つの IdP の発行の契機は
+# カタログの行としては答えず、入口の正規化の入力として扱う。4 つの IdP の文書（フック・発行の契機）を探したことは outside_enumeration の searched に書いた。
+idp:
+  name: keycloak
+  version: '26.8'
+  note: 組織のクライアント（portal）に発行する IdP はレルム corp の Keycloak だけ。エージェントのトークン（AGENT_AT・TASK_AT）と内部トークン（INT_AT）は組織のトークン発行サービス（sts）、Txn-Token は tts が発行する。グループ会社の IdP（Entra ID・Okta・Cognito・Auth0、模擬）は EXT_AT を出すだけで、入口がその形を正規化する（Cognito の発行前フックの一覧（#21）などは、入口が受けるクレームの変化として扱う）
+lite_criteria:
+  crosses_boundary:
+    answer: true
+    reason: グループ会社の IdP（組織の外）が出した AT を入口で受ける。エージェントの実行基盤は組織の外のモデルの出力で動く
+  multitenant:
+    answer: false
+    reason: テナントは corp だけ（C-tenant-id は固定値）。グループ会社は EXT_AT の tid で見分けるが、データは分けない
+  delegation_or_exchange:
+    answer: true
+    reason: エージェントへの委任（act）、ツールサーバーのトークン交換、入口での作り直し、Txn-Token がある
+  new_issuer:
+    answer: true
+    reason: 組織のトークン発行サービス（sts）と Txn-Token のサービス（tts）を新しく置く
+  regulated:
+    answer: false
+    reason: FAPI などの規制の対象ではない（conformance_profile は none）。要配慮個人情報も載せない
+questions:
+  q-sub:
+    needed: true
+    note: 誰の権限で：すべての受け手が sub（社員）で判断する。AGENT_AT・TASK_AT でも sub は社員のまま
+  q-actor:
+    needed: true
+    note: 誰が代理して実行しているか：AGENT_AT・TASK_AT の最も外側の act（C-act）。入れ子の actは答えに使わない
+  q-req-wl:
+    needed: true
+    note: どのワークロードが Txn-Token を求めたか：TXN の req_wl（C-req-wl）。act とも mTLS の相手とも別の問い
+  q-peer:
+    needed: true
+    channel: mTLS（SPIFFE の X.509-SVID）。入口の内側のサービス・ワーカー・ブローカーの接続は、直接の通信相手を証明書で確かめる。トークンのクレームでは代えない
+    note: 直接の通信相手：ワークロードの ID（mTLS）。act・req_wl とは別の行
+  q-via:
+    needed: false
+    reason: 経由した部品の記録をトークンに載せない。経路は txn で監査ログを相関させて追う（q-txn）
+  q-txn:
+    needed: true
+    note: どの取引か：TXN の txn（C-txn）。監査の相関に使い、認可には使わない
+  q-user:
+    needed: true
+  q-agent:
+    needed: true
+    note: どのエージェント・クライアントか：client_id（INT_AT・AGENT_AT・TASK_AT）と azp（KC_AT・IDT）
+  q-authorized:
+    needed: true
+    note: 何が承認されたか：TASK_AT の authorization_details（金額・相手先・対象）と C-approval-id
+  q-resource:
+    needed: true
+  q-holder:
+    needed: true
+    note: 誰が持つべきか：AGENT_AT・TASK_AT の cnf.jkt（DPoP）。KC_AT・INT_AT は Bearer（BFF とサービスの間だけ）
+subject_states:
+  states:
+    subject-states/invited:
+      AT:
+        result: 影響なし
+        basis: 社員の登録は人事の手続きで Keycloak に作る。招待ではトークンを出さず、手元の KC_AT・AGENT_AT も変わらない
+      RT:
+        result: 影響なし
+        basis: 招待では RT を出さない。既存の RT は既存のセッションに結びついたまま
+      ID:
+        result: 影響なし
+        basis: 招待では出さない。IDT は portal がログインの時だけ使い、保存しない
+      内部トークン:
+        result: 影響なし
+        basis: 入口は要求ごとに INT_AT を作るので、招待だけでは作らない。最初の要求で KC_AT から作る
+      Logout Token:
+        result: 影響なし
+        basis: セッションを終えないのでログアウトトークンは出ない
+      IdP のセッション:
+        result: 影響なし
+        basis: 招待はセッションを作らない。最初のログイン（I25）で作る
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: portal は招待を知らない。最初のログインの後にセッションを作る
+    subject-states/active:
+      AT:
+        result: 発行
+        basis: 最初のログイン（I25）で I01 と同じ KC_AT が出る。ロールを付ける前なら roles は空で、受け手は空のロールで何も許さない
+      RT:
+        result: 発行
+        basis: 認可コードの応答で portal に出る（I01）。ローテーションあり
+      ID:
+        result: 発行
+        basis: ログインの応答で出る。portal が検証して nonce を照合する（U03）
+      内部トークン:
+        result: 発行
+        basis: 最初の API の要求で、入口が KC_AT を検証して INT_AT を作る（I21）
+      Logout Token:
+        result: 影響なし
+        basis: セッションを作るだけで、終えないのでログアウトトークンは出ない
+      IdP のセッション:
+        result: 発行
+        basis: ログインで Keycloak の SSO セッションを作る（idle 1800 秒、最大 36000 秒）
+      RP・BFF のセッション:
+        result: 発行
+        basis: IDT の検証の後に portal のセッションを作り、sid を結びつける
+    subject-states/suspended:
+      AT:
+        result: 影響なし
+        basis: 手元の KC_AT は exp まで入口が受け入れる（最大 330 秒）。経理・管理の操作は ledger が Keycloak のセッションを引き直して 0 秒で拒む
+      RT:
+        result: 失効
+        basis: 無効化した社員のリフレッシュは Keycloak が拒む（カタログの行列。V31）。実物では確かめていない
+      ID:
+        result: 影響なし
+        basis: IDT はログインの時だけ使い、保存しない
+      内部トークン:
+        result: 影響なし
+        basis: INT_AT は 300 秒で、手元の分は exp まで残る。重要な操作は ledger の引き直し（INT_AT の revocation の db_lookup）で止める
+      Logout Token:
+        result: 発行
+        basis: 管理者が無効化してセッションを消すと、Keycloak が portal に Back-Channel Logout を送る（I09）
+      IdP のセッション:
+        result: 失効
+        basis: 無効化に合わせて管理者がセッションを消す運用にする（Keycloak が無効化で自動で消すかは確かめていない。V31）
+      RP・BFF のセッション:
+        result: 失効
+        basis: ログアウトトークン（U07）を受けて、sid の一致する portal のセッションを 0 秒で消す
+    subject-states/deleted:
+      AT:
+        result: 影響なし
+        basis: 手元の KC_AT は exp まで受け入れる（最大 330 秒）。受け手は user_id で社員の表を引くので、消した社員の行が無ければ拒む
+      RT:
+        result: 失効
+        basis: 主体が無いので RT から AT を作れないと見込む（カタログでも推論。V36）。実物では確かめていない
+      ID:
+        result: 影響なし
+        basis: IDT はログインの時だけ使い、保存しない
+      内部トークン:
+        result: 影響なし
+        basis: 手元の INT_AT は exp まで残る（最大 330 秒）。入口は新しい KC_AT が出なくなるので作らない
+      Logout Token:
+        result: 発行
+        basis: 削除の前にセッションを消す運用にし、Keycloak が Back-Channel Logout を送る（I09）
+      IdP のセッション:
+        result: 失効
+        basis: 主体が無いセッションは使えないと見込む（カタログでも推論。V36）
+      RP・BFF のセッション:
+        result: 失効
+        basis: ログアウトトークンを受けて portal のセッションを消す
+    subject-states/tenant-switch:
+      AT:
+        result: 影響なし
+        basis: テナントは corp だけで切り替えがない。グループ会社の社員は EXT_AT の tid で所属が決まり、切り替えない
+      RT:
+        result: 影響なし
+        basis: 切り替えが無いので RT は変わらない
+      ID:
+        result: 影響なし
+        basis: 切り替えが無いので IDT は出ない
+      内部トークン:
+        result: 影響なし
+        basis: C-tenant-id は corp の固定値。グループ会社の区別は入口の許可リスト（tid）で行い、INT_AT の値は変わらない
+      Logout Token:
+        result: 影響なし
+        basis: 切り替えが無いのでセッションを終えない
+      IdP のセッション:
+        result: 影響なし
+        basis: レルムは corp の 1 つだけ
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: portal のセッションのテナントの文脈は corp で固定
+    subject-states/role-change:
+      AT:
+        result: 再計算
+        basis: 次のリフレッシュ（I02）でマッパーが再実行され、新しい部署・ロールが出る（ケーススタディの実測 refresh_reevaluation）。経理・管理の操作は ledger が部署を引き直す
+      RT:
+        result: 影響なし
+        basis: RT にロールは載らない。ローテーションで次のリフレッシュのときに替わる
+      ID:
+        result: 再計算
+        basis: リフレッシュの応答にも出るが、portal は認可に使わない
+      内部トークン:
+        result: 再計算
+        basis: 入口は要求ごとに KC_AT から作るので、KC_AT が替われば次の INT_AT に反映される（最大 330 秒の遅れ。重要な操作は引き直しで 0 秒）
+      Logout Token:
+        result: 影響なし
+        basis: ロールの変更はセッションを終えない
+      IdP のセッション:
+        result: 影響なし
+        basis: ロールの変更はセッションを終えない
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: portal はロールをセッションに写さない。ロールは受け手が INT_AT から読む
+    subject-states/credential-change:
+      AT:
+        result: 影響なし
+        basis: 手元の KC_AT は exp まで受け入れる（最大 330 秒）。資格情報の変更で AT を止める仕組みは置かない
+      RT:
+        result: 影響なし
+        basis: Keycloak 26.3 からの既定では、ほかの端末の RT は残る（Sign out from other devices が未チェック。カタログの I26）。残りを許すかは design.md の 12.
+      ID:
+        result: 影響なし
+        basis: IDT はログインの時だけ使い、保存しない
+      内部トークン:
+        result: 影響なし
+        basis: INT_AT は 300 秒で、手元の分は exp まで残る
+      Logout Token:
+        result: 影響なし
+        basis: 既定ではほかの端末のセッションも残るので、ログアウトトークンは出ない（I26 の回答と同じ扱い）
+      IdP のセッション:
+        result: 影響なし
+        basis: 既定ではほかの端末のセッションも残る（Keycloak の文書。カタログの行列）
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: portal は資格情報の変更を知らない。IdP のセッションが残るので、リフレッシュも通る
+pairwise:
+  subject_kinds:
+    利用者:
+      answer: 該当
+    ワークロード:
+      answer: 該当
+      note: エージェントの実行基盤（agent:expense）、ツールサーバー（invoice-mcp）、ワーカー（payment-worker）、各サービス
+    システム:
+      answer: 対象外
+      reason: 運用者の代理操作（I19）とバッチの基盤の操作はこの例の範囲外。基盤の操作は Keycloak・sts の管理の手続きで行い、トークンを発行しない
+  combinations:
+  - subject: 利用者
+    event: I01
+    stage: ①
+    note: 社員の認可コード＋PKCE のログイン（PAR）。acr は経理の操作の前の追加認証（I12）で使う
+  - subject: 利用者
+    event: I01
+    stage: ②
+    note: レルム corp のマッパーが組織の名前空間（tenant_id・user_id・roles・department・employee_id・idp・v）を KC_AT に足す
+  - subject: ワークロード
+    event: I01
+    stage: ②
+    note: ワークロードは対話のログインをしない。portal のクライアント認証（CLIENTASSERTION）だけが I01 のトークンの要求に付く
+  - subject: ワークロード
+    event: I01
+    stage: ①
+    note: 段階①（認証）にワークロードは関わらない（社員がブラウザで認証する）。起きない組み合わせとして確かめた
+  - subject: 利用者
+    event: I02
+    stage: ②
+    note: リフレッシュでマッパーが再実行され、部署・ロールの変更が反映される（最大 330 秒の遅れ）
+  - subject: ワークロード
+    event: I02
+    stage: ②
+    note: エージェントには RT を出さないので、ワークロードのリフレッシュは無い。portal のリフレッシュに CLIENTASSERTION が付くだけ
+  - subject: 利用者
+    event: I06
+    stage: ②
+    note: 交換で出る TASK_AT の sub は社員のまま。sts は sub の差し替えを許さない（ケーススタディ C15）
+  - subject: ワークロード
+    event: I06
+    stage: ③
+    note: invoice-mcp が AGENT_AT を subject_token にして交換し、act の最も外側に自分を足す。宛先は invoices だけ、scope は積で絞る
+  - subject: 利用者
+    event: I06
+    stage: ③
+    note: 交換の段階③で、社員の承認の記録（approval）から authorization_details を足す。社員が直接交換を求めることはない
+  - subject: ワークロード
+    event: I06
+    stage: ②
+    note: 段階②（IdP の写し）は sts が担い、Keycloak のマッパーは動かない。ワークロードの属性はトークンに足さない（client_id と act だけ）
+  - subject: 利用者
+    event: I09
+    stage: ②
+    note: 社員の無効化・セッションの削除で、Keycloak が portal にログアウトトークンを送る。sid で portal のセッションを消す
+  - subject: ワークロード
+    event: I09
+    stage: ②
+    note: ワークロードのセッションは無いので、ワークロードにはログアウトトークンは出ない。エージェントの委任の取り消しは sts の記録で行う
+  - subject: 利用者
+    event: I12
+    stage: ①
+    note: 経理の操作の前に、portal が acr_values を付けて追加認証を求める（ledger が insufficient_user_authentication を返したとき。U27）
+  - subject: 利用者
+    event: I12
+    stage: ⑤
+    note: 追加認証の後の KC_AT の acr を、入口が INT_AT に写し、ledger が照合する
+  - subject: ワークロード
+    event: I12
+    stage: ⑤
+    note: ワークロードには追加認証は無い。エージェントの支払いは人の承認（CIBA、I13）で代える
+  - subject: 利用者
+    event: I13
+    stage: ①
+    note: エージェントの実行基盤が CIBA で求め、社員がポータルで承認する（binding_message でタスクを示す）。承認をエージェントに判断させない
+  - subject: 利用者
+    event: I13
+    stage: ⑥
+    note: 承認の記録（approval の ID）を sts が持ち、TASK_AT の交換のときに authorization_details と C-approval-id を足す
+  - subject: ワークロード
+    event: I13
+    stage: ①
+    note: CIBA の要求を出すのはエージェントの実行基盤（agent:expense、private_key_jwt と DPoP の鍵）。sts は client_id と act にエージェントを書く
+  - subject: ワークロード
+    event: I13
+    stage: ⑥
+    note: 段階⑥（承認・同意）は社員が行い、ワークロードは承認しない（ケーススタディ C7 の承認の偽造を防ぐ）
+  - subject: 利用者
+    event: I14
+    stage: ⑥
+    note: 支払いの承認の内容（金額・相手先・対象の請求書）を authorization_details に載せる。type は https://claims.example.com/rar/payment だけ
+  - subject: ワークロード
+    event: I14
+    stage: ⑥
+    note: ツールサーバーは承認の内容を書けない。sts が承認の記録から写し、invoices が要求の本文と照合する（C5・C6）
+  - subject: 利用者
+    event: I21
+    stage: ③
+    note: 入口が KC_AT（または EXT_AT）を検証し、社員の INT_AT を API ごとに宛先 1 つで作る。組織のクレームは部分集合だけ写す
+  - subject: ワークロード
+    event: I21
+    stage: ③
+    note: ワークロードの要求（payment-worker など）は入口を通らず、INT_AT を作らない。入口の内側の通信相手は mTLS で確かめる
+  - subject: 利用者
+    event: I22
+    stage: ④
+    note: 入口が tts から Txn-Token を取り、sub に社員、txn に取引 ID を入れる。orders は改変せずに ledger へ渡す
+  - subject: ワークロード
+    event: I22
+    stage: ④
+    note: req_wl に Txn-Token を求めたワークロード（gateway）が入る。伝搬の途中では書き換えない（draft-ietf-oauth-transaction-tokens-11 §12.2 とスライドの要件）
+  - subject: 利用者
+    event: I25
+    stage: ①
+    note: 新しい社員の初回ログインは I01 と同じ認証。必須のアクション（パスワードの設定）の後に発行
+  - subject: 利用者
+    event: I25
+    stage: ②
+    note: ロールを付ける前なら roles は空で出る。マッパーが呼ばれるかはカタログで unknown（R3b の warn）
+  - subject: ワークロード
+    event: I25
+    stage: ②
+    note: ワークロードの登録は Keycloak のクライアントの登録（運用の手続き）で、初回ログインの発行は無い
+  - subject: ワークロード
+    event: I25
+    stage: ①
+    note: 段階①にワークロードは関わらない。エージェントの実行基盤の鍵の登録は jwks_uri で行う
+  - subject: 利用者
+    event: I26
+    stage: ①
+    note: パスワードの変更の後のログインは I01 と同じ認証。ほかの端末のセッションは既定で残る（12. の自信のない点）
+  - subject: 利用者
+    event: I26
+    stage: ②
+    note: 変更の後の発行は I01 と同じ中身を見込む。マッパーが呼ばれるかはカタログで unknown（R3b の warn）
+  - subject: ワークロード
+    event: I26
+    stage: ②
+    note: ワークロードの資格情報の変更は鍵の入れ替え（jwks_uri に新しい鍵を先に載せる）で、トークンの中身は変わらない
+  - subject: ワークロード
+    event: I26
+    stage: ①
+    note: 段階①（利用者の認証）にワークロードは関わらない
+  - subject: ワークロード
+    event: I28
+    stage: ②
+    note: portal・agent-runtime・invoice-mcp が private_key_jwt の assertion を作る。jti は Keycloak・sts が再送を拒む
+  - subject: 利用者
+    event: I28
+    stage: ②
+    note: client assertion の sub はクライアントで、社員の情報を載せない
+  - subject: 利用者
+    event: I29
+    stage: ②
+    note: AGENT_AT・TASK_AT の sub は社員だが、束縛する鍵はワークロードのもの（cnf.jkt）。社員の端末の鍵では束縛しない
+  - subject: ワークロード
+    event: I29
+    stage: ②
+    note: sts が DPoP の proof の鍵の拇印を cnf.jkt に入れる。AGENT_AT は agent-runtime の鍵、TASK_AT は invoice-mcp の鍵
+  - subject: ワークロード
+    event: I30
+    stage: ②
+    note: agent-runtime・invoice-mcp が要求ごとに proof を作る（htm・htu・iat・jti、保護リソースには ath）
+  - subject: 利用者
+    event: I30
+    stage: ②
+    note: 社員は DPoP の proof を作らない（portal の KC_AT は Bearer）。起きない組み合わせとして確かめた
+outside_enumeration:
+  answer: カタログ（発行 34・利用 28）と keycloak-settings・keycloak-grant-types の外の契機を、境界の図・シーケンス図・ホップの表と、Keycloak・sts・tts・模擬の 4 つの IdP の文書で探した。新しい発行の契機は見つからなかったが、発行の中身が変わる場面を 2 つ見つけ、下の found に書いた
+  respondent: 記入例の書き手（作成者）
+  date: '2026-11-23'
+  searched:
+  - design.md の 2. 範囲と信頼の境界の図、7. シーケンス図、8. ホップの表（矢印とホップごとに、カタログのどのイベントかを確かめた）
+  - Keycloak 26.8.2 の javadoc「OAuth2GrantType」の実装クラスの一覧（https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/grants/OAuth2GrantType.html。カタログの keycloak-grant-types）
+  - Keycloak Server Administration Guide 26.8.2 のクライアント・レルムの設定（Capability config、Client scopes、Sessions、Logout settings、CIBA）
+  - Microsoft Entra ID の文書「Access token claims reference」（https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference）。グループ会社の AT の形（入口の正規化の入力）
+  - Okta の文書「Inline hooks」（https://developer.okta.com/docs/concepts/inline-hooks/）。token inline hook の打ち切り（ケーススタディ B15 の型）
+  - Amazon Cognito Developer Guide「Pre token generation Lambda trigger」（https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html）の契機の値
+  - Auth0 の文書「Create Custom Claims」（https://auth0.com/docs/secure/tokens/json-web-tokens/create-custom-claims）。名前空間の規則と黙って消えるクレーム
+  - draft-ietf-oauth-transaction-tokens-11（https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-11）の Txn-Token の発行と作り直しの節
+  found:
+  - name: グループ会社の IdP の側でクレームの写像（Okta の inline hook・Cognito の発行前フック・Auth0 の Action）が変わった後に入口に届く EXT_AT
+    handled_as: 新しいイベントではなく、入口の正規化の入力の変化として扱った。入口は必須の欠落を拒否し（B15・B19）、本人が書ける値（custom:）を認可に使わない（B18）
+  - name: エージェントのタスクが 300 秒を超えて続くときの取り直し
+    handled_as: I13（CIBA）の繰り返しとして扱った。sts は取り直しのたびに委任の取り消しを確かめる
+answers:
+- event: I01
+  answer: 該当
+  token_types:
+  - KC_AT
+  - IDT
+  - RT
+  - CODE
+  - SSO
+  - BFFSESSION
+  - CLIENTASSERTION
+  note: 社員のログイン（認可コード＋PKCE、PAR、private_key_jwt）。マッパーで組織の名前空間を KC_AT に足す
+- event: I02
+  answer: 該当
+  token_types:
+  - KC_AT
+  - IDT
+  - RT
+  - CLIENTASSERTION
+  note: portal の KC_AT の取り直し。マッパーが再実行されるので、部署・ロールの変更はリフレッシュで反映される
+- event: I03
+  answer: 対象外
+  assumption: クライアント portal に軽量アクセストークンの executor を適用しない。入口は KC_AT の組織の名前空間を必須にしており、軽量にすると落ちる（ケーススタディの実測：組織の名前空間も落ちる）
+  breaks_when: KC_AT の大きさを減らすために軽量アクセストークンを使うとき。その場合は組織の名前空間のマッパーで Add to lightweight access token を ON にし、R8 を計算し直す
+- event: I04
+  answer: 対象外
+  assumption: クライアントの Direct Access Grants を OFF にする。RFC 9700 §2.4 が ROPC を使わないよう求めている
+  breaks_when: ROPC でしかログインできない旧い社内ツールをつなぐとき
+- event: I05
+  answer: 対象外
+  assumption: Keycloak から client credentials の AT を出さない。ワーカー・サービスの通信相手は mTLS で確かめ、トークンを使わない（WORKLOADJWT は却下）
+  breaks_when: サービスが社員の文脈なしに別の API を呼ぶ要件（夜間の集計など）が出たとき。その場合は利用者のクレームを載せない AT を別の種別にする
+- event: I06
+  answer: 該当
+  token_types:
+  - TASK_AT
+  note: invoice-mcp が AGENT_AT を subject_token にして sts で交換する（Keycloak の交換は使わない）。Keycloak のクライアントの Standard Token Exchange は OFF のまま
+  hook_checked: 交換を受けるのは sts で、Keycloak のマッパーは関与しない。Keycloak のクライアント（portal）の Capability config で Standard Token Exchange が OFF であることを、設計書の 3. の設定の一覧で確かめる
+- event: I07
+  answer: 対象外
+  assumption: ブラウザの無い端末からのログインがない（社員はポータルのブラウザだけ）
+  breaks_when: CLI・会議室の端末など、入力の限られた端末のクライアントを足すとき
+- event: I08
+  answer: 対象外
+  assumption: クライアント portal から offline_access のスコープを外し、既定のロール（default-roles-corp）の offline_access も外す。Keycloak の既定ではクライアントに任意のスコープとして付き、既定のロールにも入る（カタログの I08）
+  breaks_when: 社員がログインしていない間に、portal やエージェントが社員の権限で処理を続ける要件が出たとき（その場合は委任の CIBA を繰り返す形を先に検討する）
+- event: I09
+  answer: 該当
+  token_types:
+  - LOGOUT
+  note: Keycloak が portal の Backchannel logout URL にログアウトトークンを送る。portal は sid で BFF のセッションを消す
+- event: I10
+  answer: 対象外
+  assumption: クライアントの Implicit Flow を OFF のままにし、portal が認可コード（I01）でトークンを受ける（RFC 9700 §2.1.2）
+  breaks_when: portal を通さずに、ブラウザだけで動くクライアントをつなぐとき
+- event: I11
+  answer: 対象外
+  assumption: portal は prompt=none でトークンを取り直さない。KC_AT の取り直しは RT（I02）だけで行う
+  breaks_when: portal のセッションが切れた後に、社員の操作なしに SSO で再ログインさせる要件が出たとき
+- event: I12
+  answer: 該当
+  token_types:
+  - KC_AT
+  - IDT
+  - SSO
+  note: 経理の操作の前に portal が acr_values を付けて追加認証を求める。acr は入口が INT_AT に写し、ledger が照合する
+- event: I13
+  answer: 該当
+  token_types:
+  - AGENT_AT
+  - CLIENTASSERTION
+  note: エージェントの実行基盤が sts に CIBA を求め、社員がポータルで承認した後に AGENT_AT が出る
+  hook_checked: CIBA を受けるのは sts で、Keycloak のマッパーは関与しない。クライアント portal の Capability config で OIDC CIBA Grant が OFF であることを設計書の 3. で確かめる
+- event: I14
+  answer: 該当
+  token_types:
+  - TASK_AT
+  note: 支払いの承認の内容を authorization_details に載せる（sts が承認の記録から写す）
+  hook_checked: authorization_details を書くのは sts で、Keycloak は RAR を発行しない（Keycloak 26.8 の RAR への対応はカタログで未確認の V33。この設計では使わない）
+- event: I15
+  answer: 対象外
+  assumption: JWT のアサーショングラント（RFC 7523 §2.1）を受けない。グループ会社の IdP の AT は入口で検証し、交換しない
+  breaks_when: グループ会社のサービスが、自社の JWT を示して組織の API のトークンを求める連携を受け入れるとき
+- event: I16
+  answer: 対象外
+  assumption: グループ会社の IdP から ID-JAG で組織の API を呼ぶ連携がない（目録の IDJAG は却下）
+  breaks_when: グループ会社や SaaS から ID-JAG で組織の API・エージェントを呼ぶ連携を受け入れるとき
+- event: I17
+  answer: 対象外
+  assumption: Keycloak のブローカー（外部の IdP でのログイン）を使わない。グループ会社の社員は各社の IdP の AT を入口に直接示す（EXT_AT）
+  breaks_when: グループ会社の社員にもポータルを使わせ、Keycloak のブローカーで各社の IdP にログインさせるとき
+- event: I18
+  answer: 対象外
+  assumption: アカウントの名寄せ・リンクをしない。グループ会社の社員は入口が IdP ごとの不変の ID（tid＋oid・uid・sub）で C-user-id を作る
+  breaks_when: 同じ社員が corp とグループ会社の両方の ID を持ち、1 人として扱う必要が出たとき
+- event: I19
+  answer: 対象外
+  assumption: Keycloak の Impersonate を使わない（管理者のロールに impersonation を付けない）。運用者の横断作業と break-glass はこの例の範囲外
+  breaks_when: 運用者が社員の代わりに操作する手続き（問い合わせ対応など）を足すとき。その場合は委任のトークン（sub は社員、act は運用者）で行う
+- event: I20
+  answer: 対象外
+  assumption: ワークロードの ID はトークン（JWT-SVID）ではなく mTLS の X.509-SVID で示す（目録の WORKLOADJWT は却下）
+  breaks_when: TLS を終端する部品を通す経路ができ、通信相手をトークンで示す必要が出たとき
+- event: I21
+  answer: 該当
+  token_types:
+  - INT_AT
+  - INT_AT_LEDGER
+  - INT_AT_DOCS
+  - INT_AT_PAYROLL
+  note: 入口が KC_AT・EXT_AT を検証し、API ごとに宛先 1 つの INT_AT を作る（H4〜H8）
+- event: I22
+  answer: 該当
+  token_types:
+  - TXN
+  note: 入口が tts から Txn-Token を取り、orders から ledger へ改変せずに渡す（H9・H10）
+- event: I23
+  answer: 対象外
+  assumption: SSF・CAEP の SET を受けない（目録の SET は却下）。セッションの終了は Back-Channel Logout で受ける
+  breaks_when: グループ会社の IdP（Entra ID など）でのリスクの検知やセッションの剥奪を、入口に届ける必要が出たとき
+- event: I24
+  answer: 対象外
+  assumption: テナントは corp だけで、組織の切り替えがない。グループ会社の所属は EXT_AT の tid で決まり、社員が切り替えない
+  breaks_when: グループ会社の社員が複数の会社の業務を切り替えて行う要件が出たとき
+- event: I25
+  answer: 該当
+  token_types:
+  - KC_AT
+  - IDT
+  - RT
+  - SSO
+  - BFFSESSION
+  note: 新しい社員の初回ログイン。I01 と同じ中身を見込む
+- event: I26
+  answer: 該当
+  token_types:
+  - KC_AT
+  - IDT
+  - RT
+  - SSO
+  note: パスワードの変更・リセットの後のログイン。ほかの端末のセッションは既定で残る
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを出さない（目録の STATUSLIST は却下）。トークンは 300 秒で、即時の剥奪が要る操作は引き直す
+  breaks_when: エージェントの長時間のタスクなど、寿命の長いトークンを出し、受け手に失効を届ける仕組みが要るようになったとき
+- event: I28
+  answer: 該当
+  token_types:
+  - CLIENTASSERTION
+  note: portal・agent-runtime・invoice-mcp の private_key_jwt のクライアント認証
+- event: I29
+  answer: 該当
+  token_types:
+  - AGENT_AT
+  - TASK_AT
+  note: sts が DPoP の proof の鍵で AGENT_AT・TASK_AT を束縛する（cnf.jkt）。Keycloak の KC_AT は束縛しない
+  hook_checked: 束縛するのは sts で、Keycloak のマッパーは関与しない。KC_AT に cnf が付かないことは、portal が DPoP の proof を送らないことで確かめる（Keycloak は proof が送られれば束縛する。カタログの I29）
+- event: I30
+  answer: 該当
+  token_types:
+  - DPOP
+  note: agent-runtime・invoice-mcp が要求ごとに proof を作る
+- event: I31
+  answer: 対象外
+  assumption: 認可要求は PAR で送り、Request Object に署名しない（目録の JAR は却下）
+  breaks_when: 認可要求の署名を求める規則（FAPI 2.0 の Message Signing など）の対象になったとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答を JWT にしない（目録の JARM は却下）。応答は portal のサーバーが PKCE と state で確かめる
+  breaks_when: 認可応答の改ざんを防ぐ必要が出たとき（FAPI 2.0 の Message Signing など）
+- event: I33
+  answer: 対象外
+  assumption: イントロスペクションを使わない（at_format は jwt）。重要な操作の鮮度は Keycloak の管理 API で引き直す
+  breaks_when: イントロスペクションを使い、AS の判断を否認できない形で残す必要が出たとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報（OID4VCI）を発行しない。社員証のデジタル化はこの例の範囲外（ガイドの範囲外）
+  breaks_when: 社員証などの検証可能な資格情報を Keycloak の oid4vc-vci で発行するとき
+- event: U01
+  answer: 該当
+  token_types:
+  - KC_AT
+  - EXT_AT
+  - INT_AT
+  - INT_AT_LEDGER
+  - INT_AT_DOCS
+  - INT_AT_PAYROLL
+  - AGENT_AT
+  - TASK_AT
+  note: '入口が KC_AT・EXT_AT を、API が INT_AT を、invoice-mcp・invoices が AGENT_AT・TASK_AT を検証する（AGENT_AT・TASK_AT は Authorization: DPoP）'
+- event: U02
+  answer: 該当
+  token_types:
+  - INT_AT_LEDGER
+  note: ledger が取引ごとに set_config（第 3 引数 true）で user_id を DB の文脈に設定し、RLS で部署の行に絞る（H11）
+- event: U03
+  answer: 該当
+  token_types:
+  - IDT
+  note: portal がログインの応答で IDT を検証し、nonce を照合する
+- event: U04
+  answer: 該当
+  token_types:
+  - RT
+  - KC_AT
+  note: portal が RT で KC_AT を取り直す（ローテーション）
+- event: U05
+  answer: 対象外
+  assumption: イントロスペクションを使わない。重要な操作の鮮度は、ledger が Keycloak の管理 API でセッション（sid）と部署を引き直して確かめる（ケーススタディ B11・B12）
+  breaks_when: 受け手の全体で剥奪を即時に反映する必要が出たとき、または不透明なトークンに替えるとき
+- event: U06
+  answer: 該当
+  token_types:
+  - SSO
+  - IDT
+  note: portal が RP-Initiated Logout を送り、id_token_hint に IDT を付ける
+- event: U07
+  answer: 該当
+  token_types:
+  - LOGOUT
+  note: portal がログアウトトークンを検証し（iss・aud・iat・jti・events・sid、nonce が無いこと）、sid の一致するセッションを消す
+- event: U08
+  answer: 対象外
+  assumption: portal は UserInfo を呼ばない。表示名とメールは IDT から得る
+  breaks_when: IDT に載せない属性（電話番号など）を画面に出す必要が出たとき
+- event: U09
+  answer: 該当
+  token_types:
+  - KC_AT
+  - EXT_AT
+  - INT_AT
+  - INT_AT_LEDGER
+  - INT_AT_DOCS
+  - INT_AT_PAYROLL
+  - TXN
+  - AGENT_AT
+  - TASK_AT
+  - LOGOUT
+  - IDT
+  note: 受け手は iss ごとに JWKS を 3600 秒キャッシュし、未知の kid の取り直しは 300 秒に 1 回まで、負のキャッシュは 300 秒
+- event: U10
+  answer: 該当
+  token_types:
+  - AGENT_AT
+  note: invoice-mcp が AGENT_AT を subject_token として sts に提示する（I06）
+- event: U11
+  answer: 対象外
+  assumption: 入口は外部のトークンをヘッダーに転記せず、INT_AT に作り直す。クライアントが付けた x-user-* のヘッダーは、大文字小文字・アンダースコア・重複を含めて捨てる（ケーススタディ B4〜B6）
+  breaks_when: 入口の内側に、トークンを検証できずヘッダーだけを読む旧いサービスをつなぐとき。その場合は forwarded_headers に strip_inbound と written_only_by を宣言する
+- event: U12
+  answer: 該当
+  token_types:
+  - TXN
+  note: orders から ledger へ Txn-Token を改変せずに渡し、通信相手は mTLS で確かめる
+- event: U13
+  answer: 該当
+  note: ledger が支払いのイベントを events に出し、payment-worker が受ける。メッセージには主体の間接参照（ハッシュした user_id）と txn と approval の ID だけを入れ、トークンを入れない（H12・H13）
+- event: U14
+  answer: 該当
+  note: 監査ログに、誰の権限で（sub）・誰が実行したか（act・req_wl・mTLS の相手）・何の承認で（approval の ID）・どの取引か（txn）を別々の項目で残す。トークンの全文は残さない（jti だけ）
+- event: U15
+  answer: 該当
+  token_types:
+  - RT
+  - SSO
+  note: 社員の退職・異動で、portal が RFC 7009 の失効の端点に RT を送り、管理者がセッションを消す
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを確かめない（目録の STATUSLIST は却下）
+  breaks_when: 状態リストを出す発行者（グループ会社の IdP など）のトークンを受けるとき
+- event: U17
+  answer: 対象外
+  assumption: SET を受けない（目録の SET は却下）。セッションの終了は Back-Channel Logout（U07）で受ける
+  breaks_when: グループ会社の IdP のリスクの検知やセッションの剥奪を、入口に届ける必要が出たとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない。Back-Channel Logout（U07）だけで受ける
+  breaks_when: サーバーから到達できない RP（ブラウザだけのアプリ）をつなぐとき
+- event: U19
+  answer: 対象外
+  assumption: 応答・Webhook を署名しない。支払いのイベントは組織の網の中のブローカー（mTLS）だけを通る
+  breaks_when: 支払いの結果を取引先・グループ会社に Webhook で返すようになったとき
+- event: U20
+  answer: 対象外
+  assumption: 取引先の API を呼ばない。invoices は社内の API で、支払いの実行は社内の会計の手続きで行う
+  breaks_when: 支払いを外部の銀行・取引先の API で実行するようになったとき（FAPI など規制の対象になるかも見直す）
+- event: U21
+  answer: 該当
+  note: 入口は同じ KC_AT の間、aud ごとの INT_AT を 60 秒までキャッシュしてよい（INT_AT の寿命と KC_AT の exp を超えない）。認可の判定の結果はキャッシュしない
+- event: U22
+  answer: 該当
+  token_types:
+  - CODE
+  note: URL に載るのは認可コードと PAR の request_uri だけ。トークンは URL に置かない
+- event: U23
+  answer: 対象外
+  assumption: 長時間の接続（WebSocket・gRPC のストリーム）を使わない。エージェントとツールの呼び出しは要求ごと
+  breaks_when: エージェントとツールサーバーの間を SSE などの長い接続にするとき（MCP の transport を替えるとき）
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で JWT を資格情報に替えない。DB とブローカーにはサービスの資格情報と mTLS で接続する
+  breaks_when: ledger-db や events をクラウドのマネージドサービスに移し、ワークロードの ID の連携で接続するとき
+- event: U25
+  answer: 該当
+  token_types:
+  - AGENT_AT
+  - DPOP
+  note: エージェントが invoice-mcp を呼ぶ。invoice-mcp は自分宛ての AGENT_AT だけを受け、上流に渡さない（ケーススタディ C2・C13）
+- event: U26
+  answer: 該当
+  token_types:
+  - AGENT_AT
+  - TASK_AT
+  - DPOP
+  note: invoice-mcp・invoices が DPoP の proof（htm・htu・iat・jti・ath）と cnf.jkt を照合し、jti の再送を拒む
+- event: U27
+  answer: 該当
+  token_types:
+  - KC_AT
+  - AGENT_AT
+  note: ledger は acr が足りなければ insufficient_user_authentication を返す。invoice-mcp は scope が足りなければ WWW-Authenticate で必要な scope を示す（タスクの範囲を超える昇格は CIBA の承認から）
+- event: U28
+  answer: 対象外
+  assumption: クレームを分析基盤に複製しない。監査ログは監査の基盤だけに置く
+  breaks_when: 業務の分析のために、ログやイベントを分析基盤に写すようになったとき（C-user-id はハッシュにする）

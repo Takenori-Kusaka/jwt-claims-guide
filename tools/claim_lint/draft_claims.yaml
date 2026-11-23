@@ -1,0 +1,13 @@
+# Claim names that a versioned IETF draft defines and IANA has not registered yet (L1b of claim_lint, #4 / #6).
+# A top-level unregistered name is an error in L1b, except a name listed here for the draft that the row's registered_ref
+# and spec_version name (then warn: the name belongs to the draft and cannot move into the organization's namespace).
+# Names used for authorization or identification (usage authz / identifier) stay errors. Add a draft only after reading
+# its text; give the section that defines each name. Review when the draft changes version or becomes an RFC.
+source_checked_on: "2026-11-23"
+drafts:
+  draft-ietf-oauth-transaction-tokens-11:
+    url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.html"
+    claims:
+      req_wl: "§9.2"
+      tctx: "§9.2.3"
+      rctx: "§9.2.2"

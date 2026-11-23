@@ -139,6 +139,34 @@ def test_l1b_same_name_different_meaning_fails(tmp_path):
     assert any('同じ名前' in f['message'] for f in bad(lint(tmp_path, d), 'L1b'))
 
 
+def _draft_row(name, draft='draft-ietf-oauth-transaction-tokens-11', sec='§9.2', usage='protocol', spec=True):
+    return new_claim(id='C-' + name.replace('_', '-'), name=name, namespace=None, usage=usage,
+                     spec_version=[draft] if spec else None, registered_ref={'kind': 'spec', 'id': f'{draft} {sec}'})
+
+
+def test_l1b_name_pinned_for_its_draft_is_warn(tmp_path):
+    """A name that tools/claim_lint/draft_claims.yaml pins for the cited draft (Txn-Token req_wl) warns (#4 scenario B)."""
+    d = base()
+    d['claims']['claims'].append(_draft_row('req_wl'))
+    f = [x for x in lint(tmp_path, d)['findings'] if x['rule'] == 'L1b' and x['target'] == 'C-req-wl']
+    assert [x['severity'] for x in f] == ['warn']
+
+
+def test_l1b_draft_relaxation_cannot_be_abused(tmp_path):
+    """PR #44 review B06: a made-up draft, a name the real draft does not define, an authz use, or no spec_version stay
+    errors."""
+    cases = [
+        _draft_row('is_admin', draft='draft-acme-made-up-claims-00', sec='§1', usage='authz'),  # (1) fake draft
+        _draft_row('superuser', usage='authz'),                                                   # (2) real draft, foreign name
+        _draft_row('req_wl', usage='authz'),                                                      # pinned name used for authz
+        _draft_row('req_wl', spec=False),                                                         # no spec_version
+    ]
+    for k, row in enumerate(cases):
+        d = base()
+        d['claims']['claims'].append(row)
+        assert [x['target'] for x in bad(lint(tmp_path / str(k), d), 'L1b')] == [row['id']], row
+
+
 def test_l1b_idp_default_private_name_is_info(example):
     assert [f['target'] for f in by(example, 'L1b')] == ['C-typ-claim'] and by(example, 'L1b')[0]['severity'] == 'info'
 
@@ -673,3 +701,93 @@ def test_l5_db_lookup_note_matches_whole_id(tmp_path):
     claim(d, 'C-roles').update(volatility=60, propagation_delay=0)
     tt(d, 'AT')['revocation'].append({'method': 'db_lookup', 'delay_seconds': 0, 'note': 'C-role を引く'})
     assert [f['target'] for f in bad(lint(tmp_path, d), 'L5')] == ['C-roles']
+
+
+# ------------------------------------------------------------------ L16 on scenario B: regression tests of the PR #44 re-check
+EX_B = os.path.join(ROOT, 'templates', 'examples', 'scenario-b')
+R10 = '理由理由理由理由理由'
+
+
+def _b():
+    return {n: core.load_yaml(os.path.join(EX_B, n + '.yaml')) for n in ('claims', 'hops', 'token_types', 'catalog_answers')}
+
+
+def _lint_b(tmp_path, d):
+    out = tmp_path / 'b'
+    shutil.copytree(EX_B, out)
+    for n, v in d.items():
+        with open(out / (n + '.yaml'), 'w', encoding='utf-8') as f:
+            yaml.safe_dump(v, f, allow_unicode=True, sort_keys=False)
+    return core.run(str(out), today=TODAY)
+
+
+def _l16(res, hid):
+    return sorted(f['severity'] for f in res['findings'] if f['rule'] == 'L16' and f['target'] == f'hop {hid}')
+
+
+def test_l16_scenario_b_h15_replacement_is_info(tmp_path):
+    assert _l16(_lint_b(tmp_path, _b()), 'H15') == ['info']
+
+
+@pytest.mark.parametrize('aud', [['*'], ['https://api.corp.example.com'], ['payroll']])
+def test_l16_aud_replacement_must_be_the_destination(tmp_path, aud):
+    """Re-check 1-3: a wildcard, a gateway-wide audience or an unrelated service is not a replacement by the destination."""
+    d = _b()
+    hop(d, 'H15')['aud'] = aud
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H15')
+
+
+def test_l16_aud_replacement_only_on_token_exchange(tmp_path):
+    """Re-check 4: a reissue hop cannot replace aud with a service the upstream token never addressed."""
+    d = _b()
+    h = hop(d, 'H5')
+    h.update(aud=['hr-admin'], aud_replacement=True, narrowing_exception={'aud': R10})
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H5')
+
+
+def test_l16_aud_replacement_needs_upstream_aud_of_the_requester(tmp_path):
+    d = _b()
+    hop(d, 'H14')['aud'] = ['other-mcp']
+    hop(d, 'H14')['custom_claims'] = hop(d, 'H15')['custom_claims']
+    assert 'error' in _l16(_lint_b(tmp_path, d), 'H15')
+
+
+@pytest.mark.parametrize('key,value', [('scope', ['invoices.pay', 'invoices.refund', 'admin']),
+                                       ('authorization_details', ['https://claims.example.com/rar/payment', 'https://claims.example.com/rar/any'])])
+def test_l16_scope_and_authorization_details_have_no_exception(tmp_path, key, value):
+    """Re-check 6-7: scope and authorization_details never widen (Txn-Token §13.6). The exception key is a schema error."""
+    d = _b()
+    hop(d, 'H15')[key] = value
+    hop(d, 'H15')['narrowing_exception'][key] = R10
+    res = _lint_b(tmp_path, d)
+    assert 'warn' in _l16(res, 'H15') and any(f['rule'] == 'SCHEMA' for f in res['findings'])
+
+
+def test_l16_lifetime_exception_only_for_txn_token(tmp_path):
+    """Re-check 8-9: a longer lifetime on a non-Txn-Token exchange stays warn, with or without a reason."""
+    d = _b()
+    hop(d, 'H15')['max_lifetime'] = 86400
+    hop(d, 'H15')['narrowing_exception']['max_lifetime'] = R10
+    assert 'warn' in _l16(_lint_b(tmp_path / 'a', d), 'H15')
+    d = _b()
+    h = hop(d, 'H15')
+    h.update(max_lifetime=86400, narrowing_exception='x', aud=['invoice-mcp'])
+    h.pop('aud_replacement')
+    res = _lint_b(tmp_path / 'b', d)
+    assert 'warn' in _l16(res, 'H15') and any(f['rule'] == 'SCHEMA' for f in res['findings'])
+
+
+def test_l16_txn_token_scope_is_compared(tmp_path):
+    """Re-check 10-11 (the B01 safeguard): the TXN hop H10 adding ledger.post to its upstream H9 is caught."""
+    d = _b()
+    hop(d, 'H10')['scope'] = ['ledger.read', 'ledger.post']
+    assert 'warn' in _l16(_lint_b(tmp_path, d), 'H10')
+
+
+@pytest.mark.parametrize('ref_id', ['draft-ietf-oauth-transaction-tokens-11 §1', 'draft-ietf-oauth-transaction-tokens-11'])
+def test_l1b_draft_section_must_match_the_pinned_section(tmp_path, ref_id):
+    """Re-check 20-21: the cited section must be the one draft_claims.yaml records for the name."""
+    d = _b()
+    claim(d, 'C-tctx')['registered_ref']['id'] = ref_id
+    res = _lint_b(tmp_path, d)
+    assert [f['severity'] for f in res['findings'] if f['rule'] == 'L1b' and f['target'] == 'C-tctx'] == ['error']
