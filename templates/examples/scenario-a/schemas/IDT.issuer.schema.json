@@ -21,7 +21,10 @@
    "description": "AT では宛先の API（saas-api）。ID トークンではクライアント（saas-web）",
    "$comment": "C-aud",
    "type": "string",
-   "maxLength": 8
+   "maxLength": 8,
+   "enum": [
+    "saas-web"
+   ]
   },
   "exp": {
    "description": "有効期限（UNIX 時刻の秒）",

@@ -298,6 +298,118 @@ def test_no_client_in_scope_is_an_error():
     assert ('D0', 'clients') in rules(res)
 
 
+# ------------------------------------------------------------------ PR #47 independent check
+def _mapper(exp, name):
+    return next(m for m in web(exp)['protocolMappers'] if m['name'] == name)
+
+
+def test_audience_mapper_moved_to_a_default_scope_still_compares_the_at():
+    """1: the Audience mapper moved from the client to one of its default client scopes is still read."""
+    exp = export()
+    m = _mapper(exp, 'aud-saas-api')
+    web(exp)['protocolMappers'].remove(m)
+    exp['clientScopes'].append({'name': 'api-aud', 'protocol': 'openid-connect', 'attributes': {}, 'protocolMappers': [m]})
+    web(exp)['defaultClientScopes'].append('api-aud')
+    res = run(exp)
+    assert res['clients'] == {'saas-web': {'AT': 'access', 'IDT': 'id'}}
+    assert rules(res) == [] and rules(res, 'warn') == []
+
+
+def test_audience_value_change_is_detected_and_the_at_stays_compared():
+    """1, 3: a changed audience keeps saas-web in the AT comparison (it is the IDT client) and D4 reports both values;
+    an extra Audience mapper and an Audience mapper into the ID token are reported too."""
+    exp = export()
+    _mapper(exp, 'aud-saas-api')['config']['included.client.audience'] = 'account'
+    res = run(exp)
+    assert res['clients']['saas-web'] == {'AT': 'access', 'IDT': 'id'}
+    msgs = [f['message'] for f in res['findings'] if f['rule'] == 'D4' and f['target'] == 'saas-web:AT:aud']
+    assert any('saas-api' in m and '出さない' in m for m in msgs) and any('account' in m for m in msgs)
+    exp = export()
+    web(exp)['protocolMappers'].append({'name': 'aud-evil', 'protocol': 'openid-connect', 'protocolMapper': 'oidc-audience-mapper',
+                                        'config': {'included.custom.audience': 'https://evil.example', 'access.token.claim': 'true'}})
+    assert ('D4', 'saas-web:AT:aud') in rules(run(exp))
+    exp = export()
+    _mapper(exp, 'aud-saas-api')['config']['id.token.claim'] = 'true'
+    assert ('D4', 'saas-web:IDT:aud') in rules(run(exp))
+
+
+def test_no_client_for_an_access_token_type_is_d0():
+    exp = export()
+    web(exp)['protocolMappers'].remove(_mapper(exp, 'aud-saas-api'))
+    web(exp)['clientId'] = 'renamed'  # no IDT client either; the AT type has no client at all
+    exp['clients'].append({'clientId': 'other-idt', 'enabled': True, 'protocolMappers': []})
+    res = drift.run(EXAMPLE, keycloak.normalize(exp))
+    assert ('D0', 'clients') in rules(res) or ('D0', 'AT') in rules(res)
+
+
+def test_issuer_schema_rejects_a_foreign_audience():
+    """3: the issuer schema's aud is the token type's audiences, not only a maxLength."""
+    d = render.load_design(EXAMPLE)
+    bad = copy.deepcopy(render.read_payload(TOKENS[0][1]))
+    bad['aud'] = 'account'
+    assert any('aud' in e for e in render.validate_payload(d, bad, 'AT', 'issuer'))
+
+
+def test_token_exchange_on_the_resource_client_is_detected():
+    """2: Standard token exchange on saas-api (the AT's aud) makes I06 happen (400 -> 200 on Keycloak 26.8.0)."""
+    exp = export()
+    api = next(c for c in exp['clients'] if c['clientId'] == 'saas-api')
+    api['attributes']['standard.token.exchange.enabled'] = 'true'
+    res = run(exp)
+    assert rules(res) == [('D9', 'saas-api:I06')] and res['resource_clients'] == ['saas-api']
+    with open(os.path.join(FIX, 'scenario-a-t1.exchange.json'), encoding='utf-8') as f:
+        rec = json.load(f)
+    assert rec['without_switch']['status'] == 400 and rec['with_switch_on_saas_api']['status'] == 200
+
+
+def test_remember_me_extends_the_compared_lifetimes():
+    """4: Remember Me with longer session values lengthens the RT and the IdP session."""
+    exp = export()
+    exp.update(rememberMe=True, ssoSessionMaxLifespanRememberMe=2592000, ssoSessionIdleTimeoutRememberMe=604800)
+    got = rules(run(exp))
+    assert ('D5', 'realm:SSO') in got and ('D5', 'saas-web:RT') in got
+    exp = export()
+    exp.update(rememberMe=False, ssoSessionMaxLifespanRememberMe=2592000)
+    assert rules(run(exp)) == []
+
+
+def test_client_role_mapper_values_are_checked():
+    """5: the roles claim written by a client-role mapper is checked against the vocabulary."""
+    exp = export()
+    m = _mapper(exp, 'roles')
+    m['protocolMapper'] = 'oidc-usermodel-client-role-mapper'
+    m['config']['usermodel.clientRoleMapping.clientId'] = 'realm-management'
+    exp['clientScopeMappings'] = {'realm-management': [{'client': 'saas-web', 'roles': ['realm-admin']}]}
+    got = rules(run(exp))
+    assert ('D4', f'saas-web:AT:{NS}.roles') in got
+    assert ('D3', f'saas-web:AT:{NS}.roles') in got  # the registry's writer is a User Realm Role mapper
+
+
+def test_source_attribute_change_is_detected():
+    """5: user_id read from username instead of id."""
+    exp = export()
+    _mapper(exp, 'user_id')['config']['user.attribute'] = 'username'
+    assert rules(run(exp)) == [('D3', f'saas-web:AT:{NS}.user_id')]
+
+
+def test_disabled_clients_are_not_compared():
+    """5: a disabled client with the same audience is reported as info only."""
+    exp = export()
+    other = copy.deepcopy(web(exp))
+    other.update(clientId='old-web', enabled=False, fullScopeAllowed=True, directAccessGrantsEnabled=True)
+    exp['clients'].append(other)
+    res = run(exp)
+    assert 'old-web' not in res['clients'] and rules(res) == []
+    assert ('D13', 'realm:disabled-clients') in rules(res, 'info')
+
+
+def test_lightweight_token_does_not_expect_cnf_without_sender_constraint():
+    """5: cnf is a kept claim of a lightweight token only when the client binds its tokens."""
+    exp = export()
+    web(exp)['attributes']['client.use.lightweight.access.token.enabled'] = 'true'
+    assert not [t for r, t in rules(run(exp)) + rules(run(exp), 'warn') if t.endswith(':cnf')]
+
+
 # ------------------------------------------------------------------ CLI
 def test_cli_import_and_drift(tmp_path):
     out = tmp_path / 'observed.yaml'

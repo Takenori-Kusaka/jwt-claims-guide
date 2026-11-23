@@ -492,7 +492,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: OpenID Foundation
     evidence: []
-    note: 見本では 22 文字（RS256 の SHA-256 の左半分 16 バイト）。上限は SHA-512 の左半分 32 バイトの 43 文字にした
+    note: "見本では 22 文字（RS256 の SHA-256 の左半分 16 バイト）。上限は SHA-512 の左半分 32 バイトの 43 文字にした。載せるかどうかは誰も設定で変えられない。configurable_by の platform・tenant_admin は、値の長さを決める ID トークンの署名のアルゴリズム（レルムの既定かクライアントの設定）を変えられる主体（PR #47 の独立点検）"
 
   - id: C-scope
     name: scope

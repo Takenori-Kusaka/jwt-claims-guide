@@ -251,14 +251,57 @@ def defaults(base, at, out, today):
     print(json.dumps(rec, ensure_ascii=False, indent=1))
 
 
+def resource_exchange(base, at, out, today):
+    """PR #47 independent check, item 2: the resource server's client (saas-api, aud of the AT) turns on Standard token
+    exchange. Realm t1 is created again from the import; the AT of saas-web is the subject token; saas-api asks for
+    the exchange before and after the switch. Writes scenario-a-t1.exchange.json (statuses and claim names only)."""
+    with open(os.path.join(HERE, 'scenario-a-t1.import.json'), encoding='utf-8') as f:
+        rep = json.load(f)
+    rep.pop('_note', None)
+    sec = {c['clientId']: secrets.token_urlsafe(24) for c in rep['clients']}
+    for c in rep['clients']:
+        c['secret'] = sec[c['clientId']]
+    password = secrets.token_urlsafe(16) + 'Aa1!'
+    rep['users'][0]['credentials'] = [{'type': 'password', 'value': password, 'temporary': False}]
+    recreate_realm(base, at, rep)
+    tokens = code_flow(base, 't1', 'saas-web', sec['saas-web'], 'alice', password)
+    tok_url = f'{base}/realms/t1/protocol/openid-connect/token'
+    x = {'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange', 'subject_token': tokens['access_token'],
+         'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token'}
+    rec = {'_note': f'Measured on {today} with Keycloak 26.8.0 (start-dev), realm t1 from scenario-a-t1.import.json '
+                    '(measure.py --step exchange). saas-api exchanges the access token that saas-web obtained (aud saas-api).'}
+    s, _, b = call('POST', tok_url, auth=('saas-api', sec['saas-api']), form=x)
+    rec['without_switch'] = {'status': s, 'error_description': (json.loads(b) if b.startswith('{') else {}).get('error_description')}
+    s, _, b = call('GET', f'{base}/admin/realms/t1/clients?clientId=saas-api', token=at)
+    api = json.loads(b)[0]
+    api['attributes'] = dict(api.get('attributes') or {}, **{'standard.token.exchange.enabled': 'true'})
+    s, _, b = call('PUT', f'{base}/admin/realms/t1/clients/{api["id"]}', token=at, data=api)
+    assert s == 204, b
+    s, _, b = call('POST', tok_url, auth=('saas-api', sec['saas-api']), form=x)
+    body = json.loads(b) if b.startswith('{') else {}
+    rec['with_switch_on_saas_api'] = {'status': s, 'issued_token_type': body.get('issued_token_type')}
+    if s == 200:
+        p = json.loads(decode(body['access_token'])[1])
+        rec['with_switch_on_saas_api'].update(claims=sorted(p), aud=p.get('aud'), azp=p.get('azp'))
+    with open(os.path.join(out, 'scenario-a-t1.exchange.json'), 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(rec, f, ensure_ascii=False, indent=1)
+        f.write('\n')
+    print(json.dumps(rec, ensure_ascii=False, indent=1))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--base', default='http://localhost:28080')
     ap.add_argument('--out', required=True)
     ap.add_argument('--today', required=True, help='YYYY-MM-DD written into the fixtures')
+    ap.add_argument('--step', choices=('all', 'exchange'), default='all',
+                    help='exchange: only the resource-server exchange of the PR #47 check (scenario-a-t1.exchange.json)')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     at = admin_token(a.base)
+    if a.step == 'exchange':
+        resource_exchange(a.base, at, a.out, a.today)
+        return 0
     scenario_a(a.base, at, a.out, a.today)
     at = admin_token(a.base)
     defaults(a.base, at, a.out, a.today)

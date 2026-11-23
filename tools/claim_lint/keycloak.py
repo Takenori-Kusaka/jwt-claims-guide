@@ -33,6 +33,7 @@ BOOL_ATTRS = {  # attribute -> (normalized name, value when the attribute is abs
     'client.use.lightweight.access.token.enabled': ('lightweight_access_token', False),
     'access.token.header.type.rfc9068': ('access_token_header_type_rfc9068', False),
     'dpop.bound.access.tokens': ('dpop_bound_access_tokens', False),
+    'tls.client.certificate.bound.access.tokens': ('tls_client_certificate_bound_access_tokens', False),
     'use.refresh.tokens': ('use_refresh_tokens', True),
     'backchannel.logout.session.required': ('backchannel_logout_session_required', True),
     'backchannel.logout.revoke.offline.tokens': ('backchannel_logout_revoke_offline_tokens', False),
@@ -249,6 +250,9 @@ def normalize(export, source=None):
             'access_code_lifespan': realm.get('accessCodeLifespan'),
             'sso_session_idle_timeout': realm.get('ssoSessionIdleTimeout'),
             'sso_session_max_lifespan': realm.get('ssoSessionMaxLifespan'),
+            'remember_me': bool(realm.get('rememberMe', False)),
+            'sso_session_idle_timeout_remember_me': realm.get('ssoSessionIdleTimeoutRememberMe'),
+            'sso_session_max_lifespan_remember_me': realm.get('ssoSessionMaxLifespanRememberMe'),
             'client_session_idle_timeout': realm.get('clientSessionIdleTimeout'),
             'client_session_max_lifespan': realm.get('clientSessionMaxLifespan'),
             'offline_session_idle_timeout': realm.get('offlineSessionIdleTimeout'),
@@ -338,6 +342,8 @@ def emits(obs, c, implicit):
         items = []
         imp_key = 'lightweight_access' if light else tok
         for e in implicit.get(imp_key) or []:
+            if e.get('only_if') and not any(c.get(k) for k in e['only_if']):
+                continue  # e.g. cnf of a lightweight token: only when the client binds its tokens (DPoP, mTLS)
             it = {'claim': [e['claim']], 'source': 'keycloak', 'mapper': None, 'optional': False}
             if e.get('when'):
                 it['when'] = e['when']

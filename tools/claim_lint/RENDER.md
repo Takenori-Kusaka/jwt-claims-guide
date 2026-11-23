@@ -77,7 +77,7 @@ slide:p11-schema-contract-tests の「台帳からトークン種別ごとのペ
 | 使い道 | 受け手が、知らないクレームで壊れずに、必須クレームの欠落を拒否する | 発行側（IdP の設定・マッパー・フック）が、台帳にないクレームを出していないかを確かめる |
 | `additionalProperties` | `true`（名前空間のオブジェクトの中も） | `false`（名前空間のオブジェクトの中も） |
 | `required` | トークン目録の `required_claims`（名前空間のクレームは `<名前空間>.<名前>` を、そのオブジェクトの `required` にする） | 同じ |
-| 値の制約 | 型と形（`type`・`shape`）だけ | 型と形に加えて、文字列の `maxLength`（= `max_bytes`。文字数はバイト数以下なので必要条件）、配列の `maxItems`（`max_items`）、`allowed_values`（pattern・enum・format・min・max）、語彙が閉じている（`value_vocabulary.extensible: false`）なら `enum` |
+| 値の制約 | 型と形（`type`・`shape`）だけ | 型と形に加えて、文字列の `maxLength`（= `max_bytes`。文字数はバイト数以下なので必要条件）、配列の `maxItems`（`max_items`）、`allowed_values`（pattern・enum・format・min・max）、語彙が閉じている（`value_vocabulary.extensible: false`）なら `enum`。`aud` はトークン種別の `aud` の値だけを許す `enum`（PR #47 の独立点検。長さだけでは短い別の宛先が通った） |
 
 - `$id` は `https://github.com/Takenori-Kusaka/jwt-claims-guide/payload-schemas/<設計書のディレクトリ名>/<ID>.<consumer|issuer>.schema.json/v<版>`、最上位の `$comment` は `template_version: <版>. …`（`templates/CONTRIBUTING.md` の版の管理）。版は設計書の `claims.yaml` の 1 行目の `template_version`。ディレクトリ名だけを使うのは、ディレクトリを写しても同じ Schema になるように（`--check` が比べるため）
 - 受け手向けの `aud` は、台帳の形にかかわらず文字列と文字列の配列の両方を通す（RFC 7519 §4.1.3。発行側が宛先を増やしても受け手を壊さない）。発行側の Schema は台帳の形（シナリオ A は `shape: single` で文字列だけ）に従う

@@ -9,6 +9,9 @@ realm:
   access_code_lifespan: 60
   sso_session_idle_timeout: 1800
   sso_session_max_lifespan: 36000
+  remember_me: false
+  sso_session_idle_timeout_remember_me: 0
+  sso_session_max_lifespan_remember_me: 0
   client_session_idle_timeout: 0
   client_session_max_lifespan: 0
   offline_session_idle_timeout: 2592000
@@ -316,6 +319,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -737,6 +741,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -1164,6 +1169,7 @@ clients:
     lightweight_access_token: true
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -1195,11 +1201,6 @@ clients:
         source: keycloak
         mapper: null
         optional: false
-      - claim: [cnf]
-        source: keycloak
-        mapper: null
-        optional: false
-        when: the token is sender-constrained
       - claim: [exp]
         source: keycloak
         mapper: null
@@ -1480,6 +1481,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -1896,6 +1898,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -2312,6 +2315,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -2485,6 +2489,7 @@ clients:
     lightweight_access_token: false
     access_token_header_type_rfc9068: true
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -2675,6 +2680,7 @@ clients:
     lightweight_access_token: true
     access_token_header_type_rfc9068: false
     dpop_bound_access_tokens: false
+    tls_client_certificate_bound_access_tokens: false
     use_refresh_tokens: true
     backchannel_logout_session_required: true
     backchannel_logout_revoke_offline_tokens: false
@@ -2706,11 +2712,6 @@ clients:
         source: keycloak
         mapper: null
         optional: false
-      - claim: [cnf]
-        source: keycloak
-        mapper: null
-        optional: false
-        when: the token is sender-constrained
       - claim: [exp]
         source: keycloak
         mapper: null

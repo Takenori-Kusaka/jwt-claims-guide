@@ -38,4 +38,4 @@ lightweight_access:
   - {claim: azp}
   - {claim: sid, when: the token belongs to a user session}
   - {claim: scope}
-  - {claim: cnf, when: the token is sender-constrained}
+  - {claim: cnf, when: the token is sender-constrained, only_if: [dpop_bound_access_tokens, tls_client_certificate_bound_access_tokens]}

@@ -23,7 +23,13 @@
    "type": "array",
    "items": {
     "type": "string",
-    "maxLength": 26
+    "maxLength": 26,
+    "enum": [
+     "orders",
+     "ledger",
+     "docs",
+     "payroll"
+    ]
    },
    "maxItems": 4
   },
