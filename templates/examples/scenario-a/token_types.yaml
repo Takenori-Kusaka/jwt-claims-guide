@@ -137,7 +137,7 @@ token_types:
     jwks_cache_ttl: 3600
     key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
     signing_key_scope: per_tenant
-    note: トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外（size を書かない）。typ は Keycloak の ID トークンのヘッダーの値を確かめていない
+    note: トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外（size を書かない）。ヘッダーの typ は、Keycloak 26.8.0 の ID トークンで JWT だった（2026-11-23 の実測、#30。tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.idt.json）
 
   - id: RT
     kind: refresh_token
@@ -180,7 +180,7 @@ token_types:
     stored_at: none
     transport: redirect_query
     visible_to: [browser, bff, idp]
-    note: max_lifetime はレルムの Client login timeout の既定値として置いた値で、Keycloak 26.8 の既定値は確かめていない
+    note: max_lifetime はレルムの Client login timeout（accessCodeLifespan）。Keycloak 26.8.0 の新しいレルムの既定値も 60 秒だった（2026-11-23 の実測、#30）
 
   - id: BFFSESSION
     kind: session
@@ -206,7 +206,7 @@ token_types:
   - id: SSO
     kind: session
     decision: 採用
-    rationale: Keycloak の SSO セッション（レルムの設定）。SSO Session Max を 36000 秒に設定するので、既定どおりではない（design.md の 3.）
+    rationale: Keycloak の SSO セッション（レルムの設定）。SSO Session Max は既定（36000 秒。Keycloak 26.8.0 の実測、#30）と同じ値を、レルムの設定に明示する（design.md の 3.）
     purpose: IdP での再認証までの期間
     issuer: テナントのレルム（Keycloak）
     holder: Keycloak（ブラウザには Keycloak の Cookie）
@@ -222,7 +222,7 @@ token_types:
     stored_at: idp
     transport: cookie
     visible_to: [browser, idp]
-    note: ケーススタディのレルムの ssoSessionIdleTimeout は 1800 秒。SSO Session Max はレルムで 36000 秒（10 時間）に設定すると決めた（slide:p08-token-types-lifetimes の Keycloak SSO の最大 10 時間に合わせた。Keycloak 26.8 の既定値は確かめていない）
+    note: ケーススタディのレルムの ssoSessionIdleTimeout は 1800 秒。SSO Session Max はレルムで 36000 秒（10 時間）に設定すると決めた（slide:p08-token-types-lifetimes の Keycloak SSO の最大 10 時間に合わせた。Keycloak 26.8.0 の新しいレルムの既定値も 36000 秒だった。2026-11-23 の実測、#30）
 
   - id: LOGOUT
     kind: logout_token

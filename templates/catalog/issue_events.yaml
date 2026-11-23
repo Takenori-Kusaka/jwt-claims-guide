@@ -229,7 +229,7 @@ events:
         hook_name: プロトコルマッパー
         hook_invoked: "yes"
         hook_note: ケーススタディの実験は Direct Access Grants で AT を得ており、マッパーで足したクレームが載っている
-        stop_setting: {setting: "Capability config > Direct Access Grants", scope: client, default: "文書に記載なし。管理画面の新規作成では OFF、REST で項目を省くと ON（ソースの要約。V31）"}
+        stop_setting: {setting: "Capability config > Direct Access Grants", scope: client, default: "文書に記載なし。管理画面の新規作成では OFF（ソースの要約。V31）。管理 API で clientId だけを送って作ったクライアントでも OFF（26.8.0 の実測、#30。ソースの要約の「REST で項目を省くと ON」と食い違った）"}
         lite_inherit: true
         source_refs: [*kc_capability]
         evidence: ["jwt-claims-casestudy@080b8da:A1"]
@@ -305,7 +305,7 @@ events:
         hook_name: プロトコルマッパー
         hook_invoked: "yes"
         hook_note: 要求元クライアント（requester client）の Default client scopes と、scope で求めた Optional client scopes のマッパーが適用される（文書）。audience は絞り込みだけに使う（文書）。委任（actor_token・act）は 26.8 で preview、既定で無効（文書）
-        stop_setting: {setting: "Capability config > Standard Token Exchange（要求元のクライアント）", scope: client, default: "文書に記載なし（ソースの要約では OFF。V31）。サーバーの機能 token-exchange-standard:v2 は既定で有効（文書）"}
+        stop_setting: {setting: "Capability config > Standard Token Exchange（要求元のクライアント）", scope: client, default: "文書に記載なし。管理 API で作ったクライアントには属性が無く、交換は拒否された（OFF と同じ動き。26.8.0 の実測、#30）。管理画面の新規作成の既定はソースの要約で OFF（V31）。サーバーの機能 token-exchange-standard:v2 は既定で有効（文書）"}
         lifetime_note: RT を出すかは Advanced > OpenID Connect Compatibility Modes の Allow refresh token in Standard Token Exchange（既定 No、もう 1 つの値は Same session。文書）
         source_refs: [*kc_exchange, *kc_capability]
         evidence: ["jwt-claims-casestudy@080b8da:C.keycloak_exchange"]
@@ -379,7 +379,7 @@ events:
         hook_name: プロトコルマッパー
         hook_invoked: "yes"
         hook_note: オフラインの RT からの AT にもマッパーが適用される（I02 と同じ。ソースの要約。V31）
-        stop_setting: {setting: "クライアントの Client scopes から offline_access を外す", scope: client, default: "新しいクライアントに Optional として付く（文書）。レルムの offline_access ロールは既定のロールに含まれる（ソースの要約。V31）"}
+        stop_setting: {setting: "クライアントの Client scopes から offline_access を外す", scope: client, default: "新しいクライアントに Optional として付く（文書）。レルムの offline_access ロールは既定のロールに含まれ、新しい利用者の AT に出る（26.8.0 の実測、#30）"}
         lifetime_note: Offline Session Idle は 30 日、Offline Session Max（有効にしたとき）は 60 日（文書）。オフラインのトークンはログアウトの後も有効（文書）
         source_refs: [*kc_offline]
       auth0:

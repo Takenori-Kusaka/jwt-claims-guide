@@ -154,11 +154,11 @@ Lite での扱い（`research/template-design/gate1.md` の 10.、`tools/claim_l
 | --- | --- | --- | --- | --- | --- |
 | I01 認可コード＋PKCE | Capability config > Standard Flow | client | 文書に記載なし（ソースの要約：管理画面の新規作成で ON） | 手で書く | 使う前提のイベント（「該当」で答える） |
 | I03 軽量アクセストークン | クライアントポリシーの executor `use-lightweight-access-token` を適用しない | realm | 適用しなければ起きない（文書：executor を適用したクライアントだけ軽量 AT を受ける） | 引き継げる | — |
-| I04 ROPC など | Capability config > Direct Access Grants | client | 文書に記載なし（ソースの要約：管理画面の新規作成で OFF、REST で省くと ON） | 引き継げる | — |
+| I04 ROPC など | Capability config > Direct Access Grants | client | 文書に記載なし（ソースの要約：管理画面の新規作成で OFF。実測（26.8.0、#30）：管理 API で clientId だけを送って作ったクライアントでも OFF） | 引き継げる | — |
 | I05 Client Credentials | Capability config > Service account roles | client | 文書に記載なし（ソースの要約：OFF） | 引き継げる | — |
-| I06 トークン交換 | Capability config > Standard Token Exchange（要求元のクライアント） | client | クライアントのスイッチの既定は文書に記載なし（ソースの要約：OFF）。サーバーの機能 `token-exchange-standard:v2` は既定で有効（文書） | 手で書く | 指摘が出た行（U10 と対） |
+| I06 トークン交換 | Capability config > Standard Token Exchange（要求元のクライアント） | client | クライアントのスイッチの既定は文書に記載なし（ソースの要約：OFF。実測（26.8.0、#30）：管理 API で作ったクライアントに属性が無く、交換は「Standard token exchange is not enabled for the requested client」で拒否された。管理画面の新規作成は確かめていない）。サーバーの機能 `token-exchange-standard:v2` は既定で有効（文書） | 手で書く | 指摘が出た行（U10 と対） |
 | I07 Device Authorization Grant | Capability config > OAuth 2.0 Device Authorization Grant | client | 文書に記載なし（ソースの要約：OFF） | 引き継げる | — |
-| I08 オフラインアクセス | クライアントの Client scopes から offline_access を外す | client | 新しいクライアントに Optional として付く（文書）。offline_access のロールが既定のロールに含まれる（ソースの要約） | 手で書く | レルム・クライアントの既定に依存する |
+| I08 オフラインアクセス | クライアントの Client scopes から offline_access を外す | client | 新しいクライアントに Optional として付く（文書）。offline_access のロールが既定のロール（default-roles-<レルム>）に含まれ、新しい利用者の AT に出る（実測（26.8.0、#30）） | 手で書く | レルム・クライアントの既定に依存する |
 | I09 Back-Channel Logout | Logout settings > Backchannel logout URL を空にする | client | 空（推論） | 手で書く | 指摘が出た行 |
 | I10 implicit・hybrid | Capability config > Implicit Flow | client | 文書に記載なし（ソースの要約：OFF） | 手で書く | `lite_inherit` の印がない |
 | I13 CIBA | Capability config > OIDC CIBA Grant | client | 文書に記載なし（ソースの要約：OFF） | 手で書く | `lite_inherit` の印がない |

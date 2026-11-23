@@ -12,7 +12,7 @@
 # 台帳 v1（templates/registry/claims.schema.json、template_version 0.2.0）で書いた。v0 から v1 への移し替えは templates/CHANGELOG.md。
 # クレームの名前と型の正はケーススタディ（catalog_refs のコミット）。ORG 行の名前と型は tools/casestudy_check.py が照合する。
 # 判定が違う行は templates/casestudy-deviations.yaml に載せた。
-# 行の数：25（採用 14・既定どおり 5・却下 6）
+# 行の数：26（採用 14・既定どおり 6・却下 6）
 scenario: A
 casestudy_commit: 080b8da
 namespaces:
@@ -260,13 +260,13 @@ claims:
     registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
     type: string
     shape: single
-    description: トークンの ID。Keycloak 26.8 では、発行の種類を表す接頭辞と UUID（見本では onrtac:＋UUID）
+    description: トークンの ID。Keycloak 26.8 の AT では、発行の種類を表す接頭辞と UUID（見本では認可コードで onrtac:＋UUID、リフレッシュで onrtrt:＋UUID）。ID トークンでは UUID だけ
     not_meaning: セッションの ID ではない（sid）
     decision: 採用
     rationale: 監査ログでトークンを特定する。RFC 9068 が AT に必須としている
     refs:
       - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
-    assumption: 接頭辞は 6 文字（見本の onrtac）。リフレッシュなど別の発行で長さが変わるかは確かめていない
+    assumption: 接頭辞は 6 文字（2026-11-23 の実測で、認可コードの onrtac とリフレッシュの onrtrt はどちらも 6 文字）。ほかの発行（交換など）の接頭辞は確かめていない
     revisit_trigger: Keycloak の版を上げるとき（jti の形式が変わる）
     usage: protocol
     issuers: ["https://idp.example.com/realms/{tenant}"]
@@ -277,7 +277,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
-    carried_in: [AT]
+    carried_in: [AT, IDT]
     consumers: [saas-api]
     on_missing: 拒否
     enforced_at:
@@ -292,6 +292,7 @@ claims:
     owner: SaaS 基盤チーム
     change_controller: IETF（RFC 7519）
     evidence: []
+    note: ID トークンにも Keycloak が載せる（マッパーでは外せない。2026-11-23 の実測、claim_lint drift の D1）。BFF は ID トークンの jti を読まない
 
   # ------------------------------------------------------------ Keycloak が既定で出すクレーム（既定どおり）
   - id: C-auth-time
@@ -454,6 +455,44 @@ claims:
     change_controller: Keycloak プロジェクト
     evidence: []
     note: 見本では 24 文字。古い版の UUID（36 文字）を上限にした
+
+  - id: C-at-hash
+    name: at_hash
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0701"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.6", url: "https://openid.net/specs/openid-connect-core-1_0.html#CodeIDToken"}
+    type: string
+    shape: single
+    description: 同じ応答で出た AT のハッシュ（左半分の base64url）
+    not_meaning: AT そのものでも、AT の検証の代わりでもない
+    decision: 既定どおり
+    rationale: Keycloak 26.8.0 は、AT と一緒に出す ID トークンに必ず載せる（マッパーではない。2026-11-23 の実測で claim_lint drift の D1 と発行側の検査用スキーマで見つかった）。BFF は AT をトークンエンドポイントから直接受け取るので、ID トークンとの結び付けを検証しない（OpenID Connect Core 1.0 §3.1.3.8 で、認可コードのフローでは任意）
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.8", url: "https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowTokenValidation"}
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/{tenant}"]
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
+    issue_events: [I01, I02]
+    source_system: Keycloak（同じ応答の AT）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh]
+    on_revoke: 該当なし
+    carried_in: [IDT]
+    consumers: []
+    on_missing: 無視
+    enforced_at: []
+    max_bytes: 43
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.authentication]
+    confidential_from: []
+    status: active
+    owner: SaaS 基盤チーム
+    change_controller: OpenID Foundation
+    evidence: []
+    note: 見本では 22 文字（RS256 の SHA-256 の左半分 16 バイト）。上限は SHA-512 の左半分 32 バイトの 43 文字にした
 
   - id: C-scope
     name: scope

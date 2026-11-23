@@ -27,7 +27,7 @@
 | # | 事実 | 出どころ | 確かめ方 |
 | --- | --- | --- | --- |
 | K1 | サーバーの機能 `token-exchange-standard:v2` は既定で有効。使うには要求元のクライアントでスイッチ「Standard token exchange」を有効にし、そのクライアントは機密クライアント | Securing Applications（26.8.2）「Standard token exchange」 https://www.keycloak.org/securing-apps/token-exchange | web |
-| K2 | クライアントのスイッチ「Standard token exchange」の既定値は、文書に書かれていない（カタログの V31 はソースの要約で OFF） | 同上、`templates/catalog/` の V31 | web・repo |
+| K2 | クライアントのスイッチ「Standard token exchange」の既定値は、文書に書かれていない（カタログの V31 はソースの要約で OFF）。#30 の実測（26.8.0、2026-11-23）：管理 API で clientId だけで作ったクライアントには属性が無く、交換は「Standard token exchange is not enabled for the requested client」で拒否され、属性を true にすると通った。管理画面の新規作成の既定は確かめていない | 同上、`templates/catalog/` の V31、`research/template-design/unverified.md` の「V31 の一部（確認済み。#30）」 | web・repo・実測 |
 | K3 | 委任（`may_act`・`act`）は Preview で既定は無効。`--features=preview` か `--features=token-exchange-delegation` で有効 | 同上「Token exchange delegation」 | web |
 | K4 | V2 では subject impersonation は「Not implemented yet」 | 同上「Comparison of standard token exchange and legacy token exchange」 | web |
 | K5 | V1（legacy）は preview で非推奨、既定は無効 | 同上「Legacy token exchange」 | web |
@@ -35,7 +35,7 @@
 | K7 | 交換の scope は要求元のクライアントの Optional のスコープを足せる。audience は aud とクライアントロールを絞るだけ | 同上 | web |
 | K8 | executor `downscope-assertion-grant-enforcer` は subject_token に無いスコープを拒否する。例外は include in token scope が false の既定のスコープ（basic・acr など） | Server Administration Guide（26.8.2）「Downscoping」 https://www.keycloak.org/docs/latest/server_admin/ | web |
 | K9 | offline_access のクライアントスコープは、Optional として既定でクライアントに付く。オフラインのトークンには、利用者にレルムの offline_access ロールが要る | 同上「Offline access」 | web |
-| K10 | offline_access ロールが既定のロール（default-roles）に含まれるかは、文書の本文では確かめられなかった | 同上 | web（確かめられず） |
+| K10 | offline_access ロールが既定のロール（default-roles）に含まれるかは、文書の本文では確かめられなかった。#30 の実測（26.8.0、2026-11-23）：名前だけで作ったレルムの default-roles-<レルム> の複合ロールに offline_access・uma_authorization があり、新しい利用者の AT の realm_access.roles に offline_access が出た | 同上、`research/template-design/unverified.md` の「V31 の一部（確認済み。#30）」 | web（確かめられず）・実測 |
 | K11 | Revoke Refresh Token を有効にすると、リフレッシュで RT を失効させ新しい RT を出す。既定値はこの節に書かれていない（「既定で無効」は slide:p08-rotation と V31） | 同上（Tokens タブの表と「Offline access」） | web・slide |
 | K12 | 軽量アクセストークンは client policy の executor `use-lightweight-access-token` で有効にする。マッパーの「Add to lightweight access token」は既定でオフ | 同上「Using lightweight access token」 | web |
 | K13 | 軽量アクセストークンで外せないクレームは exp・iat・jti・iss・typ・azp・sid・scope・cnf | 同上 | web |
