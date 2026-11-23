@@ -19,7 +19,10 @@ regexes = ['''^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.w8hwjSap4DqPrjrtM5en86kKuCc
 description = """Requirement IDs of the trace table written as reverse references (req:<slide id>.R<n>, templates/trace/README.md).
 generic-api-key reported req:p08-revocation-propagation.R6 in tools/claim_lint/RULES.md (PR #41): after a "key"-like
 word the ID looked like a high-entropy value, but it is a slide ID plus a requirement number, not a secret. Only
-generic-api-key findings whose whole secret is such an ID are excluded."""
+generic-api-key findings whose whole secret is such an ID, in the files where reverse references belong (RULES.md, the
+registry schemas, the trace table), are excluded (PR #40 independent check: restrict by path)."""
 targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^tools/claim_lint/RULES\.md$''', '''^templates/registry/[a-z_]+\.schema\.json$''', '''^templates/trace/[a-z_]+\.(yaml|md)$''']
 regexTarget = "secret"
 regexes = ['''^p\d{2}-[a-z0-9]+(-[a-z0-9]+)*\.R\d+$''']

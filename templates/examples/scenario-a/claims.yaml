@@ -67,7 +67,7 @@ claims:
     enforced_at:
       - {service: saas-api, check: 許可リストと完全一致。鍵はその iss の JWKS だけから取る, against: [api_config]}
       - {service: saas-api, check: iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う, against: [api_config]}
-      - {service: saas-api, check: iss のレルム名と tenant_id が一致するか}
+      - {service: saas-api, check: iss のレルム名と tenant_id が一致するか, against: [other_claim], with: C-tenant-id}
     max_bytes: 63
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし

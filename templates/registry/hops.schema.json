@@ -107,7 +107,7 @@
      "maxItems": 50,
      "uniqueItems": true,
      "description": "Registry rows of organization claims carried on this hop (or the values copied, for a DB hop)",
-     "$comment": "Trace: req:p06-narrow-downstream.R2 req:p02-scope.R5 req:p04-carry-or-query.R4"
+     "$comment": "Trace: req:p06-narrow-downstream.R2"
     },
     "authorization_details": {
      "type": "array",
