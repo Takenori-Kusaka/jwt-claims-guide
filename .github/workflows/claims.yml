@@ -55,6 +55,17 @@ jobs:
         run: python tools/claim_lint render templates/examples/scenario-a --validate tools/tests/fixtures/claim_lint/golden/token.json --token-type AT --schema-kind issuer
       - name: render tests (one-line change, drift detection, schema generation, an unknown claim fails the issuer schema)
         run: python -m pytest -q -rs tools/tests/test_claim_lint_render.py
+      - name: import keycloak - the stored normalized realm of scenario A is what the stored export gives (#30)
+        run: |
+          python -m tools.claim_lint import keycloak tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.export.json -o "$RUNNER_TEMP/observed.yaml"
+          diff -u tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.observed.yaml "$RUNNER_TEMP/observed.yaml"
+      - name: drift - scenario A Keycloak 26.8.0 realm and issued tokens (AT, ID token, refreshed AT) against the registry (#30)
+        run: |
+          k=tools/tests/fixtures/claim_lint/keycloak
+          python -m tools.claim_lint drift templates/examples/scenario-a $k/scenario-a-t1.observed.yaml \
+            --token AT=$k/scenario-a-t1.at.json --token IDT=$k/scenario-a-t1.idt.json --token AT=$k/scenario-a-t1.at-refresh.json
+      - name: drift tests (normalization, static view vs issued tokens, deliberately shifted configurations, #30)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_drift.py
       - name: Registry v1 tests (schemas, questions wording, issuance effects, README columns, REF, casestudy_check)
         run: python -m pytest -q -rs tools/tests/test_registry_v1.py
       - name: Casestudy check (ORG names and types, carry decisions vs templates/casestudy-deviations.yaml; pinned commit and sha256)
@@ -77,6 +88,13 @@ jobs:
         run: python tools/runtime_tests/run.py --env offline --log "$RUNNER_TEMP/runtime-offline.json"
       - name: Runtime test docs and logs (#8) - anchors, req markers, lint rules, no raw token in the logs
         run: python -m pytest -q -rs tools/tests/test_runtime.py
+      - name: Viewer data (docs/claims/data/) match the YAML (#36; fix with python tools/build_claims_viewer.py)
+        run: python tools/build_claims_viewer.py --check
+      - name: Viewer build tests (drift detection, every schema column has a heading, CSP, pinned js-yaml, README links)
+        run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
+      # The browser tests of the viewer (tools/tests/test_claims_viewer_ui.py: rendering, filters, every column on the
+      # detail screen, no network in local-file mode) need Playwright and Chromium, which this job does not install;
+      # they are skipped here and run locally (README.md, 設計書のビューアー).
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -95,17 +113,22 @@ jobs:
           echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           rm gitleaks.tar.gz
-      - name: Self-test of .gitleaks.toml (a random API key is still found; trace requirement IDs are not)
+      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs and the viewer's source hashes are not)
         run: |
           d="$RUNNER_TEMP/gitleaks-selftest"; mkdir -p "$d"
-          # the key is made at run time so that no secret-looking literal is committed
+          # the keys are made at run time so that no secret-looking literal is committed
           key=$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)
           printf 'api_key = "%s"\n' "$key" > "$d/leak.env"
           mkdir -p "$d/templates/registry"   # the allowlist is restricted by path to the files that hold reverse references
           printf '{"$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"}\n' > "$d/templates/registry/trace.schema.json"
+          # viewer data (#36): the sha256 of a source file is allowed, a 64-hex value under another key is not
+          mkdir -p "$d/docs/claims/data"
+          h1=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64); h2=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64)
+          printf 'x={"sources":{"token_types.yaml":"%s"}};\n' "$h1" > "$d/docs/claims/data/scenario-x.js"
+          printf 'y={"api_token":"%s"};\n' "$h2" > "$d/docs/claims/data/leak-x.js"
           ./gitleaks dir --no-banner --redact --config .gitleaks.toml --report-format json --report-path "$d/report.json" "$d" || true
           jq -c '[.[] | {RuleID, File}]' "$d/report.json"
-          jq -e 'length == 1 and (.[0].File | endswith("/leak.env"))' "$d/report.json"
+          jq -e 'length == 2 and ([.[].File | split("/") | last] | sort == ["leak-x.js", "leak.env"])' "$d/report.json"
       - name: Scan the git history reachable from HEAD (fails on any finding; exclusions are in .gitleaks.toml with reasons)
         # --log-opts HEAD: only the commits of this checkout (for a pull request, the merge of the PR and its base), not the
         # other branches that fetch-depth 0 also fetches (their findings belong to their own PRs)

@@ -77,6 +77,10 @@ V1_FILLED = {('C-scope', 'max_items'), ('C-scope', 'note'), ('C-email-verified',
 # of IDT). Not counted, so that the gate-1 record stays reproducible (tools/claim_lint/RULES.md, design.md 13.)
 L6_FILLED = {('C-sid', 'registered_ref')}
 L6_TT_FILLED = {('IDT', 'max_clock_skew')}
+# rows and v0 columns that claim_lint drift (#30) found missing against the Keycloak 26.8.0 tokens (the ID token's jti and
+# at_hash). Not counted, for the same reason (design.md 13. 0.2.4)
+DRIFT_ADDED_CLAIMS = {'C-at-hash'}
+DRIFT_FILLED = {('C-jti', 'note')}
 V0_TT_IDS ={'AT', 'IDT', 'RT', 'CODE', 'BFFSESSION', 'SSO', 'LOGOUT', 'DPOP', 'TXN'}
 V0_PROFILE = {'client_type', 'client_auth', 'grants', 'sender_constraint', 'at_format', 'rt_strategy', 'request_protection',
               'conformance_profile'}
@@ -93,7 +97,9 @@ def count(example):
     rows = []
     groups = {'read': [0, 0, 0], 'unread': [0, 0, 0], 'rejected': [0, 0, 0]}
     for c in claims:
-        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS and (c['id'], k) not in V1_FILLED | L6_FILLED]
+        if c['id'] in DRIFT_ADDED_CLAIMS:
+            continue
+        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS and (c['id'], k) not in V1_FILLED | L6_FILLED | DRIFT_FILLED]
         if c['decision'] == '却下':
             g, after = 'rejected', f
         elif c['decision'] == '既定どおり' and c.get('consumers') == []:

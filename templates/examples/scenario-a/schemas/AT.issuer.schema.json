@@ -21,7 +21,10 @@
    "description": "AT では宛先の API（saas-api）。ID トークンではクライアント（saas-web）",
    "$comment": "C-aud",
    "type": "string",
-   "maxLength": 8
+   "maxLength": 8,
+   "enum": [
+    "saas-api"
+   ]
   },
   "exp": {
    "description": "有効期限（UNIX 時刻の秒）",
@@ -34,7 +37,7 @@
    "type": "integer"
   },
   "jti": {
-   "description": "トークンの ID。Keycloak 26.8 では、発行の種類を表す接頭辞と UUID（見本では onrtac:＋UUID）",
+   "description": "トークンの ID。Keycloak 26.8 の AT では、発行の種類を表す接頭辞と UUID（見本では認可コードで onrtac:＋UUID、リフレッシュで onrtrt:＋UUID）。ID トークンでは UUID だけ",
    "$comment": "C-jti",
    "type": "string",
    "maxLength": 43

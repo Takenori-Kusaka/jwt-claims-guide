@@ -9,6 +9,8 @@ python tools/claim_lint <設計書のディレクトリ> --profile lite         
 python tools/claim_lint diff --base origin/main <設計書のディレクトリ>  # L10：前の版と比べて互換性を壊す変更
 ```
 
+IdP の実際の設定と台帳のずれ（`claim_lint import keycloak`・`claim_lint drift`、規則 D0〜D14。#30）は、台帳の中の宣言どうしではなく設定の書き出しとの比較なので、`DRIFT.md` に分けて書きました。
+
 error が 1 件でもあれば終了コード 1 です。error の規則は抑止できません（`templates/CONTRIBUTING.md` の 2.）。
 
 | ID | 内容 | 重大度（Full／Lite） | 根拠 |

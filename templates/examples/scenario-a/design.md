@@ -12,7 +12,7 @@
 ## 1. CI の結果　〔縮小 Lite：生成〕
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 3、info 6**（claims 25・token_types 18・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 3、info 6**（claims 26・token_types 18・catalog_events 62）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -79,7 +79,8 @@ flowchart LR
 | AT のヘッダーの typ | JWT | at+jwt（RFC 9068 のヘッダーの型を ON） | ID トークンを API に送る誤りを typ で拒否する。ただし Keycloak の AT は client_id を欠くので、RFC 9068 には適合しない（6.） |
 | ログイン | ケーススタディの実験は ROPC | 認可コード＋PKCE | RFC 9700 §2.4 |
 | 入口での交換 | ケーススタディの共通の前提は入口で内部トークンに交換 | 交換しない | 2. を参照 |
-| SSO セッションの最大 | 確かめていない | 36000 秒（10 時間）に設定 | idle だけでは上限がない。slide:p08-token-types-lifetimes の Keycloak SSO の最大 10 時間に合わせた |
+| クライアントの任意のスコープ | address・phone・offline_access・organization・microprofile-jwt（Keycloak 26.8.0 で clientId だけで作ったクライアントの実測、2026-11-23、#30） | なし | オフラインの RT を出さない（カタログの I08 は対象外）。既定のロール（default-roles-t1）には offline_access が残る（同じ実測）ので、スコープを外して止める。`claim_lint drift` の D11 が、スコープが戻ったら検出する |
+| SSO セッションの最大 | 36000 秒（Keycloak 26.8.0 の新しいレルムの実測、2026-11-23、#30） | 36000 秒（10 時間）。既定と同じ値を、レルムの設定に明示する | idle だけでは上限がない。slide:p08-token-types-lifetimes の Keycloak SSO の最大 10 時間に合わせた。既定から外れた点ではないが、テナントの管理者が延ばしたときに `claim_lint drift`（D5）で検出できるように、値を台帳と設定の両方に書く |
 
 ## 4. 発行方式の選択　〔縮小 Lite：生成（既定の組み合わせから外れた点だけ手で書く）〕
 
@@ -112,7 +113,7 @@ flowchart LR
 | `RT` | リフレッシュトークン | 採用 | テナントのレルム（Keycloak） → テナントのレルム（自分自身） | BFF（saas-web のサーバー） | opaque | idle 1800 秒、最大 36000 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | AT を 300 秒にしたまま、SSO セッションの間は利用者に再ログインさせない |
 | `CODE` | 認可コード | 既定どおり | テナントのレルム（Keycloak） → — | ブラウザを経由して BFF へ | opaque | 60 秒 | なし | リダイレクトの query | `browser`・`bff`・`idp` | — | 認可コード＋PKCE の流れで Keycloak が出す |
 | `BFFSESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | BFF（saas-web） → — | ブラウザ（HttpOnly・Secure・SameSite=Lax の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | ブラウザ | Cookie | `browser`・`bff` | — | ブラウザは BFF のセッションの Cookie だけを持つ。トークンをブラウザに置かない |
-| `SSO` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | テナントのレルム（Keycloak） → — | Keycloak（ブラウザには Keycloak の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | Keycloak の SSO セッション（レルムの設定）。SSO Session Max を 36000 秒に設定するので、既定どおりではない（design.md の 3.） |
+| `SSO` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | テナントのレルム（Keycloak） → — | Keycloak（ブラウザには Keycloak の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | Keycloak の SSO セッション（レルムの設定）。SSO Session Max は既定（36000 秒。Keycloak 26.8.0 の実測、#30）と同じ値を、レルムの設定に明示する（design.md の 3.） |
 | `LOGOUT` | ログアウトトークン（Back-Channel Logout の Logout Token） | 却下 | — | — | jwt | — | — | — | — | — | IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 330 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない |
 | `DPOP` | DPoP の proof | 却下 | — | — | jwt | — | — | — | — | — | 送信者制約を付けない（issuance_profile.sender_constraint） |
 | `TXN` | Transaction Token（Txn-Token） | 却下 | — | — | jwt | — | — | — | — | — | この例は BFF → API → DB の 1 段で、サービス間の伝搬がない |
@@ -282,7 +283,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `aud` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 値は変わらない |
 | `exp` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
 | `iat` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
-| `jti` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
+| `jti` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
 | `azp` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | クライアントを無効にしたら新しい発行が止まる |
 | `nonce` | `IDT` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
 | `name` | `IDT` | 330 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
@@ -316,6 +317,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `typ` | `active` | — | SaaS 基盤チーム | Keycloak プロジェクト |
 | `azp` | `active` | — | SaaS 基盤チーム | OpenID Foundation |
 | `sid` | `active` | — | SaaS 基盤チーム | Keycloak プロジェクト |
+| `at_hash` | `active` | — | SaaS 基盤チーム | OpenID Foundation |
 | `scope` | `active` | — | SaaS 基盤チーム | IETF（RFC 9068） |
 | `nonce` | `active` | — | SaaS 基盤チーム | OpenID Foundation |
 | `name` | `active` | — | SaaS 基盤チーム | OpenID Foundation |
@@ -332,7 +334,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 ## 10. 判断の行　〔縮小 Lite：生成〕
 
 <!-- render:decision-rows:begin -->
-`claims.yaml` の 25 行（採用 14・既定どおり 5・却下 6）。根拠 ID は `refs`、裏付けは `evidence`（ケーススタディの実測など）。
+`claims.yaml` の 26 行（採用 14・既定どおり 6・却下 6）。根拠 ID は `refs`、裏付けは `evidence`（ケーススタディの実測など）。
 
 | ID | 候補 | 採否 | 代わりの行 | 理由 | 前提 | 根拠 ID | 裏付け | 見直しの条件 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -341,11 +343,12 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-aud` | `aud` | 採用 | — | ID トークンを API に送る誤りと、別の API 宛てのトークンの流用を拒否する | AT の宛先は saas-api の 1 つだけ（Keycloak は宛先が 1 つなら文字列で出す） | [RFC 9068 §4](https://www.rfc-editor.org/rfc/rfc9068#section-4)<br>`slide:p06-validation-split` | jwt-claims-casestudy@080b8da:A13 | AT を 2 つ以上の API に送る構成にするとき（配列になる） |
 | `C-exp` | `exp` | 採用 | — | 寿命 300 秒を強制する。剥奪が反映されるまでの上限がこの値で決まる | API の時計は NTP で合わせ、ずれは 30 秒まで | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p08-token-types-lifetimes` | jwt-claims-casestudy@080b8da:A14 | AT の寿命を変えるとき |
 | `C-iat` | `iat` | 採用 | — | 監査で、どの時点の属性で発行されたかを追う | 監査ログに iat を残す | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | — |
-| `C-jti` | `jti` | 採用 | — | 監査ログでトークンを特定する。RFC 9068 が AT に必須としている | 接頭辞は 6 文字（見本の onrtac）。リフレッシュなど別の発行で長さが変わるかは確かめていない | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | Keycloak の版を上げるとき（jti の形式が変わる） |
+| `C-jti` | `jti` | 採用 | — | 監査ログでトークンを特定する。RFC 9068 が AT に必須としている | 接頭辞は 6 文字（2026-11-23 の実測で、認可コードの onrtac とリフレッシュの onrtrt はどちらも 6 文字）。ほかの発行（交換など）の接頭辞は確かめていない | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | Keycloak の版を上げるとき（jti の形式が変わる） |
 | `C-auth-time` | `auth_time` | 既定どおり | — | Keycloak の basic スコープが sub と一緒に出す。外すには sub だけの独自のスコープを作る必要があり、JSON で 23 バイト（"auth_time":と 10 桁とカンマ）のために設定の差分を増やさない。API は読まない | — | `slide:p06-stage-map` | — | — |
 | `C-typ-claim` | `typ` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た） | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
 | `C-azp` | `azp` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。Keycloak の AT には client_id が無いので、API が呼び出し元のクライアントを知る手段はこれだけになる | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
 | `C-sid` | `sid` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API は読まない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
+| `C-at-hash` | `at_hash` | 既定どおり | — | Keycloak 26.8.0 は、AT と一緒に出す ID トークンに必ず載せる（マッパーではない。2026-11-23 の実測で claim_lint drift の D1 と発行側の検査用スキーマで見つかった）。BFF は AT をトークンエンドポイントから直接受け取るので、ID トークンとの結び付けを検証しない（OpenID Connect Core 1.0 §3.1.3.8 で、認可コードのフローでは任意） | — | [OpenID Connect Core 1.0 §3.1.3.8](https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowTokenValidation) | — | — |
 | `C-scope` | `scope` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token)<br>`slide:p05-scope-vs-role` | — | — |
 | `C-nonce` | `nonce` | 採用 | — | BFF がログインの応答を照合し、ID トークンの差し込みを拒否する | BFF が認可要求ごとに推測できない値を作り、セッションに保存する | [OpenID Connect Core 1.0 §3.1.3.7](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) | — | — |
 | `C-name` | `name` | 採用 | — | ログイン後の画面の表示に使う。AT には載せない（API は表示名を要らない） | ID トークンは BFF のサーバーの中に留まり、ブラウザには渡さない | `slide:p09-do-not-carry` | — | SPA がトークンを持つ構成に変えるとき |
@@ -382,6 +385,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-typ-claim` | `typ` | Keycloak | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-azp` | `azp` | Keycloak のクライアントの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-sid` | `sid` | Keycloak のセッション | ① Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login` | `never` | 0 秒 |
+| `C-at-hash` | `at_hash` | Keycloak（同じ応答の AT） | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-scope` | `scope` | 認可要求の scope とクライアントスコープの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-nonce` | `nonce` | BFF のセッション | ① Keycloak（要求の値を写す）（設定できる主体：client） | `I01` | `login` | `never` | 0 秒 |
 | `C-name` | `name` | Keycloak のユーザーの firstName・lastName | ② Keycloak（Full name マッパー。ID トークンだけ）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 86400 秒 | 300 秒 |
@@ -488,16 +492,17 @@ R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak �
 
 - Keycloak の古い RT を再利用したときに、セッションまで失効させるか（再利用の検知）を確かめていない。
 - 初回ログイン（I25）とパスワードの変更の後の発行（I26）で、マッパーが呼ばれるかを確かめていない（カタログでも unknown。claim_lint の R3b の warn）。
-- jti の接頭辞（見本では onrtac）が、リフレッシュなど別の発行で同じ長さかを確かめていない。R8 の max_bytes 43 はこの前提による。
-- ID トークンは見本で発行していない。ID トークンのクレームの構成（name・email・email_verified のマッパー）は設計で、実物で確かめていない。
-- 認可コードの寿命 60 秒、SSO Session Max の既定値、ユーザープロファイルの属性の長さの上限は、Keycloak 26.8 の値を確かめていない。
-- typ・sid・azp・scope を「通常の AT でも外せない」とするのは、軽量アクセストークンについての公式文書の記述からの推論。
+- jti の接頭辞は、認可コード（onrtac）とリフレッシュ（onrtrt）では 6 文字だった（2026-11-23 の実測、#30）。ほかの発行（交換など）は確かめていない。R8 の max_bytes 43 はこの前提による。
+- ID トークンは、2026-11-23 に Keycloak 26.8.0 で発行して発行側の検査用スキーマで確かめた（#30。`tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.idt.json`）。そのとき台帳に無かった jti と at_hash が見つかり、`C-jti` の `carried_in` に IDT を足し、`C-at-hash` を既定どおりで足した。確かめたのは認可コードの 1 回の発行だけで、リフレッシュの応答の ID トークンは確かめていない。
+- 認可コードの寿命 60 秒と SSO Session Max の 36000 秒は、Keycloak 26.8.0 の新しいレルムの既定値と同じだった（2026-11-23 の実測、#30）。ユーザープロファイルの属性の長さの上限は確かめていない。
+- typ・sid・azp・scope を「通常の AT でも外せない」とするのは、軽量アクセストークンについての公式文書の記述からの推論。2026-11-23 の実測（#30）では、レルムのどのマッパーも書かないのに AT に出た（マッパーを外して消すことはできない）。
 - JWKS の取り直しの間隔（300 秒）、負のキャッシュ、キャッシュの TTL（3600 秒）は筆者の提案で、一次資料では確かめていない。Keycloak が passive の鍵を JWKS に載せるか（鍵の入れ替えの手順の前提）も確かめていない。
 - BFF は 2 つのレルムのクライアントなので、認可応答の取り違え（mix-up）を防ぐために、レルムごとに redirect_uri を分ける（RFC 9207 の `iss` の照合は、Keycloak の対応を確かめていない）。
 - other_headers_bytes 2048 は見積もり（筆者の提案）。実際の要求のヘッダーを測っていない。
 
 ## 13. 前の版との差分
 
+- 0.2.4：#30 の `claim_lint import keycloak`・`drift` で、Keycloak 26.8.0 に作ったこの例のレルム（`tools/tests/fixtures/claim_lint/keycloak/scenario-a-t1.import.json`）の設定と発行したトークンを台帳と比べた。ID トークンに、台帳に無い jti と at_hash が出た（静的な読み取りの D1 と、発行側の検査用スキーマの D14 の両方で見つかった）。`C-jti` の `carried_in` に IDT を足し、`C-at-hash`（既定どおり。ケーススタディは不採用なので `casestudy-deviations.yaml` に carry を 1 件足した）を足した。3. に任意のスコープの行を足し、SSO セッションの最大の既定値を実測の値にした。12. の確かめていない点のうち、jti の接頭辞・ID トークン・認可コードの寿命・SSO Session Max を実測の結果に書き直した。ほかの判断は変えていない。差分は 0 件（D13 の info 1 件：どのレルムにもある既定のクライアント。受け手が aud・azp で拒否する）
 - 0.2.3：claim_lint の目的と仕組みの規則（#18。宣言の整合の検査）が求める宣言を足した。判断は変えていない。足したもの：`catalog_answers.yaml` の `questions`（問いの一覧の 11 問のそれぞれが要るか。中身は 6. の表と同じ。L13）、`C-iss`・`C-sub` の saas-web（BFF）の `enforced_at`（ID トークンの iss を許可リストと、認可要求を送ったレルムの issuer と照合する〔OpenID Connect Core 1.0 §3.1.3.7〕、sub をセッションに結びつける。L11）。残した warn は L11 の 1 件（C-scope：Keycloak が外せない scope=openid を AT に載せるが判断に使わない。ASVS 5.0.0 10.3.2 は載せるなら判断に使うとするので、正しい指摘。6. の「何が承認されたか」の行のとおり、この設計は逸脱を選んだ）
 - 0.2.2：claim_lint の意味の規則（#6）が求める宣言を足した。判断（採否・値）は変えていない。足したもの：`C-sid` の `registered_ref`（OpenID Connect Front-Channel Logout 1.0 §3。L1a）、`enforced_at` の `against`（何と照合するか。15 件）と `with`（`C-user-id` は `C-sub` と、`C-iss` の 3 つ目は `C-tenant-id` と照合する。L9・L31）、IDT の `max_clock_skew: 30`（L27）、`catalog_answers.yaml` の `lite_criteria`（Lite の判定の 5 問。multitenant が Yes なので `--profile lite` では L73 の warn が出る）。値の途中の「 #」から後ろがコメントとして消えていた 3 か所（C-auth-time の note、C-roles の on_revoke、AT の note）を引用符で囲んだ（#39 と同じ直し）。残した warn は L72 の 3 件（C-user-id・C-roles・C-v の追加前の 25 問がまだ無い。#4 で書く）。R8 の info から iss・sub・aud・azp の 4 件（ID トークンと AT の両方の仕様が定める登録名）が消えた
 - 0.2.1：#19 の `claim-lint render` で、縮小 Lite の〔生成〕の節（1. CI の結果、4. 発行方式の選択、5. トークン目録、8. ホップごとの表、10. 判断の行、11. カタログへの回答の集計）を、台帳から生成する区間（`<!-- render:<節>:begin -->`〜`end`）に置き換えた。8. に矢印ごとの表、10. にデータ源の表を足し、6. と 9. には手で書いた表の確かめ用の生成の表を足した。手で書いた要約の表（4. の理由の要約、5. の却下 9 種類をまとめた行、10. の理由の要点）は、台帳の全文の行に置き換わった。`claims.yaml`・`token_types.yaml` の 3 か所で、値の中の「 #」から後ろが YAML のコメントとして落ちていたので、引用符で囲んだ（生成の表で見つかった）。判断（採否・値）は変えていない

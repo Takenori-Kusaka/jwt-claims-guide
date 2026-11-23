@@ -47,6 +47,9 @@
 - 対応表（#22）：#5 の要件 94 件を実装済みにした。台帳のスキーマ・問いの一覧・テンプレート・`RULES.md` の、その要件が指す箇所に `req:` の印だけを足した（中身は変えていない）。`review:contrasts/<名前>`（アンカーなし）を `#misuse` に付け替えた。`template:claim_request`（アンカーなし）を指していた #5 の 2 件を `#q03` に付け替えた。`CONTRIBUTING.md` に `evidence-types` のアンカーを足した
 - `tools/template_sources.yaml`：RFC 7516（JWE）を足した（#5）
 - `modules/M_token_validation.md` の `library-config`：検討の行「未検証の値を流すモード」を足した（#5、PR #45 の再点検。観点書の `q-no-unverified-passthrough-mode` が見る欄）。`review/rationale_rubric.md` は採点の決まりと RR7 を足したので 0.5.0
+- `python -m tools.claim_lint import keycloak`・`drift`（#30。`tools/claim_lint/keycloak.py`・`drift.py`・`DRIFT.md`）：Keycloak のレルムの書き出しを正規化し（内部 ID・秘密を捨て、配列を名前で並べ、クライアントごとに静的に読めるトークンのクレームを計算する）、台帳と比べる（規則 D0〜D14。マッパーが台帳に無いクレームを出す、台帳のクレームが出ない、寿命の違い、却下したトークンの種類が有効、Full Scope Allowed が ON など）。発行したトークンを発行側の検査用スキーマで照合する（`--token`）。シナリオ A の Keycloak 26.8.0 の書き出しとトークンを `tools/tests/fixtures/claim_lint/keycloak/` に保存し、CI で比べる
+- `examples/scenario-a/`（design.md 0.2.4）：drift で、ID トークンに台帳に無い jti・at_hash が出ることが分かったので、`C-jti` の `carried_in` に IDT を足し、`C-at-hash`（既定どおり）を足した。`casestudy-deviations.yaml` に carry を 1 件（CLM-0701）足した。設計書の 3. に任意のスコープの行を足し、SSO セッションの最大・認可コードの寿命・ID トークンのヘッダーの typ を実測の値で書き直した
+- `catalog/issue_events.yaml` の I04・I06・I08 と `modules/M_idp_keycloak.md` の既定の列：Keycloak 26.8.0 の実測（#30。#4 の点検の材料の K2・K10）を書き足した。I04 はソースの要約の「REST で項目を省くと ON」が実測と食い違った
 
 ### 変更
 

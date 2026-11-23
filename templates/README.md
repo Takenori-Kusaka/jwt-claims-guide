@@ -33,7 +33,7 @@
 | [modules/M_idp_keycloak.md](modules/M_idp_keycloak.md) | Keycloak 26.8（契機・上限・書き換えられないクレーム・カタログの既定の回答） |
 | [registry/](registry/) | 台帳のスキーマ（`claims`・`token_types`・`hops`）、問いの一覧、発行方式の効果（#3） |
 | [catalog/](catalog/) | 発行・利用イベントのカタログ（#2） |
-| [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR） |
+| [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR）。ビューアーで読める：https://takenori-kusaka.github.io/jwt-claims-guide/claims/ |
 | [review/](review/) | レビュー教材（#5）：観点書・判断の木・対比表・専門家に回す基準・手順・理由の採点基準・レポートの様式・レビュー後の欠陥の記録・指標 |
 | [trace/](trace/) | ガイドのスライドとの対応表（#22） |
 | [runtime/](runtime/) | 実行での照合の確認（#8）：拒否のテスト、交換で絞られているか、寿命と失効、受け手の契約テスト、見本のトークン。コードは `tools/runtime_tests/` |
@@ -121,7 +121,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 7. **ホップ**（`hops.yaml`。00_core の 8.）：交換・作り直しのホップがあれば手で書く
 8. **ライフサイクル表**（00_core の 9.）：トークン・セッション・接続、クレームの鮮度、定義の寿命
 9. **カタログへの回答**（`catalog_answers.yaml`）：全イベントに該当か対象外（前提と崩れる条件）
-10. **検査と生成**：`python tools/claim_lint <設計書のディレクトリ> --profile lite`（Full なら `--profile` なし）を error 0 件まで直し、`python tools/claim_lint render <設計書のディレクトリ> --write` で生成の節を埋める
+10. **検査と生成**：`python tools/claim_lint <設計書のディレクトリ> --profile lite`（Full なら `--profile` なし）を error 0 件まで直し、`python tools/claim_lint render <設計書のディレクトリ> --write` で生成の節を埋める。書いた YAML は、設計書のビューアー（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ の「自分の YAML を開く」）で表として読める。ファイルはブラウザの中だけで読み、送信しない
 11. **書き手が自信のない点**（00_core の 12.）と、**既定から外れた点**（00_core の 3.）の要約を最後に書く
 
 根拠：research/template-design/gate1.md の 3.（迷った点 16 件）、templates/registry/README.md の 1.、筆者の提案：境界と発行方式を先に決めてから、その結果としてクレームを書く順序（追跡 #4）
@@ -143,7 +143,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 | 対象（scenario-a、lite） | 手で書く欄 |
 | --- | --- |
 | 台帳：載せて誰かが読む行（15 行） | 410 |
-| 台帳：既定どおりで誰も読まない行（4 行） | 49 |
+| 台帳：既定どおりで誰も読まない行（5 行） | 61 |
 | 台帳：却下の行（6 行） | 50 |
 | 発行方式の選択（既定から外れた 0 項目） | 0 |
 | トークン目録（18 行） | 166 |
@@ -151,7 +151,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 | カタログへの回答（62 件。引き継ぎ 0 件は各 1 欄） | 248 |
 | 網羅の節（idp・lite_criteria・questions・subject_states・pairwise・outside_enumeration） | 140 |
 | 追加前の 25 問（4 ファイルの手書きの問い） | 56 |
-| **YAML と 25 問の欄の計** | **1119** |
+| **YAML と 25 問の欄の計** | **1131** |
 | 設計書の手で書く節（00_core の番号） | 5（2・3・6・9・12） |
 <!-- effort:end -->
 
@@ -171,7 +171,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 | 設計書の手で書く節（00_core の番号） | 6（2・3・6・7・9・12） |
 <!-- effort-full:end -->
 
-関門 1 の見積もり（`research/template-design/gate1.md` の 10.：縮小 Lite で 700 欄）より多いのは、数える範囲が違うためです。関門 1 は台帳 v0 の列と、カタログの v0 の 19 件だけを数えました（同じ数え方は `python tools/count_lite_fields.py` で再現できる）。今の記入例は、台帳 v1 の列（#3）、カタログを全体に広げた 62 件への回答（#2）、網羅の規則の節（#17）を含みます。また、シナリオ A の記入例は Full の判定に当たり、カタログの既定の回答の引き継ぎ（`inherit`）を使っていません。同じ記入例を同じ数え方で数えると、縮小 Lite は 1119、Full は 1431 で、Lite は Full より 22% 少なくなります。縮小 Lite の数は、生成の列と、台帳の README の 3. で「Full のみ」とした列を除き、目録の却下の行は R1 とスキーマが求める 4 列（kind・decision・rationale・format）で数えています。
+関門 1 の見積もり（`research/template-design/gate1.md` の 10.：縮小 Lite で 700 欄）より多いのは、数える範囲が違うためです。関門 1 は台帳 v0 の列と、カタログの v0 の 19 件だけを数えました（同じ数え方は `python tools/count_lite_fields.py` で再現できる）。今の記入例は、台帳 v1 の列（#3）、カタログを全体に広げた 62 件への回答（#2）、網羅の規則の節（#17）を含みます。また、シナリオ A の記入例は Full の判定に当たり、カタログの既定の回答の引き継ぎ（`inherit`）を使っていません。同じ記入例を同じ数え方で数えると、縮小 Lite は 1131、Full は 1466 で、Lite は Full より 23% 少なくなります（#30 で既定どおりの行 `C-at-hash` を足した後）。縮小 Lite の数は、生成の列と、台帳の README の 3. で「Full のみ」とした列を除き、目録の却下の行は R1 とスキーマが求める 4 列（kind・decision・rationale・format）で数えています。
 
 **時間について**：記入例の書き手は LLM（Claude）で、人の記入の手間の代わりになりません（`research/template-design/gate1.md` の 2.）。人の記入時間は測っていません。#4 の完了基準「縮小した Lite でシナリオ A を書き直し、人が記入時間を測る（4 時間以内に収まらなければ、もう一度絞るか判定基準を見直す）」は、人が測るまで未了です。
 
