@@ -907,7 +907,7 @@ events:
         occurs: conditional
         hook_name: post-login（Actions）
         hook_invoked: "yes"
-        hook_note: org_id は既定で ID トークンと AT に入る（org_name はテナントの設定で ON にしたときだけ。文書）。/authorize の organization で組織を指定する（文書）。製品文書にログイン中の切り替えの機能はない。Support Center の記事「Organization Switching in Next.js」（2026-02-20 更新）は、organization を付けてログインし直す手順を示す（PR #34 の点検）
+        hook_note: "org_id は既定で ID トークンと AT に入る（org_name はテナントの設定で ON にしたときだけ。文書）。/authorize の organization で組織を指定する（文書）。製品文書にログイン中の切り替えの機能はない。Support Center の記事「Organization Switching in Next.js」（2026-02-20 更新）は、organization を付けてログインし直す手順を示す（PR #34 の点検）"
         stop_setting: null
         source_refs: [*a0_org]
     verified_on: 2026-11-22

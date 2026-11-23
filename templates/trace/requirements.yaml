@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 750
-  未着手: 624
-  実装済み: 83
+  未着手: 623
+  実装済み: 84
   後回し: 42
   扱わない: 1
-  core_未着手: 422
-  core_実装済み: 68
+  core_未着手: 421
+  core_実装済み: 69
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 202
@@ -4812,7 +4812,7 @@ requirements:
     text: "台帳からトークン種別ごとのペイロードの JSON Schema を生成する"
     owner_issue: "#19"
     planned_items: [render:payload-schema]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-schema-contract-tests.R2
     slide: slide:p11-schema-contract-tests

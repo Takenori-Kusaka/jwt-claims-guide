@@ -285,7 +285,9 @@ RESOLVERS = {
     'catalog': resolve_catalog,
     'test': lambda root, p, a: _md_part(root, os.path.join('templates', 'runtime', p + '.md'), a),
     'ci': resolve_ci,
-    # render, calib, guide: not built yet -> add a resolver here when the artifact exists.
+    # render:<table> -> the <a id="<table>"></a> part of tools/claim_lint/RENDER.md (#19)
+    'render': lambda root, p, a: _md_part(root, os.path.join('tools', 'claim_lint', 'RENDER.md'), p),
+    # calib, guide: not built yet -> add a resolver here when the artifact exists.
     # deferred, none: never 実装済み.
 }
 

@@ -57,7 +57,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（テナントのレルム）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のレルムの設定（Frontend URL とレルム名）
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 値は変わらない。レルムを廃止したら、API の許可リストから外す
@@ -103,7 +103,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（basic スコープの sub マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザー（レルムの DB）
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 利用者を無効にしたら、新しい発行は止まる。発行済みの AT は exp まで残る（ライフサイクル表）
@@ -147,7 +147,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（Audience マッパー aud-saas-api）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のクライアントのマッパーの設定
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 値は変わらない
@@ -189,7 +189,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（レルムの accessTokenLifespan）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のレルムの設定
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
@@ -230,7 +230,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak の時計
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
@@ -271,7 +271,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
@@ -310,7 +310,7 @@ claims:
     authoritative_writer: [{stage: "①", writer: Keycloak（basic スコープの auth_time マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のセッション
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login]
     on_revoke: 該当なし
@@ -350,7 +350,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
@@ -391,7 +391,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のクライアントの設定
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: クライアントを無効にしたら新しい発行が止まる
@@ -433,7 +433,7 @@ claims:
     authoritative_writer: [{stage: "①", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のセッション
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login]
     on_revoke: ログアウトでセッションが消えても、AT の sid は exp まで残る
@@ -475,7 +475,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: 認可要求の scope とクライアントスコープの設定
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
@@ -516,7 +516,7 @@ claims:
     authoritative_writer: [{stage: "①", writer: Keycloak（要求の値を写す）, configurable_by: [client]}]
     issue_events: [I01]
     source_system: BFF のセッション
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login]
     on_revoke: 該当なし
@@ -680,7 +680,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: SaaS のテナントの台帳（レルムの作成時にマッパーへ書く）
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない）
@@ -729,7 +729,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（User Property マッパー id）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: Keycloak のユーザー
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: sub と同じ
@@ -815,7 +815,7 @@ claims:
     authoritative_writer: [{stage: "②", writer: Keycloak（Hardcoded claim マッパー）, configurable_by: [platform, tenant_admin]}]
     issue_events: [I01, I02]
     source_system: 台帳（このファイル）
-    volatility: 0
+    volatility: never
     propagation_delay: 0
     recompute_trigger: [login, refresh]
     on_revoke: 該当なし
