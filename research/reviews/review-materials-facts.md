@@ -10,7 +10,7 @@
 
 | 検査 | 結果 |
 | --- | --- |
-| `python tools/review_check.py` | questions 160、files 17、error 0 |
+| `python tools/review_check.py` | questions 167、files 17、error 0 |
 | `python tools/trace_check.py`・`--tier core` | OK（未着手 402・実装済み 305・後回し 42・扱わない 1） |
 | `python tools/template_check.py` | files 15、items 142、error 0 |
 | `python tools/check_slide_refs.py templates` | 0 problems |
@@ -65,6 +65,8 @@
 | S38 | 監査ログ自体を守る | perspectives `q-audit-log-protected` | ASVS v5.0.0-16.4.2 | slide（スライドは「ASVS 16.4.2」） |
 | S39 | BOLA は OWASP API Security Top 10 2023 の API1 | perspectives `q-object-level-authz` | OWASP API Security Top 10 2023 API1 | 記憶 |
 | S40 | 属性の名前・定義・許容値は中央が管理する／変更は全依拠当事者に事前通知 | perspectives `stage-definition`・`q-change-order` | NIST SP 800-162 §2.4.2・§3.3.3 | slide |
+| S42 | 同じ API では `scope` か `authorization_details` の一方を使う（シナリオ B のレビュアーは、RFC 9396 が併用を想定した記述を持つと指摘した。F27） | perspectives `q-scope-semantics`、decision_tree の 6. | slide:p02-scope（要件 p02-scope.R6）、RFC 9396 §2 | slide。**一次資料で確かめていない** |
+| S43 | Txn-Token の必須のクレームは iat・aud・exp・txn・sub・scope・req_wl | perspectives `q-txn-required-claims` | draft-ietf-oauth-transaction-tokens-11 §9.2 | PR #44 のレビュー（B02）の写し |
 | S41 | CAEP 1.0 は 2025-09 に Final | contrasts/four-lifetimes の 2. | slide:p08-revocation-propagation | slide |
 
 ### 2.2 事例・製品の値
@@ -105,7 +107,7 @@
 
 ## 3. 抜き取りの対象
 
-- 問いの抜き取り：perspectives の 160 問から 10%（16 問）。選び方の案：`python tools/review_check.py --list` の行を `random.seed(5)` で 16 行選ぶ。各問いについて、(a) 見る欄で本当に Yes／No を決められるか、(b) 根拠が問いを支えるか、(c) 対比表のリンク先が問いに関係するか
+- 問いの抜き取り：perspectives の 167 問から 10%（17 問）。選び方の案：`python tools/review_check.py --list` の行を `random.seed(5)` で 17 行選ぶ。各問いについて、(a) 見る欄で本当に Yes／No を決められるか、(b) 根拠が問いを支えるか、(c) 対比表のリンク先が問いに関係するか
 - 対比表：8 本の「典型的な誤用」の行の全件（67 行）で、「見つける問い」が誤用に当たるか
 - 対応表の印：#5 の要件で実装済みにした 94 件から 10 件。印を足した他の成果物（台帳のスキーマ・テンプレート・RULES.md）の箇所が、その要件を実装しているか（`req:` の印は、中身が要件を満たすことまでは保証しない。templates/trace/README.md の「実装済みの確かめ方」）
 

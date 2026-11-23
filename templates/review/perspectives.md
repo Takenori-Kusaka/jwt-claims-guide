@@ -561,6 +561,22 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - 根拠：slide:p10-four-questions、slide:p10-agent-checklist、RFC 8693 §4.1
 <!-- req:p10-agent-checklist.R2 -->
 
+<a id="q-idp-capability-verified"></a>
+
+**q-idp-capability-verified**　設計が IdP・製品の機能（RFC 8707 の `resource`・トークン交換・CIBA・フックの呼ばれる契機など）に依存する行のすべてに、その製品の版の公式文書か実測の出どころがあるか
+- 見る欄：`template:00_core#issuance-profile`、`registry:token_types#refs`、`registry:claims#refs`、`template:00_core#uncertain`
+- No なら：Major（前提の誤り）。出どころの無い行は `review:escalation#unverified-idp-behavior` に回す。較正で追加（B07。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
+- 根拠：slide:p03-recent-changes、slide:p03-keycloak-aud-lightweight
+
+<a id="q-variant-comparison"></a>
+
+**q-variant-comparison**　既定から外した選択（送信者制約・JWE・寿命など）の比較が、台帳の機械的な差分だけでなく、安全性の差（開く攻撃の型）と、要求の全体のサイズ（ヘッダーを含む）を比べているか
+- 見る欄：`template:00_core#deviations`、`template:00_core#issuance-profile`、`registry:token_types#size`
+- No なら：Minor〜Major（理由の不備）。較正で追加（B12。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:R8`
+- 根拠：slide:p12-priorities-deferrals、slide:p04-size-budget
+
 <a id="q-outside-catalog"></a>
 
 **q-outside-catalog**　カタログ（発行・利用のイベント）の外を問う欄（`outside_enumeration`）に、探した範囲が具体的に書いてあり、レビュアーが図・経路から思いつく発行・利用の場面（例：管理画面からの発行、障害時の再送、テストの経路、移行期間の旧経路）が、その範囲の中で答えられているか
@@ -657,7 +673,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-hop-narrowing"></a>
 
-**q-hop-narrowing**　交換・作り直しのホップごとに、`aud` が 1 つの宛先に絞られ、`scope`・`authorization_details`・独自クレームが上流より広がっていないか（広がるホップには `narrowing_exception` の理由があるか）。交換のサービスが、その規則を実際に強制する設定（Keycloak なら downscope の executor など）を書いているか
+**q-hop-narrowing**　交換・作り直しのホップごとに、`aud` が 1 つの宛先に絞られ、`scope`・`authorization_details`・独自クレームが上流より広がっていないか（広がるホップには `narrowing_exception` の理由があるか）。交換を担うサービス（組織の STS・IdP）が、その規則を実際に強制する設定を書いているか（Keycloak が交換を担うなら downscope の executor など）
 - 見る欄：`registry:hops#aud`、`registry:hops#scope`、`registry:hops#custom_claims`、`registry:hops#narrowing_exception`、`template:modules/M_idp_keycloak#token-exchange-downscope`
 - No なら：Major（交換で権限が広がる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L16`／実行 `test:negative_tests#exchange-narrowing`（未実装）／事例 ケーススタディの Keycloak 26.8 の交換（元に無い orders 宛てが出た）
@@ -743,6 +759,22 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（取引の内容を経路の途中で差し替えられる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#txn-tctx`／lint `lint:L11`／実行 `test:negative_tests#tctx-mismatch`（未実装）・`test:negative_tests#req-wl-changed`（未実装）
 - 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2
+
+<a id="q-txn-required-claims"></a>
+
+**q-txn-required-claims**　Txn-Token を使うなら、草案が必須とするクレーム（`iat`・`aud`・`exp`・`txn`・`sub`・`scope`・`req_wl`）が目録の `required_claims` にあり、台帳のそれぞれの行の `carried_in` に Txn-Token があるか
+- 見る欄：`registry:token_types#required_claims`、`registry:claims#carried_in`
+- No なら：Major（前提の誤り）。較正で追加（B02。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L7`
+- 根拠：draft-ietf-oauth-transaction-tokens-11 §9.2、slide:p06-transaction-tokens
+
+<a id="q-claim-earliest-hop"></a>
+
+**q-claim-earliest-hop**　独自クレーム（承認の ID・取引の内容など）を、その値が初めて分かるホップのトークンから載せ、下流のホップはその部分集合になっているか（交換・作り直しで初めて足して、上流との比較を外していないか）
+- 見る欄：`registry:hops#custom_claims`、`registry:hops#upstream`、`registry:claims#carried_in`
+- No なら：Major（候補の漏れ）。足すホップと載せるホップの両方の案を比べた跡を求める。較正で追加（B04。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L16`
+- 根拠：slide:p06-narrow-downstream、slide:p10-human-approval-evidence
 
 <a id="ap-2-9"></a>
 
@@ -1339,8 +1371,8 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-dependency-outage"></a>
 
-**q-dependency-outage**　IdP・発行時フック・JWKS の取得・イントロスペクションの障害のとき、受け手と発行者がどう振る舞うか（閉じる側に倒すか、キャッシュをいつまで使うか、フックの打ち切りでクレームの無いトークンが出るか）が IdP ごとに書いてあるか
-- 見る欄：`registry:token_types#jwks_cache_ttl`、`registry:token_types#introspection_cache_ttl`、`template:modules/M_idp_keycloak#limits`、`template:00_core#uncertain`
+**q-dependency-outage**　IdP・発行時フック・JWKS の取得・イントロスペクション・受け手が鮮度のために引く外部の台帳（IdP の管理 API・承認の DB）の障害のとき、受け手と発行者がどう振る舞うか（閉じる側に倒すか、キャッシュをいつまで使うか、フックの打ち切りでクレームの無いトークンが出るか）が IdP ごとに書いてあるか
+- 見る欄：`registry:token_types#jwks_cache_ttl`、`registry:token_types#introspection_cache_ttl`、`template:modules/M_idp_keycloak#limits`、`template:00_core#uncertain`、`registry:claims#on_revoke`
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:R3b`
 - 根拠：slide:p03-custom-claim-injection、slide:p01-key-rotation-jwks
@@ -1408,6 +1440,32 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Minor
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
 - 根拠：slide:p11-audit-metrics
+
+### 6.4 検査と記述の整合
+
+<a id="q-lint-workaround"></a>
+
+**q-lint-workaround**　lint を通すために設計の宣言を変えた箇所（ホップの `upstream` を外す・台帳の行にしない・名前を変える）が無いか（あれば、規則の側の誤りの候補として #6 に渡したか）
+- 見る欄：`template:00_core#ci-results`、`template:00_core#deviations`、`registry:hops#upstream`
+- No なら：Major（目的と仕組みの不一致。規則の側のこともある）。規則そのものを試す（一時コピーで規則に当てる）のはこの教材の範囲の外で、#6 の点検に渡す。較正で追加（B05・B06・B13。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
+- 根拠：templates/CONTRIBUTING.md の 2.、tools/claim_lint/RULES.md
+
+<a id="q-evidence-attribution"></a>
+
+**q-evidence-attribution**　数値・製品の挙動を根拠つきで書いた行から 3 件を抜き取り、引いた節・文書がその数値・挙動を述べていることを確かめたか（筆者の提案・実測は、その旨の書き方になっているか）
+- 見る欄：`registry:claims#refs`、`registry:token_types#refs`、`template:00_core#uncertain`
+- No なら：Minor〜Major（前提の誤り・理由の不備。理由の採点の RR4）。較正で追加（B14。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
+- 根拠：templates/CONTRIBUTING.md の 1.、templates/review/rationale_rubric.md
+
+<a id="q-limit-consistency"></a>
+
+**q-limit-consistency**　同じ事実（組織の寿命の上限・受け手が照合する内容・受け手の一覧）を書いた 2 か所以上の欄（目録の `note`・5.1・生成の表・矢印の表）が、同じ値と同じトークンを指しているか
+- 見る欄：`template:00_core#lifetime-policy`、`registry:token_types#lifetime_exception`、`registry:claims#enforced_at`、`template:00_core#hop-table`
+- No なら：Minor（実装とのずれ）。較正で追加（B10・B15。templates/examples/scenario-b/review-report.md の 9.）
+- つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L23`
+- 根拠：slide:p08-choosing-lifetime、templates/CONTRIBUTING.md の 2.
 
 ---
 
@@ -1581,6 +1639,11 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 シナリオ B の 15 件（B01〜B15）を、改めて行ったレビューが再び見つけたか（再発見）と、見つける問いを並べた表は、`templates/examples/scenario-b/review-report.md` の「較正」の節にあります。**見逃した指摘に対して足した問いには、印（較正で追加）を付けています。** 作成の順は、(1) この観点書を作る、(2) 別のセッションがシナリオ B をレビューする、(3) B01〜B15 と照合する、(4) 見逃した指摘から問いを足す、です。(4) で足した問いは、(2) のレビューでは使っていません。
 
-| ID | 見つける問い | (2) のレビューで再発見したか |
+| 区分 | 件数 | B の ID |
 | --- | --- | --- |
-| （review-report.md の較正の節を正とする） | — | — |
+| 再発見 | 5 | B01・B03・B08・B09・B11 |
+| 一部 | 4 | B02・B05・B10・B14 |
+| 見逃し | 4 | B04・B07・B12・B15 |
+| 教材の範囲の外 | 2 | B06（lint の規則そのもの）・B13（レビュアーに読ませていないファイル） |
+
+指摘ごとの対応と、見逃しから足した 7 問（`q-txn-required-claims`・`q-claim-earliest-hop`・`q-idp-capability-verified`・`q-variant-comparison`・`q-lint-workaround`・`q-evidence-attribution`・`q-limit-consistency`）は、review-report.md の 9. にあります。B01・B03・B08 は、作成者が B の要約を読んだ後に書いた問いから見つけたので、割り引いて読みます（同 9.1）。

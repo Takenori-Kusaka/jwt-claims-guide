@@ -133,5 +133,5 @@ def test_v11_escalation_needs_sections(root):
 
 
 def test_v12_readme_counts(root):
-    edit(root, os.path.join('templates', 'review', 'README.md'), '| 計 | 160 |', '| 計 | 161 |')
+    edit(root, os.path.join('templates', 'review', 'README.md'), '| 計 | 167 |', '| 計 | 168 |')
     assert rules(root)[0] == ['V12']
