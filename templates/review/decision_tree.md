@@ -37,7 +37,19 @@ flowchart TD
 
 - 当たる問い：新しい値を運ぶすべての問い
 - 問い：その用途のクレームが、登録簿・既存の仕様の構造・IdP の文書・組織の台帳にあるか（slide:p02-claims-by-purpose の 16 の用途の地図）
-- 選ぶ仕組み：あれば既存のもの（`cnf`・`txn`・`verified_claims`・`roles` など）。無ければ組織の名前空間で、追加前の 25 問に答える
+- 選ぶ仕組み：あれば既存のもの。無ければ組織の名前空間で、追加前の 25 問に答える
+- 対応表（観点書の `q-reuse-standard-structure` が引く）：
+
+| 用途 | 既存の構造 | 根拠 |
+| --- | --- | --- |
+| 端末・鍵への結び付け | `cnf`（`jkt`・`x5t#S256`） | RFC 9449 §6.1、RFC 8705 §3.1 |
+| 関連するトークン・イベントの相関 | `txn` | slide:p02-keys-events-identity-assurance |
+| 確認済みの本人の属性 | `verified_claims` | slide:p02-keys-events-identity-assurance |
+| 取引の承認の内容 | `authorization_details` | RFC 9396 §2 |
+| 役割・グループ・資格 | `roles`・`groups`・`entitlements` | RFC 9068 §2.2.3.1 |
+| 代理している者 | `act`（許可は `may_act`） | RFC 8693 §4.1 |
+| 認証の時刻・強さ・方法 | `auth_time`・`acr`・`amr` | OpenID Connect Core 1.0 §2 |
+
 - 照合は誰が：台帳の持ち主（定義の段）
 - 取り違えの例：`device_key` を独自に作る（`cnf` で表せる）、`user_roles` を作る（`roles` で表せる）
 - 対比表：`review:contrasts/name-vs-identifier#misuse`
@@ -117,7 +129,7 @@ flowchart TD
 - 問い：取引の単位の許可（金額・対象・操作）を、トークンで受け手に伝えたいか
 - 選ぶ仕組み：
   - 取引の承認なら、まず RFC 9396 の `authorization_details`（`type` は自分が管理する URI）で表せるかを検討する。独自の権限オブジェクトは、表せないときだけ作り、理由を台帳に書く
-  - 同じ API では `scope` と `authorization_details` の一方を使う
+  - 同じ API では `scope` と `authorization_details` の一方を使うことを推奨する（RFC 9396 §3.1。併用は主に移行のためで、併用するならどちらで何を決めるかを台帳に書く）
   - 宛先ごとに、その宛先の `type` だけに絞る
   - オブジェクトごとの細かい許可は、トークンでなく PDP に置く
 - 照合は誰が：受け手（承認 ID・取引の内容を照合する）
@@ -125,7 +137,7 @@ flowchart TD
 - 対比表：`review:contrasts/scope-vs-role#misuse`
 - 観点書：`q-scope-semantics`・`q-rar-per-audience`・`q-approval-from-as`
 
-根拠：slide:p02-scope、RFC 9396 §2、slide:p05-coarse-fine-layers
+根拠：slide:p02-scope、RFC 9396 §2、RFC 9396 §3.1、slide:p05-coarse-fine-layers
 <!-- req:p02-scope.R3 -->
 
 <a id="lifetime-by-situation"></a>

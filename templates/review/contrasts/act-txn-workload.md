@@ -24,7 +24,7 @@
 | 仕組み | 単位 | 書き手 | 照合する者 |
 | --- | --- | --- | --- |
 | `act` | トークン交換（RFC 8693）で出たトークンの中の、JSON のオブジェクト（`sub` などを持つ）。入れ子の `act` は過去の行為者 | 交換を受けた AS | 受け手。アクセス制御には最も外側の `act` だけを使う |
-| Txn-Token | 信頼の領域（trust domain）の中の、1 つの呼び出しの連鎖に付く短命の署名つき JWT。`txn`・`sub`・`scope`・`tctx`（取引の内容）・`rctx`（`req_wl` など要求時点の環境）を持つ | Transaction Token Service（TTS）だけ | 受け手。`tctx` の照合は受け手が行う（仕様は照合の規則を書かない） |
+| Txn-Token | 信頼の領域（trust domain）の中の、1 つの呼び出しの連鎖に付く短命の署名つき JWT。必須（REQUIRED）は `iat`・`aud`・`exp`・`txn`・`sub`・`scope`・`req_wl`（Txn-Token を求めたワークロード）。`tctx`（取引の内容）と `rctx`（`req_ip`・`authn` など要求時点の環境）は推奨（RECOMMENDED） | Transaction Token Service（TTS）だけ | 受け手。`tctx` の照合は受け手が行う（仕様は照合の規則を書かない） |
 | ワークロード認証 | 通信の層（TLS のクライアント証明書・SPIFFE の SVID）。トークンのクレームではない | 証明書の発行者（CA・SPIRE） | 接続を受けた側（TLS の終端） |
 
 根拠：RFC 8693 §4.1、draft-ietf-oauth-transaction-tokens-11 §9.2、RFC 8705 §2、slide:p06-transaction-tokens
@@ -38,7 +38,7 @@
 | 寿命 | 交換で出たトークンの寿命に従う | 分以下（草案）。元のトークンより長くてよい（縮小の規則はない） | 証明書の寿命（SPIFFE の SVID は短命が普通） |
 | 縮小 | 保証しない（入れ子にしても範囲は狭まらない） | `scope` は元と同じかそれ以下。判別できなければ拒否 | — |
 | 運び方 | トークンの中（Authorization ヘッダー） | 専用の `Txn-Token` ヘッダー。アクセストークンとして送らない | TLS の接続そのもの。入口で終端するなら、証明書を渡すヘッダーを入口だけが書ける |
-| 途中での書き換え | 交換のたびに AS が作り直す | `req_wl` は伝搬の途中で書き換えない（§12.2）。Txn-Token を subject token にした作り直しで、何を保ち何を変えてよいかの扱いは P5 の表（§13.15）を見る | 接続ごと |
+| 途中での書き換え | 交換のたびに AS が作り直す | 受け取ったまま（unmodified）下流に渡す（§12.2 の MUST）。したがって `req_wl` も伝搬の途中では変わらない（`req_wl` を名指しした規定ではなく、そこから導いた帰結）。作り直し（Txn-Token を subject token にした再発行）は §13.15 が定める：範囲を狭める・値を足す・寿命を延ばすのは MAY（延ばすなら回数を制限する SHOULD）、範囲を広げる・`txn`・`sub`・`aud` を変える・期限切れを作り直すのは MUST NOT、Call Chain を引き継ぐのは MUST。仕様が定めていないのは、Call Chain の引き継ぎ方と、作り直しで `req_wl` を変えてよいか（P5 の表） | 接続ごと |
 | 監査に残すもの | 今の行為者と、連鎖（入れ子） | `txn`（同じ取引の相関） | 接続相手の ID |
 
 根拠：RFC 8693 §4.1・§5、draft-ietf-oauth-transaction-tokens-11 §6・§12.1・§12.2・§13.15、slide:p06-narrow-downstream、template:profiles/P5_internal_propagation#txn-token
@@ -81,7 +81,7 @@
 ## 6. 根拠
 
 - RFC 8693 §4.1（`act`、今の行為者と入れ子の扱い）・§4.4（`may_act`）・§5（セキュリティの考慮。縮小は求めない）
-- draft-ietf-oauth-transaction-tokens-11 §6（寿命）・§9.2（クレーム）・§12.1（`Txn-Token` ヘッダー）・§12.2（`req_wl` を書き換えない）・§13.15（作り直し）
+- draft-ietf-oauth-transaction-tokens-11 §6（寿命）・§9.2（クレーム）・§12.1（`Txn-Token` ヘッダー）・§12.2（受け取ったまま渡す）・§13.15（作り直しの規則）
 - RFC 8705 §2（mTLS のクライアント認証）
 - ガイド：slide:p05-one-request-carries、slide:p06-transaction-tokens、slide:p06-narrow-downstream、slide:p10-token-exchange-not-narrowing
 

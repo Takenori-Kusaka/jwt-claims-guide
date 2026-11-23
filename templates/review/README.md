@@ -18,7 +18,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [decision_tree.md](decision_tree.md) | ユースケースから仕組みを選ぶ判断の木 |
 | [contrasts/](contrasts/) | 取り違えやすい概念の対比表（8 本）。各表に、解く問い・仕様上の単位・対比・扱わないこと・典型的な誤用・根拠 |
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
-| [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR6。各観点に合格と不合格の例） |
+| [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR7。各観点に合格と不合格の例。採点の範囲と迷いやすい点の決まり） |
 | [report_template.md](report_template.md) | レビューレポートの様式（出どころ 5 種・種別 5 種） |
 | [escaped_defects.md](escaped_defects.md) | レビュー後に見つかった欠陥の記録 |
 | [metrics.md](metrics.md) | レビューの指標（目標にしない観察の記録） |
@@ -45,16 +45,16 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 <!-- counts:begin -->
 | 段 | 問いの数 |
 | --- | --- |
-| 1. 定義 | 58 |
+| 1. 定義 | 59 |
 | 2. 発行 | 12 |
 | 3. 伝搬 | 28 |
 | 4. 検証 | 14 |
 | 5. 認可 | 28 |
 | 6. 運用 | 27 |
-| 計 | 167 |
+| 計 | 168 |
 <!-- counts:end -->
 
-シナリオ B の較正（`../examples/scenario-b/review-report.md` の 9.）の後に 7 問を足しました（各問いの「No なら」に「較正で追加」と書いた）。定義の段が多いのは、設計のチェックリスト（13 問）と追加前の 25 問（27 問）を置いたためです。25 問の後半（問 13〜25）は発行・伝搬・運用に関わりますが、スライド 143 と issue #5 に合わせて同じ節で扱います。
+シナリオ B の較正（`../examples/scenario-b/review-report.md` の 9.）の後に 7 問を足しました（各問いの「No なら」に「較正で追加」と書いた）。PR #45 の独立点検の後に `q-pairwise-external` を 2 問に分けました（`q-pairwise-unguessable`）。定義の段が多いのは、設計のチェックリスト（13 問）と追加前の 25 問（27 問）を置いたためです。25 問の後半（問 13〜25）は発行・伝搬・運用に関わりますが、スライド 143 と issue #5 に合わせて同じ節で扱います。
 
 ## 使い方の最短の道
 
@@ -81,4 +81,4 @@ python tools/check_slide_refs.py templates
 
 > 人による点検は未実施。作成とは別の LLM のセッションでの点検と、作成者の 1 日以上空けた見直しは、まだ行っていない（材料：`research/reviews/review-materials-facts.md`）。
 
-シナリオ B のレビュー（記入例）は、教材の作成とは別の LLM のセッションが行いました。教材の作成者は、そのレビューの前に、関門 2 の材料（`research/template-design/gate2-evidence.md`）にある B の指摘の 1 行の要約を読んでいました。較正の数は、この条件で読んでください（[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md) の較正の節）。
+シナリオ B のレビュー（記入例）は、教材の作成とは別の LLM のセッションが行いました。教材の作成者は、そのレビューの前に、関門 2 の材料（`research/template-design/gate2-evidence.md`）にある B の指摘の 1 行の要約を読んでいました。照合の判定は作成者の自己採点です。較正の数は、この条件で読んでください（[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md) の較正の節）。

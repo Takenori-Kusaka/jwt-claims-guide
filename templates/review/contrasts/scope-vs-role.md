@@ -37,7 +37,7 @@
 | 観点 | `scope` | `role` | `authorization_details` |
 | --- | --- | --- | --- |
 | 受け手が確かめること | 操作がスコープの中か | 利用者の役割で許されるか | 取引の内容が承認と一致するか（承認 ID の照合） |
-| 両方を確かめるか | `role` と両方を確かめる | `scope` と両方を確かめる | 同じ API で `scope` と併用しない |
+| 両方を確かめるか | `role` と両方を確かめる | `scope` と両方を確かめる | 同じ API では一方を推奨（RFC 9396 §3.1。併用は主に移行のため） |
 | 下流のホップ | 宛先ごとに絞る | 下流が読まないなら載せない | 宛先ごとに、その宛先の `type` だけに絞る |
 | 爆発の兆し | スコープが API の数だけ増える | ロールにテナント・対象・操作を焼き込む | 独自の権限オブジェクトを作る（まず RAR の `type` で表せるか） |
 
@@ -67,14 +67,14 @@
 | m-6 | 同じ文字列のロールが IdP をまたいで同じ意味だと仮定する | 別の IdP の `admin` が通る | `q-value-vocabulary` |
 | m-7 | 独自の権限オブジェクトを、RAR の `type` を検討せずに作る | 受け手の検証部品が知らない形が増える | `pa-03`・`q-registered-synonym` |
 
-根拠：slide:p05-scope-vs-role、slide:p02-scope、slide:p05-role-explosion、RFC 9396 §2
+根拠：slide:p05-scope-vs-role、slide:p02-scope、slide:p05-role-explosion、RFC 9396 §2、RFC 9396 §3.1
 <!-- req:p05-scope-vs-role.R1 -->
 
 <a id="evidence"></a>
 
 ## 6. 根拠
 
-- RFC 9068 §2.2.3（`scope`）・§2.2.3.1（`roles`・`groups`・`entitlements`）、RFC 9396 §2・§9.1
+- RFC 9068 §2.2.3（`scope`）・§2.2.3.1（`roles`・`groups`・`entitlements`）、RFC 9396 §2・§3.1（`scope` との併用）・§9.1
 - ガイド：slide:p02-scope、slide:p05-scope-vs-role、slide:p05-role-explosion
 
 根拠：RFC 9068 §2.2.3、RFC 9396 §2、slide:p05-scope-vs-role

@@ -502,7 +502,7 @@ requirements:
     slide: slide:p01-key-rotation-jwks
     text: "公開鍵をコードに埋め込まない。ローテーションの頻度が変わっても追従できるようにする"
     owner_issue: "#5"
-    planned_items: [review:perspectives#role-operations]
+    planned_items: [review:perspectives#q-key-rotation]
     status: 実装済み
     tier: full
   # ---- 14 slide:p01-client-made-jwts
@@ -889,7 +889,7 @@ requirements:
     tier: core
   - id: p02-scope.R6
     slide: slide:p02-scope
-    text: "同じ API では scope か authorization_details の一方を使う"
+    text: "同じ API では scope か authorization_details の一方を使う（推奨。RFC 9396 §3.1 は主に移行のための併用を認める。併用するならどちらで何を決めるかを台帳に書く）"
     owner_issue: "#5"
     planned_items: [review:perspectives#q-scope-semantics]
     status: 実装済み

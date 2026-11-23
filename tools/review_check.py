@@ -12,7 +12,8 @@ bold ID) and is followed by the bullet lines `- 見る欄：`, `- No なら：`,
 Checks (all errors):
   V1  every file starts with `<!-- template_version: X.Y.Z -->` (templates/CONTRIBUTING.md 4.)
   V2  question IDs are lower-case kebab-case and unique; an anchor right before a question equals its ID; the question
-      text ends with 「か」 (optionally followed by a bracketed note), so that it can be answered Yes / No; the four bullet
+      text ends with 「か」 (optionally followed by a bracketed note), so that it can be answered Yes / No, and is not in the
+      negative form (「〜ないか」), so that Yes always means "meets"; the four bullet
       lines are present and not empty
   V3  見る欄 names at least one design-doc field (`template:` item ID, `registry:` column, `catalog:` entry) and every
       such ref resolves (tools/trace_check.py's resolvers: the anchor / schema property / YAML node exists)
@@ -35,6 +36,10 @@ Checks (all errors):
       checks the other kinds when a requirement becomes 実装済み)
   V11 escalation.md: every criterion ID in the first table has its own anchor section with a 根拠 line; every section of
       decision_tree.md has a 根拠 line
+  V13 per file: no duplicate anchors; every relative Markdown link `[..](path#anchor)` (outside code fences) points to an
+      existing file and, when it names an anchor, to an `<a id>` of that file; in perspectives.md a bold question-ID line
+      (`**q-…**`, `**ap-…**` …) that does not match the question form (full-width space after the ID) is an error, and
+      見る欄・つながり must quote every ref (`template:`, `registry:`, `catalog:`, `review:`, `lint:`, `test:`) in backticks
   V12 the table between `<!-- counts:begin -->` and `<!-- counts:end -->` of templates/review/README.md equals the number
       of questions per stage (and the total)
 
@@ -68,6 +73,7 @@ STAGES = [('stage-definition', '1. 定義'), ('stage-issuance', '2. 発行'), ('
 CONTRAST_SECTIONS = ('question', 'unit', 'table', 'not-covered', 'misuse', 'evidence')
 AP_IDS = [f'ap-1-{n}' for n in range(1, 9)] + [f'ap-2-{n}' for n in range(1, 10)]
 FIELD_KINDS = ('template', 'registry', 'catalog')
+NEGATIVE_Q = re.compile(r'(?:ないか|無いか)')
 QUESTION_END = re.compile(r'か(?:（[^）]*）)?$')
 
 
@@ -166,6 +172,8 @@ def check(root):
             errors.append(('V2', where, f'直前のアンカー {q["anchor"]} が問い ID と違う'))
         if not QUESTION_END.search(q['text']):
             errors.append(('V2', where, '問いの文が「か」で終わらない（Yes／No で答えられる形にする）'))
+        if NEGATIVE_Q.search(q['text']):
+            errors.append(('V2', where, '問いが否定の形（「〜ないか」）。Yes が「満たす」になる肯定の形にする（PR #45 の点検）'))
         for f in ('見る欄', 'No なら', 'つながり', '根拠'):
             if not q['fields'].get(f):
                 errors.append(('V2', where, f'「- {f}：」の行が無いか、空'))
@@ -269,6 +277,7 @@ def check(root):
             _, scope = trace_check._md_part(root, dt, a)
             if '根拠：' not in (scope or ''):
                 errors.append(('V11', 'decision_tree.md', f'節 {a} に根拠が無い'))
+    errors += check_links_and_forms(root, files)
     readme = os.path.join(root, REVIEW_DIR, 'README.md')
     if os.path.isfile(readme):
         m = re.search(r'<!-- counts:begin -->(.*?)<!-- counts:end -->', trace_check._read(readme), re.S)
@@ -278,6 +287,62 @@ def check(root):
         if got != want:
             errors.append(('V12', 'templates/review/README.md', f'問いの数の表が違う。want {want}'))
     return errors, questions, files
+
+
+LINK_RE = re.compile(r'\[[^\]]*\]\(([^)\s]+)\)')
+BOLD_QID = re.compile(r'^\*\*(?:q|ap|pa|dc|cf|cd)-[^*]*\*\*')
+BARE_REF = re.compile(r'(?<![`\w/:-])((?:template|registry|catalog|review|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_.-]+)?)')
+
+
+def _unfenced(lines):
+    fenced = False
+    for k, line in enumerate(lines, 1):
+        if line.startswith('```'):
+            fenced = not fenced
+            continue
+        if not fenced:
+            yield k, line
+
+
+def check_links_and_forms(root, files):
+    out = []
+    anchors_of = {}
+    for path in files:
+        text = trace_check._read(path)
+        ids = re.findall(r'<a id="([^"]+)"></a>', text)
+        anchors_of[os.path.normpath(path)] = set(ids)
+        rel = rel_of(root, path)
+        for a in sorted({i for i in ids if ids.count(i) > 1}):
+            out.append(('V13', rel, f'アンカー {a} が重複している'))
+    for path in files:
+        rel = rel_of(root, path)
+        lines = trace_check._read(path).splitlines()
+        is_persp = rel.endswith('templates/review/perspectives.md')
+        for k, line in _unfenced(lines):
+            for m in LINK_RE.finditer(line):
+                target = m.group(1)
+                if re.match(r'^[a-z]+:', target):
+                    continue
+                file_part, _, anchor = target.partition('#')
+                tpath = os.path.normpath(os.path.join(os.path.dirname(path), file_part)) if file_part else os.path.normpath(path)
+                if not os.path.exists(tpath):
+                    out.append(('V13', f'{rel}:{k}', f'リンク先 {target} のファイルが無い'))
+                    continue
+                if anchor and tpath.endswith('.md'):
+                    ids = anchors_of.get(tpath)
+                    if ids is None:
+                        ids = set(re.findall(r'<a id="([^"]+)"></a>', trace_check._read(tpath)))
+                    if anchor not in ids:
+                        out.append(('V13', f'{rel}:{k}', f'リンク先 {target} のアンカーが無い'))
+            if is_persp:
+                if BOLD_QID.match(line) and not Q_START.match(line):
+                    out.append(('V13', f'{rel}:{k}', '問いの見出しの形が違う（ID の後は全角の空白）'))
+                fm = FIELD_RE.match(line)
+                if fm and fm.group(1) in ('見る欄', 'つながり'):
+                    bare = BARE_REF.findall(re.sub(r'`[^`]*`', '', fm.group(2)))
+                    for b in bare:
+                        out.append(('V13', f'{rel}:{k}', f'{b} をバッククォートで囲む（囲まないと解決を確かめない）'))
+    return out
 
 
 def main(argv=None):

@@ -132,6 +132,34 @@ def test_v11_escalation_needs_sections(root):
     assert 'V11' in rules(root)[0]
 
 
+def test_v13_half_width_space_in_question_heading(root):
+    edit(root, PERSP, '**ap-1-1**　', '**ap-1-1** ')
+    assert 'V13' in rules(root)[0]
+
+
+def test_v13_ref_without_backticks(root):
+    edit(root, PERSP, '- 見る欄：`registry:token_types#alg_allowlist`、', '- 見る欄：registry:claims#nonexistent_col、`registry:token_types#alg_allowlist`、')
+    assert rules(root)[0] == ['V13']
+
+
+def test_v13_markdown_link_to_missing_file_or_anchor(root):
+    edit(root, PERSP, '[procedure.md](procedure.md)', '[procedure.md](procedurex.md#nope)')
+    assert rules(root)[0] == ['V13']
+    edit(root, PERSP, '[procedure.md](procedurex.md#nope)', '[procedure.md](procedure.md#nope)')
+    assert rules(root)[0] == ['V13']
+
+
+def test_v13_duplicate_anchor(root):
+    edit(root, PERSP, '## 問いの書き方と読み方', '<a id="q-shared-validator"></a>\n\n## 問いの書き方と読み方')
+    assert 'V13' in rules(root)[0]
+
+
+def test_v2_negative_question_form(root):
+    edit(root, PERSP, '**cf-05**　（項目 5）下流のホップの `aud`・`scope`・寿命が、どれも上流以下か',
+         '**cf-05**　（項目 5）下流のホップは上流を超えていないか')
+    assert rules(root)[0] == ['V2']
+
+
 def test_v12_readme_counts(root):
-    edit(root, os.path.join('templates', 'review', 'README.md'), '| 計 | 167 |', '| 計 | 168 |')
+    edit(root, os.path.join('templates', 'review', 'README.md'), '| 計 | 168 |', '| 計 | 169 |')
     assert rules(root)[0] == ['V12']

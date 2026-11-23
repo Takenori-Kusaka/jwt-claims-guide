@@ -77,7 +77,7 @@
 | E2 | CVE-2020-26160：`aud` の確認の抜け | perspectives `ap-1-3` | slide:p12-antipatterns-1 | slide |
 | E3 | CVE-2025-55241：マルチテナントで iss・tid を見ない／署名・失効・ログの無い内部の代理トークン（Entra の Actor token） | perspectives `ap-1-4`・`ap-2-9`・`q-internal-delegation-token` | slide:p12-antipatterns-1、slide:p12-antipatterns-2 のノート | slide（「Actor token」の名前は記憶） |
 | E4 | Storm-0558：別系統の鍵の署名を受理。CSRB 報告書（2024-03） | perspectives `ap-1-5` | slide:p12-antipatterns-1 | slide |
-| E5 | 根拠として「CSRB 報告書（Storm-0558）勧告 6」を引いた | perspectives `ap-1-5` の根拠 | repo（既存の調査メモの引用の形） | repo。**勧告 6 の中身が鍵と発行者の対応を述べるかは確かめていない** |
+| E5 | 根拠として「CSRB 報告書（Storm-0558）勧告 6」を引いた | perspectives `ap-1-5` の根拠 | repo（既存の調査メモの引用の形） | repo。PR #45 の独立点検で照合した（勧告 6 は鍵の範囲・状態を持つトークン・共通の認証ライブラリの箇条を持ち、根拠として使える。報告書は 2024-03-20 版） |
 | E6 | nOAuth（2023）：変更できる email を信じた RP の乗っ取り | perspectives `ap-1-6`、contrasts/name-vs-identifier | slide:p12-antipatterns-1 | slide（中身の要約は記憶） |
 | E7 | Cognito の `custom:` 属性は、読み取り専用にしない限り本人が書き換えられる場合がある | perspectives `ap-1-7` | slide:p03-cognito-pre-token-hook | slide |
 | E8 | golang-jwt v5 の既定では exp が無くても通る | perspectives `ap-1-8` | slide:p12-antipatterns-1（「golang-jwt v5 の既定」） | slide（「exp が無くても通る」の言い換えは記憶） |
@@ -99,7 +99,7 @@
 | P2 | 専門家に回す基準のうち、#5 の本文の 4 つ以外の 5 つ（baseline-unmet・jwe-key-management・unverified-idp-behavior・regulated-data・new-token-type） | escalation |
 | P3 | 手順の段（0〜8）の順序と、理由の抜き取りの数（採用・却下から各 5 件） | procedure |
 | P4 | 1 名で行う場合の役割の切り替えの順（攻撃者 → 受け手 → 発行者 → 運用 → 個人情報 → クライアント）と、段 0〜3 と 4〜6 を別の日に行うこと | procedure |
-| P5 | 理由の採点の 6 観点（RR1〜RR6）と 2 値の採点 | rationale_rubric |
+| P5 | 理由の採点の 7 観点（RR1〜RR7）と、採点の範囲・迷いやすい点の決まり | rationale_rubric |
 | P6 | レビューの指標の選び方 | metrics |
 | P7 | 判断の木の分け方（7 つの節） | decision_tree |
 | P8 | 採点の一致の目安（観点ごとに 7／10 未満なら直す） | research/reviews/rubric-agreement-2026-11-23.md |
@@ -114,3 +114,17 @@
 ## 4. 渡さないもの
 
 作成者の結論（「正しいことを確かめた」など）はありません。シナリオ B のレビューの較正の結果（review-report.md の 9.）は、点検の対象ですが、PR #44 の指摘との照合の正しさは、点検者が PR #44 のコメントを読んで確かめてください。
+
+## 5. PR #45 の独立点検の反映（2026-11-23）
+
+点検の全文は https://github.com/Takenori-Kusaka/jwt-claims-guide/pull/45#issuecomment-7092333225 。2. の表の行は、点検の前の書き方のまま残しています。直した後の書き方は成果物を正とします。
+
+| 行 | 直したこと |
+| --- | --- |
+| S6 | `req_wl` は最上位の必須のクレーム（§9.2）。必須は iat・aud・exp・txn・sub・scope・req_wl、`tctx`・`rctx` は推奨（act-txn-workload.md の 2.） |
+| S8 | §12.2 は「受け取ったまま渡す」（MUST）。`req_wl` が途中で変わらないのは、そこから導いた帰結と書いた |
+| S9 | §13.15 は作り直しの規則（MAY・MUST NOT・SHOULD・MUST）を定める。定めていないのは Call Chain の引き継ぎ方と、作り直しでの `req_wl` の扱い（act-txn-workload.md、P5 の表） |
+| S25 | FAPI 2.0 の「例外的な場合を除き」を足した |
+| S42 | 根拠を RFC 9396 §3.1 にした。併用は認められ（主に移行）、1 つの API で 1 つの形は推奨。問いを推奨に弱め、併用の条件だけの No は Minor |
+| E3 | CVE-2025-55241：署名の無い impersonation token が、ログに残らず取り消せない Actor token を包み、Azure AD Graph がテナントの不一致を受け入れた |
+| E5 | 要確認の印を外した（勧告 6 は鍵の範囲・状態を持つトークン・共通の認証ライブラリの箇条を持つ） |

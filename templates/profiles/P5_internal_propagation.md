@@ -59,7 +59,7 @@
 | アクセス元の文脈 | 要求元の IP などを伝えるなら、TTS が書く `rctx` に入れるか | `rctx`／独自のヘッダー（避ける） | slide:p06-access-context |
 | 運び方 | サービス間で、Txn-Token を専用のヘッダーで、受け取ったまま渡すか | `Txn-Token` ヘッダーで改変せずに渡す（§12.1・§12.2）／Authorization ヘッダー（使わない） | draft-ietf-oauth-transaction-tokens-11 §12.1・§12.2、slide:p06-transaction-tokens |
 | 寿命 | Txn-Token の寿命を何秒にするか。元のトークンより長くするか | 分以下（§6）。元のトークンより長いなら、ホップの表の `narrowing_exception` に書く | draft-ietf-oauth-transaction-tokens-11 §6、templates/registry/README.md の 3.4 |
-| 作り直し | Txn-Token を subject token にして作り直すとき、何を変えてよいか | 権限を減らす・値を足すのは可／scope の拡大と `txn`・`sub`・`aud` の変更は不可 | draft-ietf-oauth-transaction-tokens-11 §13.15、slide:p06-transaction-tokens |
+| 作り直し | Txn-Token を subject token にして作り直すとき、何を変えてよいか | 権限を減らす・値を足す・寿命を延ばす（回数を制限する）のは可／scope の拡大、`txn`・`sub`・`aud` の変更、期限切れのトークンの作り直しは不可。Call Chain は引き継ぐ（方法は仕様の範囲外）。作り直しで `req_wl` を変えてよいかは仕様が定めていない | draft-ietf-oauth-transaction-tokens-11 §13.15、slide:p06-transaction-tokens |
 | AT として使わない | Txn-Token を AT として受け入れる経路がないか | 経路なし（§13.13）／ある | draft-ietf-oauth-transaction-tokens-11 §13.13 |
 | ログ | Txn-Token の全体をログに出さないか | 出さない（`txn` だけ記録） | draft-ietf-oauth-transaction-tokens-11 §15.2 |
 

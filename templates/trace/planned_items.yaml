@@ -157,6 +157,7 @@ items:
   - {ref: review:perspectives#role-privacy, issue: "#5", origin: issue, title: 観点書：個人情報}
   - {ref: review:perspectives#role-client, issue: "#5", origin: issue, title: 観点書：クライアントの実装（保存場所）}
   - {ref: review:perspectives#q-hop-lifetime, issue: "#5", origin: issue, title: ホップごとに寿命が上流を超えていないか}
+  - {ref: review:perspectives#q-key-rotation, issue: "#5", origin: proposed, title: "観点書：公開鍵を JWKS から取り、知らない kid の取り直しと鍵の公開・廃止の順序を決めたか（PR #45 の点検で role-operations から付け替え）"}
   - {ref: review:perspectives#q-freshness-mitigation, issue: "#5", origin: issue, title: 寿命が鮮度の許容時間を超えるクレームに対策があるか}
   - {ref: review:perspectives#q-revocation-delivery, issue: "#5", origin: issue, title: 剥奪がどの手段で何秒以内に届くか}
   - {ref: review:perspectives#q-long-running, issue: "#5", origin: issue, title: 長時間の処理でトークンをどう扱うか}

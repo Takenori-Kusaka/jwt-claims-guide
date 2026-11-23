@@ -81,7 +81,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L24`（未実装）
 - 根拠：slide:p04-design-checklist、slide:p04-type
 
-**dc-06**　（形）複数の値は JSON の配列で、区切り文字の連結や JSON の文字列化をしていないか
+**dc-06**　（形）複数の値を JSON の配列で運び、区切り文字の連結も JSON の文字列化も使っていない、と台帳の `shape` から言えるか
 - 見る欄：`registry:claims#shape`
 - No なら：Major
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L36`（未実装）
@@ -136,7 +136,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 追加・変更する共有クレーム（組織の名前空間で、複数の受け手が読むもの）のそれぞれについて、`claim_request_<名前>.md` を開いて次を確かめます。**空欄がないこと（lint の L72 が見る）だけでなく、回答が妥当か**を見ます。とくに問 1・2・11・12・13・15・17・20 は、答えの中身で設計が決まるので、ここで No が出たら Major 以上にします。指摘の「場所」は `claim_request_<名前>.md の問 13` のように書きます。
 
-**pa-01**　（問 1）回答が「受け手が何を決めるか」（許可・拒否・絞り込みの判断）を受け手の名前つきで書いていて、`usage` と食い違わないか
+**pa-01**　（問 1）回答が「受け手が何を決めるか」（許可・拒否・絞り込みの判断）を受け手の名前つきで書いていて、`usage` と一致するか
 - 見る欄：`template:claim_request#q01`、`registry:claims#usage`、`registry:claims#answers`
 - No なら：Major（使い道のないクレーム、または表示用の値で認可している）
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／判断の木 `review:decision_tree#carry-or-query`／lint `lint:L72`
@@ -160,7 +160,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L1b`・`lint:L34`（未実装）
 - 根拠：slide:p11-pre-add-questions-1
 
-**pa-05**　（問 5）「.」「/」入りの名前を、すべての受け手のツールで参照できると確かめたか（「確かめていない」ではないか）
+**pa-05**　（問 5）「.」「/」入りの名前を、すべての受け手のツールで参照できると確かめた記録があるか（回答が「確かめていない」なら No）
 - 見る欄：`template:claim_request#q05`、`registry:claims#consumer_access_path`
 - No なら：Minor（確かめるまで受け手を増やさない）
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／実行 `test:consumer_contract#tool-access-path`（未実装）
@@ -172,7 +172,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
 - 根拠：slide:p11-pre-add-questions-1、slide:p04-namespace-object-example
 
-**pa-07**　（問 7）型が 1 つで、区切り文字列を使っていないか
+**pa-07**　（問 7）型が 1 つで、区切り文字列を使わない形か
 - 見る欄：`template:claim_request#q07`、`registry:claims#type`、`registry:claims#shape`
 - No なら：Major
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L36`（未実装）
@@ -196,7 +196,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／実行 `test:negative_tests#case-variant`（未実装）
 - 根拠：slide:p11-pre-add-questions-1
 
-**pa-11**　（問 11）誰が値を書けるかが、管理者・本人・呼び出し側・テナントの管理者のどれかまで書いてあり、本人や呼び出し側が書ける値を認可に使っていないか
+**pa-11**　（問 11）誰が値を書けるかが、管理者・本人・呼び出し側・テナントの管理者のどれかまで書いてあり、認可に使う値の書き手が管理者だけか
 - 見る欄：`template:claim_request#q11`、`registry:claims#authoritative_writer`、`registry:claims#provenance`、`registry:claims#modifiers`
 - No なら：Blocker〜Major。「設定を変えられる者」に tenant_admin がいて API が照合していないなら Major 以上（シナリオ A の A01）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`
@@ -226,7 +226,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L4`
 - 根拠：slide:p11-pre-add-questions-2、slide:p04-single-issuer
 
-**pa-16**　（問 16）検証を組織の共通ライブラリ（共通の検証部品）で提供し、受け手ごとの独自の読み方をさせないか
+**pa-16**　（問 16）検証を組織の共通ライブラリ（共通の検証部品）で提供し、受け手ごとの独自の読み方をさせない、と書いてあるか
 - 見る欄：`template:claim_request#q16`、`template:modules/M_token_validation#shared-validator`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -286,13 +286,13 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／実行 `test:consumer_contract#issued-claims-present`（未実装）
 - 根拠：slide:p11-pre-add-questions-2、slide:p11-schema-contract-tests
 
-**pa-gate**　答えられない問いが残るクレームを、共有クレームにしていないか（残るなら、サービス内のローカルな属性にとどめるか `status: proposed` のままか）。また、25 問の回答がクレームごとに固有か（ほかのクレームの回答の写しになっていないか）
+**pa-gate**　答えられない問いが残るクレームは、共有クレームにせず、サービス内のローカルな属性か `status: proposed` のままにしているか。また、25 問の回答がクレームごとに固有か（ほかのクレームの回答の写しなら No）
 - 見る欄：`template:claim_request#gate`、`registry:claims#status`
 - No なら：Major
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:L72`
 - 根拠：slide:p11-pre-add-questions-1、slide:p09-do-not-carry
 
-**pa-trace**　25 問の回答が、設計書の判断の行（ADR）と台帳の該当の 1 行の両方から辿れるか（`claim_request_<名前>.md` の「対象：」が台帳の ID を指し、台帳の `rationale` が 25 問と食い違わないか）
+**pa-trace**　25 問の回答が、設計書の判断の行（ADR）と台帳の該当の 1 行の両方から辿れ、内容が一致するか（`claim_request_<名前>.md` の「対象：」が台帳の ID を指し、台帳の `rationale` が 25 問と同じことを言うか）
 - 見る欄：`template:claim_request#form`、`template:00_core#decisions`、`registry:claims#rationale`
 - No なら：Minor（辿れない）〜Major（食い違う）
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L72`
@@ -303,7 +303,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-registered-synonym"></a>
 
-**q-registered-synonym**　登録クレーム・台帳の既存のクレームと同じ意味の独自クレームを、別名で作っていないか（台帳に同じ意味の行が 2 つないか）
+**q-registered-synonym**　台帳の独自クレームのどれもが、登録クレーム・台帳の既存のクレームと別の意味を持つか（同じ意味の行が別名で 2 つあれば No）
 - 見る欄：`registry:claims#registered_ref`、`registry:claims#prior_art_search`、`registry:claims#description`
 - No なら：Major（受け手がどちらを読むかで判断が分かれる）
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／判断の木 `review:decision_tree#existing-claim-first`／lint `lint:L1a`
@@ -312,7 +312,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-reuse-standard-structure"></a>
 
-**q-reuse-standard-structure**　鍵への結び付けは `cnf`、相関 ID は `txn`、確認済みの属性は `verified_claims` のように、既存の構造で表せるものを既存の構造で表しているか
+**q-reuse-standard-structure**　台帳の独自クレームの行のそれぞれで、用途が判断の木の対応表（`review:decision_tree#existing-claim-first`。端末・鍵への結び付け→`cnf`、相関 ID→`txn`、確認済みの属性→`verified_claims`、取引の承認→`authorization_details`、役割→`roles`・`groups`・`entitlements`）に当たるなら、`registered_ref` にその既存の構造が書いてあるか
 - 見る欄：`registry:claims#registered_ref`、`registry:claims#verification_method`、`registry:questions#q-holder`
 - No なら：Minor〜Major（独自の `device_key` などは、受け手の検証部品が知らない）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／判断の木 `review:decision_tree#existing-claim-first`
@@ -321,7 +321,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-auth-context-semantics"></a>
 
-**q-auth-context-semantics**　`iat` を認証の時刻に、`amr` の `mfa` を保証の水準に、`sid` をアプリのセッション ID に使っていないか（認証の新しさは `auth_time`、強さは `acr` で見ているか）
+**q-auth-context-semantics**　認証の新しさを `auth_time`、強さを `acr` で判断し、`iat`・`amr` の `mfa`・`sid` をそれぞれ認証の時刻・保証の水準・アプリのセッション ID の代わりに使っていない、と台帳の `usage`・`not_meaning` から言えるか
 - 見る欄：`registry:claims#not_meaning`、`registry:claims#usage`、`registry:questions#q-auth-strength`、`template:00_core#step-up`
 - No なら：Major（サイレント再認証で `iat` だけが新しくなり、古い認証で高リスクの操作が通る）
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
@@ -330,16 +330,16 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-scope-semantics"></a>
 
-**q-scope-semantics**　`scope` を利用者の全権限と読まず（クライアントに委ねた範囲として扱い）、各スコープが `aud` のリソースにとって意味を持ち、同じ API で `scope` と `authorization_details` を併用していないか
+**q-scope-semantics**　`scope` をクライアントに委ねた範囲として扱い（利用者の全権限と読まない）、各スコープが `aud` のリソースにとって意味を持つか。同じ API で `scope` と `authorization_details` を併用するなら、移行の間だけで、どちらで何を決めるかが台帳に書いてあるか
 - 見る欄：`registry:claims#not_meaning`、`registry:hops#scope`、`registry:hops#aud`、`registry:claims#value_vocabulary`
-- No なら：Major
+- No なら：Major（scope を全権限と読む・aud に意味の無いスコープ）。併用の条件だけが No なら Minor（RFC 9396 §3.1 は併用を認め、1 つの API で 1 つの形を推奨する）
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／判断の木 `review:decision_tree#rar-vs-custom`
-- 根拠：slide:p02-scope、RFC 9396 §2、RFC 9068 §2.2.3
+- 根拠：slide:p02-scope、RFC 9396 §3.1、RFC 9068 §2.2.3
 <!-- req:p02-scope.R1 req:p02-scope.R2 req:p02-scope.R4 req:p02-scope.R6 -->
 
 <a id="q-value-vocabulary"></a>
 
-**q-value-vocabulary**　`roles`・`groups` などの値の語彙が台帳（`value_vocabulary`）にあり、同じ文字列が受け手・IdP をまたいで同じ意味だと仮定していないか（IdP ごとの出どころ `upstream_issuer` が書いてあるか）
+**q-value-vocabulary**　`roles`・`groups` などの値の語彙が台帳（`value_vocabulary`）にあり、IdP ごとの出どころ（`upstream_issuer`）と、組織の語彙への写し方が書いてあるか（同じ文字列を受け手・IdP をまたいで同じ意味とみなしていれば No）
 - 見る欄：`registry:claims#value_vocabulary`、`registry:claims#upstream_issuer`
 - No なら：Major（別の IdP の `admin` が組織の `admin` として通る）
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`
@@ -348,7 +348,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-role-explosion"></a>
 
-**q-role-explosion**　ロールの名前に、テナント・対象・操作の組み合わせを焼き込んでいないか（細かい権限は PDP に置いているか）
+**q-role-explosion**　ロールの名前は役割だけを表し、テナント・対象・操作の組み合わせは PDP に置いているか
 - 見る欄：`registry:claims#value_vocabulary`、`registry:claims#max_items`、`template:modules/M_authz_pdp#model-choice`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／lint `lint:L69`・`lint:L40`（未実装）
@@ -359,7 +359,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-identifier-choice"></a>
 
-**q-identifier-choice**　利用者・テナントを決めるキーが `iss`＋`sub` か組織の不変の ID で、`email`・`upn`・ペアワイズの `sub` の突き合わせ・`sub_id` と `sub` の組み合わせを使っていないか。テナントを実際に決めている値（`iss` か `tenant_id` か）が 1 つに書いてあるか
+**q-identifier-choice**　利用者・テナントを決めるキーが `iss`＋`sub` か組織の不変の ID だけか（`email`・`upn`・ペアワイズの `sub` の突き合わせ・`sub_id` と `sub` の組み合わせを使っていれば No）。テナントを実際に決めている値（`iss` か `tenant_id` か）が 1 つに書いてあるか
 - 見る欄：`registry:claims#usage`、`registry:claims#identifier_properties`、`registry:token_types#subject_type`、`template:00_core#principals`、`template:modules/M_multitenancy#tenant-determination`
 - No なら：Major〜Blocker（乗っ取り）。シナリオ A の A02・A05 はここ
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`・`lint:L28`（未実装）
@@ -368,7 +368,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="ap-1-6"></a>
 
-**ap-1-6**　（アンチパターン：email・upn を利用者のキーにする）利用者のキーが `iss`＋`sub`（Entra は `tid`＋`oid`）で、`email`・`upn`・`preferred_username` を照合のキーにしていないか
+**ap-1-6**　（アンチパターン：email・upn を利用者のキーにする）利用者の照合のキーが `iss`＋`sub`（Entra は `tid`＋`oid`）だけか（`email`・`upn`・`preferred_username` を照合のキーにしていれば No）
 - 見る欄：`registry:claims#usage`（identifier の行）、`registry:claims#identifier_properties`、`template:modules/M_data_layer#db-identity`
 - No なら：Blocker（アカウントの乗っ取り）
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`／事例 nOAuth（2023。Entra の変更できる email を信じた RP の乗っ取り）
@@ -377,11 +377,17 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-pairwise-external"></a>
 
-**q-pairwise-external**　外部の受け手に出す `sub` をペアワイズにするかを、トークン種別ごとに決め、ペアワイズの値が推測できない（識別情報を含まない）か
-- 見る欄：`registry:token_types#subject_type`、`template:modules/M_privacy_minimization#identifier-sectors`
-- No なら：Minor〜Major（取引先の間で名寄せされる）
+**q-pairwise-external**　外部の受け手に届くトークン種別のそれぞれで、`sub` をペアワイズにするかが目録の `subject_type` に決めてあるか
+- 見る欄：`registry:token_types#subject_type`、`registry:token_types#aud`
+- No なら：Minor〜Major（取引先の間で名寄せされる）。値の作り方は次の `q-pairwise-unguessable`
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
 - 根拠：slide:p09-pairwise-identifiers、slide:p09-checklist、OpenID Connect Core 1.0 §8
+
+**q-pairwise-unguessable**　ペアワイズにした `sub` の作り方（受け手の区分と生成の方式）が書いてあり、その値が識別情報を含まず推測できない方式か
+- 見る欄：`template:modules/M_privacy_minimization#identifier-sectors`、`registry:token_types#subject_type`
+- No なら：Minor〜Major
+- つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
+- 根拠：slide:p09-pairwise-identifiers、OpenID Connect Core 1.0 §8
 <!-- req:p09-pairwise-identifiers.R1 req:p09-pairwise-identifiers.R3 req:p09-checklist.R3 -->
 
 ### 1.5 載せる値の選び方と個人情報
@@ -424,7 +430,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-payload-readable"></a>
 
-**q-payload-readable**　署名だけの JWT のペイロードは、持つ者・経由する全ホップ・ログが読めることを前提に、載せる値を選んでいるか（台帳の `confidential_from` の相手が、目録の `visible_to` にいないか）
+**q-payload-readable**　署名だけの JWT のペイロードは、持つ者・経由する全ホップ・ログが読めることを前提に、載せる値を選んでいるか（台帳の `confidential_from` の相手が、目録の `visible_to` に 1 つもいなければ Yes）
 - 見る欄：`registry:claims#pii_category`、`registry:claims#confidential_from`、`registry:token_types#visible_to`
 - No なら：Major
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L65`・`lint:L6`
@@ -433,7 +439,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-confidential-reaches-reader"></a>
 
-**q-confidential-reaches-reader**　読まれてはいけないクレームが、それを読める相手（ブラウザ・入口・ログ・取引先）に届くトークンに載っていないか（載せるなら、その相手が復号できない JWE にしているか）
+**q-confidential-reaches-reader**　読まれてはいけないクレーム（`confidential_from` がある行）が、その相手（ブラウザ・入口・ログ・取引先）に届くトークンには載せない、と台帳と目録から言えるか（載せるなら、その相手が復号できない JWE になっているか）
 - 見る欄：`registry:claims#confidential_from`、`registry:token_types#visible_to`、`registry:token_types#jwe`、`template:modules/M_privacy_minimization#protection-table`
 - No なら：Major
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L65`・`lint:L66`
@@ -441,7 +447,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-no-secret-or-raw-pii"></a>
 
-**q-no-secret-or-raw-pii**　認証の秘密（パスワード・API キー）と平文の個人情報（生年月日・住所など）を、どのトークンにも載せていないか
+**q-no-secret-or-raw-pii**　どのトークンのクレームも、認証の秘密（パスワード・API キー）と平文の個人情報（生年月日・住所など）を含まない、と台帳の `data_category`・`pii_category` から言えるか
 - 見る欄：`registry:claims#data_category`、`registry:claims#pii_category`
 - No なら：Blocker（秘密）〜Major（個人情報）
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L70`・`lint:L51`（未実装）
@@ -459,7 +465,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-baseline-kept"></a>
 
-**q-baseline-kept**　共通の基準（受け入れの検証・必須の欠落の拒否・型の固定・不変の ID・組織の名前空間・ログにトークン全文と個人情報を残さない）を、1 つも外していないか（外すなら Full にし、専門家に回しているか）
+**q-baseline-kept**　共通の基準（受け入れの検証・必須の欠落の拒否・型の固定・不変の ID・組織の名前空間・ログにトークン全文と個人情報を残さない）を、すべて満たしているか（満たさない基準があれば、Full にし、専門家に回したか）
 - 見る欄：`template:00_core#baseline`、`template:00_core#deviations`
 - No なら：Major。外した基準は `review:escalation#baseline-unmet` に回す
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -485,7 +491,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-single-issuer"></a>
 
-**q-single-issuer**　各クレームを付与する発行者が台帳の `issuers` に 1 つ（段階ごとに 1 つ）で、各サービスがクレームを追記したり、トークンを作り直したりしていないか
+**q-single-issuer**　各クレームを付与する発行者が台帳の `issuers` に 1 つ（段階ごとに 1 つ）で、各サービスはクレームを追記もトークンの作り直しもしない、と書いてあるか
 - 見る欄：`registry:claims#issuers`、`registry:claims#authoritative_writer`、`template:00_core#scope-boundary`
 - No なら：Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L4`
@@ -509,7 +515,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="ap-1-7"></a>
 
-**ap-1-7**　（アンチパターン：本人が書ける属性から権限を作る）権限・識別子のクレームの出どころ（`provenance`）に、本人が編集できる値・呼び出し側の申告・テナントの管理者が変えられる値が無いか（あるなら、API が `iss` や API の設定と照合しているか）
+**ap-1-7**　（アンチパターン：本人が書ける属性から権限を作る）権限・識別子のクレームの出どころ（`provenance`）が、管理側の値だけか（本人が編集できる値・呼び出し側の申告・テナントの管理者が変えられる値があるなら、API が `iss` や API の設定と照合しているか）
 - 見る欄：`registry:claims#provenance`、`registry:claims#modifiers`、`registry:claims#enforced_at`
 - No なら：Blocker（権限の昇格）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`／事例 Cognito の `custom:` 属性（読み取り専用にしない限り、本人が書き換えられる場合がある）
@@ -518,7 +524,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-hook-adds-raw-pii"></a>
 
-**q-hook-adds-raw-pii**　発行時フックが、生の個人情報（生年月日など）を足していないか
+**q-hook-adds-raw-pii**　発行時フックが足すクレームが、生の個人情報（生年月日など）を含まない、と台帳から言えるか（`authoritative_writer` がフックの行の `pii_category` で確かめる）
 - 見る欄：`registry:claims#authoritative_writer`、`registry:claims#pii_category`、`registry:claims#data_category`
 - No なら：Major
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L70`
@@ -527,7 +533,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-minimal-per-recipient"></a>
 
-**q-minimal-per-recipient**　受け手ごとに、その受け手が読むクレームだけを出しているか（台帳の `consumers` に無い受け手のトークンに載せていないか）
+**q-minimal-per-recipient**　受け手ごとに、その受け手が読むクレームだけを出しているか（台帳の `consumers` にある受け手のトークンにだけ載っていれば Yes）
 - 見る欄：`registry:claims#consumers`、`registry:claims#carried_in`、`registry:hops#custom_claims`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:L16`
@@ -545,7 +551,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-agent-own-identity"></a>
 
-**q-agent-own-identity**　エージェントを独立した主体（自分の `client_id`・ワークロードの ID）として登録し、共有アカウントや利用者のトークンを借りていないか
+**q-agent-own-identity**　エージェントを独立した主体（自分の `client_id`・ワークロードの ID）として登録し、自分の資格情報で動くか（共有アカウントや利用者のトークンを借りていれば No）
 - 見る欄：`template:profiles/P4_ai_agent_delegation#agent-identity`、`template:00_core#principals`
 - No なら：Major（誰が実行したか分からない）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L55`（未実装）
@@ -626,25 +632,25 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/id-vs-access-token#misuse`／lint `lint:L41`（未実装）
 - 根拠：slide:p06-flow-checklist、slide:p06-edge-exchange
 
-**cf-04**　（項目 4）受け取ったトークンを、別の宛先へそのまま渡していないか（ホップごとに `token_type` か `aud` が替わるか）
+**cf-04**　（項目 4）サービスは受け取ったトークンを別の宛先へ渡さず、ホップごとに `token_type` か `aud` が替わるか
 - 見る欄：`registry:hops#token_type`、`registry:hops#aud`、`registry:hops#upstream`
 - No なら：Major。詳しくは `ap-2-6`
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L41`（未実装）
 - 根拠：slide:p06-flow-checklist
 
-**cf-05**　（項目 5）下流のホップは `aud`・`scope`・寿命で上流を超えないか
+**cf-05**　（項目 5）下流のホップの `aud`・`scope`・寿命が、どれも上流以下か
 - 見る欄：`registry:hops#aud`、`registry:hops#scope`、`registry:hops#max_lifetime`
 - No なら：Major。詳しくは `q-hop-narrowing`・`q-hop-lifetime`
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L16`
 - 根拠：slide:p06-flow-checklist、slide:p06-narrow-downstream
 
-**cf-06**　（項目 6）Txn-Token を専用ヘッダー（`Txn-Token`）で送り、アクセストークンとして送っていないか
+**cf-06**　（項目 6）Txn-Token を専用ヘッダー（`Txn-Token`）で送り、アクセストークンとしては送らない、と目録の `transport` に書いてあるか
 - 見る欄：`registry:token_types#transport`
 - No なら：Major
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L43`／実行 `test:negative_tests#txn-token-as-at`（未実装）
 - 根拠：slide:p06-flow-checklist、draft-ietf-oauth-transaction-tokens-11 §12.1
 
-**cf-07**　（項目 7）入口で検証しても、各サービスでも検証しているか（ホップごとの `validates` が空でないか）
+**cf-07**　（項目 7）入口で検証しても、各サービスでも検証しているか（すべてのホップの `validates` に中身があれば Yes）
 - 見る欄：`registry:hops#validates`
 - No なら：Major。詳しくは `q-gateway-bypass-path`
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L46`（未実装）
@@ -662,7 +668,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:L68`
 - 根拠：slide:p06-flow-checklist、slide:p06-access-context
 
-**cf-10**　（項目 10）`sub`・`act`・`txn`・承認 ID を分けて記録し、トークン全文は記録しないか
+**cf-10**　（項目 10）`sub`・`act`・`txn`・承認 ID を分けて記録し、トークン全文は記録しない、と `log_policy` に書いてあるか
 - 見る欄：`registry:claims#log_policy`、`registry:token_types#log_policy`、`template:modules/M_privacy_minimization#audit-log`
 - No なら：Major。詳しくは `q-audit-correlation`・`q-token-logging`
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L45`（未実装）
@@ -673,7 +679,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-hop-narrowing"></a>
 
-**q-hop-narrowing**　交換・作り直しのホップごとに、`aud` が 1 つの宛先に絞られ、`scope`・`authorization_details`・独自クレームが上流より広がっていないか（広がるホップには `narrowing_exception` の理由があるか）。交換を担うサービス（組織の STS・IdP）が、その規則を実際に強制する設定を書いているか（Keycloak が交換を担うなら downscope の executor など）
+**q-hop-narrowing**　交換・作り直しのホップごとに、`aud` が 1 つの宛先に絞られ、`scope`・`authorization_details`・独自クレームが上流以下か（上流より広いホップには `narrowing_exception` の理由があるか）。交換を担うサービス（組織の STS・IdP）が、その規則を実際に強制する設定を書いているか（Keycloak が交換を担うなら downscope の executor など）
 - 見る欄：`registry:hops#aud`、`registry:hops#scope`、`registry:hops#custom_claims`、`registry:hops#narrowing_exception`、`template:modules/M_idp_keycloak#token-exchange-downscope`
 - No なら：Major（交換で権限が広がる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L16`／実行 `test:negative_tests#exchange-narrowing`（未実装）／事例 ケーススタディの Keycloak 26.8 の交換（元に無い orders 宛てが出た）
@@ -728,7 +734,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-unverified-claim-extraction"></a>
 
-**q-unverified-claim-extraction**　署名を検証せずに取り出したクレーム（ゲートウェイの `extract_only_without_validation` のような設定）を、認可に使っていないか
+**q-unverified-claim-extraction**　認可に使うクレームは、どのホップでも署名を検証した後に取り出しているか（ゲートウェイの `extract_only_without_validation` のような設定で取り出した値を認可に使っていれば No）
 - 見る欄：`registry:hops#validates`、`registry:hops#forwarded_headers`
 - No なら：Blocker
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -746,7 +752,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-step-up-path-coverage"></a>
 
-**q-step-up-path-coverage**　追加認証（`acr`・`auth_time`）を求める高リスクの操作が、どの経路（直接・エージェント経由・交換の後・非同期）から呼ばれても、その操作の受け手か入口が同じ条件を確かめるか（交換・作り直しで `acr`・`auth_time` が落ちないか）
+**q-step-up-path-coverage**　追加認証（`acr`・`auth_time`）を求める高リスクの操作が、どの経路（直接・エージェント経由・交換の後・非同期）から呼ばれても、その操作の受け手か入口が同じ条件を確かめるか（交換・作り直しの後のトークンにも `acr`・`auth_time` が残るか）
 - 見る欄：`template:00_core#step-up`、`registry:hops#custom_claims`、`registry:hops#validates`
 - No なら：Major（ある経路だけ追加認証を素通りする）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／実行 `test:negative_tests#insufficient-acr`（未実装）
@@ -754,11 +760,11 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-txn-scope-fixed"></a>
 
-**q-txn-scope-fixed**　Txn-Token を使うなら、`tctx`（取引の内容）と `scope` が元のトークンと同じかそれ以下で決まり、受け手が `tctx` の項目を照合する規則があるか。`req_wl` を途中で書き換えないか
+**q-txn-scope-fixed**　Txn-Token を使うなら、`tctx`（取引の内容）と `scope` が元のトークンと同じかそれ以下で決まり、受け手が `tctx` の項目を照合する規則があるか。Txn-Token を受け取ったまま下流に渡す（したがって `req_wl` も途中で変わらない）と書いてあるか
 - 見る欄：`registry:claims#enforced_at`、`registry:claims#value_vocabulary`、`registry:hops#scope`、`template:profiles/P5_internal_propagation#txn-token`
 - No なら：Major（取引の内容を経路の途中で差し替えられる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#txn-tctx`／lint `lint:L11`／実行 `test:negative_tests#tctx-mismatch`（未実装）・`test:negative_tests#req-wl-changed`（未実装）
-- 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2
+- 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2（受け取ったまま渡す。`req_wl` が変わらないのはその帰結）
 
 <a id="q-txn-required-claims"></a>
 
@@ -770,7 +776,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-claim-earliest-hop"></a>
 
-**q-claim-earliest-hop**　独自クレーム（承認の ID・取引の内容など）を、その値が初めて分かるホップのトークンから載せ、下流のホップはその部分集合になっているか（交換・作り直しで初めて足して、上流との比較を外していないか）
+**q-claim-earliest-hop**　独自クレーム（承認の ID・取引の内容など）を、その値が初めて分かるホップのトークンから載せ、下流のホップはその部分集合になっているか（交換・作り直しで初めて足し、上流との比較を外していれば No）
 - 見る欄：`registry:hops#custom_claims`、`registry:hops#upstream`、`registry:claims#carried_in`
 - No なら：Major（候補の漏れ）。足すホップと載せるホップの両方の案を比べた跡を求める。較正で追加（B04。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L16`
@@ -781,13 +787,13 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 **ap-2-9**　（アンチパターン：署名がなく、取り消せず、ログも残らない内部の代理トークン）内部の代理・委任のトークンが、署名され、テナントを検証され、失効でき、ログに残るか
 - 見る欄：`registry:token_types#signing`、`registry:token_types#revocation`、`registry:token_types#tenant_binding`、`registry:token_types#log_policy`
 - No なら：Blocker
-- つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L17`・`lint:L9`／事例 CVE-2025-55241（Entra の Actor token）
+- つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L17`・`lint:L9`／事例 CVE-2025-55241（署名の無い impersonation token が、ログに残らず 24 時間取り消せない Actor token を包み、Azure AD Graph がテナントの不一致を受け入れた）
 - 根拠：slide:p12-antipatterns-2、slide:p10-delegation-chain-depth、slide:p00-incident-signature-valid
 <!-- req:p12-antipatterns-2.R9 -->
 
 <a id="q-internal-delegation-token"></a>
 
-**q-internal-delegation-token**　内部の代理トークンにも、署名・期限・テナントの照合・失効の手段・ログの扱いが、目録の行として書いてあるか（「内部だから」で省いていないか）
+**q-internal-delegation-token**　内部の代理トークンにも、署名・期限・テナントの照合・失効の手段・ログの扱いが、目録の行として書いてあるか（「内部だから」で省いた列があれば No）
 - 見る欄：`registry:token_types#signing`、`registry:token_types#max_lifetime`、`registry:token_types#tenant_binding`、`registry:token_types#revocation`
 - No なら：Blocker〜Major
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L9`・`lint:L17`／実行 `test:negative_tests#tenant-mismatch`（未実装）／事例 CVE-2025-55241
@@ -814,7 +820,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-idp-diff-absorbed"></a>
 
-**q-idp-diff-absorbed**　IdP ごとの差（利用者のキー・ロールの位置・`aud`）を、入口か共通部品で吸収し、内側のサービスが読むのは組織の発行者が出した組織の名前空間のクレームだけか（製品の独自クレーム `xms_*` などを組織の契約にしていないか）
+**q-idp-diff-absorbed**　IdP ごとの差（利用者のキー・ロールの位置・`aud`）を、入口か共通部品で吸収し、内側のサービスが読むのは組織の発行者が出した組織の名前空間のクレームだけか（製品の独自クレーム `xms_*` などを組織の契約にしていれば No）
 - 見る欄：`template:profiles/P5_internal_propagation#edge-conversion`、`registry:claims#upstream_issuer`、`registry:claims#issuers`
 - No なら：Major
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L32`（未実装）
@@ -823,7 +829,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-token-not-in-url"></a>
 
-**q-token-not-in-url**　URL・クエリ・リダイレクトの断片にトークンを載せていないか（WebSocket など、ヘッダーを付けられない経路の扱いが書いてあるか）
+**q-token-not-in-url**　どのトークンも、URL・クエリ・リダイレクトの断片以外で運ぶ、と目録の `transport` から言えるか（WebSocket など、ヘッダーを付けられない経路の扱いが書いてあるか）
 - 見る欄：`registry:token_types#transport`、`template:profiles/P1_human_web#url-exposure`
 - No なら：Major（履歴とログに残る）
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L54`（未実装）
@@ -849,7 +855,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-shared-validator"></a>
 
-**q-shared-validator**　受け手のすべてが、アルゴリズム・発行者・宛先・必須クレームを固定した組織の共通の検証部品で検証し、受け手ごとの独自の設定・読み方をしていないか
+**q-shared-validator**　受け手のすべてが、アルゴリズム・発行者・宛先・必須クレームを固定した組織の共通の検証部品で検証するか（受け手ごとの独自の設定・読み方があれば No）
 - 見る欄：`template:modules/M_token_validation#shared-validator`、`template:modules/M_token_validation#library-config`
 - No なら：Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L17`
@@ -867,7 +873,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="ap-1-2"></a>
 
-**ap-1-2**　（アンチパターン：署名を確かめずに中身で認可する）どの受け手も、署名を検証してからクレームを読むか（デコードだけの経路が無いか）
+**ap-1-2**　（アンチパターン：署名を確かめずに中身で認可する）どの受け手も、署名を検証してからクレームを読むか（デコードだけの経路があれば No）
 - 見る欄：`registry:hops#validates`、`template:modules/M_token_validation#validation-order`
 - No なら：Blocker（誰でもクレームを書ける）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L46`（未実装）／事例 ガイドに事例の行なし（スライドの事例の欄は「—」）
@@ -876,7 +882,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-validate-before-read"></a>
 
-**q-validate-before-read**　受け入れの確認（署名・`iss`・`aud`・`exp`・`typ`）を全部通る前に、テナント・権限の独自クレームを読む実装（ログ出し・ルーティングを含む）が無いか
+**q-validate-before-read**　テナント・権限の独自クレームを読む処理（ログ出し・ルーティングを含む）は、どれも受け入れの確認（署名・`iss`・`aud`・`exp`・`typ`）を全部通った後か
 - 見る欄：`template:modules/M_token_validation#validation-order`
 - No なら：Blocker〜Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -921,7 +927,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-typ-distinguishes"></a>
 
-**q-typ-distinguishes**　種類の違うトークン（ID トークン・AT・Logout Token・Txn-Token・クライアントが作る JWT）を、受け手が `typ` と `aud` で区別し、ID トークンを API で受け入れないか
+**q-typ-distinguishes**　種類の違うトークン（ID トークン・AT・Logout Token・Txn-Token・クライアントが作る JWT）を、受け手が `typ` と `aud` で区別し、ID トークンを API で拒否するか
 - 見る欄：`registry:token_types#typ`、`registry:token_types#aud`、`template:modules/M_token_validation#typ`
 - No なら：Major
 - つながり：対比表 `review:contrasts/id-vs-access-token#misuse`／lint `lint:L27`／実行 `test:negative_tests#typ-wrong`（未実装）
@@ -929,7 +935,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-required-rejected"></a>
 
-**q-required-rejected**　必須のクレームが欠けたトークンを拒否し、誤拒否を避けるために必須の確認や宛先の確認を外していないか（IdP の差は入口で埋めてから当てているか）
+**q-required-rejected**　必須のクレームが欠けたトークンを拒否し、誤拒否を避けたいときも必須の確認や宛先の確認を外さず、IdP の差は入口で埋めてから当てているか
 - 見る欄：`registry:token_types#required_claims`、`registry:claims#on_missing`、`template:profiles/P5_internal_propagation#edge-conversion`
 - No なら：Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L7`／実行 `test:negative_tests#missing-required`（未実装）・`test:negative_tests#legit-idp-variants-accepted`（未実装）
@@ -937,16 +943,16 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-no-unverified-passthrough-mode"></a>
 
-**q-no-unverified-passthrough-mode**　検証の無効化・デバッグ・「欠けたら既定値で続行」のような、未検証の値を流すモードが、設定・実装のどこにも無いか
+**q-no-unverified-passthrough-mode**　`template:modules/M_token_validation#library-config` の欄に、検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たないと書いてあり、そのモードが無いことを確かめる拒否のテスト（欠落・署名なしのトークンを拒否する）が計画にあるか
 - 見る欄：`template:modules/M_token_validation#library-config`、`template:claim_request#q18`
 - No なら：Blocker〜Major
-- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
+- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／実行 `test:negative_tests#missing-required`（未実装）
 - 根拠：slide:p11-pre-add-questions-2、slide:p01-library-defaults
 <!-- req:p11-pre-add-questions-2.R6 -->
 
 <a id="q-consumer-expression"></a>
 
-**q-consumer-expression**　受け手の式（ゲートウェイ・ポリシー言語・コード）で、値を変換せず完全一致で比べ、真偽値は `true` と明示的に比べ、欠落時に通す既定値（`orValue(true)` など）を使っていないか
+**q-consumer-expression**　受け手の式（ゲートウェイ・ポリシー言語・コード）が、値を変換せず完全一致で比べ、真偽値は `true` と明示的に比べ、欠落のときは拒否する（`orValue(true)` のような通す既定値を使わない）と、台帳の `enforced_at`・`on_missing` から言えるか
 - 見る欄：`registry:claims#enforced_at`、`registry:claims#value_normalization`、`registry:claims#on_missing`
 - No なら：Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／実行 `test:negative_tests#case-variant`（未実装）
@@ -989,7 +995,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-object-level-authz"></a>
 
-**q-object-level-authz**　利用者が指定した ID でデータを取り出すすべての処理で、オブジェクトの持ち主・テナントを、トークンの `sub`・テナントとデータの側で照合しているか（ゲートウェイ・WAF やクレームで代用していないか）。照合に使うキー（`sub` か組織の `user_id` か）が 1 つに決まっているか
+**q-object-level-authz**　利用者が指定した ID でデータを取り出すすべての処理で、オブジェクトの持ち主・テナントを、トークンの `sub`・テナントとデータの側で照合しているか（ゲートウェイ・WAF やクレームだけで代用していれば No）。照合に使うキー（`sub` か組織の `user_id` か）が 1 つに決まっているか
 - 見る欄：`template:modules/M_authz_pdp#object-level`、`template:modules/M_multitenancy#data-layer-filter`、`registry:claims#enforced_at`
 - No なら：Blocker（BOLA）
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／実行 `test:negative_tests#bola-other-owner`（未実装）
@@ -1023,7 +1029,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-original-principal"></a>
 
-**q-original-principal**　内部の呼び出しでも、元の利用者の権限で判断し、仲介するサービスの広い権限で下流に依頼していないか
+**q-original-principal**　内部の呼び出しでも、元の利用者の権限で判断し、下流への依頼にも元の利用者の権限を使うか（仲介するサービスの広い権限で依頼していれば No）
 - 見る欄：`registry:questions#q-sub`、`registry:hops#token_type`、`template:profiles/P5_internal_propagation#service-to-service`
 - No なら：Major（代理の混乱）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`
@@ -1059,7 +1065,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-step-up-by-rs"></a>
 
-**q-step-up-by-rs**　高リスクの操作で、受け手が `acr`・`auth_time` を見て追加認証を求め（足りなければ `insufficient_user_authentication`）、追加認証の起動をクレームの値に任せていないか
+**q-step-up-by-rs**　高リスクの操作で、受け手が `acr`・`auth_time` を見て追加認証を求めるか（足りなければ `insufficient_user_authentication`）。追加認証を起動する判断が受け手にあるか（クレームの値で起動を決めていれば No）
 - 見る欄：`template:00_core#step-up`、`registry:questions#q-auth-strength`
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／実行 `test:negative_tests#insufficient-acr`（未実装）
@@ -1086,7 +1092,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-operator-act"></a>
 
-**q-operator-act**　運用者の操作は、交換で得た委任のトークン（`sub` に利用者、`act` に運用者）で行い、運用者が利用者として振る舞っていないか
+**q-operator-act**　運用者の操作は、交換で得た委任のトークン（`sub` に利用者、`act` に運用者）で行い、監査で運用者の操作として見分けられるか
 - 見る欄：`template:00_core#system-privileges`、`registry:questions#q-actor`
 - No なら：Major（監査で運用者の操作が利用者の操作に見える）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
@@ -1162,7 +1168,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
 - 根拠：slide:p07-data-layer-checklist
 
-**cd-10**　（項目 10）クレーム・文脈が欠けたら全件を許さず拒否し（文脈なしで 0 行）、DDM・RLS だけに頼っていないか
+**cd-10**　（項目 10）クレーム・文脈が欠けたら全件を許さず拒否し（文脈なしで 0 行）、DDM・RLS のほかに最小権限と監査も使うか
 - 見る欄：`template:modules/M_data_layer#db-context-setter`、`registry:claims#on_missing`
 - No なら：Blocker（シナリオ A の A13）。詳しくは `q-ddm-rls-only`
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L7`
@@ -1177,7 +1183,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-db-context-writers"></a>
 
-**q-db-context-writers**　DB の文脈を設定する注入者以外が、同じ接続・取引で任意の SQL を流せないか（`RESET ROLE` などで戻せる経路が無いか）
+**q-db-context-writers**　DB の文脈を設定する注入者だけが、その接続・取引で SQL を流せるか（`RESET ROLE` などで文脈を戻せる経路があれば No）
 - 見る欄：`template:modules/M_data_layer#db-context-setter`、`template:00_core#scope-boundary`
 - No なら：Blocker
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -1234,7 +1240,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-four-lifetimes-written"></a>
 
-**q-four-lifetimes-written**　独自クレームごとに、寿命の 4 つの層（トークン・値の鮮度・セッションと RT・定義）が別々の欄に書いてあるか（1 つの数字で語っていないか）
+**q-four-lifetimes-written**　独自クレームごとに、寿命の 4 つの層（トークン・値の鮮度・セッションと RT・定義）が別々の欄に書いてあるか（1 つの数字だけなら No）
 - 見る欄：`template:00_core#lifecycle`、`template:00_core#freshness`、`template:00_core#definition-lifecycle`、`registry:token_types#max_lifetime`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L23`
@@ -1250,7 +1256,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-session-rt-bounds"></a>
 
-**q-session-rt-bounds**　セッションと RT に、無操作の上限（idle）と絶対的な上限の両方があり、対話用の RT が再認証の上限（AAL2 なら 24 時間）を超えないか
+**q-session-rt-bounds**　セッションと RT に、無操作の上限（idle）と絶対的な上限の両方があり、対話用の RT の寿命が再認証の上限（AAL2 なら 24 時間）以下か
 - 見る欄：`registry:token_types#idle_timeout`、`registry:token_types#max_lifetime`、`registry:token_types#rt_rotation`
 - No なら：Major（シナリオ A の A14）
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L23`・`lint:L15`
@@ -1258,7 +1264,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-rt-policy-by-client"></a>
 
-**q-rt-policy-by-client**　RT の方式が、クライアントの種類に合っているか（公開クライアントはローテーション＋再利用検知か送信者制約、FAPI 対象の機密クライアントは送信者制約でローテーションなし）。理由が別の種類のクライアントの根拠を引いていないか
+**q-rt-policy-by-client**　RT の方式が、クライアントの種類に合っているか（公開クライアントはローテーション＋再利用検知か送信者制約、FAPI 対象の機密クライアントは送信者制約で、例外的な場合を除きローテーションなし）。理由が同じ種類のクライアントの根拠を引いているか
 - 見る欄：`registry:token_types#issuance_profile`、`registry:token_types#rt_strategy`、`registry:token_types#reuse_detection`
 - No なら：Major（シナリオ A の A16）
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／判断の木 `review:decision_tree#lifetime-by-situation`／lint `lint:L15`／実行 `test:negative_tests#rt-reuse`（未実装）
@@ -1292,7 +1298,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-external-user-deprovision"></a>
 
-**q-external-user-deprovision**　外部の IdP・取引先から来た利用者の停止・ロールの剥奪が、どの経路（上流のイベント・取り込みの同期・入口の照会）で何秒以内に組織の受け手まで届くかが書いてあるか（上流で止めても、組織の発行したトークンとセッションが残らないか）
+**q-external-user-deprovision**　外部の IdP・取引先から来た利用者の停止・ロールの剥奪が、どの経路（上流のイベント・取り込みの同期・入口の照会）で何秒以内に組織の受け手まで届くかが書いてあり、上流で止めたときに組織の発行したトークンとセッションも止まるか
 - 見る欄：`template:00_core#lifecycle`、`registry:claims#upstream_issuer`、`registry:claims#volatility`、`template:modules/M_idp_keycloak#broker-mapping`
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／実行 `test:negative_tests#disabled-subject-exchange`（未実装）
@@ -1300,7 +1306,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-relies-on-at-expiry"></a>
 
-**q-relies-on-at-expiry**　AT の期限を当てにした実装（「期限が切れれば剥奪が効く」前提の判断や、残りの期限を使ったキャッシュの寿命）が無いか
+**q-relies-on-at-expiry**　剥奪とキャッシュの寿命を、AT の期限とは別の手段・値で決めているか（「期限が切れれば剥奪が効く」前提の判断や、残りの期限を使ったキャッシュの寿命があれば No）
 - 見る欄：`template:00_core#lifecycle`、`registry:claims#on_revoke`
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
@@ -1318,7 +1324,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-system-actor-no-fake-sub"></a>
 
-**q-system-actor-no-fake-sub**　利用者の文脈が要らない処理だけをサービス自身の ID で動かし、利用者の `sub` を捏造していないか
+**q-system-actor-no-fake-sub**　サービス自身の ID で動かすのは利用者の文脈が要らない処理だけで、そのトークンの `sub` はサービスの ID か（利用者の `sub` を捏造していれば No）
 - 見る欄：`template:00_core#system-privileges`、`template:00_core#principals`
 - No なら：Major
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
@@ -1327,7 +1333,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-agent-short-lived-no-rt"></a>
 
-**q-agent-short-lived-no-rt**　エージェントのトークンがタスク単位の短命で、RT を出していないか
+**q-agent-short-lived-no-rt**　エージェントのトークンがタスク単位の短命で、目録の `refresh` が RT を出さない設定か
 - 見る欄：`registry:token_types#max_lifetime`、`registry:token_types#refresh`
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L58`（未実装）
@@ -1344,7 +1350,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-deprecated-deadline"></a>
 
-**q-deprecated-deadline**　廃止予定（`deprecated`）のクレームに期日（`sunset_on`）と代わりの行（`alt`）があり、期日の後に読む受け手が残っていないか
+**q-deprecated-deadline**　廃止予定（`deprecated`）のクレームに期日（`sunset_on`）と代わりの行（`alt`）があり、期日の後に読む受け手が 0 か
 - 見る欄：`registry:claims#status`、`registry:claims#sunset_on`、`registry:claims#alt`、`registry:claims#consumers_migration`、`template:00_core#definition-lifecycle`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L18`
@@ -1368,6 +1374,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Major（シナリオ A の A09）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L17`
 - 根拠：slide:p01-key-rotation-jwks
+<!-- req:p01-key-rotation-jwks.R5 -->
 
 <a id="q-dependency-outage"></a>
 
@@ -1445,7 +1452,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-lint-workaround"></a>
 
-**q-lint-workaround**　lint を通すために設計の宣言を変えた箇所（ホップの `upstream` を外す・台帳の行にしない・名前を変える）が無いか（あれば、規則の側の誤りの候補として #6 に渡したか）
+**q-lint-workaround**　lint を通すための宣言の変更（ホップの `upstream` を外す・台帳の行にしない・名前を変える）が無い、と設計書の 3. と 12. から言えるか（あるなら、規則の側の誤りの候補として #6 に渡したか）
 - 見る欄：`template:00_core#ci-results`、`template:00_core#deviations`、`registry:hops#upstream`
 - No なら：Major（目的と仕組みの不一致。規則の側のこともある）。規則そのものを試す（一時コピーで規則に当てる）のはこの教材の範囲の外で、#6 の点検に渡す。較正で追加（B05・B06・B13。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -1540,7 +1547,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 | `q-revocation-delivery`・`q-change-order` | 失効と変更の手順 |
 
 根拠：slide:p01-key-rotation-jwks、slide:p03-custom-claim-injection、slide:p08-choosing-lifetime、slide:p09-url-browser、slide:p11-audit-metrics
-<!-- req:p01-key-rotation-jwks.R5 req:p03-custom-claim-injection.R2 req:p08-choosing-lifetime.R4 req:p09-url-browser.R3 req:p11-audit-metrics.R3 req:p11-audit-metrics.R6 -->
+<!-- req:p03-custom-claim-injection.R2 req:p08-choosing-lifetime.R4 req:p09-url-browser.R3 req:p11-audit-metrics.R3 req:p11-audit-metrics.R6 -->
 
 <a id="role-privacy"></a>
 
@@ -1642,8 +1649,8 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 | 区分 | 件数 | B の ID |
 | --- | --- | --- |
 | 再発見 | 5 | B01・B03・B08・B09・B11 |
-| 一部 | 4 | B02・B05・B10・B14 |
-| 見逃し | 4 | B04・B07・B12・B15 |
+| 一部 | 2 | B02・B10 |
+| 見逃し | 6 | B04・B05・B07・B12・B14・B15 |
 | 教材の範囲の外 | 2 | B06（lint の規則そのもの）・B13（レビュアーに読ませていないファイル） |
 
-指摘ごとの対応と、見逃しから足した 7 問（`q-txn-required-claims`・`q-claim-earliest-hop`・`q-idp-capability-verified`・`q-variant-comparison`・`q-lint-workaround`・`q-evidence-attribution`・`q-limit-consistency`）は、review-report.md の 9. にあります。B01・B03・B08 は、作成者が B の要約を読んだ後に書いた問いから見つけたので、割り引いて読みます（同 9.1）。
+指摘ごとの対応と、見逃しから足した 7 問（`q-txn-required-claims`・`q-claim-earliest-hop`・`q-idp-capability-verified`・`q-variant-comparison`・`q-lint-workaround`・`q-evidence-attribution`・`q-limit-consistency`）は、review-report.md の 9. にあります。B01・B02・B03・B08 の 4 件は、作成者が B の要約を読んだ後に書いた問いから見つけたので、割り引いて読みます（同 9.1）。照合の判定は作成者の自己採点です。
