@@ -26,7 +26,7 @@ SEV = {
     'L1a': ERROR, 'L1b': ERROR, 'L2': WARN, 'L3': ERROR, 'L4': ERROR, 'L5': ERROR, 'L6': ERROR, 'L7': ERROR,
     'L8': WARN, 'L9': ERROR, 'L15': WARN, 'L16': ERROR, 'L17': ERROR, 'L18': WARN, 'L21': ERROR, 'L22': ERROR,
     'L23': ERROR, 'L25': ERROR, 'L27': ERROR, 'L31': ERROR, 'L37': ERROR, 'L43': WARN,
-    'L62': WARN, 'L63': WARN, 'L64': WARN, 'L65': ERROR, 'L66': WARN, 'L67': ERROR,
+    'L62': WARN, 'L63': WARN, 'L64': WARN, 'L65': ERROR, 'L66': WARN, 'L67': WARN,
     'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': WARN, 'L73': WARN,
 }
 LITE_WARN = {'L22'}  # issue #6: L22 is warn in Lite
@@ -124,13 +124,12 @@ ROLE_SYNONYM = re.compile(r'^(role|group|entitlement|user_?roles?|user_?groups?|
 def rule_l1a(x):
     for c in x.adopted_claims():
         if c.get('decision') == '採用' and ROLE_SYNONYM.match(c.get('name') or ''):
-            x.count('L1a')
             x.add('L1a', c.get('id'), f"役割・グループ・資格に {c['name']} という名前を作っている。登録名 roles・groups・entitlements"
                                       '（RFC 9068 §7.2.1.1、RFC 7643 §4.1.2）を使う')
     for c in x.adopted_claims():
+        x.count('L1a')  # every adopted row: the synonym check above and the registered-name check below
         if c.get('namespace') is not None or c.get('name') not in x.iana:
             continue
-        x.count('L1a')
         reg, cid = x.iana[c['name']], c.get('id')
         if _empty(c.get('registered_ref')):
             x.add('L1a', cid, f"IANA の登録名 {c['name']}（{reg['ref']}）を使うのに registered_ref がない。登録どおりの意味なら参照を書く。"
@@ -232,6 +231,12 @@ def rule_l3(x):
             why.append('identifier_properties.reassignable が true（再利用で別の主体を指す）')
         if ip.get('id_scheme') in ('email', 'phone', 'username'):
             why.append(f"id_scheme が {ip['id_scheme']}")
+        cats = [str(d) for d in c.get('data_category') or []]
+        contact = [d for d in cats if d.startswith('user.contact')]
+        if contact:
+            why.append(f"data_category が {'・'.join(contact)}（連絡先は変わりうる）")
+            if ip.get('id_scheme') not in (None, 'email', 'phone'):
+                why.append(f"id_scheme {ip['id_scheme']} が data_category と食い違う")
         if why:
             x.add('L3', c.get('id'), f"変わりうる値（{'、'.join(why)}）を usage {c['usage']} に使っている。表示（display）に限るか、変わらない ID を使う")
 
@@ -292,7 +297,7 @@ def rule_l5(x):
             if v >= worst:
                 continue
             ok = [r for r in t.get('revocation') or [] if isinstance(r.get('delay_seconds'), int) and r['delay_seconds'] <= v
-                  and (r.get('method') in TOKEN_WIDE or (r.get('method') == 'db_lookup' and c.get('id') in (r.get('note') or '')))]
+                  and (r.get('method') in TOKEN_WIDE or (r.get('method') == 'db_lookup' and c.get('id') in re.findall(r'C-[a-z0-9-]+', r.get('note') or '')))]
             ttl = t.get('introspection_cache_ttl')
             if not ok and not (isinstance(ttl, int) and ttl <= v):
                 x.add('L5', c.get('id'), f"volatility（{v} 秒）が {t['id']} の受け入れの上限（max_lifetime {ml} 秒＋時計のずれ）より短いのに、"
@@ -374,6 +379,9 @@ def _multitenant(x):
 
 
 def rule_l9(x):
+    """by: claim / tid / org_id name a tenant claim (tenant_binding.claim, or for tid / org_id the claim of that name,
+    `organization` too, carried in the token type). It must be checked at every consumer, against iss (or aud), and in the
+    data layer. by: iss / aud: the iss / aud claim must be checked at every consumer; the data layer must filter."""
     if not _multitenant(x):
         return
     dbs = x.db_services()
@@ -381,32 +389,38 @@ def rule_l9(x):
         if t.get('kind') not in ('access_token', 'internal_token', 'txn_token') or t.get('format') != 'jwt':
             continue
         x.count('L9')
+        tid = f"token_type {t['id']}"
         tb = t.get('tenant_binding')
         if not tb:
-            x.add('L9', f"token_type {t['id']}", 'マルチテナントの設計なのに tenant_binding（iss・aud・tid・org_id・claim）がない')
+            x.add('L9', tid, 'マルチテナントの設計なのに tenant_binding（iss・aud・tid・org_id・claim）がない')
             continue
         by = set(tb.get('by') or [])
-        targets = []
-        if 'claim' in by and tb.get('claim') in x.cid:
-            targets.append(x.cid[tb['claim']])
-        if 'iss' in by:
-            targets += [c for c in x.claims_in(t['id']) if c.get('name') == 'iss' and c.get('namespace') is None]
-        for c in targets:
-            ea = c.get('enforced_at') or []
-            services = {str(e.get('service', '')).lower() for e in ea}
+        here = x.claims_in(t['id'])
+        tenant_claims = []
+        for kind in sorted(by & {'claim', 'tid', 'org_id'}):
+            c = x.cid.get(tb.get('claim')) if tb.get('claim') else None
+            if c is None and kind != 'claim':
+                names = {'tid'} if kind == 'tid' else {'org_id', 'organization'}
+                c = next((r for r in here if r.get('name') in names), None)
+            if c is None:
+                x.add('L9', tid, f'tenant_binding.by の {kind} に当たる台帳の行がない（tenant_binding.claim に ID を書くか、{t["id"]} に載せる）')
+            elif c not in tenant_claims:
+                tenant_claims.append(c)
+        protocol = [c for c in here if c.get('namespace') is None and c.get('name') in by & {'iss', 'aud'}]
+        for c in tenant_claims + protocol:
+            services = {str(e.get('service', '')).lower() for e in c.get('enforced_at') or []}
             for s in set(c.get('consumers') or []) & set(t.get('aud') or c.get('consumers') or []):
                 if s.lower() not in services:
                     x.add('L9', c.get('id'), f"テナントの束縛（{t['id']}）に使うのに、受け手 {s} の enforced_at に照合がない")
-        if 'claim' in by and tb.get('claim') in x.cid:
-            c = x.cid[tb['claim']]
+        for c in tenant_claims:
             ea = c.get('enforced_at') or []
             if not any(_against(e) & {'iss', 'aud'} for e in ea):
                 x.add('L9', c.get('id'), 'テナントのクレームを iss（か aud）と突き合わせる照合がない（enforced_at の against に iss を書く）')
             if dbs and not any(str(e.get('service', '')).lower() in dbs or 'data_layer' in _against(e) for e in ea):
                 x.add('L9', c.get('id'), f"データ層（{'・'.join(sorted(dbs))}）での絞り込みの照合が enforced_at にない")
-        elif dbs and not any('data_layer' in _against(e) or str(e.get('service', '')).lower() in dbs
-                             for c in x.claims_in(t['id']) for e in c.get('enforced_at') or []):
-            x.add('L9', f"token_type {t['id']}", f"データ層（{'・'.join(sorted(dbs))}）でテナントを絞る照合が、どのクレームの enforced_at にもない")
+        if not tenant_claims and dbs and not any('data_layer' in _against(e) or str(e.get('service', '')).lower() in dbs
+                                                 for c in here for e in c.get('enforced_at') or []):
+            x.add('L9', tid, f"データ層（{'・'.join(sorted(dbs))}）でテナントを絞る照合が、どのクレームの enforced_at にもない")
 
 
 # ------------------------------------------------------------------ L15: refresh tokens of public clients, cnf
@@ -434,25 +448,32 @@ def rule_l15(x):
 
 
 # ------------------------------------------------------------------ L16: narrower downstream
+# The aud / scope / lifetime part of L16 (exchange and reissue hops) has not run on scenario A (no such hop): warn until
+# a worked example exercises it (RULES.md). The custom-claims part ran on H3 of scenario A.
+SEV_WIDEN = WARN
+
+
 def rule_l16(x):
     for h in x.hops:
         up = x.hop.get(h.get('upstream'))
         if not up:
             continue
         hid = f"hop {h.get('id')}"
-        x.count('L16')
         extra = sorted(set(h.get('custom_claims') or []) - set(up.get('custom_claims') or []))
         up_tt = x.tt.get(up.get('token_type'))
+        if up_tt is not None and up_tt.get('kind') != 'session':
+            x.count('L16')
         if extra and up_tt is not None and up_tt.get('kind') != 'session':
             x.add('L16', hid, f"独自クレーム {'・'.join(extra)} が上流（{up.get('id')}）に無い")
         if h.get('kind') not in ('exchange', 'reissue') and not (h.get('kind') == 'service' and h.get('token_type') != up.get('token_type')):
             continue
         if up_tt is None or up_tt.get('kind') == 'session':
             continue
+        x.count('L16.widen')
         for k, label in (('aud', 'aud'), ('scope', 'scope'), ('authorization_details', 'authorization_details')):
             wide = sorted(set(h.get(k) or []) - set(up.get(k) or []))
             if wide:
-                x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない）")
+                x.add('L16', hid, f"{label} の {'・'.join(map(str, wide))} が上流（{up.get('id')}）に無い（下流ほど絞る。広げない）", SEV_WIDEN)
         ml, uml = h.get('max_lifetime'), up.get('max_lifetime')
         if isinstance(ml, int) and isinstance(uml, int) and ml > uml:
             kind = (x.tt.get(h.get('token_type')) or {}).get('kind')
@@ -460,7 +481,7 @@ def rule_l16(x):
                 x.add('L16', hid, f"Txn-Token の寿命 {ml} 秒が上流の {uml} 秒を超える。仕様は認めている（draft-ietf-oauth-transaction-tokens-11 §6）"
                                   f"ので、narrowing_exception の理由を記録として扱う", INFO)
             else:
-                x.add('L16', hid, f"寿命 {ml} 秒が上流（{up.get('id')}）の {uml} 秒を超える（下流ほど絞る。組織の規則、author-proposal）")
+                x.add('L16', hid, f"寿命 {ml} 秒が上流（{up.get('id')}）の {uml} 秒を超える（下流ほど絞る。組織の規則、author-proposal）", SEV_WIDEN)
 
 
 # ------------------------------------------------------------------ L17 / L25 / L27: validation settings
@@ -547,8 +568,9 @@ def rule_l21(x):
     for c in x.claims:
         for t in c.get('carried_in') or []:
             used.add(t)
-            if t in x.tt and x.tt[t].get('decision') == '却下' and c.get('decision') in ADOPTED:
+            if c.get('decision') in ADOPTED:
                 x.count('L21')
+            if t in x.tt and x.tt[t].get('decision') == '却下' and c.get('decision') in ADOPTED:
                 x.add('L21', c.get('id'), f'却下したトークン種別 {t} に載せている（carried_in）')
     for h in x.hops:
         t = h.get('token_type')
@@ -786,6 +808,16 @@ def rule_effects(x):
 
 
 # ------------------------------------------------------------------ L65 / L66 / L67: JWS and JWE
+def _parties(names):
+    """Party model of visible_to, confidential_from and jwe.decryptors: a role (browser, gateway, ...) or hop:<name>, one
+    named intermediary on the path. A hop:<name> is also a gateway, so confidential_from: [gateway] covers every
+    hop:<name>, and confidential_from: [hop:nginx] is met by visible_to: [gateway] (which may be that hop)."""
+    out = set(names)
+    if any(str(n).startswith('hop:') for n in names):
+        out.add('gateway')
+    return out
+
+
 def rule_l65(x):
     for c in x.adopted_claims():
         cf = set(c.get('confidential_from') or [])
@@ -796,10 +828,11 @@ def rule_l65(x):
             vis = set(t.get('visible_to') or [])
             if t.get('log_policy') == '記録する':
                 vis.add('logs')
-            leak = cf & vis
+            leak = _parties(cf) & _parties(vis)
             jwe = t.get('jwe') or {}
             if jwe.get('used') is True:
-                leak &= set(jwe.get('decryptors') or [])
+                leak &= _parties(set(jwe.get('decryptors') or []))
+            leak = {p for p in leak if p in cf or (p == 'gateway' and any(str(q).startswith('hop:') for q in cf))}
             if leak:
                 x.add('L65', c.get('id'), f"confidential_from の {'・'.join(sorted(leak))} が、{t['id']} を読める（visible_to"
                                           f"{'・JWE の decryptors' if jwe.get('used') else ''}）")
@@ -821,16 +854,27 @@ def rule_l66(x):
             x.add('L66', tid, f"復号できる相手 {'・'.join(sorted(extra))} が visible_to にない（読める相手の宣言と食い違う）")
 
 
+WEAK_BOUNDARY = re.compile(r'^\s*(なし|無し|ない|none|n/?a|-|—|ー|不明|未定|tbd|todo)\s*[。.]?\s*$', re.I)
+HEADERISH = re.compile(r'header|ヘッダー|ヘッダ', re.I)
+
+
 def rule_l67(x):
+    """Copies out of the signed token: a copy to an HTTP header (place http_header, or place other whose target names a
+    header) used for authz / identifier needs the header to be writable only by the entry; every copy needs a real trust
+    boundary (not "なし")."""
     fwd = {fh.get('claim'): fh for h in x.hops for fh in h.get('forwarded_headers') or []}
     for c in x.adopted_claims():
         for i in c.get('integrity_until') or []:
+            if WEAK_BOUNDARY.match(str(i.get('trust_boundary', ''))):
+                x.add('L67', c.get('id'), f"写した先（{i.get('target')}）の信頼境界が「{i.get('trust_boundary')}」。誰が書けるかを書く")
+            header = i.get('place') == 'http_header' or (i.get('place') == 'other' and HEADERISH.search(str(i.get('target', ''))))
+            if not header or c.get('usage') not in ('authz', 'identifier'):
+                continue
             x.count('L67')
-            if c.get('usage') in ('authz', 'identifier') and i.get('place') == 'http_header':
-                fh = fwd.get(c.get('id'))
-                if not fh or fh.get('strip_inbound') is not True or _empty(fh.get('written_only_by')):
-                    x.add('L67', c.get('id'), f"署名の保護が外れるヘッダー（{i.get('target')}）の値を {c['usage']} に使うのに、そのヘッダーを入口だけが書ける"
-                                              '（forwarded_headers の strip_inbound・written_only_by）と宣言していない')
+            fh = fwd.get(c.get('id'))
+            if not fh or fh.get('strip_inbound') is not True or _empty(fh.get('written_only_by')):
+                x.add('L67', c.get('id'), f"署名の保護が外れるヘッダー（{i.get('target')}）の値を {c['usage']} に使うのに、そのヘッダーを入口だけが書ける"
+                                          '（forwarded_headers の strip_inbound・written_only_by）と宣言していない')
 
 
 # ------------------------------------------------------------------ L68-L71: what not to carry (warn only)

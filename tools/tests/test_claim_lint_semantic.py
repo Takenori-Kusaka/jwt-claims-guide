@@ -622,3 +622,45 @@ def test_l5_never_and_zero(tmp_path, monkeypatch):
     x = semantic.Ctx(d, 'full', str(tmp_path), ROOT, os.path.join(ROOT, 'templates', 'catalog'), TODAY)
     semantic.rule_l5(x)
     assert not x.findings
+
+
+# ------------------------------------------------------------------ fixes after the independent check of PR #40
+def test_l9_binding_by_org_id_checked_like_a_claim(tmp_path):
+    d = base()
+    tt(d, 'AT')['tenant_binding'] = {'by': ['org_id']}
+    d['claims']['claims'].append(new_claim(id='C-org', name='org_id', namespace=None, usage='authz',
+                                           enforced_at=[{'service': 'saas-api', 'check': '文字列', 'against': ['format']}]))
+    msgs = ' '.join(f['message'] for f in bad(lint(tmp_path, d), 'L9'))
+    assert 'iss' in msgs and 'データ層' in msgs
+    d = base()
+    tt(d, 'AT')['tenant_binding'] = {'by': ['tid']}
+    assert any('tid に当たる台帳の行がない' in f['message'] for f in bad(lint(tmp_path / 'b', d), 'L9'))
+
+
+def test_l3_contact_data_category_as_identifier_fails(tmp_path):
+    d = base()
+    d['claims']['claims'].append(new_claim(id='C-login', name='login', usage='identifier', data_category=['user.contact.email'],
+                                           identifier_properties={'stable': True, 'reassignable': False, 'pairwise': False, 'id_scheme': 'opaque'}))
+    f = bad(lint(tmp_path, d), 'L3')
+    assert [x['target'] for x in f] == ['C-login'] and '食い違う' in f[0]['message']
+
+
+def test_l65_gateway_covers_named_hops(tmp_path):
+    d = base()
+    claim(d, 'C-roles')['confidential_from'] = ['gateway']
+    claim(d, 'C-roles')['confidentiality_measure'] = {'outcome': '載せない', 'rationale': 'x'}
+    assert [f['target'] for f in bad(lint(tmp_path, d), 'L65')] == ['C-roles']  # AT is visible_to hop:nginx
+
+
+def test_l67_header_written_as_other_and_empty_boundary_warn(tmp_path):
+    d = base()
+    claim(d, 'C-roles')['integrity_until'] = [{'place': 'other', 'target': 'HTTP ヘッダー X-Roles', 'trust_boundary': 'なし'}]
+    f = bad(lint(tmp_path, d), 'L67')
+    assert len(f) == 2 and {x['severity'] for x in f} == {'warn'}
+
+
+def test_l5_db_lookup_note_matches_whole_id(tmp_path):
+    d = base()
+    claim(d, 'C-roles').update(volatility=60, propagation_delay=0)
+    tt(d, 'AT')['revocation'].append({'method': 'db_lookup', 'delay_seconds': 0, 'note': 'C-role を引く'})
+    assert [f['target'] for f in bad(lint(tmp_path, d), 'L5')] == ['C-roles']

@@ -114,3 +114,9 @@ def test_scenario_a_history_detects_known_changes():
     res = diff.run(EXAMPLE, 'befd117')
     got = sorted((f['target'], f['severity']) for f in res['findings'])
     assert ('C-scope', 'error') in got and ('token_type AT', 'error') in got
+
+
+def test_vocabulary_value_removed_fails_and_added_is_info(repo):
+    edit(repo / 'claims.yaml', lambda d: claim(d, 'C-roles')['value_vocabulary'].update(values=['approver_v2', 'tenant-admin']))
+    got = sorted((f['severity'], f['target']) for f in diff.run(str(repo), 'HEAD')['findings'])
+    assert got == [('error', 'C-roles'), ('info', 'C-roles')]

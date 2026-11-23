@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """claim_lint diff (L10 of #6): compare a design with the same design at an earlier git ref and report the changes that
 break consumers (slide:p11-why-govern, slide:p11-change-procedure): a claim removed or renamed, its type, shape or usage
-changed, a claim made required (on_missing becomes 拒否, a name added to required_claims), a token type removed or its typ
+changed, a value removed from its vocabulary, a claim made required (on_missing becomes 拒否, a name added to
+required_claims), a token type removed or its typ
 changed. A changed description is reported as a candidate (warn): wording fixes are common and harmless.
 
   python tools/claim_lint diff --base <git ref> DESIGN_DIR [--format table|json]
@@ -82,6 +83,14 @@ def compare_claims(base, head):
         for k in ('description', 'not_meaning'):
             if (b.get(k) or '').strip() != (h.get(k) or '').strip():
                 out.append(Finding('L10', WARN, cid, f'{_label(b)} の {k} を変えた（意味の変更の候補。文の直しだけなら問題ない）'))
+        bv = [str(v) for v in (b.get('value_vocabulary') or {}).get('values') or []]
+        hv = [str(v) for v in (h.get('value_vocabulary') or {}).get('values') or []]
+        gone, new = [v for v in bv if v not in hv], [v for v in hv if v not in bv]
+        if gone:
+            out.append(Finding('L10', ERROR, cid, f"{_label(b)} の語彙（value_vocabulary.values）から {'・'.join(gone)} を消した・変えた。"
+                                                  '受け手は値で分岐するので、新旧を並行して出してから消す'))
+        if new:
+            out.append(Finding('L10', INFO, cid, f"{_label(b)} の語彙に {'・'.join(new)} を足した（知らない値を受け手が無視できるか確かめる）"))
         lost = [t for t in b.get('carried_in') or [] if t not in (h.get('carried_in') or [])]
         if lost and b.get('consumers'):
             out.append(Finding('L10', ERROR, cid, f"{_label(b)} を {'・'.join(lost)} に載せなくなった（受け手 {'・'.join(b['consumers'])} が読んでいる）"))

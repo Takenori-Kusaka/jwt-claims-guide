@@ -158,3 +158,17 @@ def test_l14_preview_ref_and_purp_warn():
 
 def test_l14_no_draft_in_example(example):
     assert not [f for f in example['findings'] if f['rule'] == 'L14']
+
+
+# ------------------------------------------------------------------ fixes after the independent check of PR #40 / #41
+def test_l12_one_directional_not_this_pair_fails():
+    d = base()
+    claim(d, 'C-sub')['answers'] = ['q-sub', 'q-peer']  # q-peer is in not_this of q-sub, but not the other way
+    f = by(run(d), 'L12')
+    assert [x['target'] for x in f] == ['C-sub'] and 'q-peer' in f[0]['message']
+
+
+def test_l12_past_actor_id_under_nested_act_fails():
+    d = base()
+    d['claims']['claims'].append(new_claim(id='C-act-act-sub', name='sub', namespace=None, path=['act', 'act', 'sub'], answers=['q-actor']))
+    assert [f['target'] for f in by(run(d), 'L12')] == ['C-act-act-sub']

@@ -29,7 +29,7 @@
       "type": "string",
       "minLength": 1,
       "pattern": "\\S",
-      "$comment": "Trace: req:p02-name-categories.R1 req:p04-claim-names.R2 req:p07-row-level-security.R1"
+      "$comment": "Trace: req:p02-name-categories.R1 req:p04-claim-names.R2"
      },
      "style": {
       "enum": [
@@ -667,7 +667,7 @@
      "type": "string",
      "minLength": 1,
      "pattern": "\\S",
-     "$comment": "Trace: req:p10-vendor-features.R2 req:p10-guidance-standards.R2"
+     "$comment": "Trace: req:p10-vendor-features.R2"
     },
     "refs": {
      "type": "array",
@@ -927,10 +927,17 @@
      "description": "Length limit of the source field with its unit, to check max_bytes (A11 of gate1.md 5.)"
     },
     "volatility": {
-     "type": "integer",
-     "minimum": 0,
-     "description": "Seconds allowed between a change of the value and its reflection. 0: never changes for the subject. Compared with max_lifetime of the carrying token types (L5 of #6)",
-     "$comment": "Trace: req:p11-registry-fields.R10 req:p01-self-contained-vs-reference.R2 req:p04-carry-or-query.R2 req:p05-authz-models.R3"
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0
+      },
+      {
+       "const": "never"
+      }
+     ],
+     "description": "Seconds allowed between a change of the value and its reflection; 0: the change must be reflected at once. never: the value does not change during the life of a token that carries it (per-token values such as exp or jti, immutable identifiers such as sub). Compared with max_lifetime of the carrying token types (L5 of #6)",
+     "$comment": "Trace: req:p11-registry-fields.R10"
     },
     "recompute_trigger": {
      "type": "array",
@@ -1068,7 +1075,7 @@
       "無視"
      ],
      "description": "What the consumer does when the claim is missing (details in absent_semantics)",
-     "$comment": "Trace: req:p00-why-hard.R5 req:p04-absent-null-false-empty.R1 req:p06-issuance-hook.R1"
+     "$comment": "Trace: req:p00-why-hard.R5 req:p04-absent-null-false-empty.R1"
     },
     "enforced_at": {
      "type": "array",
@@ -1415,7 +1422,7 @@
      "minItems": 1,
      "uniqueItems": true,
      "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)",
-     "$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2 req:p10-guidance-standards.R2"
+     "$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"
     },
     "note": {
      "type": "string"

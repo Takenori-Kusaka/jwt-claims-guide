@@ -77,8 +77,9 @@ def rule_l11(x):
 
 # ------------------------------------------------------------------ L12: answers against does_not_answer
 def _nested_act(c):
+    """A row under a nested act (a past actor): two or more act in its path, whatever its name (act.act, act.act.sub)."""
     p = [str(v) for v in c.get('path') or [] if v is not None]
-    return c.get('name') == 'act' and p.count('act') >= 2
+    return p.count('act') >= 2
 
 
 def rule_l12(x):
@@ -90,12 +91,17 @@ def rule_l12(x):
         cid = c.get('id')
         for q in sorted(ans & dna):
             x.add('L12', cid, f'問い {q} が answers と does_not_answer の両方にある')
+        pairs = set()
         for q in sorted(ans):
             for other in (x.questions.get(q) or {}).get('not_this') or []:
-                if other in ans and q < other:
-                    x.add('L12', cid, f'取り違えやすい 2 つの問い（{q} と {other}。questions.yaml の not_this）に、同じクレームで答えている')
-        if _nested_act(c) and 'q-actor' in ans:
-            x.add('L12', cid, '入れ子の act（過去の実行者）を「誰が代理して実行しているか」（q-actor）の答えにしている。今の代理者は最も外側の act だけ（RFC 8693 §4.1）')
+                if other in ans:
+                    pairs.add(frozenset((q, other)))  # not_this may be written in one direction only
+        for pr in sorted(pairs, key=sorted):
+            a, b = sorted(pr)
+            x.add('L12', cid, f'取り違えやすい 2 つの問い（{a} と {b}。questions.yaml の not_this）に、同じクレームで答えている')
+        if _nested_act(c) and 'q-actor' in ans:  # name: act or name: sub under act.act
+            x.add('L12', cid, f"入れ子の act の下（path {'.'.join(map(str, c.get('path') or []))}、過去の実行者）を「誰が代理して実行しているか」（q-actor）の答えにしている。"
+                              '今の代理者は最も外側の act だけ（RFC 8693 §4.1）')
 
 
 # ------------------------------------------------------------------ L13: every question the use case needs has a mechanism

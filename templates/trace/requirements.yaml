@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 750
-  未着手: 611
-  実装済み: 96
+  未着手: 618
+  実装済み: 89
   後回し: 42
   扱わない: 1
-  core_未着手: 409
-  core_実装済み: 81
+  core_未着手: 416
+  core_実装済み: 74
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 202
@@ -38,7 +38,7 @@ tier_changes:
   - {id: "p05-one-request-carries.R6", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
   - {id: "p05-one-request-carries.R7", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
   - {id: "p08-four-lifetimes.R1", from: "full", to: "core", changed_on: "2026-11-22", reason: "#10 でスライドを追加・分割したときに足した要件。#11 の完了状態 2（問い × 仕組みの表・寿命の 4 つの層・検証の設定）に当たるので core にした"}
-  - {id: "p11-why-govern.R4", from: "full", to: "core", changed_on: "2026-11-23", reason: "#6 のコメントで L10（前の版との差分で互換性を壊す変更を止める）を #21 から MVP に移した。そのために足した要件で、対応表の tier を core にする"}
+  - {id: "p11-why-govern.R4", from: "full", to: "core", changed_on: "2026-11-23", reason: "新しい要件（#6 で足した。749 件から 750 件）。前の tier はなく、from の full は計画の項目 lint:L10（#21 の担当、MVP の外）の扱い。#6 のコメントで L10 を MVP に移したので core にする"}
 
 # 159 枚すべての分類（deck/slide_ids.json の順）。sha は docs/slides.json の title・text・notes の sha256 の先頭 12 桁
 classification:
@@ -576,7 +576,7 @@ requirements:
     text: "自己完結型のトークンには、短い寿命で安定した属性だけを運ぶ"
     owner_issue: "#6"
     planned_items: [lint:L5, registry:claims#volatility]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p01-self-contained-vs-reference.R3
     slide: slide:p01-self-contained-vs-reference
@@ -885,7 +885,7 @@ requirements:
     text: "authorization_details は受け手向けに絞って入れる"
     owner_issue: "#6"
     planned_items: [lint:L16, registry:hops#custom_claims]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p02-scope.R6
     slide: slide:p02-scope
@@ -1597,7 +1597,7 @@ requirements:
     text: "トークンの寿命の間に変わりうる値は載せず、都度 PDP・DB で判定する"
     owner_issue: "#6"
     planned_items: [lint:L5, registry:claims#volatility]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p04-carry-or-query.R3
     slide: slide:p04-carry-or-query
@@ -1611,7 +1611,7 @@ requirements:
     text: "受け手の一部しか要らないクレームは、宛先ごとに絞るか交換のときに付ける"
     owner_issue: "#6"
     planned_items: [registry:hops#custom_claims, lint:L16]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p04-carry-or-query.R5
     slide: slide:p04-carry-or-query
@@ -2202,7 +2202,7 @@ requirements:
     text: "ABAC でトークンに載せるのは、主体の安定した属性だけにする"
     owner_issue: "#6"
     planned_items: [registry:claims#volatility, lint:L5]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p05-authz-models.R4
     slide: slide:p05-authz-models
@@ -2584,7 +2584,7 @@ requirements:
     text: "フックで足すクレームが無いトークンは、受け手が「権限なし」として拒否する。既定の権限にしない"
     owner_issue: "#6"
     planned_items: [lint:L7, registry:claims#on_missing]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p06-issuance-hook.R2
     slide: slide:p06-issuance-hook
@@ -3265,7 +3265,7 @@ requirements:
     text: "製品が DB ロールとして解釈するクレーム名（PostgREST の role など）と、組織の汎用名を衝突させない"
     owner_issue: "#6"
     planned_items: [lint:L1b, registry:claims#namespace]
-    status: 実装済み
+    status: 未着手
     tier: core
   - id: p07-row-level-security.R2
     slide: slide:p07-row-level-security
@@ -4619,7 +4619,7 @@ requirements:
     text: "草案に依存する行には版と確認日を書き、状態が変わったら見直す"
     owner_issue: "#18"
     planned_items: [lint:L14, registry:claims#spec_version, registry:claims#revisit_trigger]
-    status: 実装済み
+    status: 未着手
     tier: core
   # ---- 138 slide:p10-agent-checklist
   - id: p10-agent-checklist.R1
@@ -4812,7 +4812,7 @@ requirements:
     text: "台帳からトークン種別ごとのペイロードの JSON Schema を生成する"
     owner_issue: "#19"
     planned_items: [render:payload-schema]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p11-schema-contract-tests.R2
     slide: slide:p11-schema-contract-tests
