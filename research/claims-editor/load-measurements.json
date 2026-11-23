@@ -1,0 +1,160 @@
+{
+ "what": "first-load size and time of the design editor (#49), tools/tests/test_claims_editor_ui.py::test_measure_first_load",
+ "setup": "headless chromium 151.0.7922.34, local HTTP server (python http.server, no compression, no network latency), cold cache. bytes = file sizes; gzip_bytes = gzip -6 of each file (about what GitHub Pages sends when it compresses)",
+ "empty_page": {
+  "requests": 8,
+  "bytes": 876445,
+  "gzip_bytes": 263272,
+  "files": [
+   {
+    "file": "index.html",
+    "bytes": 4503,
+    "gzip_bytes": 2235
+   },
+   {
+    "file": "app.css",
+    "bytes": 14272,
+    "gzip_bytes": 3680
+   },
+   {
+    "file": "vendor/editor-libs.js",
+    "bytes": 528113,
+    "gzip_bytes": 174202
+   },
+   {
+    "file": "data/meta.js",
+    "bytes": 164083,
+    "gzip_bytes": 33699
+   },
+   {
+    "file": "data/schemas.js",
+    "bytes": 52763,
+    "gzip_bytes": 12920
+   },
+   {
+    "file": "data/trace.js",
+    "bytes": 3991,
+    "gzip_bytes": 686
+   },
+   {
+    "file": "preview.js",
+    "bytes": 58082,
+    "gzip_bytes": 18477
+   },
+   {
+    "file": "editor.js",
+    "bytes": 50638,
+    "gzip_bytes": 17373
+   }
+  ],
+  "ms_to_start_screen": 182,
+  "navigation": {
+   "dcl": 131,
+   "load": 131
+  }
+ },
+ "open_sample_b": {
+  "requests": 1,
+  "bytes": 497831,
+  "gzip_bytes": 105196,
+  "files": [
+   {
+    "file": "data/sample-b.js",
+    "bytes": 497831,
+    "gzip_bytes": 105196
+   }
+  ],
+  "ms_to_preview": 225
+ },
+ "claim_lint_first_use": {
+  "requests": 16,
+  "bytes": 14722540,
+  "gzip_bytes": 7071399,
+  "files": [
+   {
+    "file": "lint-worker.js",
+    "bytes": 3389,
+    "gzip_bytes": 1641
+   },
+   {
+    "file": "vendor/pyodide/pyodide.js",
+    "bytes": 18726,
+    "gzip_bytes": 7450
+   },
+   {
+    "file": "vendor/pyodide/pyodide-lock.json",
+    "bytes": 119077,
+    "gzip_bytes": 25652
+   },
+   {
+    "file": "vendor/pyodide/pyodide.asm.mjs",
+    "bytes": 1250259,
+    "gzip_bytes": 262158
+   },
+   {
+    "file": "vendor/pyodide/python_stdlib.zip",
+    "bytes": 2545550,
+    "gzip_bytes": 2503822
+   },
+   {
+    "file": "vendor/pyodide/pyodide.asm.wasm",
+    "bytes": 9597892,
+    "gzip_bytes": 3612401
+   },
+   {
+    "file": "vendor/pyodide/pyyaml-6.0.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+    "bytes": 112901,
+    "gzip_bytes": 111517
+   },
+   {
+    "file": "vendor/pyodide/referencing-0.37.0-py3-none-any.whl",
+    "bytes": 16903,
+    "gzip_bytes": 15861
+   },
+   {
+    "file": "vendor/pyodide/jsonschema-4.26.0-py3-none-any.whl",
+    "bytes": 55406,
+    "gzip_bytes": 52821
+   },
+   {
+    "file": "vendor/pyodide/pyrsistent-0.20.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+    "bytes": 58223,
+    "gzip_bytes": 56496
+   },
+   {
+    "file": "vendor/pyodide/attrs-26.1.0-py3-none-any.whl",
+    "bytes": 67548,
+    "gzip_bytes": 64902
+   },
+   {
+    "file": "vendor/pyodide/six-1.17.0-py2.py3-none-any.whl",
+    "bytes": 11050,
+    "gzip_bytes": 10637
+   },
+   {
+    "file": "vendor/pyodide/rpds_py-0.30.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+    "bytes": 115722,
+    "gzip_bytes": 115101
+   },
+   {
+    "file": "vendor/pyodide/typing_extensions-4.15.0-py3-none-any.whl",
+    "bytes": 44613,
+    "gzip_bytes": 44220
+   },
+   {
+    "file": "vendor/pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl",
+    "bytes": 17467,
+    "gzip_bytes": 13445
+   },
+   {
+    "file": "data/claim_lint.zip",
+    "bytes": 687814,
+    "gzip_bytes": 173275
+   }
+  ],
+  "ms_to_first_result": 6186,
+  "pyodide_ready_ms": 2196,
+  "first_lint_ms": 3805
+ },
+ "claim_lint_after_an_edit_ms": 3459
+}

@@ -88,13 +88,14 @@ jobs:
         run: python tools/runtime_tests/run.py --env offline --log "$RUNNER_TEMP/runtime-offline.json"
       - name: Runtime test docs and logs (#8) - anchors, req markers, lint rules, no raw token in the logs
         run: python -m pytest -q -rs tools/tests/test_runtime.py
-      - name: Viewer data (docs/claims/data/) match the YAML (#36; fix with python tools/build_claims_viewer.py)
+      - name: Editor data (docs/claims/data/, claim_lint.zip) and vendor/MANIFEST.json match the sources (#36, #49; fix with python tools/build_claims_viewer.py)
         run: python tools/build_claims_viewer.py --check
-      - name: Viewer build tests (drift detection, every schema column has a heading, CSP, pinned js-yaml, README links)
+      - name: Editor build tests (drift detection, column headings, CSP, vendored sha256 and licenses, claim_lint.zip + the worker's driver give the CLI result)
         run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
-      # The browser tests of the viewer (tools/tests/test_claims_viewer_ui.py: rendering, filters, every column on the
-      # detail screen, no network in local-file mode) need Playwright and Chromium, which this job does not install;
-      # they are skipped here and run locally (README.md, 設計書のビューアー).
+      # The browser tests of the editor (tools/tests/test_claims_editor_ui.py: empty start, the six entry points,
+      # diagnostics, claim_lint in Pyodide vs the CLI for scenarios A and B (full and lite), export round trip, network
+      # log) need Playwright and Chromium, which this job does not install; they are skipped here and run locally
+      # (README.md, 設計書のエディター).
 
   secret-scan:
     runs-on: ubuntu-latest

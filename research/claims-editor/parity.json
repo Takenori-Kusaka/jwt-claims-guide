@@ -1,0 +1,61 @@
+{
+ "what": "claim_lint in Pyodide (the editor) vs python tools/claim_lint DIR --profile P --format json --also-scan DIR/design.md",
+ "test": "tools/tests/test_claims_editor_ui.py::test_lint_in_the_browser_equals_the_cli",
+ "compared": "the whole JSON result (findings, counts, r8, checked, ...)",
+ "results": [
+  {
+   "scenario": "A",
+   "profile": "full",
+   "counts": {
+    "error": 0,
+    "warn": 3,
+    "info": 6
+   },
+   "findings": 9,
+   "equal_to_cli": true,
+   "browser_ms": 2992
+  },
+  {
+   "scenario": "A",
+   "profile": "lite",
+   "counts": {
+    "error": 0,
+    "warn": 4,
+    "info": 6
+   },
+   "findings": 10,
+   "equal_to_cli": true,
+   "browser_ms": 2589
+  },
+  {
+   "scenario": "B",
+   "profile": "full",
+   "counts": {
+    "error": 0,
+    "warn": 6,
+    "info": 31
+   },
+   "findings": 37,
+   "equal_to_cli": true,
+   "browser_ms": 3312
+  },
+  {
+   "scenario": "B",
+   "profile": "lite",
+   "counts": {
+    "error": 0,
+    "warn": 9,
+    "info": 31
+   },
+   "findings": 40,
+   "equal_to_cli": true,
+   "browser_ms": 3324
+  }
+ ],
+ "pyodide": {
+  "loadMs": 2218,
+  "ms": 2202,
+  "python": "3.14.2",
+  "pyodide": "314.0.8"
+ }
+}

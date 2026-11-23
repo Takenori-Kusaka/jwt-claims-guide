@@ -1,0 +1,226 @@
+{
+ "what": "Playwright (Chromium) network log of the design editor (#49), every request of the page and its workers (BrowserContext request events), tools/tests/test_claims_editor_ui.py::test_network_only_same_origin_gets_and_csp_blocks_sends",
+ "page": "docs/claims/index.html served by a local HTTP server (as GitHub Pages serves docs/)",
+ "browser": "chromium 151.0.7922.34",
+ "csp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:; object-src 'none'; frame-src 'none'; manifest-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'",
+ "steps": [
+  "open sample B",
+  "open the lint screen (loads Pyodide and claim_lint)",
+  "claim_lint ran",
+  "edit claims.yaml; claim_lint ran again",
+  "enable autosave",
+  "export as zip",
+  "visit the preview screens"
+ ],
+ "summary": {
+  "requests": 34,
+  "methods": [
+   "GET"
+  ],
+  "origins": [
+   "127.0.0.1:60948"
+  ],
+  "non_get_or_cross_origin_or_beacon": 0
+ },
+ "initial_load_requests": [
+  {
+   "method": "GET",
+   "url": "<origin>/claims/",
+   "type": "document"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/app.css",
+   "type": "stylesheet"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/editor-libs.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/meta.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/schemas.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/trace.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/preview.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/editor.js",
+   "type": "script"
+  }
+ ],
+ "session_requests": [
+  {
+   "method": "GET",
+   "url": "<origin>/claims/",
+   "type": "document"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/app.css",
+   "type": "stylesheet"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/editor-libs.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/meta.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/schemas.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/trace.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/preview.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/editor.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/sample-b.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "blob:<origin>/282e71bf-d0dc-4daf-bf3a-03dece10debf",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/lint-worker.js",
+   "type": "other"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyodide.js",
+   "type": "other"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyodide-lock.json",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/python_stdlib.zip",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyodide.asm.wasm",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyodide.asm.mjs",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyyaml-6.0.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/jsonschema-4.26.0-py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/attrs-26.1.0-py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/six-1.17.0-py2.py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/pyrsistent-0.20.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/referencing-0.37.0-py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/rpds_py-0.30.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/typing_extensions-4.15.0-py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl",
+   "type": "fetch"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/claim_lint.zip",
+   "type": "fetch"
+  }
+ ],
+ "send_attempts_from_the_page": [
+  "fetch blocked",
+  "beacon true",
+  "websocket opened",
+  "worker fetch blocked"
+ ],
+ "requests_made_by_those_attempts": [
+  {
+   "method": "GET",
+   "url": "blob:<origin>/e4adf157-cd56-4a58-8a60-d863957f8052",
+   "type": "script"
+  }
+ ],
+ "csp_violations": [
+  {
+   "directive": "connect-src",
+   "blocked": "https://example.com/leak"
+  },
+  {
+   "directive": "connect-src",
+   "blocked": "https://example.com/beacon"
+  },
+  {
+   "directive": "connect-src",
+   "blocked": "wss://example.com/ws"
+  }
+ ]
+}
