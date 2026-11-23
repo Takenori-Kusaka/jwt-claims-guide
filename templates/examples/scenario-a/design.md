@@ -263,7 +263,7 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 <!-- render:lifecycle:begin -->
 slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates/registry/README.md` の 6.）。長時間の処理と剥奪の反映の書き方は、手で書くライフサイクル表に書く。
 
-2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、0 は即時の反映が要ることを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。
+2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、0 は即時の反映が要ること、`never` はトークンの寿命の間に値が変わらないことを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。
 
 **1. トークンの寿命**
 
@@ -277,21 +277,21 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | クレーム | 載るトークン | 受け入れの最大 | 反映までに許す秒数 | 反映の遅れ | 再計算 | 受け入れの最大と許容 | 許容以内の失効の手段（目録） | 剥奪・停止のとき（台帳） |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `iss` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 値は変わらない。レルムを廃止したら、API の許可リストから外す |
-| `sub` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 利用者を無効にしたら、新しい発行は止まる。発行済みの AT は exp まで残る（ライフサイクル表） |
-| `aud` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 値は変わらない |
-| `exp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
-| `iat` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
-| `jti` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
-| `azp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | クライアントを無効にしたら新しい発行が止まる |
-| `nonce` | `IDT` | 300 秒 | 0 秒 | 0 秒 | `login` | 超える（IDT 300 秒 > 許容 0 秒） | — | 該当なし |
+| `iss` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 値は変わらない。レルムを廃止したら、API の許可リストから外す |
+| `sub` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 利用者を無効にしたら、新しい発行は止まる。発行済みの AT は exp まで残る（ライフサイクル表） |
+| `aud` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 値は変わらない |
+| `exp` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
+| `iat` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
+| `jti` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
+| `azp` | `AT`・`IDT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | クライアントを無効にしたら新しい発行が止まる |
+| `nonce` | `IDT` | 300 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
 | `name` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
 | `email` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
 | `email_verified` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけ |
-| `https://claims.example.com/.tenant_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない） |
-| `https://claims.example.com/.user_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | sub と同じ |
+| `https://claims.example.com/.tenant_id` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない） |
+| `https://claims.example.com/.user_id` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | sub と同じ |
 | `https://claims.example.com/.roles` | `AT` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh` | — | — | ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6） |
-| `https://claims.example.com/.v` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
+| `https://claims.example.com/.v` | `AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | 該当なし |
 
 **3. セッションと RT の寿命**
 
@@ -372,25 +372,25 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | ID | クレーム | データ源 | 書き手（段階） | 発行の契機 | 再計算 | 反映までに許す秒数 | 反映の遅れ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `C-iss` | `iss` | Keycloak のレルムの設定（Frontend URL とレルム名） | ② Keycloak（テナントのレルム）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-sub` | `sub` | Keycloak のユーザー（レルムの DB） | ② Keycloak（basic スコープの sub マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-aud` | `aud` | Keycloak のクライアントのマッパーの設定 | ② Keycloak（Audience マッパー aud-saas-api）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-exp` | `exp` | Keycloak のレルムの設定 | ② Keycloak（レルムの accessTokenLifespan）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-iat` | `iat` | Keycloak の時計 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-jti` | `jti` | Keycloak | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-auth-time` | `auth_time` | Keycloak のセッション | ① Keycloak（basic スコープの auth_time マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login` | 0 秒 | 0 秒 |
-| `C-typ-claim` | `typ` | Keycloak | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-azp` | `azp` | Keycloak のクライアントの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-sid` | `sid` | Keycloak のセッション | ① Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login` | 0 秒 | 0 秒 |
-| `C-scope` | `scope` | 認可要求の scope とクライアントスコープの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-nonce` | `nonce` | BFF のセッション | ① Keycloak（要求の値を写す）（設定できる主体：client） | `I01` | `login` | 0 秒 | 0 秒 |
+| `C-iss` | `iss` | Keycloak のレルムの設定（Frontend URL とレルム名） | ② Keycloak（テナントのレルム）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-sub` | `sub` | Keycloak のユーザー（レルムの DB） | ② Keycloak（basic スコープの sub マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-aud` | `aud` | Keycloak のクライアントのマッパーの設定 | ② Keycloak（Audience マッパー aud-saas-api）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-exp` | `exp` | Keycloak のレルムの設定 | ② Keycloak（レルムの accessTokenLifespan）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-iat` | `iat` | Keycloak の時計 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-jti` | `jti` | Keycloak | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-auth-time` | `auth_time` | Keycloak のセッション | ① Keycloak（basic スコープの auth_time マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login` | `never` | 0 秒 |
+| `C-typ-claim` | `typ` | Keycloak | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-azp` | `azp` | Keycloak のクライアントの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-sid` | `sid` | Keycloak のセッション | ① Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login` | `never` | 0 秒 |
+| `C-scope` | `scope` | 認可要求の scope とクライアントスコープの設定 | ② Keycloak（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-nonce` | `nonce` | BFF のセッション | ① Keycloak（要求の値を写す）（設定できる主体：client） | `I01` | `login` | `never` | 0 秒 |
 | `C-name` | `name` | Keycloak のユーザーの firstName・lastName | ② Keycloak（Full name マッパー。ID トークンだけ）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 86400 秒 | 300 秒 |
 | `C-email` | `email` | Keycloak のユーザーの email | ② Keycloak（User Property マッパー。ID トークンだけ）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 86400 秒 | 300 秒 |
 | `C-email-verified` | `email_verified` | Keycloak のユーザーの emailVerified | ② Keycloak（ID トークンだけ）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 86400 秒 | 300 秒 |
-| `C-tenant-id` | `https://claims.example.com/.tenant_id` | SaaS のテナントの台帳（レルムの作成時にマッパーへ書く） | ② Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
-| `C-user-id` | `https://claims.example.com/.user_id` | Keycloak のユーザー | ② Keycloak（User Property マッパー id）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
+| `C-tenant-id` | `https://claims.example.com/.tenant_id` | SaaS のテナントの台帳（レルムの作成時にマッパーへ書く） | ② Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
+| `C-user-id` | `https://claims.example.com/.user_id` | Keycloak のユーザー | ② Keycloak（User Property マッパー id）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-roles` | `https://claims.example.com/.roles` | Keycloak のレルムロールの割り当て（テナントの管理者が付ける） | ② Keycloak（User Realm Role マッパー。スコープで 2 つに限る）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 330 秒 | 330 秒 |
-| `C-v` | `https://claims.example.com/.v` | 台帳（このファイル） | ② Keycloak（Hardcoded claim マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
+| `C-v` | `https://claims.example.com/.v` | 台帳（このファイル） | ② Keycloak（Hardcoded claim マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 <!-- render:data-sources:end -->
 
 ## 11. カタログへの回答　〔縮小 Lite：生成〕

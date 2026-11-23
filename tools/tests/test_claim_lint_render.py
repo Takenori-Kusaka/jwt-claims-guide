@@ -318,13 +318,34 @@ def test_tokenless_hop_shows_the_sender_as_writer_not_the_token_issuer():
     assert h2[0]['writers'][0].startswith('② Keycloak')
 
 
+def _claim_rows(d):
+    return {r['id']: r for r in next(t for t in render.sec_lifecycle(d)['tables'] if t['id'] == 'lifecycle-claim')['rows']}
+
+
 def test_volatility_zero_means_immediate_and_is_flagged():
-    rows = {r['id']: r for r in next(t for t in render.sec_lifecycle(render.load_design(EXAMPLE))['tables']
-                                     if t['id'] == 'lifecycle-claim')['rows']}
+    d = render.load_design(EXAMPLE)
+    for c in d['claims']['claims']:
+        if c['id'] in ('C-sub', 'C-tenant-id', 'C-nonce'):
+            c['volatility'] = 0
+    rows = _claim_rows(d)
     assert rows['C-sub']['exceeds'] and rows['C-sub']['exceeds_text'] == '超える（AT 330 秒・IDT 300 秒 > 許容 0 秒）'
     assert rows['C-tenant-id']['measures'] == ['AT：DB の確認（0 秒）']  # a candidate; whether it applies is on_revoke
     assert rows['C-nonce']['exceeds'] and rows['C-nonce']['measures'] == []
     assert not rows['C-roles']['exceeds'] and not rows['C-name']['exceeds']  # 330 <= 330, 300 <= 86400
+
+
+def test_volatility_never_is_not_compared():
+    rows = _claim_rows(render.load_design(EXAMPLE))
+    assert not any(r['exceeds'] for r in rows.values())
+    assert rows['C-sub']['volatility'] == 'never' and rows['C-sub']['exceeds_text'] == '寿命の間に変わらない（never）'
+    assert render.cell('never', 'seconds') == '`never`' and render.cell(330, 'seconds') == '330 秒'
+
+
+@pytest.mark.parametrize('value, ok', [(0, True), (330, True), ('never', True), (-1, False), ('immutable', False), (None, False)])
+def test_claims_schema_volatility_is_seconds_or_never(value, ok):
+    with open(os.path.join(ROOT, 'templates', 'registry', 'claims.schema.json'), encoding='utf-8') as f:
+        prop = json.load(f)['$defs']['claim']['properties']['volatility']
+    assert jsonschema.Draft202012Validator(prop).is_valid(value) is ok
 
 
 def _dpop_design():

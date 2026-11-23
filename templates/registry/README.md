@@ -136,7 +136,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 
 | 列 | 見出し | 意味 | ケーススタディの列（区分） | 根拠 | 縮小 Lite |
 | --- | --- | --- | --- | --- | --- |
-| `volatility` | 反映までに許す秒数 | 値が変わってから反映されるまでに許す秒数。載るトークンの `max_lifetime` と比べる（L5） | `mutability`（一部） | slide:p04-token-is-snapshot、slide:p08-four-lifetimes | 手で書く |
+| `volatility` | 反映までに許す秒数 | 値が変わってから反映されるまでに許す秒数（0 以上の整数）。`0` は「変わったら即時に反映が要る」。トークンの寿命の間に値が変わらないもの（`exp`・`jti` のようなトークンごとの値、`sub` のような不変の識別子）は `never` と書き、`0` と書かない（#19 の PR #39 で分けた）。載るトークンの `max_lifetime` と比べる（L5） | `mutability`（一部） | slide:p04-token-is-snapshot、slide:p08-four-lifetimes | 手で書く |
 | `recompute_trigger` | 再計算の契機 | login・refresh・exchange・reissue・never | `freshness`（一部） | slide:p08-stale-claims、slide:p08-reissue-triggers、slide:p02-auth-strength-session | 生成 |
 | `propagation_delay` | 伝搬の遅れ | 変化が受け手に届くまでの最悪の秒数 | なし | slide:p08-stale-claims、slide:p11-registry-fields（「反映までの遅れ」） | 生成 |
 | `on_revoke` | 剥奪の反映手段 | 剥奪したときにどの手段で反映するか | なし | slide:p01-self-contained-vs-reference、slide:p08-revocation-propagation | 手で書く |
@@ -346,7 +346,7 @@ slide:p08-four-lifetimes の 4 つの層を、どの列・宣言で表すかと�
 | 層 | 列・宣言 | 記入例での値 |
 | --- | --- | --- |
 | トークンの寿命（種類ごと・ホップごと） | トークン目録の `max_lifetime`・`max_clock_skew`・`lifetime_set_by`・`lifetime_exception`、ホップの `max_lifetime` | `token_types.yaml`：AT 300 秒（ずれ 30 秒、寿命はテナントの管理者も変えられる）、IDT 300 秒、CODE 60 秒。`hops.yaml`：H2 は 300 秒、H3 はトークンなし（null） |
-| クレームの値の鮮度（`volatility` と `max_lifetime` の関係、剥奪の反映） | 台帳の `volatility`・`recompute_trigger`・`propagation_delay`・`on_revoke`、トークン目録の `revocation`（手段と遅れ） | `claims.yaml`：`roles` は volatility 330 秒＝AT の受け入れの上限（300＋30）。`tenant_id` の停止は DB の確認で 0 秒（`revocation` の `db_lookup`）。`name`・`email` は 86400 秒 |
+| クレームの値の鮮度（`volatility` と `max_lifetime` の関係、剥奪の反映） | 台帳の `volatility`・`recompute_trigger`・`propagation_delay`・`on_revoke`、トークン目録の `revocation`（手段と遅れ） | `claims.yaml`：`roles` は volatility 330 秒＝AT の受け入れの上限（300＋30）。`tenant_id` の停止は DB の確認で 0 秒（`revocation` の `db_lookup`）。`name`・`email` は 86400 秒。`iss`・`sub`・`exp`・`tenant_id` など、トークンの寿命の間に変わらない 15 行は `never` |
 | セッションと RT の寿命（ローテーション・失効・ログアウト） | トークン目録の `kind: session`・`refresh_token` の行の `max_lifetime`（絶対）・`idle_timeout`・`rt_rotation`・`revocation`。DB の接続はホップの `connection_max_lifetime` | `token_types.yaml`：RT・BFFSESSION・SSO は idle 1800 秒・最大 36000 秒。RT はローテーションあり、再利用の検知は unverified。失効は RP-Initiated Logout とセッションの削除（0 秒）、リフレッシュの失敗（330 秒）。`hops.yaml`：H3 の接続の寿命は決めていない（null。設計書の 12. の自信のない点） |
 | クレームの定義の寿命（提案→有効→廃止予定→廃止） | 台帳の `status`・`sunset_on`・`owner`・`change_controller`・`consumers_migration`、最上位の `namespaces[].namespace_version`。変更履歴は Git | `claims.yaml`：すべて `active`。名前空間の構造の版は `C-v`（`namespaces[].namespace_version`）。廃止予定の行はないので、`sunset_on` と `consumers_migration` は書いていない（書ける形はスキーマにある） |
 

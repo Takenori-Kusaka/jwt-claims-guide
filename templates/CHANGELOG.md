@@ -24,6 +24,8 @@
 - `examples/scenario-a/schemas/`：トークン種別（AT・IDT）ごとのペイロードの JSON Schema を、受け手向け（`additionalProperties: true`）と発行側の適合の検査用（`additionalProperties: false`）の 2 つずつ生成した（#19）。Keycloak で発行した見本の AT を発行側の Schema で CI で検証する
 - `examples/scenario-a/design.md`（0.2.1）：縮小 Lite の〔生成〕の節を生成の区間に置き換えた（#19）。`claims.yaml`・`token_types.yaml` の 3 か所で、値の中の「 #」から後ろが YAML のコメントとして落ちていたのを、引用符で囲んで直した
 - 同じ落ち方の残り 2 か所（`catalog/issue_events.yaml` の I24 の Auth0 の `hook_note`、`tools/claim_lint/path_limits.yaml` の Node.js の `note`）を直し、`templates/`・`tools/` の YAML で、引用符のない値が「 #」に続く語で切れていないかを確かめるテスト（`tools/tests/test_yaml_comment_truncation.py`）を足した（PR #39 の独立点検）
+- `registry/claims.schema.json` の `volatility`：0 以上の整数か `never`。`0` は「変わったら即時に反映が要る」、`never` は「トークンの寿命の間に値が変わらない」（それまでの description は 0 を「変わらない」としていたので、意味を分けた）。`examples/scenario-a/claims.yaml` の 0 の 15 行（iss・sub・aud・exp・iat・jti・auth_time・typ・azp・sid・scope・nonce・tenant_id・user_id・v）を `never` にした（#19、PR #39。L5 は #6 で合わせる）
+- `.gitleaks.toml`：トレースの要件 ID（`p08-revocation-propagation.R6` など）を generic-api-key の誤検出から外した。secret-scan は HEAD から辿れる履歴だけを見る（`--log-opts="HEAD"`）
 
 ### 変更
 

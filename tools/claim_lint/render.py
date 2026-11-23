@@ -495,7 +495,7 @@ def sec_lifecycle(d):
             t = by_id.get(x) or {}
             acc = (t.get('max_lifetime') or 0) + (t.get('max_clock_skew') or 0)
             worst = max(worst, acc)
-            if vol is not None and acc > vol:
+            if isinstance(vol, int) and acc > vol:  # never: the value does not change during the token's life
                 over_tts.append(f'{x} {acc} 秒')
                 measures += [f"{x}：{REVOCATION.get(r.get('method'), r.get('method'))}（{r.get('delay_seconds')} 秒）"
                              for r in t.get('revocation') or []
@@ -505,7 +505,8 @@ def sec_lifecycle(d):
         t2.append({'id': c.get('id'), 'claim': _full_name(c), 'carried_in': c.get('carried_in') or [],
                    'acceptance': _secs(worst), 'volatility': vol, 'propagation_delay': c.get('propagation_delay'),
                    'recompute_trigger': c.get('recompute_trigger') or [], 'on_revoke': c.get('on_revoke'),
-                   'exceeds': over, 'exceeds_text': f"超える（{'・'.join(over_tts)} > 許容 {vol} 秒）" if over else NONE,
+                   'exceeds': over, 'exceeds_text': (f"超える（{'・'.join(over_tts)} > 許容 {vol} 秒）" if over
+                                                     else '寿命の間に変わらない（never）' if vol == 'never' else NONE),
                    'measures': measures})
     t3 = []
     for t in adopted:
@@ -530,7 +531,7 @@ def sec_lifecycle(d):
             'notes': ['slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates/registry/README.md` の 6.）。'
                       '長時間の処理と剥奪の反映の書き方は、手で書くライフサイクル表に書く。',
                       '2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、'
-                      '0 は即時の反映が要ることを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、'
+                      '0 は即時の反映が要ること、`never` はトークンの寿命の間に値が変わらないことを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、'
                       '目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは'
                       '機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。'],
             'tables': [
@@ -656,7 +657,7 @@ def cell(v, fmt):
     if fmt == 'list':
         return '<br>'.join(_esc(x) for x in v) if isinstance(v, list) else _esc(v)
     if fmt == 'seconds':
-        return f'{v} 秒'
+        return f'{v} 秒' if isinstance(v, (int, float)) and not isinstance(v, bool) else f'`{_esc(v)}`'
     if fmt == 'code':
         return f'`{_esc(v)}`'
     if fmt == 'raw':
