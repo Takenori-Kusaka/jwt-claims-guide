@@ -148,6 +148,13 @@ def _iss_match(pattern, iss):
     return re.match(rx, iss) is not None
 
 
+def _draft_defined(c):
+    """registered_ref names a section of a versioned IETF draft that spec_version also lists (draft-...-NN)."""
+    ref = c.get('registered_ref') or {}
+    m = re.match(r'^(draft-[a-z0-9-]+-\d{2})\b', str(ref.get('id') or ''))
+    return bool(m) and ref.get('kind') == 'spec' and m.group(1) in (c.get('spec_version') or [])
+
+
 def rule_l1b(x):
     declared = {n.get('namespace') for n in x.claims_doc.get('namespaces') or []}
     for c in x.adopted_claims():
@@ -157,6 +164,12 @@ def rule_l1b(x):
             if c.get('decision') == '既定どおり' and not c.get('consumers'):
                 x.add('L1b', cid, f"IdP が既定で出す私的名 {c.get('name')}（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない"
                                   '（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す', INFO)
+            elif _draft_defined(c):
+                # a name that a versioned draft itself defines (Txn-Token req_wl, tctx; #4 scenario B): the name belongs to
+                # the draft, so it cannot move into the organization's namespace. Still unregistered: warn (L14 asks for
+                # spec_version and revisit_trigger)
+                x.add('L1b', cid, f"未登録の名前 {c.get('name')} は草案（{c['registered_ref'].get('id')}）が定める名前。登録の前なので、"
+                                  '草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる', WARN)
             else:
                 x.add('L1b', cid, f"未登録の名前 {c.get('name')} を名前空間なしで使っている。IANA の登録名を使うか、組織の名前空間"
                                   '（namespaces）の下に置く（衝突に強い名前、RFC 7519 §4.2・§4.3）')

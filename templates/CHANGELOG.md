@@ -34,6 +34,11 @@
 - `tools/count_lite_fields.py --current <記入例> --profile lite|full`：今の記入例の、手で書く欄の数（#4。README の「記入の目安」）
 - 対応表（#22）：#4 の要件 122 件を実装済みにした（core 92・full 30。うち 11 件は #6・#18 の規則（L3・L5・L6・L9・L14・L18・L23・L43・R8）の行に印を足して実装済みにした）。`template:00_core#issuance-profile`・`template:modules/M_sender_constraint#…`（5 件）・`template:claim_request#form` を planned_items に足し、送信者制約・クライアントの種類・PAR に関係する要件（7 件）に結び直した。`template:claim_request`（アンカーなし）を指していた 5 件は、`#form`・`#gate` に付け替えた。台帳のスキーマと問いの一覧には、#4 の要件の `req:` の印だけを足した（列は変えていない）
 
+- `examples/scenario-b/`：シナリオ B（社内業務システム）＋C（AI エージェントの委任）の Full の記入例（P1＋P4＋P5。#4）。台帳 46 行（廃止予定の行 `C-employee-id` を含む）、トークン目録 24 行、ホップ 15 行、カタログへの回答 62 件、共有クレームごとの追加前の 25 問 9 ファイル、設計書（Full）、送信者制約を none にした変種（`variants/sender-none.yaml`）と、その比較（設計書の 3.3）
+- `tools/variant_compare.py`：記入例に差分だけの上書きを当て、台帳・目録・ホップ・カタログへの回答・lint の結果の違いを表にする（`--write`・`--check`。#4）
+- `casestudy-deviations.yaml`：シナリオ B の前提（B＋C の組み合わせ）と、carry 21 件・not_in_example 30 件
+- claim_lint の L1b：草案が定める名前（`registered_ref` が草案の節、`spec_version` に同じ版）を error から warn にした（Txn-Token の `req_wl`・`tctx`。#4 のシナリオ B で分かった）
+
 ### 変更
 
 - claim_lint の目的と仕組みの規則（#18）：L11〜L14（宣言の整合の検査）を足した。`examples/scenario-a/catalog_answers.yaml` に `questions`（問いが要るか）を、`claims.yaml` の C-iss・C-sub に saas-web の `enforced_at` を足した（`design.md` の 13.）

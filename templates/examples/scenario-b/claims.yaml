@@ -1,0 +1,1979 @@
+# template_version: 0.3.0
+# yaml-language-server: $schema=../../registry/claims.schema.json
+# 記入例（シナリオ B＋C：社内業務システムと AI エージェントの委任。Full。P1＋P4＋P5）。推奨ではない。この前提での一例で、自組織の判断の代わりにしない。
+# 台帳 v1（templates/registry/claims.schema.json、template_version 0.2.0）で書いた。Full なので、行に当てはまる Full の列（answers・does_not_answer・
+# absent_semantics・value_normalization・provenance・verification_method・source_max_length・consumer_access_path・evidence など）も書いた。
+# 題材：ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ B（Keycloak 26.8.0 のレルム corp が実物、Entra ID・Okta・Cognito・Auth0 は模擬。
+# 入口で内部トークンに交換する）に、シナリオ C（エージェントがツールサーバー invoice-mcp を経て請求書の API invoices を呼ぶ）を足した。
+# #4 が求める P1＋P4＋P5 の Full のうち、B だけでは P4（委任）が無いため。scenario は B（casestudy_check は 1 つのシナリオで照合する）。
+# C から持ち込んだ行と、P5 の Txn-Token の行で B の判定と違うものは templates/casestudy-deviations.yaml に kind: carry で載せた。
+# 外部の IdP（模擬の Entra・Okta・Cognito・Auth0）の独自のクレーム（oid・tid・uid・groups の超過・cognito:groups・token_use・cid など）は、
+# 入口（gateway）が正規化の入力として読むだけで、組織のトークンには載せない。台帳の行にはせず、正規化した行（C-user-id・C-roles・C-acr）の
+# upstream_issuer.source_attribute に書いた（ケーススタディの「入口の正規化でのみ読む」の行は casestudy-deviations.yaml の not_in_example）。
+# 定義の寿命の層の見本として、廃止予定（deprecated）の行を 1 つ置いた（C-employee-id。sunset_on 2027-03-31。#3 から回したもの）。
+# 行の数：46（採用 34・既定どおり 4・却下 8）。載せる 38 行のうち status deprecated 1、ほかは active
+scenario: B
+casestudy_commit: 080b8da
+namespaces:
+  - namespace: "https://claims.example.com/"
+    style: object
+    owner: 社内 ID 基盤チーム（台帳の持ち主。templates/registry/README.md の「組織の名前空間の持ち主」）
+    namespace_version: C-v
+    assignment: 名前空間の下の名前は、この台帳への登録（PR と追加前の 25 問）でだけ割り当てる
+data_category_vocabulary:
+  name: fideslang
+  version: "3.1.4"
+  url: "https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv"
+  license: CC-BY-4.0
+  verified_on: "2026-11-22"
+data_category_extensions:
+  - key: system.operations.transaction
+    parent: system.operations
+    description: 呼び出し全体の取引の識別子と文脈（Txn-Token の txn・tctx。fideslang 3.1.4 に専用のキーがない）
+    owner: 社内 ID 基盤チーム
+  - key: user.authorization.delegation
+    parent: user.authorization
+    description: 委任の記録（今の代理者・委任の連鎖・承認の記録の ID）
+    owner: 社内 ID 基盤チーム
+claims:
+  # ------------------------------------------------------------ 登録されたクレーム（採用）
+  - id: C-iss
+    name: iss
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0091", "jwt-claims-casestudy@080b8da:CLM-0092", "jwt-claims-casestudy@080b8da:CLM-0093", "jwt-claims-casestudy@080b8da:CLM-0098", "jwt-claims-casestudy@080b8da:CLM-0099", "jwt-claims-casestudy@080b8da:CLM-0100", "jwt-claims-casestudy@080b8da:CLM-0101"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+    type: string
+    shape: single
+    description: トークンの発行者。Keycloak のレルム corp、入口のトークン発行サービス（STS）、Txn-Token のサービス（TTS）、外部の IdP（模擬）のどれか
+    not_meaning: トークンを今送ってきた相手ではない。外部の IdP の iss は組織の発行者ではなく、内側のサービスは受け入れない
+    decision: 採用
+    rationale: 受け手ごとに受け入れる iss を 1 つに固定する。内側のサービスは STS の iss だけ、入口は Keycloak と外部の IdP の iss だけを受ける。iss と鍵の組で検証し、別の発行者の鍵で署名した偽の iss を拒否する
+    refs:
+      - {kind: spec, id: "RFC 9068 §4", url: "https://www.rfc-editor.org/rfc/rfc9068#section-4"}
+      - {kind: guide-slide, id: p00-incident-signature-valid}
+      - {kind: guide-slide, id: p03-absorb-idp-differences}
+    assumption: 外部の IdP の発行者は、入口の許可リストにある 4 つ（Entra は 1 つの顧客テナントに固定）だけ
+    revisit_trigger: 新しい IdP か、Entra の別のテナントを受け入れるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-user]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（レルム corp）と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（gateway）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS, configurable_by: [platform]}
+    issue_events: [I01, I02, I06, I09, I13, I21, I22]
+    source_system: 各発行者の設定（Keycloak のレルムの Frontend URL、STS・TTS の設定）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 値は変わらない。発行者をやめたら、受け手の許可リストから外す
+    carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    consumer_access_path:
+      - {consumer: gateway, via: token_library, note: 入口の検証の部品（IdP ごとの許可リストと JWKS）}
+      - {consumer: orders, via: token_library, note: 組織共通の検証の部品（STS の iss だけ）}
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否, empty_string: 拒否}
+    value_normalization: {case: as_is, compare: exact, normalized_by: 発行者が設定した文字列のまま。受け手は完全一致で比べる}
+    enforced_at:
+      - {service: gateway, check: KC_AT・EXT_AT の iss を入口の許可リスト（5 つ）と完全一致で比べ、鍵はその iss のメタデータの jwks_uri からだけ取る。Entra の iss はテンプレート形式を受けず、固定のテナント ID の値だけ}
+      - {service: orders, check: INT_AT の iss が STS と完全一致。外部の IdP・Keycloak の iss のトークンは受けない（ケーススタディ B7）}
+      - {service: ledger, check: INT_AT の iss が STS と完全一致。TXN の iss が TTS と完全一致}
+      - {service: docs, check: INT_AT の iss が STS と完全一致}
+      - {service: payroll, check: INT_AT の iss が STS と完全一致}
+      - {service: invoice-mcp, check: AGENT_AT の iss が STS と完全一致}
+      - {service: invoices, check: TASK_AT の iss が STS と完全一致}
+      - {service: portal, check: IDT・LOGOUT の iss が Keycloak のレルム corp と完全一致}
+      - {service: payment-worker, check: メッセージに付いた TXN の iss が TTS と完全一致}
+    max_bytes: 96
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: url}
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: ["jwt-claims-casestudy@080b8da:B7", "jwt-claims-casestudy@080b8da:B10", "jwt-claims-casestudy@080b8da:G9", "jwt-claims-casestudy@080b8da:G10"]
+    asvs_ids: ["v5.0.0-9.2.4"]
+    note: max_bytes は最も長い Cognito の iss（87 バイト）に余裕を足した値
+
+  - id: C-sub
+    name: sub
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0029", "jwt-claims-casestudy@080b8da:CLM-0030", "jwt-claims-casestudy@080b8da:CLM-0033", "jwt-claims-casestudy@080b8da:CLM-0047", "jwt-claims-casestudy@080b8da:CLM-0048", "jwt-claims-casestudy@080b8da:CLM-0050"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+    type: string
+    shape: single
+    description: 「誰の権限で」の主体。Keycloak・外部の IdP のトークンでは、その発行者の中の利用者の ID。STS・TTS のトークンでは、入口が正規化した組織の利用者 ID（C-user-id と同じ値）
+    not_meaning: 実行しているエージェントやツールではない（それは act）。IdP をまたいで同じ人を指すのは、STS が書いた sub だけ
+    decision: 採用
+    rationale: 委任のトークン（AGENT_AT・TASK_AT）でも sub は利用者のまま保ち、エージェントは act に書く。受け手は sub で請求書の持ち主と照合し、交換で sub を差し替えたトークンを拒否する（ケーススタディ C15）
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+      - {kind: guide-slide, id: p04-immutable-identifiers}
+    assumption: 入口が IdP ごとの不変の ID（Keycloak の sub、Entra の tid と oid、Okta の uid、Cognito・Auth0 の sub）から組織の利用者 ID を引く対応表を持つ
+    revisit_trigger: 同じ人が 2 つの IdP で別の利用者として現れ、名寄せの規則が要るとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: identifier
+    answers: [q-sub]
+    does_not_answer: [q-actor, q-agent]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（basic スコープの sub マッパー）と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（対応表で組織の利用者 ID に置き換える）, configurable_by: [platform]}
+    provenance: 発行者が確かめた値
+    verification_method: 入口が IdP のトークンを検証したうえで、IdP ごとの不変の ID から対応表で引く。メール・ログイン名からは引かない
+    issue_events: [I01, I02, I06, I13, I21, I22]
+    source_system: Keycloak のユーザー（レルム corp）と、入口の利用者の対応表（人事の社員の台帳から作る）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 利用者を無効にしたら、新しい発行は止まる。発行済みのトークンは寿命まで残る（ライフサイクル表）
+    carried_in: [KC_AT, IDT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+    consumers: [gateway, portal, orders, ledger, docs, invoice-mcp, invoices, payment-worker]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否, "null": 拒否, empty_string: 拒否}
+    value_normalization: {case: as_is, compare: exact, normalized_by: 入口の STS が対応表の値をそのまま書く}
+    enforced_at:
+      - {service: gateway, check: 文字列であること。IdP ごとの不変の ID（Entra は tid と oid、Okta は uid）で対応表を引き、ログイン名・メールは使わない（ケーススタディ B13）}
+      - {service: orders, check: 文字列であること。注文の持ち主の列と照合する（BOLA）}
+      - {service: invoices, check: "TASK_AT の sub が請求書の持ち主と一致し、承認の記録の持ち主とも一致する（ケーススタディ C3・C15）"}
+      - {service: invoice-mcp, check: AGENT_AT の sub を交換の subject に使い、交換の前後で sub が変わっていないこと}
+      - {service: ledger, check: 文字列であること。TXN の sub と INT_AT の sub が一致すること}
+      - {service: docs, check: 文字列であること}
+      - {service: portal, check: IDT の sub が文字列であること}
+      - {service: payment-worker, check: TXN の sub を処理の主体として記録する（値はハッシュで残す）}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+    confidential_from: []
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: ["jwt-claims-casestudy@080b8da:B13", "jwt-claims-casestudy@080b8da:B14", "jwt-claims-casestudy@080b8da:C3", "jwt-claims-casestudy@080b8da:C15"]
+    asvs_ids: ["v5.0.0-10.3.2"]
+
+  - id: C-aud
+    name: aud
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0070", "jwt-claims-casestudy@080b8da:CLM-0071", "jwt-claims-casestudy@080b8da:CLM-0073", "jwt-claims-casestudy@080b8da:CLM-0077", "jwt-claims-casestudy@080b8da:CLM-0078", "jwt-claims-casestudy@080b8da:CLM-0079", "jwt-claims-casestudy@080b8da:CLM-0080", "jwt-claims-casestudy@080b8da:CLM-0081"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+    type: string
+    shape: array
+    max_items: 4
+    typical_items: 1
+    description: トークンの宛先。INT_AT・AGENT_AT・TASK_AT は宛先を 1 つに絞る。KC_AT は入口が交換する 4 つのサービス、TXN は信頼ドメイン
+    not_meaning: 呼び出し元ではない。複数の宛先を持つトークンは、どれか 1 つの宛先への許可ではない
+    decision: 採用
+    rationale: ホップごとに宛先を 1 つに絞り、受け取ったトークンを別の宛先へ転送させない（ケーススタディ B3・C2・C13）。外部の IdP の宛先の表し方の違い（Cognito は aud がない）は入口で吸収する
+    refs:
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: guide-slide, id: p06-narrow-downstream}
+      - {kind: guide-slide, id: p10-mcp-authorization}
+    assumption: STS は resource indicator の値を 1 つだけ受け、その値を aud に書く
+    revisit_trigger: 1 つのトークンで 2 つ以上のサービスを呼ぶ設計にするとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-resource]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（Audience マッパー）と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（resource indicator の値）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（信頼ドメイン）, configurable_by: [platform]}
+    issue_events: [I01, I02, I06, I09, I13, I21, I22]
+    source_system: Keycloak のクライアントのマッパーの設定、STS の宛先の表
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 値は変わらない
+    carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否, empty_array: 拒否}
+    enforced_at:
+      - {service: gateway, check: "KC_AT・EXT_AT の aud に入口の宛先が含まれる。Cognito の AT は aud がないので client_id を許可リストと照合する（ケーススタディ B16）"}
+      - {service: orders, check: INT_AT の aud が orders だけ（文字列と配列の両方の形を受け、要素が 1 つで orders であること）}
+      - {service: ledger, check: INT_AT の aud が ledger だけ。TXN の aud が信頼ドメイン}
+      - {service: docs, check: INT_AT の aud が docs だけ}
+      - {service: payroll, check: INT_AT の aud が payroll だけ}
+      - {service: invoice-mcp, check: "AGENT_AT の aud が invoice-mcp だけ。自分宛てでないトークンは受けず、受けたトークンを上流に渡さない（ケーススタディ C2・C13）"}
+      - {service: invoices, check: TASK_AT の aud が invoices だけ（2 つ以上なら拒否）}
+      - {service: portal, check: IDT・LOGOUT の aud が portal}
+      - {service: payment-worker, check: TXN の aud が信頼ドメイン}
+    max_bytes: 26
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: ["jwt-claims-casestudy@080b8da:B3", "jwt-claims-casestudy@080b8da:B16", "jwt-claims-casestudy@080b8da:C2", "jwt-claims-casestudy@080b8da:C13"]
+    asvs_ids: ["v5.0.0-10.3.1"]
+    note: 形は配列（KC_AT が宛先を 4 つ持つ）。INT_AT・AGENT_AT・TASK_AT は要素 1 つ。max_bytes は最も長い宛先 https://corp.example.com（24 バイト）に余裕を足した値
+
+  - id: C-exp
+    name: exp
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0122", "jwt-claims-casestudy@080b8da:CLM-0123", "jwt-claims-casestudy@080b8da:CLM-0124", "jwt-claims-casestudy@080b8da:CLM-0129", "jwt-claims-casestudy@080b8da:CLM-0130", "jwt-claims-casestudy@080b8da:CLM-0131"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+    type: integer
+    shape: single
+    description: 有効期限（UNIX 時刻の秒）
+    not_meaning: セッションや委任の終わりではない
+    decision: 採用
+    rationale: 種別ごとの寿命（どれも 300 秒以下）を強制する。剥奪が反映されるまでの上限がこの値で決まる
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    assumption: 受け手の時計は NTP で合わせ、ずれは 30 秒まで
+    revisit_trigger: 種別の寿命を変えるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（レルムの寿命の設定）と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS, configurable_by: [platform]}
+      - {stage: "④", writer: TTS, configurable_by: [platform]}
+    issue_events: [I01, I02, I06, I09, I13, I21, I22]
+    source_system: 各発行者の寿命の設定
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT]
+    consumers: [gateway, portal, orders, ledger, docs, payroll, invoice-mcp, invoices, payment-worker]
+    on_missing: 拒否
+    allowed_values: {format: numeric-date}
+    enforced_at:
+      - {service: gateway, check: 必須。exp を過ぎたら拒否（ずれ 30 秒まで）}
+      - {service: orders, check: "必須。exp − iat ≤ 300 で、exp を過ぎたら拒否"}
+      - {service: ledger, check: 必須。exp を過ぎたら拒否}
+      - {service: docs, check: 必須。exp を過ぎたら拒否}
+      - {service: payroll, check: 必須。exp を過ぎたら拒否}
+      - {service: invoice-mcp, check: 必須。exp を過ぎたら拒否}
+      - {service: invoices, check: 必須。exp を過ぎたら拒否}
+      - {service: portal, check: IDT・LOGOUT の exp}
+      - {service: payment-worker, check: "TXN の exp。メッセージの処理が TXN の寿命を超えたら、自分のワークロード ID で TTS から取り直す（slide:p08-async-processing）"}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: ["jwt-claims-casestudy@080b8da:G6", "jwt-claims-casestudy@080b8da:G7"]
+    asvs_ids: ["v5.0.0-9.2.1"]
+
+  - id: C-iat
+    name: iat
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0132", "jwt-claims-casestudy@080b8da:CLM-0134", "jwt-claims-casestudy@080b8da:CLM-0136", "jwt-claims-casestudy@080b8da:CLM-0141", "jwt-claims-casestudy@080b8da:CLM-0133"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+    type: integer
+    shape: single
+    description: 発行の時刻（UNIX 時刻の秒）。DPoP の proof では作った時刻
+    not_meaning: 認証の時刻（auth_time）ではない
+    decision: 採用
+    rationale: 寿命の検査（exp − iat）と、DPoP の proof の受け入れる期間（作ってから 60 秒まで）を決める
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
+    assumption: 時計のずれは 30 秒まで
+    revisit_trigger: DPoP の proof の受け入れる期間を変えるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/", "agent-runtime", "invoice-mcp"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS, configurable_by: [platform]}
+      - {stage: "④", writer: TTS, configurable_by: [platform]}
+      - {stage: "⑥", writer: DPoP の proof を作るクライアント, configurable_by: [client]}
+    issue_events: [I01, I02, I06, I09, I13, I21, I22, I30]
+    source_system: 発行者・クライアントの時計
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, IDT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT, DPOP]
+    consumers: [gateway, orders, ledger, docs, payroll, invoice-mcp, invoices]
+    on_missing: 拒否
+    allowed_values: {format: numeric-date}
+    enforced_at:
+      - {service: gateway, check: 未来の iat（ずれ 30 秒を超える）を拒否}
+      - {service: orders, check: "exp − iat ≤ 300"}
+      - {service: ledger, check: "exp − iat ≤ 300"}
+      - {service: docs, check: "exp − iat ≤ 300"}
+      - {service: payroll, check: "exp − iat ≤ 300"}
+      - {service: invoice-mcp, check: "DPoP の proof の iat が今から ±60 秒の中（RFC 9449 §11.1 の受け入れる期間）"}
+      - {service: invoices, check: "DPoP の proof の iat が今から ±60 秒の中"}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: ["jwt-claims-casestudy@080b8da:G7"]
+    note: DPoP の proof の iat（CLM-0133）も同じ行にした。名前・型・意味（発行の時刻）が同じで、受け入れる期間の照合が違うだけなので
+
+  - id: C-nbf
+    name: nbf
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0143", "jwt-claims-casestudy@080b8da:CLM-0145"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.5", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5"}
+    type: integer
+    shape: single
+    description: これより前は受け入れない時刻。外部の IdP（模擬の Entra）の AT にだけある
+    not_meaning: 発行の時刻ではない
+    decision: 既定どおり
+    rationale: 外部の IdP が出すものを入口で検証する。組織のトークンには載せない（入口の作り直しで落とす）
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.5", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5"}
+    usage: protocol
+    issuers: ["https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer: [{stage: "②", writer: 外部の IdP, configurable_by: [platform]}]
+    issue_events: [I01]
+    source_system: 外部の IdP の発行の処理
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh]
+    on_revoke: 該当なし
+    carried_in: [EXT_AT]
+    consumers: [gateway]
+    on_missing: 無視
+    absent_semantics: {absent: 制限なし（nbf の検査を飛ばす）}
+    enforced_at:
+      - {service: gateway, check: あれば、nbf より前（ずれ 30 秒を超える）の AT を拒否}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: []
+
+  - id: C-jti
+    name: jti
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0178", "jwt-claims-casestudy@080b8da:CLM-0180", "jwt-claims-casestudy@080b8da:CLM-0194", "jwt-claims-casestudy@080b8da:CLM-0195", "jwt-claims-casestudy@080b8da:CLM-0179"]
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
+    type: string
+    shape: single
+    description: トークンごとに一意の ID。DPoP の proof では proof ごとの一意の ID
+    not_meaning: 取引の ID（txn）ではない。セッションの ID（sid）ではない
+    decision: 採用
+    rationale: ログでトークンを指す唯一の値（トークン全文の代わりに記録する）。DPoP の proof では、同じ jti の proof の再送を受け入れる期間の間拒否する（slide:p01-client-made-jwts）
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: spec, id: "RFC 9449 §11.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-11.1"}
+    assumption: DPoP の proof の jti の記録は、受け入れる期間（60 秒）＋ずれの間だけ持てば足りる
+    revisit_trigger: DPoP の受け手を水平に増やし、jti の記録を共有しなければならなくなったとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://tts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/", "agent-runtime", "invoice-mcp"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS, configurable_by: [platform]}
+      - {stage: "④", writer: TTS, configurable_by: [platform]}
+      - {stage: "⑥", writer: DPoP の proof を作るクライアント, configurable_by: [client]}
+    issue_events: [I01, I02, I06, I09, I13, I21, I22, I30]
+    source_system: 発行者・クライアントの乱数
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, LOGOUT, EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, TXN, AGENT_AT, TASK_AT, DPOP]
+    consumers: [gateway, portal, invoice-mcp, invoices]
+    on_missing: 拒否
+    enforced_at:
+      - {service: gateway, check: 必須。ログには jti だけを記録する}
+      - {service: portal, check: LOGOUT の jti を受け入れる期間の間記録し、同じ jti のログアウトトークンを 2 度処理しない}
+      - {service: invoice-mcp, check: DPoP の proof の jti を 90 秒（受け入れる期間 60 秒＋ずれ 30 秒）記録し、同じ jti を拒否する}
+      - {service: invoices, check: DPoP の proof の jti を 90 秒記録し、同じ jti を拒否する}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7519）
+    evidence: []
+    note: DPoP の proof の jti（CLM-0179）も同じ行にした（C-iat の note と同じ理由）
+
+  - id: C-client-id
+    name: client_id
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0404", "jwt-claims-casestudy@080b8da:CLM-0405", "jwt-claims-casestudy@080b8da:CLM-0414", "jwt-claims-casestudy@080b8da:CLM-0415", "jwt-claims-casestudy@080b8da:CLM-0416"]
+    registered_ref: {kind: spec, id: "RFC 8693 §4.3", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.3"}
+    type: string
+    shape: single
+    description: トークンを要求したクライアント。INT_AT では元のクライアント（portal か外部のアプリ）、AGENT_AT ではエージェント（agent:expense）、TASK_AT ではツール（invoice-mcp）
+    not_meaning: 利用者ではない。委任の連鎖の全体ではない（連鎖は act）
+    decision: 採用
+    rationale: STS が書くトークンでは RFC 9068 の REQUIRED に合わせて必ず出す。外部の IdP（Auth0・Cognito）の AT では、入口が許可したクライアントかを確かめる（Cognito は aud の代わり）
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: guide-slide, id: p10-four-questions}
+    assumption: クライアントの ID は STS のクライアントの登録で一意
+    revisit_trigger: 動的なクライアント登録を受け入れるとき
+    usage: authz
+    answers: [q-agent]
+    does_not_answer: [q-user]
+    issuers: ["https://sts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer:
+      - {stage: "②", writer: 外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（クライアント認証の結果）, configurable_by: [platform]}
+    provenance: 発行者が確かめた値
+    verification_method: STS が private_key_jwt のクライアント認証で確かめた ID
+    issue_events: [I01, I06, I13, I21]
+    source_system: STS のクライアントの登録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange, reissue]
+    on_revoke: クライアントを無効にしたら新しい発行が止まる
+    carried_in: [EXT_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, AGENT_AT, TASK_AT]
+    consumers: [gateway, orders, invoice-mcp, invoices]
+    on_missing: 拒否
+    enforced_at:
+      - {service: gateway, check: Cognito の AT の client_id が許可リストのクライアント（ケーススタディ B16）}
+      - {service: orders, check: 必須。記録する（呼び出し元のクライアントの監査）}
+      - {service: invoice-mcp, check: AGENT_AT の client_id が act.sub と同じエージェント}
+      - {service: invoices, check: TASK_AT の client_id が直接の通信相手（mTLS の相手の ID）と一致する}
+    max_bytes: 32
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 8693）
+    evidence: ["jwt-claims-casestudy@080b8da:B16", "jwt-claims-casestudy@080b8da:C4"]
+
+  - id: C-azp
+    name: azp
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0406", "jwt-claims-casestudy@080b8da:CLM-0409", "jwt-claims-casestudy@080b8da:CLM-0410", "jwt-claims-casestudy@080b8da:CLM-0411"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: string
+    shape: single
+    description: トークンを渡された当事者（Keycloak の AT ではクライアント portal）
+    not_meaning: client_id（RFC 8693・RFC 9068）ではない。Keycloak の AT は client_id の代わりに azp を出す
+    decision: 既定どおり
+    rationale: Keycloak・外部の IdP が出すものを、入口が呼び出し元のクライアントの確認に読む。組織のトークンには client_id に写す
+    refs:
+      - {kind: guide-slide, id: p03-confusing-differences}
+    usage: authz
+    issuers: ["https://idp.example.com/realms/corp", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    authoritative_writer: [{stage: "②", writer: Keycloak と外部の IdP, configurable_by: [platform]}]
+    issue_events: [I01, I02]
+    source_system: IdP のクライアントの登録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, IDT, EXT_AT]
+    consumers: [gateway, portal]
+    on_missing: 拒否
+    enforced_at:
+      - {service: gateway, check: KC_AT の azp が portal、EXT_AT の azp が許可したクライアント。値を INT_AT の client_id に写す}
+      - {service: portal, check: IDT の aud が複数なら azp が portal}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+
+  - id: C-scope
+    name: scope
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0299", "jwt-claims-casestudy@080b8da:CLM-0300"]
+    registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+    type: string
+    shape: space_delimited
+    max_items: 4
+    typical_items: 2
+    description: クライアント（エージェント・ツール）に許した操作の範囲。AGENT_AT は invoices.read invoices.pay、TASK_AT はタスクの範囲だけ
+    not_meaning: 利用者のロールではない。個別の請求書や金額の承認ではない（それは authorization_details）
+    decision: 採用
+    rationale: エージェントのタスクの範囲を、交換のたびに上流以下に絞る（返金の範囲を求めても与えない。ケーススタディ C14）。KC_AT では入口だけが読む
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2.3", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3"}
+      - {kind: guide-slide, id: p10-per-tool-scopes}
+      - {kind: guide-slide, id: p05-scope-vs-role}
+    assumption: STS の交換は、要求された scope と subject_token の scope の積だけを出す
+    revisit_trigger: エージェントのツールを増やすとき（語彙と max_items を見直す）
+    usage: authz
+    answers: [q-authorized]
+    does_not_answer: [q-resource]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（クライアントスコープ）, configurable_by: [platform]}
+      - {stage: "⑥", writer: 入口の STS（CIBA の同意・交換で絞る）, configurable_by: [platform]}
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02, I06, I13]
+    source_system: STS のクライアントごとの許可（エージェント・ツールの登録）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange]
+    on_revoke: 寿命（300 秒）の間は変わらない。タスクの範囲を変えるときは交換し直す
+    carried_in: [KC_AT, AGENT_AT, TASK_AT]
+    consumers: [gateway, invoice-mcp, invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否, empty_string: 拒否}
+    value_vocabulary: {values: [openid, invoices.read, invoices.pay, invoices.refund], owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: gateway, check: KC_AT の scope に openid があること（ほかは読まない）}
+      - {service: invoice-mcp, check: 呼ばれたツールに要る scope が AGENT_AT にあること。足りなければ WWW-Authenticate で要る scope を示す}
+      - {service: invoices, check: 操作（read・pay・refund）に要る scope が TASK_AT にあること（ケーススタディ C14）}
+    max_bytes: 49
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 8693）
+    evidence: ["jwt-claims-casestudy@080b8da:C14"]
+    asvs_ids: ["v5.0.0-10.3.2"]
+
+  # ------------------------------------------------------------ 委任（P4。シナリオ C から）
+  - id: C-act
+    name: act
+    namespace: null
+    path: [act]
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0369", "jwt-claims-casestudy@080b8da:CLM-0370", "jwt-claims-casestudy@080b8da:CLM-0373"]
+    registered_ref: {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    type: object
+    shape: single
+    description: 最も外側の act。今の代理者（AGENT_AT では agent:expense、TASK_AT では invoice-mcp）を act.sub で示す
+    not_meaning: 誰の権限で（sub）ではない。どの取引か（txn）でも、直接の通信相手（mTLS の相手）でもない。入れ子の内側の act は過去の代理者で、今の代理者ではない（C-act-prior）
+    decision: 採用
+    rationale: 受け手は「今の代理者」を最も外側の act.sub で読み、直接の通信相手（mTLS の相手の ID）と一致するかを確かめる。過去の代理者（管理コンソールなど）の権限で動かさない（ケーススタディ C4）
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+      - {kind: guide-slide, id: p10-agent-identity}
+    assumption: STS だけが act を書き、交換のたびに今の代理者を外側に足す
+    revisit_trigger: Keycloak の標準トークン交換に移す（Keycloak 26.8 の標準トークン交換は act を出さない。ケーススタディの実測）とき
+    usage: authz
+    answers: [q-actor]
+    does_not_answer: [q-sub, q-req-wl, q-peer, q-txn]
+    issuers: ["https://sts.corp.example.com"]
+    authoritative_writer: [{stage: "⑥", writer: 入口の STS（CIBA の委任・トークン交換）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    verification_method: STS が、交換を求めたクライアントの認証（private_key_jwt）と、利用者の委任の記録で確かめる
+    issue_events: [I06, I13]
+    source_system: STS の委任の記録（利用者がエージェントに与えた委任）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: 委任を取り消したら、STS は交換を断る。発行済みの AGENT_AT・TASK_AT は寿命（300 秒）まで残る（ケーススタディ C9）
+    carried_in: [AGENT_AT, TASK_AT]
+    consumers: [invoice-mcp, invoices]
+    consumer_access_path:
+      - {consumer: invoice-mcp, via: token_library, note: 組織共通の検証の部品が最も外側の act.sub だけを「今の代理者」として返す}
+      - {consumer: invoices, via: token_library}
+    on_missing: 拒否
+    absent_semantics: {absent: "拒否（エージェントが利用者のトークンを借りた形。ケーススタディ C12）", empty_string: 拒否}
+    enforced_at:
+      - {service: invoice-mcp, check: 最も外側の act.sub が agent:expense で、直接の通信相手（mTLS の相手の ID）と一致する}
+      - {service: invoices, check: "最も外側の act.sub が invoice-mcp で、直接の通信相手と一致する。委任の連鎖の深さが 3 以下（組織の規則。ケーススタディ C10）。act の方針表で、その代理者に許した操作だけ（C4）"}
+    max_bytes: 160
+    overflow_strategy: 発行を失敗させる
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization.delegation]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 8693）
+    evidence: ["jwt-claims-casestudy@080b8da:C4", "jwt-claims-casestudy@080b8da:C10", "jwt-claims-casestudy@080b8da:C12"]
+    note: 入れ子の内側の act（過去の代理者）は、この行に含めて扱う（同じ名前の行を 2 つにすると、#6 の規則 L1b・L7 に当たる）。受け手は内側の act を監査の連鎖として記録するだけで、認可にも「誰が代理して実行しているか」の答えにも使わない（RFC 8693 §4.1）。max_bytes は深さ 3 の連鎖のオブジェクト全体。深さが 3 を超える交換は STS が断る（overflow_strategy の発行を失敗させる）
+
+  - id: C-cnf
+    name: cnf
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0429", "jwt-claims-casestudy@080b8da:CLM-0431"]
+    registered_ref: {kind: spec, id: "RFC 7800 §3.1", url: "https://www.rfc-editor.org/rfc/rfc7800#section-3.1"}
+    type: object
+    shape: single
+    description: トークンを束縛した鍵。DPoP の公開鍵の JWK の SHA-256 の拇印（cnf.jkt）
+    not_meaning: 利用者やクライアントの ID ではない
+    decision: 採用
+    rationale: エージェントの実行基盤とツールが持つ DPoP の鍵にトークンを束縛し、漏れたトークンを別の端末から使えないようにする（ケーススタディ B23 の見送りの代償を、P4 の部分では払わない）
+    refs:
+      - {kind: spec, id: "RFC 9449 §6.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-6.1"}
+      - {kind: guide-slide, id: p08-rotation}
+    assumption: agent-runtime と invoice-mcp は、鍵を取り出せない保管（HSM など）で DPoP の鍵を持つ
+    revisit_trigger: 送信者制約を「なし」にするとき（variants/sender-none.yaml の比較）
+    usage: authz
+    answers: [q-holder]
+    issuers: ["https://sts.corp.example.com"]
+    authoritative_writer: [{stage: "⑥", writer: 入口の STS（トークンの要求に付いた DPoP の proof の鍵）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I06, I13, I29]
+    source_system: トークンの要求に付いた DPoP の proof の公開鍵
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: 該当なし
+    carried_in: [AGENT_AT, TASK_AT]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否（Bearer としては受けない）}
+    enforced_at:
+      - {service: invoice-mcp, check: Authorization が DPoP で、DPoP の proof の公開鍵の拇印が cnf.jkt と一致する。proof の htm・htu・iat・ath を照合し、jti を受け入れる期間の間覚えて再送を拒否する（RFC 9449 §4.3・§11.1）}
+      - {service: invoices, check: Authorization が DPoP で、DPoP の proof の公開鍵の拇印が cnf.jkt と一致する。proof の htm・htu・iat・ath を照合し、jti を受け入れる期間の間覚えて再送を拒否する（RFC 9449 §4.3・§11.1）}
+    max_bytes: 54
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.authentication]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 7800）
+    evidence: ["jwt-claims-casestudy@080b8da:B23"]
+    note: max_bytes は {"jkt":"<43 文字>"} の全体（51 バイト）に余裕を足した値
+
+  - id: C-dpop-htm
+    name: htm
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0443"]
+    registered_ref: {kind: spec, id: "RFC 9449 §4.2", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.2"}
+    type: string
+    shape: single
+    description: DPoP の proof を付けた要求の HTTP メソッド
+    not_meaning: 許可された操作ではない
+    decision: 採用
+    rationale: proof を別のメソッドの要求に使い回させない
+    refs:
+      - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
+    assumption: DPoP を使う（C-cnf と同じ）
+    revisit_trigger: 送信者制約を「なし」にするとき
+    usage: protocol
+    issuers: ["agent-runtime", "invoice-mcp"]
+    authoritative_writer: [{stage: "⑥", writer: DPoP の proof を作るクライアント, configurable_by: [client]}]
+    issue_events: [I30]
+    source_system: クライアントの要求
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [DPOP]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 拒否
+    enforced_at:
+      - {service: invoice-mcp, check: 要求のメソッドと一致する}
+      - {service: invoices, check: 要求のメソッドと一致する}
+    max_bytes: 7
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 9449）
+    evidence: []
+
+  - id: C-dpop-htu
+    name: htu
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0444"]
+    registered_ref: {kind: spec, id: "RFC 9449 §4.2", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.2"}
+    type: string
+    shape: single
+    description: DPoP の proof を付けた要求の URI（クエリとフラグメントを除く）
+    not_meaning: トークンの宛先（aud）ではない
+    decision: 採用
+    rationale: proof を別の宛先の要求に使い回させない
+    refs:
+      - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
+    assumption: 入口で URI を書き換えない（書き換えるなら受け手が元の URI を知る手段が要る）
+    revisit_trigger: invoice-mcp・invoices の前に URI を書き換える部品を置くとき
+    usage: protocol
+    issuers: ["agent-runtime", "invoice-mcp"]
+    authoritative_writer: [{stage: "⑥", writer: DPoP の proof を作るクライアント, configurable_by: [client]}]
+    issue_events: [I30]
+    source_system: クライアントの要求
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [DPOP]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 拒否
+    value_normalization: {case: as_is, compare: exact, normalized_by: 受け手が RFC 9449 §4.3 の規則で要求の URI と比べる}
+    enforced_at:
+      - {service: invoice-mcp, check: 要求の URI（クエリとフラグメントを除く）と一致する}
+      - {service: invoices, check: 要求の URI（クエリとフラグメントを除く）と一致する}
+    max_bytes: 128
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 9449）
+    evidence: []
+
+  - id: C-dpop-ath
+    name: ath
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0442"]
+    registered_ref: {kind: spec, id: "RFC 9449 §4.2", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.2"}
+    type: string
+    shape: single
+    description: 資源サーバーへの要求の proof に付ける、AT の SHA-256 の値（base64url）
+    not_meaning: トークンそのものではない
+    decision: 採用
+    rationale: proof を、別の AT と組み合わせて使わせない
+    refs:
+      - {kind: spec, id: "RFC 9449 §4.3", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.3"}
+    assumption: 資源サーバー（invoice-mcp・invoices）への要求の proof には必ず付ける。トークン端点（STS）への proof には付かない
+    revisit_trigger: 送信者制約を「なし」にするとき
+    usage: protocol
+    issuers: ["agent-runtime", "invoice-mcp"]
+    authoritative_writer: [{stage: "⑥", writer: DPoP の proof を作るクライアント, configurable_by: [client]}]
+    issue_events: [I30]
+    source_system: クライアントが持つ AT
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [DPOP]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 拒否
+    enforced_at:
+      - {service: invoice-mcp, check: 受け取った AT の SHA-256 と一致する}
+      - {service: invoices, check: 受け取った AT の SHA-256 と一致する}
+    max_bytes: 43
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 9449）
+    evidence: []
+
+  - id: C-authorization-details
+    name: authorization_details
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0256"]
+    registered_ref: {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+    type: object
+    shape: array
+    max_items: 1
+    typical_items: 1
+    description: 人が承認した支払いの内容（type https://claims.example.com/rar/payment、actions [pay]、identifier（請求書の ID）、instructedAmount、creditorAccount）
+    not_meaning: 一般の権限（scope）ではない。承認の証拠そのものではない（記録は C-approval-id で引く）
+    decision: 採用
+    rationale: invoices が、要求の本文の金額・相手先・請求書を承認の内容と照合する。違えば拒否する（ケーススタディ C5・C6・C7）
+    refs:
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+      - {kind: guide-slide, id: p10-human-approval-evidence}
+    assumption: 承認は CIBA で本人に確かめ、STS が承認の記録から書く。エージェントは承認の有無を判断しない
+    revisit_trigger: 1 つのタスクで複数の支払いを承認するとき（max_items を見直す）
+    usage: authz
+    answers: [q-authorized]
+    does_not_answer: [q-actor]
+    issuers: ["https://sts.corp.example.com"]
+    authoritative_writer: [{stage: "⑥", writer: 入口の STS（承認の記録から）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    verification_method: CIBA で本人が承認した記録（承認の ID・請求書・金額・相手先）を STS が引く
+    issue_events: [I06, I14]
+    source_system: 承認の記録（STS の承認の DB）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: 承認を取り消したら交換を断る。発行済みの TASK_AT は寿命（300 秒）まで残るので、invoices は支払いの前に承認の記録の状態を引く
+    carried_in: [TASK_AT]
+    consumers: [invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 支払いを拒否（読み取りだけ許す）, empty_array: 支払いを拒否}
+    value_vocabulary: {values: ["https://claims.example.com/rar/payment"], namespace: "https://claims.example.com/rar/", owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: invoices, check: "type が https://claims.example.com/rar/payment で、identifier・instructedAmount・creditorAccount が要求の本文と一致する（C5・C6）。C-approval-id の記録が有効か、支払いの前に承認の DB を引く（C7）"}
+    max_bytes: 220
+    overflow_strategy: 発行を失敗させる
+    pii_category: 個人関連情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.financial]
+    confidential_from: [logs]
+    confidentiality_measure: {outcome: 載せない, rationale: "ログには載せない（log_policy はハッシュ化して記録）。トークンは invoice-mcp と invoices だけが持つ（visible_to に logs がない）ので、派生値・JWE は要らなかった"}
+    status: active
+    owner: 経理部（承認の記録の持ち主）
+    change_controller: IETF（RFC 9396）
+    evidence: ["jwt-claims-casestudy@080b8da:C5", "jwt-claims-casestudy@080b8da:C6", "jwt-claims-casestudy@080b8da:C7", "jwt-claims-casestudy@080b8da:C8"]
+    asvs_ids: ["v5.0.0-10.3.2"]
+    note: ORG-08（type の値）はケーススタディの ORG 行だが、型の名前（authorization_details[type=…]）が台帳の name の形にならないので参照しない。type の値は value_vocabulary に書いた
+
+  # ------------------------------------------------------------ Txn-Token（P5）
+  - id: C-txn
+    name: txn
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0500"]
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: string
+    shape: single
+    description: 呼び出し全体の取引の ID（TTS が入口の要求ごとに付ける）
+    not_meaning: トークンの ID（jti）ではない。誰が代理しているか（act）でも、どのワークロードが求めたか（req_wl）でもない
+    decision: 採用
+    rationale: 入口からサービス・キュー・ワーカーまで同じ ID で監査を相関させる。認可には使わない
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p06-transaction-tokens}
+      - {kind: guide-slide, id: p06-audit-trail}
+    assumption: TTS は入口の要求ごとに新しい txn を付け、サービス間の伝搬では改変しない
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき（RFC になったとき）
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-txn]
+    does_not_answer: [q-actor, q-req-wl]
+    issuers: ["https://tts.corp.example.com"]
+    authoritative_writer: [{stage: "④", writer: TTS, configurable_by: [platform]}]
+    issue_events: [I22]
+    source_system: TTS の乱数
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし
+    carried_in: [TXN]
+    consumers: [ledger, payment-worker]
+    on_missing: 拒否
+    enforced_at:
+      - {service: ledger, check: 必須。監査のログに記録する}
+      - {service: payment-worker, check: メッセージの txn と、付いた TXN の txn が一致する}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations.transaction]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+    evidence: []
+
+  - id: C-req-wl
+    name: req_wl
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0421"]
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: string
+    shape: single
+    description: Txn-Token を TTS に求めたワークロード（この例では入口 gateway の SPIFFE ID）
+    not_meaning: 直接の通信相手（mTLS の相手）ではない。今の代理者（act）でもない
+    decision: 採用
+    rationale: どの入口が取引を始めたかを、伝搬の途中で書き換えずに残す（監査の相関）。直接の通信相手は mTLS の相手の ID で別に確かめる
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+    assumption: TXN を求めてよいワークロードは入口だけ（TTS の許可リスト）
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき。入口以外に TXN を求めさせるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-req-wl]
+    does_not_answer: [q-peer, q-actor]
+    issuers: ["https://tts.corp.example.com"]
+    authoritative_writer: [{stage: "④", writer: TTS（要求したワークロードの mTLS の相手の ID）, configurable_by: [platform]}]
+    issue_events: [I22]
+    source_system: TTS に接続したワークロードの mTLS の証明書（SPIFFE の X.509-SVID）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし
+    carried_in: [TXN]
+    consumers: [ledger, payment-worker]
+    on_missing: 拒否
+    enforced_at:
+      - {service: ledger, check: 入口の SPIFFE ID であること。監査に記録する}
+      - {service: payment-worker, check: 入口の SPIFFE ID であること}
+    max_bytes: 64
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+    evidence: []
+    note: IANA の JWT Claims にまだ登録がない（草案が登録を求めている）。名前空間なしで使うのは草案の定めのため（L1b の指摘は design.md の 12. に書いた）
+
+  - id: C-tctx
+    name: tctx
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0510"]
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.3", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: object
+    shape: single
+    description: TTS が決めた取引の文脈（operation：要求の操作の種類）
+    not_meaning: 要求時点の環境の値（rctx）ではない。承認の内容（authorization_details）ではない
+    decision: 採用
+    rationale: 下流のサービスが、要求の本文の操作が取引の文脈と同じかを照合する（入口で決めた操作から外れた呼び出しを拒否する）
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p04-split-by-writer}
+    assumption: operation の語彙は入口の経路の表で決まる
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-txn]
+    does_not_answer: [q-authorized]
+    issuers: ["https://tts.corp.example.com"]
+    authoritative_writer: [{stage: "④", writer: TTS（入口の経路の表）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I22]
+    source_system: TTS の経路と操作の表
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし
+    carried_in: [TXN]
+    consumers: [ledger, payment-worker]
+    on_missing: 拒否
+    value_vocabulary: {values: [operation], owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: ledger, check: "tctx の operation が、要求の操作（ledger.read・ledger.post）と一致する"}
+      - {service: payment-worker, check: "tctx の operation が payment.notify であること"}
+    max_bytes: 40
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations.transaction]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+    evidence: []
+    note: IANA の JWT Claims にまだ登録がない（C-req-wl の note と同じ）
+
+  # ------------------------------------------------------------ 認証の強さ・セッション
+  - id: C-acr
+    name: acr
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0206", "jwt-claims-casestudy@080b8da:CLM-0209", "jwt-claims-casestudy@080b8da:CLM-0212", "jwt-claims-casestudy@080b8da:CLM-0213", "jwt-claims-casestudy@080b8da:CLM-0214"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: string
+    shape: single
+    description: ログインの認証の強さ。INT_AT では入口が組織の語彙（pwd・mfa）に正規化した値
+    not_meaning: 本人確認の水準ではない。今も同じ強さで認証されているという意味ではない
+    decision: 採用
+    rationale: 経理の台帳（ledger）の操作は mfa を求める。足りなければ追加認証を求める
+    refs:
+      - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+      - {kind: guide-slide, id: p06-step-up-approval}
+    assumption: 各 IdP の acr・amr から組織の語彙への対応表を入口が持つ
+    revisit_trigger: IdP を足すか、IdP が acr の値を変えたとき
+    usage: authz
+    answers: [q-authorized]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+    upstream_issuer:
+      iss: ["https://idp.example.com/realms/corp", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE"]
+      source_attribute: 各 IdP の acr。Entra は amr（ケーススタディ CLM-0219）
+      normalization: 入口の対応表で pwd・mfa に写す。対応表にない値は pwd とする
+    authoritative_writer:
+      - {stage: "①", writer: Keycloak と外部の IdP, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（組織の語彙に正規化）, configurable_by: [platform]}
+    provenance: 発行者が確かめた値
+    issue_events: [I01, I02, I21]
+    source_system: IdP の認証の記録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: 該当なし（リフレッシュではログインの値を保つ）
+    carried_in: [KC_AT, IDT, EXT_AT, INT_AT_LEDGER]
+    consumers: [gateway, ledger, portal]
+    on_missing: 既定値
+    absent_semantics: {absent: "pwd とみなす（mfa を求める操作は追加認証を求める）"}
+    value_vocabulary: {values: [pwd, mfa], owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: gateway, check: 対応表で組織の語彙に写す}
+      - {service: ledger, check: "mfa でなければ 401 と WWW-Authenticate の insufficient_user_authentication（RFC 9470）"}
+      - {service: portal, check: 経理の画面に進む前に IDT の acr が mfa か}
+    max_bytes: 3
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.authentication]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+
+  - id: C-auth-time
+    name: auth_time
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0228", "jwt-claims-casestudy@080b8da:CLM-0229"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: integer
+    shape: single
+    description: 利用者が認証した時刻
+    not_meaning: トークンの発行の時刻（iat）ではない
+    decision: 採用
+    rationale: 経理の台帳の操作は、認証から 900 秒以内を求める（max_age）
+    refs:
+      - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+      - {kind: guide-slide, id: p02-auth-strength-session}
+    assumption: リフレッシュでは認証の時刻を変えない（Keycloak の挙動）
+    revisit_trigger: 経理の操作の max_age を変えるとき
+    usage: authz
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "①", writer: Keycloak（basic スコープ）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（KC_AT の値を写す）, configurable_by: [platform]}
+    issue_events: [I01, I02, I21]
+    source_system: Keycloak の認証のセッション
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, IDT, INT_AT_LEDGER]
+    consumers: [gateway, ledger, portal]
+    on_missing: 既定値
+    absent_semantics: {absent: 認証の時刻が分からない（max_age を求める操作は追加認証を求める）}
+    enforced_at:
+      - {service: gateway, check: KC_AT の値を INT_AT に写す}
+      - {service: ledger, check: "今 − auth_time ≤ 900 でなければ insufficient_user_authentication（max_age 900）"}
+      - {service: portal, check: max_age を付けたログインの応答で IDT の auth_time を照合する}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.authentication]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+
+  - id: C-sid
+    name: sid
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0239", "jwt-claims-casestudy@080b8da:CLM-0240", "jwt-claims-casestudy@080b8da:CLM-0243"]
+    registered_ref: {kind: spec, id: "OpenID Connect Front-Channel Logout 1.0 §3", url: "https://openid.net/specs/openid-connect-frontchannel-1_0.html"}
+    type: string
+    shape: single
+    description: Keycloak のセッションの ID。INT_AT には入口が KC_AT の値を写す
+    not_meaning: ポータルの BFF のセッションの ID（Cookie）ではない。トークンの ID でもない
+    decision: 採用
+    rationale: 経理・管理の操作で、ログアウトの後に残った INT_AT を拒否するため、ledger が Keycloak のセッションの有無をこの値で引く（ケーススタディ B12）。portal はログアウトトークンの sid で自分のセッションを終える
+    refs:
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+      - {kind: guide-slide, id: p08-logout}
+    assumption: ledger は Keycloak の管理 API（セッションの一覧）を、読み取り専用のサービスアカウントで引ける
+    revisit_trigger: Keycloak のセッションの引き直しが遅すぎる（p95 が 100 ms を超える）とき。SSF・CAEP の受信に替えるとき
+    usage: authz
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "①", writer: Keycloak（セッション）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（KC_AT の値を写す）, configurable_by: [platform]}
+    issue_events: [I01, I02, I09, I21]
+    source_system: Keycloak のセッション
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: "値は変わらない（セッションごとに一意）。変わるのはセッションの有無で、ログアウトで Keycloak のセッションが消える。ledger は重要な操作のたびにセッションの有無を引き直す（遅れ 0 秒。INT_AT の revocation の db_lookup）。orders・docs は寿命（受け入れの上限 330 秒）まで残るのを許す"
+    carried_in: [KC_AT, IDT, LOGOUT, INT_AT_LEDGER]
+    consumers: [gateway, portal, ledger]
+    on_missing: 拒否
+    enforced_at:
+      - {service: gateway, check: KC_AT の値を INT_AT に写す}
+      - {service: portal, check: LOGOUT の sid に当たる自分のセッションを消す}
+      - {service: ledger, check: 重要な操作のたびに Keycloak のセッションの一覧にこの sid があるかを引く（無ければ拒否。B12）}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人関連情報
+    log_policy: ハッシュ化して記録
+    data_category: [system.authentication]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Front-Channel Logout 1.0）
+    evidence: ["jwt-claims-casestudy@080b8da:B12", "jwt-claims-casestudy@080b8da:keycloak.logout_introspection"]
+    note: ケーススタディは入口が KC の sid を組織の名前空間の sid（ORG-11）に写すとしたが、記入例は標準の sid のまま INT_AT に写した（同じ値に 2 つの名前を付けない）。ORG-11 は casestudy-deviations.yaml の not_in_example
+
+  - id: C-nonce
+    name: nonce
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0488", "jwt-claims-casestudy@080b8da:CLM-0489", "jwt-claims-casestudy@080b8da:CLM-0687", "jwt-claims-casestudy@080b8da:CLM-0688", "jwt-claims-casestudy@080b8da:CLM-0689", "jwt-claims-casestudy@080b8da:CLM-0690"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: string
+    shape: single
+    description: nonce（使い捨ての値。IDT では portal の認可要求の値、DPoP の proof では資源サーバーが DPoP-Nonce で渡した値。行ごとの書き手は authoritative_writer）
+    not_meaning: トークンの ID ではない
+    decision: 採用
+    rationale: IDT の再送（別のログインの応答の流用）を拒否する。ログアウトトークンには nonce があってはならない（あれば拒否）。DPoP の proof の nonce は別の行（C-dpop-nonce）
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+    assumption: portal は認可要求ごとに新しい nonce を作り、セッションに保つ
+    revisit_trigger: portal の認可要求の作り方を変えるとき
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "①", writer: Keycloak（要求の nonce を写す）, configurable_by: [platform]}]
+    issue_events: [I01]
+    source_system: portal が作った認可要求の nonce
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: 該当なし
+    carried_in: [IDT]
+    consumers: [portal]
+    on_missing: 拒否
+    enforced_at:
+      - {service: portal, check: IDT の nonce が認可要求の値と一致する。LOGOUT に nonce があれば拒否する}
+    max_bytes: 64
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+
+  - id: C-dpop-nonce
+    name: nonce
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0486"]
+    registered_ref: {kind: spec, id: "RFC 9449 §4.2", url: "https://www.rfc-editor.org/rfc/rfc9449#section-4.2"}
+    type: string
+    shape: single
+    description: nonce（使い捨ての値。IDT では portal の認可要求の値、DPoP の proof では資源サーバーが DPoP-Nonce で渡した値。行ごとの書き手は authoritative_writer）
+    not_meaning: トークンの ID ではない。IDT の nonce（C-nonce）とは書き手が違う
+    decision: 採用
+    rationale: サーバーが決めた値で、proof の作り置き（先に作って後で使う）を拒否する
+    refs:
+      - {kind: spec, id: "RFC 9449 §8", url: "https://www.rfc-editor.org/rfc/rfc9449#section-8"}
+    assumption: invoice-mcp・invoices は DPoP-Nonce を返す。最初の要求の proof には nonce が無く、サーバーが use_dpop_nonce で求める
+    revisit_trigger: DPoP-Nonce を使わないことにしたとき
+    usage: protocol
+    issuers: ["agent-runtime", "invoice-mcp"]
+    authoritative_writer: [{stage: "⑥", writer: DPoP の proof を作るクライアント（サーバーが渡した値を写す）, configurable_by: [client]}]
+    issue_events: [I30]
+    source_system: 資源サーバーが返した DPoP-Nonce
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [DPOP]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 無視
+    absent_semantics: {absent: "最初の要求の proof として扱い、401 と use_dpop_nonce の誤りで DPoP-Nonce を渡す（RFC 9449 §8）"}
+    enforced_at:
+      - {service: invoice-mcp, check: あれば、自分が返した DPoP-Nonce（有効期間 300 秒）と一致する。無ければ DPoP-Nonce を渡して取り直させる}
+      - {service: invoices, check: あれば、自分が返した DPoP-Nonce と一致する。無ければ DPoP-Nonce を渡して取り直させる}
+    max_bytes: 64
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 9449）
+    evidence: []
+
+  - id: C-events
+    name: events
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0483"]
+    registered_ref: {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+    type: object
+    shape: single
+    description: ログアウトトークンのイベント（http://schemas.openid.net/event/backchannel-logout）
+    not_meaning: SSF・CAEP の任意のイベントではない
+    decision: 採用
+    rationale: ログアウトトークンを、ほかの用途の JWT と取り違えずに受ける
+    refs:
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.6", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation"}
+    assumption: Keycloak がクライアント portal に Back-Channel Logout を送る設定にする
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "①", writer: Keycloak, configurable_by: [platform]}]
+    issue_events: [I09]
+    source_system: Keycloak のログアウトの処理
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [LOGOUT]
+    consumers: [portal]
+    on_missing: 拒否
+    enforced_at:
+      - {service: portal, check: events にバックチャネルログアウトのイベントのメンバーがある}
+    max_bytes: 60
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: IETF（RFC 8417）
+    evidence: []
+
+  # ------------------------------------------------------------ ポータルの表示（IDT だけ）
+  - id: C-name
+    name: name
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0559", "jwt-claims-casestudy@080b8da:CLM-0565"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+    type: string
+    shape: single
+    description: 社員の表示名
+    not_meaning: 識別子ではない。照合に使わない
+    decision: 採用
+    rationale: ポータルのログイン後の画面に表示する。AT・INT_AT には載せない
+    refs:
+      - {kind: guide-slide, id: p09-do-not-carry}
+    assumption: 表示名は社員本人にだけ見せる
+    usage: display
+    paired_id: C-sub
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "②", writer: Keycloak（profile スコープの full name マッパー）, configurable_by: [platform]}]
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02]
+    source_system: 人事の社員の台帳（Keycloak のユーザーに同期）
+    volatility: 86400
+    propagation_delay: 36000
+    recompute_trigger: [login, refresh]
+    on_revoke: 表示だけなので、次のリフレッシュかログインで直る
+    carried_in: [IDT]
+    consumers: [portal]
+    on_missing: 無視
+    absent_semantics: {absent: 表示名を出さない}
+    enforced_at: []
+    max_bytes: 192
+    overflow_strategy: 上限で固定（超えない値域）
+    source_max_length: {value: 64, unit: code_points, basis: 人事の台帳の氏名の欄（64 文字。UTF-8 で最大 192 バイト）}
+    pii_category: 個人情報
+    log_policy: 記録しない
+    data_category: [user.name]
+    display:
+      - {locale: ja, label: 氏名}
+      - {locale: en, label: Name}
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "ブラウザに届くもの（BFFSESSION の Cookie）には載せない。IDT は portal のサーバーに留める（IDT の visible_to に browser がない）。画面には portal がサーバー側で描いた表示だけを出す"}
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: active
+    owner: 人事部
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+    note: volatility は「表示名の変更が 1 日以内に反映されればよい」。propagation_delay は RT の絶対的な上限（36000 秒）まで（ログインし直すまで古い名前が出うる）
+
+  - id: C-email
+    name: email
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0527", "jwt-claims-casestudy@080b8da:CLM-0529", "jwt-claims-casestudy@080b8da:CLM-0530", "jwt-claims-casestudy@080b8da:CLM-0531", "jwt-claims-casestudy@080b8da:CLM-0534"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+    type: string
+    shape: single
+    description: 社員の業務用のメールアドレス
+    not_meaning: 識別子ではない（再利用される。ケーススタディ B13）
+    decision: 採用
+    rationale: ポータルの画面に表示する。照合には使わない
+    refs:
+      - {kind: guide-slide, id: p04-immutable-identifiers}
+    assumption: 外部の IdP のメール（模擬の Entra・Okta・Cognito）は入口で読まない
+    usage: display
+    paired_id: C-sub
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "②", writer: Keycloak（email スコープ）, configurable_by: [platform]}]
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02]
+    source_system: 人事の社員の台帳
+    volatility: 86400
+    propagation_delay: 36000
+    recompute_trigger: [login, refresh]
+    on_revoke: 表示だけなので、次のリフレッシュかログインで直る
+    carried_in: [IDT]
+    consumers: [portal]
+    on_missing: 無視
+    absent_semantics: {absent: メールを出さない}
+    enforced_at: []
+    max_bytes: 254
+    overflow_strategy: 上限で固定（超えない値域）
+    source_max_length: {value: 254, unit: bytes, basis: 人事の台帳のメールの欄}
+    pii_category: 個人情報
+    log_policy: 記録しない
+    data_category: [user.contact.email]
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "C-name と同じ（IDT は portal のサーバーに留める）"}
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: active
+    owner: 人事部
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: ["jwt-claims-casestudy@080b8da:B13"]
+
+  - id: C-email-verified
+    name: email_verified
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0538"]
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+    type: boolean
+    shape: single
+    description: メールアドレスを IdP が確かめたか
+    not_meaning: 本人確認ではない
+    decision: 既定どおり
+    rationale: Keycloak が email スコープで email と一緒に出す。portal は表示にだけ使う
+    refs:
+      - {kind: guide-slide, id: p02-registered-claims}
+    usage: display
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "②", writer: Keycloak（email スコープ）, configurable_by: [platform]}]
+    issue_events: [I01, I02]
+    source_system: Keycloak のユーザー
+    volatility: 86400
+    propagation_delay: 36000
+    recompute_trigger: [login, refresh]
+    on_revoke: 表示だけ
+    carried_in: [IDT]
+    consumers: [portal]
+    on_missing: 無視
+    absent_semantics: {absent: 未確認として表示する, "false": 未確認として表示する}
+    enforced_at: []
+    max_bytes: 5
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人情報
+    log_policy: 記録しない
+    data_category: [user.contact.email]
+    confidential_from: [browser]
+    confidentiality_measure: {outcome: 載せない, rationale: "C-name と同じ"}
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+    evidence: []
+
+  - id: C-typ-claim
+    name: typ
+    namespace: null
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0198"]
+    type: string
+    shape: single
+    description: Keycloak がペイロードに出す typ（値は Bearer）。ヘッダーの typ（at+jwt）とは別
+    not_meaning: トークンの種類の確かめ方ではない（受け手はヘッダーの typ を見る）
+    decision: 既定どおり
+    rationale: Keycloak が外せないクレームとして出す。誰も読まない
+    refs:
+      - {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」", url: "https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token", verified_on: "2026-11-22"}
+    max_bytes: 6
+    pii_category: 該当なし
+    carried_in: [KC_AT]
+    consumers: []
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp"]
+    authoritative_writer: [{stage: "②", writer: Keycloak, configurable_by: [platform]}]
+    issue_events: [I01, I02]
+    on_missing: 無視
+    overflow_strategy: 上限で固定（超えない値域）
+    log_policy: 記録する
+    owner: 社内 ID 基盤チーム
+    source_system: Keycloak
+    volatility: never
+    propagation_delay: 0
+    status: active
+    data_category: [system.operations]
+    confidential_from: []
+
+  # ------------------------------------------------------------ 組織の名前空間（共有クレーム。追加前の 25 問は claim_request_*.md）
+  - id: C-tenant-id
+    name: tenant_id
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-01"]
+    type: string
+    shape: single
+    description: 主体が今回の操作で属するテナント。社内システムなので固定値 corp
+    not_meaning: 部署ではない。会社のグループ会社の区別でもない（それは idp と user_id で決まる）
+    decision: 採用
+    rationale: ケーススタディの共通の基準に合わせ、すべての組織のトークンに載せる。受け手は corp 以外を拒否し、将来グループ会社をテナントとして分けるときに型を変えずに済むようにする
+    refs:
+      - {kind: guide-slide, id: p04-namespace-object-example}
+      - {kind: guide-slide, id: p05-multitenancy}
+    assumption: 社内システムのテナントは corp だけ
+    revisit_trigger: グループ会社を別のテナントとして扱うとき（マルチテナントの設計になり、M_multitenancy の判断が要る）
+    usage: authz
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（Hardcoded claim マッパー）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS, configurable_by: [platform]}
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02, I06, I13, I21]
+    source_system: 台帳（このファイル）と STS の設定
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 値は変わらない
+    carried_in: [KC_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, AGENT_AT, TASK_AT]
+    consumers: [gateway, orders, ledger, docs, payroll, invoice-mcp, invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: "拒否（既定のテナントで処理しない。ケーススタディ G12）", "null": 拒否, empty_string: 拒否}
+    value_normalization: {case: lower, compare: exact, normalized_by: 入口の STS（固定値を書く）}
+    allowed_values: {enum: [corp]}
+    enforced_at:
+      - {service: gateway, check: KC_AT の値が corp。EXT_AT からは読まず、STS が corp を書く}
+      - {service: orders, check: corp であること（配列なら拒否）}
+      - {service: ledger, check: corp であること}
+      - {service: docs, check: corp であること}
+      - {service: payroll, check: corp であること}
+      - {service: invoice-mcp, check: corp であること}
+      - {service: invoices, check: corp であること}
+    max_bytes: 4
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:G12", "jwt-claims-casestudy@080b8da:G13"]
+
+  - id: C-user-id
+    name: user_id
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-02"]
+    type: string
+    shape: single
+    description: 組織の中の利用者の不変の ID（IdP をまたいで同じ社員を指す）
+    not_meaning: ログイン名・メール・社員番号ではない
+    decision: 採用
+    rationale: 入口が IdP ごとの不変の ID から引いた組織の ID を、すべての受け手が同じ読み方で使う。各サービスが IdP ごとの sub の形を知らずに済む（ケーススタディ B13・B14）
+    refs:
+      - {kind: guide-slide, id: p11-translation-layer}
+      - {kind: guide-slide, id: p03-absorb-idp-differences}
+    assumption: 入口の対応表は人事の社員の台帳から作り、退職者の ID を再利用しない
+    revisit_trigger: 人事の台帳を替えるとき（ID の振り方が変わる）
+    usage: identifier
+    answers: [q-user]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    upstream_issuer:
+      iss: ["https://idp.example.com/realms/corp", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+      source_attribute: "Keycloak は sub（User Attribute マッパーで user_id を出す）、Entra は tid と oid、Okta は uid、Cognito・Auth0 は sub（ケーススタディ CLM-0043・CLM-0051・CLM-0360）"
+      normalization: 入口の対応表で組織の利用者 ID に写す。ログイン名・メール・upn からは引かない。対応表に無ければ拒否
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（User Attribute マッパー）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（対応表）, configurable_by: [platform]}
+    provenance: 発行者が確かめた値
+    verification_method: 人事の社員の台帳の ID を、IdP の不変の ID と組で登録する（入社時の手続き）
+    issue_events: [I01, I02, I06, I13, I21]
+    source_system: 人事の社員の台帳
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 退職で対応表から外すと新しい発行が止まる。発行済みのトークンは寿命まで残る
+    carried_in: [KC_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, AGENT_AT, TASK_AT]
+    consumers: [gateway, orders, ledger, docs, payroll, invoice-mcp, invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否, "null": 拒否, empty_string: 拒否}
+    value_normalization: {case: lower, compare: exact, normalized_by: 入口の STS（対応表の値を小文字の UUID で書く）}
+    allowed_values: {format: uuid}
+    enforced_at:
+      - {service: gateway, check: 対応表に無い利用者を拒否}
+      - {service: orders, check: 文字列であること。注文の持ち主と照合する}
+      - {service: ledger, check: 文字列であること。監査に記録する}
+      - {service: docs, check: 文字列であること}
+      - {service: payroll, check: "文字列であること。payroll は移行の後、社員番号でなくこの値で給与明細を引く（C-employee-id の移行先）"}
+      - {service: invoice-mcp, check: 文字列であること}
+      - {service: invoices, check: 文字列であること。請求書の持ち主と照合する}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    source_max_length: {value: 36, unit: bytes, basis: 人事の台帳の社員 ID（UUID の文字列）}
+    pii_category: 個人情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+    confidential_from: []
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: active
+    owner: 人事部
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:B13", "jwt-claims-casestudy@080b8da:B14"]
+
+  - id: C-roles
+    name: roles
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-03"]
+    type: string
+    shape: array
+    max_items: 4
+    typical_items: 1
+    description: 組織の語彙に正規化した粗いロール（admins・editor・viewer・staff）
+    not_meaning: 文書・注文ごとの権限ではない。グループの全体ではない
+    decision: 採用
+    rationale: orders が管理・編集の操作を粗く絞る。IdP ごとのロールの位置（realm_access・groups・cognito:groups・Auth0 の名前空間）の違いを入口で吸収する
+    refs:
+      - {kind: guide-slide, id: p05-coarse-fine-layers}
+      - {kind: guide-slide, id: p03-absorb-idp-differences}
+    assumption: groups が超過で消えた Entra のトークンは、入口がディレクトリを引いて解決する（ケーススタディ B8・B9）
+    revisit_trigger: ロールを足すとき（max_items と R8 を見直す）
+    usage: authz
+    answers: [q-authorized]
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    upstream_issuer:
+      iss: ["https://idp.example.com/realms/corp", "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", "https://corp.okta.example.com/oauth2/default", "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", "https://corp.auth0.example.com/"]
+      source_attribute: "Keycloak はレルムロール（User Realm Role マッパーで名前空間に出す）、Entra・Okta は groups（超過なら _claim_names・hasgroups）、Cognito は cognito:groups、Auth0 は名前空間つきの roles（ケーススタディ CLM-0273・CLM-0274・CLM-0276・CLM-0280・CLM-0683〜0686）"
+      normalization: 入口の対応表で 4 つの語彙に写し、対応表にない値は捨てる。Entra の超過はディレクトリを引いて解決し、引けなければ拒否する。Cognito の custom:role（本人が書ける）は読まない
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（User Realm Role マッパー。Full scope allowed はオフ）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（対応表）, configurable_by: [platform]}
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02, I21]
+    source_system: Keycloak のレルムロールと、外部の IdP のグループ（ディレクトリ）
+    volatility: 330
+    propagation_delay: 330
+    recompute_trigger: [login, refresh, reissue]
+    on_revoke: "ロールを外しても、INT_AT の受け入れの上限（330 秒）の間は残る。管理の操作では、orders が Keycloak の利用者のロールを引き直す（ケーススタディの freshness）"
+    carried_in: [KC_AT, INT_AT]
+    consumers: [gateway, orders]
+    on_missing: 拒否
+    absent_semantics: {absent: "拒否（超過で消えたのを「ロールなし」と読まない。ケーススタディ B8）", empty_array: ロールなし（何も許さない）}
+    value_vocabulary: {values: [admins, editor, viewer, staff], owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: gateway, check: 対応表で 4 つの語彙に写す。超過はディレクトリを引いて解決する。クライアントが送った X-User-Role などのヘッダーを、大文字小文字・アンダースコア・重複を含めて捨てる（B4・B5・B6）}
+      - {service: orders, check: 配列であること。4 件を超えたら拒否。語彙の外の値は無視。管理の操作は Keycloak の利用者のロールを引き直す}
+    max_bytes: 6
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:B4", "jwt-claims-casestudy@080b8da:B8", "jwt-claims-casestudy@080b8da:B9", "jwt-claims-casestudy@080b8da:B18", "jwt-claims-casestudy@080b8da:B19", "jwt-claims-casestudy@080b8da:B20"]
+
+  - id: C-department
+    name: department
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-04"]
+    type: string
+    shape: single
+    description: 所属部門の ID（sales・finance など）
+    not_meaning: ロールではない。重要な操作の判断にトークンの値をそのまま使ってよい、という意味ではない
+    decision: 採用
+    rationale: docs が部門で文書の閲覧を絞る。経理の台帳（ledger）は、トークンの値ではなく、操作のたびに Keycloak の利用者の属性を引き直した値で判断する（異動の直後の古い値を使わない。ケーススタディ B11）
+    refs:
+      - {kind: guide-slide, id: p08-stale-claims}
+      - {kind: guide-slide, id: p04-token-is-snapshot}
+    assumption: 異動は人事の台帳から 1 時間ごとに Keycloak へ同期される
+    revisit_trigger: docs でも異動の即時の反映が要るとき（問い合わせに切り替える）
+    usage: authz
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（User Attribute マッパー）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（KC_AT の値を写す。外部の IdP の利用者は人事の台帳から引く）, configurable_by: [platform]}
+    provenance: 管理者が設定した値
+    verification_method: 人事の台帳の所属を Keycloak の利用者の属性に同期する（メールのドメインからは付けない）
+    issue_events: [I01, I02, I21]
+    source_system: 人事の社員の台帳
+    volatility: 330
+    propagation_delay: 330
+    recompute_trigger: [login, refresh, reissue]
+    on_revoke: "異動しても INT_AT の受け入れの上限（330 秒）の間は残る。docs はこれを許す。ledger は操作のたびに引き直すので古い値を使わない（INT_AT の revocation の db_lookup）"
+    carried_in: [KC_AT, INT_AT_DOCS]
+    consumers: [gateway, docs]
+    on_missing: 拒否
+    absent_semantics: {absent: "拒否（既定の部門 sales で処理しない。ケーススタディ B15）"}
+    value_vocabulary: {values: [sales, finance, hr, it, legal], owner: 人事部, extensible: true}
+    enforced_at:
+      - {service: gateway, check: 文字列であること。無ければ拒否（Okta のフックの打ち切りで消えた場合。B15）}
+      - {service: docs, check: sales か finance であること}
+    max_bytes: 16
+    overflow_strategy: 上限で固定（超えない値域）
+    source_max_length: {value: 16, unit: bytes, basis: 人事の台帳の部門コード}
+    pii_category: 個人情報
+    log_policy: 記録する
+    data_category: [user.job_title]
+    confidential_from: []
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: active
+    owner: 人事部
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:B11", "jwt-claims-casestudy@080b8da:B15", "jwt-claims-casestudy@080b8da:keycloak.refresh_reevaluation"]
+    note: ledger は consumers に入れていない（トークンの値を読まず、Keycloak の管理 API で引く。ledger 宛ての INT_AT_LEDGER には載せない）。トークンの値で判断する受け手を足すと、鮮度の表（design.md の 9.2）を見直す
+
+  - id: C-employee-id
+    name: employee_id
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-05"]
+    type: string
+    shape: single
+    description: 社員番号（数値でなく文字列）。給与の旧システム payroll が給与明細を引くキー
+    not_meaning: 組織の利用者 ID（user_id）ではない。数値ではない
+    decision: 採用
+    rationale: payroll が社員番号でしか給与明細を引けない間だけ、payroll 宛ての INT_AT に限って載せる。payroll が user_id で引けるように直したら廃止する（廃止予定。sunset_on まで）
+    refs:
+      - {kind: guide-slide, id: p04-type}
+      - {kind: guide-slide, id: p11-change-procedure}
+    assumption: payroll の改修は 2027-03-31 までに終わる
+    revisit_trigger: payroll の改修が遅れ、sunset_on を延ばすとき（延ばす理由と新しい期日を台帳に書く）
+    usage: identifier
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（User Attribute マッパー。JSON の型は String に固定）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（payroll 宛てだけに写す）, configurable_by: [platform]}
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02, I21]
+    source_system: 人事の社員の台帳
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, reissue]
+    on_revoke: 値は変わらない
+    carried_in: [KC_AT, INT_AT_PAYROLL]
+    consumers: [gateway, payroll]
+    consumers_migration:
+      - {consumer: payroll, from: employee_id（このクレーム）, to: user_id（C-user-id）, state: 移行中, due: "2027-03-31"}
+      - {consumer: gateway, from: KC_AT の employee_id を INT_AT に写す, to: 写さない（payroll の移行の後）, state: 未着手, due: "2027-03-31"}
+    on_missing: 拒否
+    absent_semantics: {absent: "payroll 宛てでは拒否。ほかの宛ての INT_AT には載らない"}
+    value_normalization: {case: as_is, trim: true, compare: exact, normalized_by: Keycloak のマッパー（数字の文字列のまま。数値にしない）}
+    allowed_values: {pattern: "^[0-9]{1,20}$"}
+    enforced_at:
+      - {service: gateway, check: 文字列であること（数値なら拒否。2^53 を超える数値の誤読を防ぐ。ケーススタディ B22）。payroll 宛ての INT_AT だけに写す}
+      - {service: payroll, check: 文字列であること。数字だけで 20 文字以下}
+    max_bytes: 20
+    overflow_strategy: 上限で固定（超えない値域）
+    source_max_length: {value: 20, unit: bytes, basis: 人事の台帳の社員番号の欄}
+    pii_category: 個人情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: employee_number}
+    confidential_from: [logs]
+    confidentiality_measure: {outcome: 載せない, rationale: "ログには載せない（ハッシュ化して記録）。payroll 宛てでない INT_AT には載せない（宛先で絞る）。INT_AT の log_policy は jti だけなので、トークン全体がログに残らない"}
+    recipients_external: []
+    cross_border: {transfers: false}
+    status: deprecated
+    sunset_on: "2027-03-31"
+    alt: [C-user-id]
+    owner: 人事部
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:B22"]
+    note: "定義の寿命の層の見本（templates/registry/README.md の 6.、#3 から回したもの）。手順（slide:p11-change-procedure）：(1) 受け手 payroll が user_id で引けるように直す（移行中）、(2) 発行者（入口）は sunset_on まで並行して employee_id も出す、(3) payroll の移行が終わったら入口が出すのをやめ、Keycloak のマッパーを外す、(4) 最後の INT_AT の受け入れの上限（330 秒）が過ぎてから status を sunset にする。consumers が残っている間は L18（#6）の warn が出る（意図した指摘）"
+
+  - id: C-idp
+    name: idp
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-06"]
+    type: string
+    shape: single
+    description: 利用者を認証した元の IdP の種類（keycloak・entra・okta・cognito・auth0）
+    not_meaning: 発行者（iss）ではない。組織のトークンの発行者はいつも STS
+    decision: 採用
+    rationale: 監査で、どの IdP の利用者がどの操作をしたかを追う。orders は IdP ごとの不具合の調査に記録する。認可には使わない
+    refs:
+      - {kind: guide-slide, id: p06-audit-trail}
+    assumption: 元の IdP の種類は入口が iss から決める
+    revisit_trigger: IdP の種類で操作を分ける要件が出たとき（認可に使うなら usage を見直す）
+    usage: display
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（Hardcoded claim マッパー。値 keycloak）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS（iss から決める）, configurable_by: [platform]}
+    provenance: 発行者が確かめた値
+    issue_events: [I01, I02, I21]
+    source_system: 入口の IdP の許可リスト
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, reissue]
+    on_revoke: 値は変わらない
+    carried_in: [KC_AT, INT_AT]
+    consumers: [orders]
+    on_missing: 拒否
+    absent_semantics: {absent: "拒否（入口が必ず書く。無いトークンは入口を通っていない）"}
+    value_vocabulary: {values: [keycloak, entra, okta, cognito, auth0], owner: 社内 ID 基盤チーム, extensible: false}
+    enforced_at:
+      - {service: orders, check: 必須（無ければ拒否）。値は監査のログに記録するだけで、認可には使わない}
+    max_bytes: 8
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: 社内 ID 基盤チーム
+    evidence: []
+
+  - id: C-v
+    name: v
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-07"]
+    type: string
+    shape: single
+    description: 名前空間オブジェクトの構造の版
+    not_meaning: トークンの版や API の版ではない
+    decision: 採用
+    rationale: 名前空間の中の構造を変えるときに、受け手が古い構造と区別する（C-employee-id の廃止では版を上げない。項目を消すだけで、残る項目の意味は変わらないため）
+    refs:
+      - {kind: guide-slide, id: p04-namespace-object-example}
+      - {kind: guide-slide, id: p11-change-procedure}
+    assumption: 構造を変えるときは受け手を先に直し、発行者を後に変える
+    revisit_trigger: 名前空間の中の項目の型・形を変えるとき
+    usage: protocol
+    issuers: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    authoritative_writer:
+      - {stage: "②", writer: Keycloak（Hardcoded claim マッパー）, configurable_by: [platform]}
+      - {stage: "③", writer: 入口の STS, configurable_by: [platform]}
+    issue_events: [I01, I02, I06, I13, I21]
+    source_system: 台帳（このファイル）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login, refresh, exchange, reissue]
+    on_revoke: 該当なし
+    carried_in: [KC_AT, INT_AT, INT_AT_LEDGER, INT_AT_DOCS, INT_AT_PAYROLL, AGENT_AT, TASK_AT]
+    consumers: [gateway, orders, ledger, docs, payroll, invoice-mcp, invoices]
+    on_missing: 拒否
+    allowed_values: {enum: ["1"]}
+    enforced_at:
+      - {service: gateway, check: 知っている版（"1"）か}
+      - {service: orders, check: 知っている版か}
+      - {service: ledger, check: 知っている版か}
+      - {service: docs, check: 知っている版か}
+      - {service: payroll, check: 知っている版か}
+      - {service: invoice-mcp, check: 知っている版か}
+      - {service: invoices, check: 知っている版か}
+    max_bytes: 4
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: 社内 ID 基盤チーム
+    evidence: []
+
+  - id: C-task-id
+    name: task_id
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-09"]
+    type: string
+    shape: single
+    description: エージェントのタスクの ID（利用者がエージェントに与えた 1 つの仕事）
+    not_meaning: 取引の ID（txn）ではない。承認の ID ではない
+    decision: 採用
+    rationale: タスク単位の短命のトークンと、監査の記録を相関させる。タスクを取り消したら、STS はそのタスクの交換を断る（ケーススタディ C9）
+    refs:
+      - {kind: guide-slide, id: p10-per-tool-scopes}
+      - {kind: guide-slide, id: p10-delegation-chain-depth}
+    assumption: 1 つのタスクは 1 つの利用者と 1 つのエージェントに属する
+    revisit_trigger: 複数の利用者が 1 つのタスクを共有するとき
+    usage: identifier
+    issuers: ["https://sts.corp.example.com"]
+    authoritative_writer: [{stage: "⑥", writer: 入口の STS（CIBA の委任のとき）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I06, I13]
+    source_system: STS の委任の記録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: タスクを取り消したら交換を断る。発行済みのトークンは寿命（300 秒）まで残る（C9。交換のたびに取り消しを確かめる）
+    carried_in: [AGENT_AT, TASK_AT]
+    consumers: [invoice-mcp, invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 拒否}
+    value_normalization: {case: lower, compare: exact, normalized_by: 入口の STS}
+    allowed_values: {format: uuid}
+    enforced_at:
+      - {service: invoice-mcp, check: 文字列であること。監査に記録し、交換の要求に同じ値が引き継がれること}
+      - {service: invoices, check: 文字列であること。監査に記録する}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization.delegation]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+    confidential_from: []
+    status: active
+    owner: 社内 ID 基盤チーム
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:C9"]
+
+  - id: C-approval-id
+    name: approval_id
+    namespace: "https://claims.example.com/"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:ORG-10"]
+    type: string
+    shape: single
+    description: 人の承認の記録の ID（CIBA で本人が支払いを承認した記録）
+    not_meaning: 承認があったことの証拠そのものではない（受け手は記録を引いて確かめる）
+    decision: 採用
+    rationale: invoices が支払いの前に承認の記録を引き、authorization_details と照合する。存在しない承認の ID を本文に書いた支払いを拒否する（C7）。監査で承認と支払いを相関させる
+    refs:
+      - {kind: guide-slide, id: p10-human-approval-evidence}
+      - {kind: guide-slide, id: p06-audit-trail}
+    assumption: 承認の記録は STS の承認の DB にあり、invoices が読める
+    revisit_trigger: 承認を別の仕組み（ワークフローの製品）に移すとき
+    usage: identifier
+    answers: [q-authorized]
+    issuers: ["https://sts.corp.example.com"]
+    authoritative_writer: [{stage: "⑥", writer: 入口の STS（承認の記録から）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I06, I14]
+    source_system: 承認の記録（STS の承認の DB）
+    volatility: 0
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: "承認の取り消しは即時に反映が要る（volatility 0）。TASK_AT の受け入れの上限（300 秒＋ずれ 30 秒）はこれより長いので、トークンの値に頼らず、invoices が支払いの前に承認の DB で記録の状態を引いて拒否する（遅れ 0 秒。TASK_AT の revocation の db_lookup）。鮮度の表（design.md の 9.2）の「問い合わせに切り替える」の行"
+    carried_in: [TASK_AT]
+    consumers: [invoices]
+    on_missing: 拒否
+    absent_semantics: {absent: 支払いを拒否}
+    allowed_values: {pattern: "^ap-[0-9]{1,12}$"}
+    enforced_at:
+      - {service: invoices, check: 承認の DB に記録があり、持ち主が sub、内容が authorization_details と一致すること（C5・C6・C7）}
+    max_bytes: 15
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization.delegation]
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    confidential_from: []
+    status: active
+    owner: 経理部（承認の記録の持ち主）
+    change_controller: 社内 ID 基盤チーム
+    evidence: ["jwt-claims-casestudy@080b8da:C7", "jwt-claims-casestudy@080b8da:C8"]
+
+  # ------------------------------------------------------------ 却下
+  - id: C-kc-client-id
+    name: client_id
+    catalog_refs: []
+    catalog_refs_reason: "Keycloak の AT の client_id の行（CLM-0414）は、組織のトークンの client_id と同じ C-client-id の行が参照している。この行は KC_AT に client_id が無いことの記録"
+    decision: 却下
+    rejection_kind: IdP が出さない
+    alt: [C-azp]
+    rationale: Keycloak 26.8 の AT（認可コードの発行）は client_id を出さず azp を出す。KC_AT はヘッダーで at+jwt を名乗るのに RFC 9068 §2.2 の REQUIRED の client_id を欠く。KC_AT を読むのは入口だけで、入口は azp を読む
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    assumption: シナリオ A の 2026-11-22 の見本の AT（Keycloak 26.8.0）に client_id が無かった。シナリオ B のレルム corp でも同じ挙動とみなす（確かめていない）
+    revisit_trigger: KC_AT を入口以外の受け手が読むとき
+    type: string
+
+  - id: C-realm-access
+    name: realm_access
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0291"]
+    decision: 却下
+    rejection_kind: 代替あり
+    alt: [C-roles]
+    rationale: Keycloak の形のロールを入口にも読ませない。Keycloak の User Realm Role マッパーで組織の名前空間の roles に出し、入口はそれを読む。外すとロールの位置の違いを 1 つ減らせる
+    refs:
+      - {kind: guide-slide, id: p03-absorb-idp-differences}
+    assumption: クライアント portal に roles スコープを付けない
+    revisit_trigger: Keycloak のクライアントロールを使うとき
+    type: object
+
+  - id: C-preferred-username
+    name: preferred_username
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0589"]
+    decision: 却下
+    rejection_kind: 禁止
+    alt: [C-user-id]
+    rationale: 変わりうる名前で、識別にも認可にも使えない（Okta の AT の sub がログイン名だった例と同じ誤り。ケーススタディ B13）
+    refs:
+      - {kind: guide-slide, id: p04-immutable-identifiers}
+    assumption: portal に profile スコープの preferred_username マッパーを付けない
+    type: string
+
+  - id: C-upn
+    name: upn
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0062"]
+    decision: 却下
+    rejection_kind: 禁止
+    alt: [C-user-id]
+    rationale: Entra の upn は変わりうるログイン名。入口は tid と oid で対応表を引く
+    refs:
+      - {kind: guide-slide, id: p03-entra-oid-tid}
+    assumption: 入口の対応表は tid と oid で作る
+    type: string
+
+  - id: C-cognito-custom-role
+    name: "custom:role"
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0768"]
+    decision: 却下
+    rejection_kind: 禁止
+    alt: [C-roles]
+    rationale: Cognito の custom:<名前> の属性は利用者本人が書き換えられる設定がありうる。認可に使うと本人が管理者を名乗れる（ケーススタディ B18）
+    refs:
+      - {kind: guide-slide, id: p03-cognito-pre-token-hook}
+      - {kind: guide-slide, id: p04-split-by-writer}
+    assumption: 入口は Cognito の cognito:groups だけをロールの入力にする
+    type: string
+
+  - id: C-may-act
+    name: may_act
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0371"]
+    decision: 却下
+    rejection_kind: 代替あり
+    rationale: 交換の可否は、subject_token の may_act ではなく、STS の委任の記録（利用者がどのエージェントに委任したか）とツールの方針表で決める。KC_AT は may_act を出さず、STS の外の発行者に委任の許可を書かせない
+    alt: [C-act]
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+      - {kind: guide-slide, id: p02-delegation-client}
+    assumption: 委任の記録は STS が持ち、CIBA で本人が承認したものだけを入れる
+    revisit_trigger: STS の外の発行者が出したトークンを交換の subject_token に受けるとき
+    type: object
+
+  - id: C-rctx
+    name: rctx
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0679"]
+    decision: 却下
+    rejection_kind: 不要
+    rationale: 要求時点の環境の値（接続元の IP など）で操作を分ける要件がない。載せると古くなる値をサービス間に流すことになる
+    refs:
+      - {kind: guide-slide, id: p06-access-context}
+    assumption: 接続元の条件は入口だけで判断する
+    revisit_trigger: 下流のサービスが接続元の条件で判断する要件が出たとき
+    type: object
+
+  - id: C-rfc-roles
+    name: roles
+    catalog_refs: ["jwt-claims-casestudy@080b8da:CLM-0284"]
+    decision: 却下
+    rejection_kind: 代替あり
+    alt: [C-roles]
+    rationale: 最上位の roles（RFC 9068 §2.2.3.1）は IdP ごとに意味と語彙が違う（Auth0 では予約名で黙って外れる。ケーススタディ B20）。組織の名前空間の roles に正規化して載せる
+    refs:
+      - {kind: guide-slide, id: p03-auth0-namespace}
+    assumption: 入口が全 IdP のロールを組織の語彙に写す
+    type: string

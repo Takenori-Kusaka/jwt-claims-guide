@@ -1,0 +1,877 @@
+# template_version: 0.3.0
+# yaml-language-server: $schema=../../registry/token_types.schema.json
+# 記入例（シナリオ B＋C：社内業務システムと AI エージェントの委任。Keycloak 26.8 のレルム corp と、Entra ID・Okta・Cognito・Auth0 の
+# 形を再現した模擬）。推奨ではない。ケーススタディ（jwt-claims-casestudy@080b8da）の前提での一例。Full の記入例（P1＋P4＋P5）。
+# トークン目録・発行方式の選択・R8 の入力（台帳 v1：templates/registry/token_types.schema.json）。
+# 目録には templates/catalog/token_kinds.yaml の 17 種類すべてが、採用か却下＋理由で並ぶ。
+# 送信者制約は、既定の設計を dpop（エージェントの実行基盤のトークンを DPoP で束縛）とし、none にした比較は variants/sender-none.yaml
+# と tools/variant_compare.py で示す（design.md の 4.）。
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: >-
+      クライアントは 2 種類あり、どちらもサーバーで動く機密クライアント。社員のポータルは BFF（portal のサーバーがトークンを持ち、ブラウザには
+      Cookie だけ）、エージェントの実行基盤（agent-runtime）はサーバーのワークロード。どちらも公開クライアントではない。
+      台帳 v1 のスキーマは設計書ごとに issuance_profile が 1 つなので、2 種類のクライアントの違い（ポータルの AT は Bearer、エージェントの
+      トークンは DPoP）は、この 1 つの選択と、トークン種別ごとの sender_constraint・transport で表した（#3 への指摘。design.md の 12.）
+    refs:
+      - {kind: guide-slide, id: p06-flow-browser-to-db}
+      - {kind: guide-slide, id: p10-agent-identity}
+  client_auth:
+    value: private_key_jwt
+    rationale: >-
+      portal・agent-runtime・invoice-mcp は、登録した公開鍵（jwks_uri）で署名した assertion でクライアント認証する。共有の秘密を
+      配らないので、エージェントの実行基盤のような数の増えるワークロードでも、秘密の配布と漏れの面を持たない（目録の CLIENTASSERTION）
+    refs:
+      - {kind: spec, id: "RFC 7523 §2.2", url: "https://www.rfc-editor.org/rfc/rfc7523#section-2.2"}
+      - {kind: spec, id: "OpenID Connect Core 1.0 §9", url: "https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication"}
+  grants:
+    value: [authorization_code_pkce, refresh_token, token_exchange, ciba]
+    rationale: >-
+      社員のログインは認可コード＋PKCE（Keycloak corp）。エージェントへの委任は、エージェントの実行基盤が組織のトークン発行サービス（sts）に
+      CIBA で求め、社員がポータルで承認してから AGENT_AT が出る（エージェントに承認を判断させない）。ツールサーバー invoice-mcp は、受け取った
+      AGENT_AT を上流に渡さず、トークン交換（RFC 8693）で invoices 宛ての TASK_AT を得る。ROPC・implicit は使わない
+    refs:
+      - {kind: spec, id: "RFC 9700 §2.1.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1.1"}
+      - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+      - {kind: spec, id: "OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7", url: "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html"}
+      - {kind: guide-slide, id: p10-human-approval-evidence}
+      - {kind: guide-slide, id: p10-mcp-authorization}
+  sender_constraint:
+    value: dpop
+    rationale: >-
+      エージェントの実行基盤とツールサーバーに渡るトークン（AGENT_AT・TASK_AT）は、組織の外のモデルの出力に応じて動く部品が持つので、
+      漏れたトークンの再送（ケーススタディ B23 の型）を鍵の所持で止める。ケーススタディ C の判定（CLM-0429・CLM-0431：タスク単位のトークンを
+      実行基盤の DPoP の鍵で束縛）に合わせた。ポータルの KC_AT と内部の INT_AT は BFF とサービスの間だけを通るので Bearer のまま
+      （トークン種別ごとの sender_constraint）。none にした場合の比較は design.md の 4.
+    refs:
+      - {kind: spec, id: "RFC 9449 §1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-1"}
+      - {kind: guide-slide, id: p08-rotation}
+  at_format:
+    value: jwt
+    rationale: 受け手（orders・ledger・docs・payroll・invoice-mcp・invoices）がローカルで検証する。剥奪をすぐ効かせたい経理・管理の操作だけ、ledger が Keycloak のセッションを引き直す（INT_AT_LEDGER の revocation の db_lookup）
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.1"}
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+  rt_strategy:
+    value: rotation
+    rationale: >-
+      RT は portal の BFF だけが持つ。レルム corp の Revoke Refresh Token を有効にしてローテーションする（ケーススタディのレルムの設定）。
+      古い RT の再利用で系列を失効させるか（再利用の検知）は確かめていない（レルムの設定は、ケーススタディの実験環境 jwt-claims-casestudy@080b8da の kc/import/corp.json の revokeRefreshToken: true と同じ）。エージェントには RT を出さない（タスクごとに CIBA で取り直す）
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  request_protection:
+    value: [par, rar, resource_indicators]
+    rationale: >-
+      ポータルの認可要求は PAR で URL から外す。エージェントへの委任の要求（CIBA）と交換では、支払いの承認の内容を RAR の authorization_details
+      で運ぶ。宛先は resource indicators で絞る（ポータルは使う API だけ、エージェントは invoice-mcp だけ、交換は invoices だけ）
+    refs:
+      - {kind: spec, id: "RFC 9126 §1", url: "https://www.rfc-editor.org/rfc/rfc9126#section-1"}
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: guide-slide, id: p09-url-browser}
+  conformance_profile:
+    value: none
+    rationale: 社内の業務システムで、FAPI などの規制の対象ではない。支払いは社内の請求書の API までで、外部の金融機関の API を呼ばない
+
+token_types:
+  # ---------------------------------------------------------------- 社員のポータル（P1）
+  - id: BFFSESSION
+    kind: session
+    decision: 採用
+    rationale: ブラウザはポータルの BFF のセッションの Cookie だけを持つ。トークンをブラウザに置かない
+    purpose: ブラウザとポータル（BFF）の間の社員のセッション
+    issuer: portal（BFF）
+    holder: ブラウザ（HttpOnly・Secure・SameSite=Lax の Cookie）
+    format: opaque
+    max_lifetime: 36000
+    idle_timeout: 1800
+    lifetime_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: 操作のたびに idle（1800 秒）の期限を延ばす。作ってから 36000 秒で必ず終える
+    revocation:
+      - {method: session_delete, delay_seconds: 0, note: ログアウトで BFF のセッションを消し、RP-Initiated Logout（U06）を送る}
+      - {method: back_channel_logout, delay_seconds: 0, note: Keycloak からログアウトトークン（LOGOUT）を受けたら、sid の一致する BFF のセッションを消す（U07）}
+    stored_at: browser
+    transport: cookie
+    visible_to: [browser, bff]
+    note: JWT ではないので R8 の対象外
+
+  - id: SSO
+    kind: session
+    decision: 採用
+    rationale: Keycloak のレルム corp の SSO セッション。SSO Session Max を 36000 秒に設定する
+    purpose: IdP での再認証までの期間。ledger が経理の操作のたびに引き直す（C-sid）
+    issuer: Keycloak（レルム corp）
+    holder: Keycloak（ブラウザには Keycloak の Cookie）
+    format: opaque
+    max_lifetime: 36000
+    idle_timeout: 1800
+    lifetime_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: 利用で idle（1800 秒）の期限が延びる
+    revocation:
+      - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト（U06）}
+      - {method: session_delete, delay_seconds: 0, note: 管理者のセッションの削除・利用者の無効化。Back-Channel Logout で portal に知らせる（I09）}
+    stored_at: idp
+    transport: cookie
+    visible_to: [browser, idp]
+    note: idle 1800 秒はケーススタディのレルム corp の実際の設定。SSO Session Max（36000 秒）はこの設計で決めた値（Keycloak 26.8 の既定値は確かめていない）
+
+  - id: CODE
+    kind: authorization_code
+    decision: 既定どおり
+    rationale: 認可コード＋PKCE（S256）の流れで Keycloak が出す。PAR で認可要求を先に送るので、URL に載るのは request_uri とコードだけ
+    purpose: 1 回限りの引換券
+    issuer: Keycloak（レルム corp）
+    holder: ブラウザを経由して portal へ
+    format: opaque
+    max_lifetime: 60
+    lifetime_refs:
+      - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+    refresh: なし
+    revocation:
+      - {method: one_time_use, delay_seconds: 0, note: 1 回使うと無効}
+    stored_at: none
+    transport: redirect_query
+    visible_to: [browser, bff, idp]
+    note: max_lifetime はレルムの Client login timeout として置いた値（Keycloak 26.8 の既定値は確かめていない。RFC 6749 §4.1.2 の推奨の最大 10 分の内側）
+
+  - id: IDT
+    kind: id_token
+    decision: 採用
+    rationale: portal がログインを確かめ、画面の表示名とメールを得る。Back-Channel Logout の sid を BFF のセッションと結びつける
+    purpose: ログインの確認・表示・ログアウトの突き合わせ
+    issuer: Keycloak（レルム corp）
+    aud: [portal]
+    holder: portal のサーバー。ブラウザには渡さない
+    format: jwt
+    typ: JWT
+    alg_allowlist: [RS256]
+    issuers:
+      - {iss: "https://idp.example.com/realms/corp", jwks_uri: "https://idp.example.com/realms/corp/protocol/openid-connect/certs"}
+    required_claims: [iss, sub, aud, exp, iat, nonce, azp, sid]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: リフレッシュの応答にも出る。portal はログインのときだけ検証する
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: ログイン時に 1 回使うだけで、保存しない（RP-Initiated Logout の id_token_hint と sid の照合にだけ使う）}
+    stored_at: bff_server
+    transport: token_response_body
+    visible_to: [bff, idp]
+    jwe: {used: false, note: "name・email（confidential_from: [browser]）を載せるが、IDT はトークンの応答で portal のサーバーに届き、ブラウザに渡さない"}
+    log_policy: 記録しない
+    key_rotation: {period_days: null, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: KC_AT と同じレルム corp の鍵}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    subject_type: public
+    note: トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外（size を書かない）
+
+  - id: RT
+    kind: refresh_token
+    decision: 採用
+    rationale: KC_AT を 300 秒にしたまま、SSO セッションの間は社員に再ログインさせない
+    purpose: KC_AT の取り直し
+    issuer: Keycloak（レルム corp）
+    aud: [Keycloak（レルム corp 自身）]
+    holder: portal のサーバー
+    format: opaque
+    max_lifetime: 36000
+    idle_timeout: 1800
+    lifetime_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: 使うたびにローテーション（Revoke Refresh Token）。idle 1800 秒、絶対的な上限は SSO セッションの最大（36000 秒）
+    rt_rotation: {rotation: true, reuse_detection: unverified}
+    sender_constraint: none
+    revocation:
+      - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト（U06）で SSO セッションと一緒に失効する}
+      - {method: session_delete, delay_seconds: 0, note: SSO セッションの idle・最大、管理者の削除で切れる}
+      - {method: revocation_endpoint, delay_seconds: 0, note: 社員の退職・異動の手続きで、portal が RFC 7009 の失効の端点に送る（U15）}
+    stored_at: bff_server
+    transport: token_response_body
+    visible_to: [bff, idp]
+    note: Keycloak の RT は JWT の形をしているが、クライアントは中身を読まないので opaque とした。RT は portal（機密クライアント）だけが持ち、ブラウザとエージェントには出さない
+
+  - id: LOGOUT
+    kind: logout_token
+    decision: 採用
+    rationale: >-
+      社員の無効化・セッションの削除を、portal の BFF のセッションに 0 秒で反映する。シナリオ B は退職・異動の直後の古いトークンでの操作
+      （ケーススタディ B11・B12）を重点にしており、次のリフレッシュの失敗を待つ（最大 330 秒）のでは遅い
+    purpose: IdP 側のセッションの終了を portal に知らせる
+    issuer: Keycloak（レルム corp）
+    aud: [portal]
+    holder: portal のサーバー（Back-Channel Logout の受け口）
+    format: jwt
+    typ: logout+jwt
+    alg_allowlist: [RS256]
+    issuers:
+      - {iss: "https://idp.example.com/realms/corp", jwks_uri: "https://idp.example.com/realms/corp/protocol/openid-connect/certs"}
+    required_claims: [iss, aud, iat, exp, jti, events, sid]
+    max_clock_skew: 30
+    max_lifetime: 120
+    lifetime_refs:
+      - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+    lifetime_set_by: [platform]
+    refresh: なし（1 回ごとに出る）
+    revocation:
+      - {method: one_time_use, delay_seconds: 0, note: portal は jti を受け入れの期間（120 秒＋ずれ 30 秒）だけ覚え、同じ jti を拒む}
+    jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 150}
+    stored_at: none
+    transport: back_channel_post
+    visible_to: [idp, bff]
+    jwe: {used: false, note: 個人情報を載せない（sub と sid だけ）}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: null, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: KC_AT と同じレルム corp の鍵}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    note: >-
+      nonce が含まれていれば拒否する（OpenID Connect Back-Channel Logout 1.0 §2.4。台帳の C-nonce の enforced_at）。max_lifetime の 120 秒は
+      同仕様の「できれば 2 分以内」に合わせた組織の上限（templates/catalog/token_kinds.yaml の lifetime_hint）。Keycloak が出すログアウトトークンの
+      typ と exp の有無は実物で確かめていない（design.md の 12.）
+
+  - id: KC_AT
+    kind: access_token
+    decision: 採用
+    rationale: 社員がポータルから社内の API を呼ぶ。入口（gateway）が検証し、API ごとの内部トークン（INT_AT）に作り替える
+    purpose: 入口に提示する社員のアクセストークン（入口の内側には持ち込まない）
+    issuer: Keycloak（レルム corp）
+    aud: [orders, ledger, docs, payroll]
+    holder: portal のサーバー
+    format: jwt
+    typ: at+jwt
+    alg_allowlist: [RS256]
+    issuers:
+      - {iss: "https://idp.example.com/realms/corp", jwks_uri: "https://idp.example.com/realms/corp/protocol/openid-connect/certs"}
+    required_claims: [iss, sub, aud, exp, iat, jti, azp, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.department", "https://claims.example.com/.employee_id", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+      - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    lifetime_set_by: [platform]
+    refresh: portal が期限の前に RT で取り直す（I02）。リフレッシュでマッパーが再実行され、部署・ロールが反映される（ケーススタディの実測 refresh_reevaluation）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 入口はローカルで検証するので exp まで残る（受け入れは発行から最大 330 秒）}
+      - {method: refresh_failure, delay_seconds: 330, note: 無効化した社員のリフレッシュは失敗し、portal はセッションを終える}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 入口の内側に持ち込まない。非同期の処理には渡さない（payment-worker はイベントの間接参照と自分のワークロードの ID で動く）
+    stored_at: bff_server
+    transport: authorization_bearer
+    visible_to: [bff, gateway]
+    jwe: {used: false, note: 個人情報（name・email）は IDT だけに載せ、KC_AT には載せない}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: null
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: レルム corp の鍵。入口は iss の JWKS を 3600 秒キャッシュし、未知の kid での取り直しは 300 秒に 1 回まで。新しい鍵は署名に使う前に 3900 秒（TTL と取り直しの間隔の和）より長く公開する（シナリオ A と同じ規則。筆者の提案）
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: RS256, key_bits: 2048}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 6}
+          - {name: kid, type: string, max_bytes: 43}
+        serializer_extra_bytes: 4
+        serializer_extra_basis: Keycloak 26.8.0 の JOSE ヘッダーの空白（シナリオ A の見本トークンの実測と同じ版。research/template-design/gate1.md の 1.）
+      path: [nginx-large-client-header-buffers]
+      other_headers_bytes: 2048
+    note: >-
+      RFC 9068 §2.2 の client_id を Keycloak 26.8.0 の AT は出さない（シナリオ A の見本トークン）。入口は azp で呼び出し元のクライアントを確かめ、
+      逸脱は台帳の却下の行 C-kc-client-id に記録した。組織の名前空間のクレームは、レルム corp のマッパーが書く（入口はそれを写して絞るだけ。
+      ホップ H4〜H7 で下流ほど絞るため。design.md の 3.）
+
+  # ---------------------------------------------------------------- 入口（P5）
+  - id: EXT_AT
+    kind: access_token
+    decision: 採用
+    rationale: >-
+      グループ会社の社員は、各社の IdP（Entra ID・Okta・Cognito・Auth0。この例では形を再現した模擬）でログインしたアプリから入口に AT を送る。
+      入口だけが IdP ごとの規則で検証し、組織の内部トークン（INT_AT）に作り替える。内側のサービスは EXT_AT を受けない
+    purpose: 入口に提示する、外部の IdP のアクセストークン
+    issuer: グループ会社の IdP（Entra ID・Okta・Cognito・Auth0）
+    aud: ["api://corp-gateway"]
+    holder: グループ会社のアプリ
+    format: jwt
+    typ: "IdP ごと（Entra は JWT、Okta は application/okta-internal-at+jwt、Cognito はヘッダーに無く token_use で見分ける、Auth0 は at+jwt）"
+    alg_allowlist: [RS256]
+    issuers:
+      - {iss: "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/v2.0", jwks_uri: "https://login.microsoftonline.com/11111111-aaaa-4bbb-8ccc-000000000001/discovery/v2.0/keys"}
+      - {iss: "https://corp.okta.example.com/oauth2/default", jwks_uri: "https://corp.okta.example.com/oauth2/default/v1/keys"}
+      - {iss: "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE", jwks_uri: "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE/.well-known/jwks.json"}
+      - {iss: "https://corp.auth0.example.com/", jwks_uri: "https://corp.auth0.example.com/.well-known/jwks.json"}
+    max_clock_skew: 30
+    max_lifetime: 5400
+    lifetime_refs:
+      - {kind: spec, id: "Microsoft Entra ID「Configurable token lifetimes in the Microsoft identity platform」（Access tokens の既定の寿命は 60〜90 分のランダム）", url: "https://learn.microsoft.com/en-us/entra/identity-platform/configurable-token-lifetimes", verified_on: "2026-11-23"}
+    lifetime_set_by: [platform]
+    lifetime_exception:
+      approved_by: 情報セキュリティ委員会（記入例の仮の承認者）
+      reason: 外部の IdP の既定の寿命（Entra ID は最大 90 分）を組織が変えられない。入口で受け入れるだけで、内側には持ち込まず、INT_AT は 300 秒に絞る
+      approved_on: "2026-11-23"
+    refresh: グループ会社のアプリが各 IdP で取り直す（組織の側は関与しない）
+    revocation:
+      - {method: exp_only, delay_seconds: 5430, note: 入口はローカルで検証する。外部の IdP での剥奪は exp まで届かないので、入口の作り直し（INT_AT は 300 秒）の後は、入口の許可リスト（グループ会社の IdP ごとの停止）で止める}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: pairwise
+    long_running: 入口の内側に持ち込まない
+    stored_at: rp_server
+    transport: authorization_bearer
+    visible_to: [client, gateway]
+    jwe: {used: false, note: 入口が読む必要がある。外部の IdP が出す形をそのまま受ける}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: null, publish_before_use_seconds: 0, retire_after_seconds: 0, note: 鍵の入れ替えは外部の IdP が決める。入口は iss ごとの jwks_uri を 3600 秒キャッシュし、未知の kid で取り直す}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+    signing_key_scope: per_tenant
+    size:
+      signing: {alg: RS256, key_bits: 2048}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 32}
+          - {name: kid, type: string, max_bytes: 64}
+      path: [nginx-large-client-header-buffers]
+      other_headers_bytes: 2048
+    note: >-
+      IdP ごとの違い（利用者のキーは Entra が oid＋tid、Okta が uid、Cognito・Auth0 が sub。Cognito の AT には aud が無く client_id で確かめる。
+      Entra の groups は 200 件を超えると消え、_claim_names で知らせる）は入口の規則で吸収し、required_claims は IdP ごとに入口の設定で持つ
+      （1 つの行では書けないので、この行には書かない）。台帳にはベンダー固有のクレームを行として置かず、C-user-id・C-roles・C-acr の
+      upstream_issuer に写し方を書いた。typ は IdP ごとに違い、1 つの値では書けない（design.md の 12.）。tid でテナント（グループ会社）を決める。
+      寿命 5400 秒は Entra ID の既定の上限（模擬の値）で、組織の上限 3600 秒を超えるので lifetime_exception を書いた
+
+  - id: INT_AT
+    kind: internal_token
+    decision: 採用
+    rationale: orders 宛て。KC_AT（H4）とグループ会社の EXT_AT（H8）の両方から作る。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む
+    purpose: orders の認可（社員とグループ会社の社員）
+    issuer: 入口（gateway）のトークン発行サービス（sts）
+    aud: [orders]
+    holder: 入口（gateway）。受け手の API は検証だけ
+    format: jwt
+    typ: corp-internal+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.roles", "https://claims.example.com/.idp", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p06-edge-exchange}
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: なし。入口が要求ごとに作る（同じ KC_AT の間は aud ごとに 60 秒までキャッシュしてよい）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 受け手はローカルで検証する}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 非同期の処理に渡さない。ledger が出す支払いのイベントには、主体の間接参照（ハッシュした user_id）と txn だけを入れる（H12）
+    stored_at: service_memory
+    transport: authorization_bearer
+    visible_to: [gateway, api]
+    jwe: {used: false, note: 個人情報を載せない（IDT だけ）。経路は組織の網の中で、サービス間は mTLS}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: 30
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: sts の鍵は 30 日ごとに入れ替える（筆者の提案）。新しい鍵は 3900 秒前に JWKS に載せ、古い鍵は最後の INT_AT の受け入れの上限 330 秒の後に外す
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 17}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: >-
+      other_headers_bytes の 3072 は、要求行と Txn-Token ヘッダー（TXN、最悪 1 KB 程度）を含む見積もり（筆者の提案）。typ を KC_AT と分けた
+      （内部トークンを外部の AT として受けない。L17）。サービス間の通信相手は mTLS（SPIFFE の X.509-SVID）で確かめ、トークンでは代えない（q-peer）
+
+  - id: INT_AT_LEDGER
+    kind: internal_token
+    decision: 採用
+    rationale: ledger 宛て。社員（KC_AT）だけから作る。sid は経理の操作のたびに Keycloak のセッションを引き直すために写す。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む
+    purpose: ledger（経理の台帳。重要な操作）の認可
+    issuer: 入口（gateway）のトークン発行サービス（sts）
+    aud: [ledger]
+    holder: 入口（gateway）。受け手の API は検証だけ
+    format: jwt
+    typ: corp-internal+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, sid, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p06-edge-exchange}
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: なし。入口が要求ごとに作る（同じ KC_AT の間は aud ごとに 60 秒までキャッシュしてよい）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 受け手はローカルで検証する}
+      - {method: db_lookup, delay_seconds: 0, note: "ledger と管理の操作（C-department・C-roles で決める重要な操作）は、C-sid の Keycloak のセッションが残っているかと、現在の部署を Keycloak の管理 API で引き直す（ケーススタディ B11・B12 の freshness）。セッションが消えていれば 0 秒で拒否する"}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 非同期の処理に渡さない。ledger が出す支払いのイベントには、主体の間接参照（ハッシュした user_id）と txn だけを入れる（H12）
+    stored_at: service_memory
+    transport: authorization_bearer
+    visible_to: [gateway, api]
+    jwe: {used: false, note: 個人情報を載せない（IDT だけ）。経路は組織の網の中で、サービス間は mTLS}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: 30
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: sts の鍵は 30 日ごとに入れ替える（筆者の提案）。新しい鍵は 3900 秒前に JWKS に載せ、古い鍵は最後の INT_AT の受け入れの上限 330 秒の後に外す
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 17}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: >-
+      other_headers_bytes の 3072 は、要求行と Txn-Token ヘッダー（TXN、最悪 1 KB 程度）を含む見積もり（筆者の提案）。typ を KC_AT と分けた
+      （内部トークンを外部の AT として受けない。L17）。サービス間の通信相手は mTLS（SPIFFE の X.509-SVID）で確かめ、トークンでは代えない（q-peer）
+
+  - id: INT_AT_DOCS
+    kind: internal_token
+    decision: 採用
+    rationale: docs 宛て。部署が欠けていれば拒否する（Okta のフックの打ち切りで消えた場合。ケーススタディ B15）。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む
+    purpose: docs（社内文書）の認可
+    issuer: 入口（gateway）のトークン発行サービス（sts）
+    aud: [docs]
+    holder: 入口（gateway）。受け手の API は検証だけ
+    format: jwt
+    typ: corp-internal+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.department", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p06-edge-exchange}
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: なし。入口が要求ごとに作る（同じ KC_AT の間は aud ごとに 60 秒までキャッシュしてよい）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 受け手はローカルで検証する}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 非同期の処理に渡さない。ledger が出す支払いのイベントには、主体の間接参照（ハッシュした user_id）と txn だけを入れる（H12）
+    stored_at: service_memory
+    transport: authorization_bearer
+    visible_to: [gateway, api]
+    jwe: {used: false, note: 個人情報を載せない（IDT だけ）。経路は組織の網の中で、サービス間は mTLS}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: 30
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: sts の鍵は 30 日ごとに入れ替える（筆者の提案）。新しい鍵は 3900 秒前に JWKS に載せ、古い鍵は最後の INT_AT の受け入れの上限 330 秒の後に外す
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 17}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: >-
+      other_headers_bytes の 3072 は、要求行と Txn-Token ヘッダー（TXN、最悪 1 KB 程度）を含む見積もり（筆者の提案）。typ を KC_AT と分けた
+      （内部トークンを外部の AT として受けない。L17）。サービス間の通信相手は mTLS（SPIFFE の X.509-SVID）で確かめ、トークンでは代えない（q-peer）
+
+  - id: INT_AT_PAYROLL
+    kind: internal_token
+    decision: 採用
+    rationale: payroll 宛て。社員番号（廃止予定の C-employee-id）は payroll 宛てにだけ載せる。入口で外部のトークン（KC_AT・EXT_AT）を検証し、API ごとに宛先を 1 つに絞った内部トークンに作り直す。内側のサービスは IdP の違いを知らずに、組織の形だけを読む
+    purpose: payroll（社員番号をキーにする旧システム）の給与明細の照会
+    issuer: 入口（gateway）のトークン発行サービス（sts）
+    aud: [payroll]
+    holder: 入口（gateway）。受け手の API は検証だけ
+    format: jwt
+    typ: corp-internal+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.employee_id", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p06-edge-exchange}
+      - {kind: guide-slide, id: p08-token-types-lifetimes}
+    lifetime_set_by: [platform]
+    refresh: なし。入口が要求ごとに作る（同じ KC_AT の間は aud ごとに 60 秒までキャッシュしてよい）
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 受け手はローカルで検証する}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 非同期の処理に渡さない。ledger が出す支払いのイベントには、主体の間接参照（ハッシュした user_id）と txn だけを入れる（H12）
+    stored_at: service_memory
+    transport: authorization_bearer
+    visible_to: [gateway, api]
+    jwe: {used: false, note: 個人情報を載せない（IDT だけ）。経路は組織の網の中で、サービス間は mTLS}
+    log_policy: jti だけ記録
+    key_rotation:
+      period_days: 30
+      publish_before_use_seconds: 3900
+      retire_after_seconds: 330
+      note: sts の鍵は 30 日ごとに入れ替える（筆者の提案）。新しい鍵は 3900 秒前に JWKS に載せ、古い鍵は最後の INT_AT の受け入れの上限 330 秒の後に外す
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 17}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: >-
+      other_headers_bytes の 3072 は、要求行と Txn-Token ヘッダー（TXN、最悪 1 KB 程度）を含む見積もり（筆者の提案）。typ を KC_AT と分けた
+      （内部トークンを外部の AT として受けない。L17）。サービス間の通信相手は mTLS（SPIFFE の X.509-SVID）で確かめ、トークンでは代えない（q-peer）
+
+  - id: TXN
+    kind: txn_token
+    decision: 採用
+    rationale: orders が ledger を社員の文脈で呼ぶとき、呼び出しの連鎖全体で同じ取引の文脈（txn・誰の権限で・どのワークロードが求めたか）を改変せずに運ぶ。内部の AT を下流へ渡さない
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-11"}
+      - {kind: guide-slide, id: p06-transaction-tokens}
+    revisit_trigger: draft-ietf-oauth-transaction-tokens が RFC になったとき、または版が上がってクレーム（txn・req_wl・tctx・rctx）の定義が変わったとき
+    purpose: サービス間の呼び出しの取引の文脈
+    issuer: 内部の Txn-Token のサービス（tts）
+    aud: ["https://corp.example.com"]
+    holder: 呼び出しの連鎖の各サービス（orders・ledger）
+    format: jwt
+    typ: txntoken+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://tts.corp.example.com", jwks_uri: "https://tts.corp.example.com/jwks"}
+    required_claims: [iss, iat, aud, exp, txn, sub, req_wl]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-11"}
+      - {kind: guide-slide, id: p06-transaction-tokens}
+    lifetime_set_by: [platform]
+    refresh: なし。入口が要求ごとに tts から取る
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 呼び出しの連鎖の間だけ使う短命のトークン}
+    sender_constraint: none
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    subject_type: public
+    long_running: 期限の後に下流を呼ぶ処理を持たない。非同期の処理には txn の値だけを写す（H12）
+    stored_at: service_memory
+    transport: txn_token_header
+    visible_to: [api, gateway]
+    jwe: {used: false, note: 個人情報を載せない}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: 30, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: tts の鍵。INT_AT と同じ周期}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    note: >-
+      草案（draft-ietf-oauth-transaction-tokens-11）の種別。aud は信頼ドメイン（https://corp.example.com）で、リソースの宛先ではない。
+      テナントは corp だけで、信頼ドメイン（aud）で決まる。草案が RFC になったら見直す（台帳の C-txn・C-req-wl・C-tctx の spec_version と revisit_trigger）
+
+  # ---------------------------------------------------------------- AI エージェントの委任（P4）
+  - id: AGENT_AT
+    kind: access_token
+    decision: 採用
+    rationale: >-
+      社員が承認したタスクの間だけ、エージェント agent:expense が社員の代わりにツール invoice-mcp を呼ぶ。sub は社員、act と client_id は
+      エージェント（エージェント自身の ID で、社員のトークンを借りない。ケーススタディ C12）。宛先は invoice-mcp だけ（C13）
+    purpose: エージェントからツールサーバーへの委任の呼び出し
+    issuer: 組織のトークン発行サービス（sts）
+    aud: [invoice-mcp]
+    holder: エージェントの実行基盤（agent-runtime）
+    format: jwt
+    typ: at+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p10-delegation-chain-depth}
+      - {kind: guide-slide, id: p10-per-tool-scopes}
+    lifetime_set_by: [platform]
+    refresh: なし（RT を出さない）。タスクが 300 秒を超えるなら、実行基盤が CIBA で取り直し、sts が委任の取り消しを確かめる
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 委任の取り消しは、次の交換（TASK_AT）で sts が確かめて拒む（ケーススタディ C9）。手元の AGENT_AT は exp まで残る}
+      - {method: db_lookup, delay_seconds: 0, note: invoice-mcp は交換のたびに sts が委任の記録（approval の取り消し）を引くので、取り消し後の上流の呼び出しは 0 秒で止まる}
+    sender_constraint: dpop
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    long_running: タスクの間だけ。300 秒を超える処理は CIBA で取り直す（エージェントが期限の後に上流を呼ぶ形を作らない）
+    max_delegation_depth: 3
+    subject_type: public
+    stored_at: service_memory
+    transport: authorization_dpop
+    visible_to: [client, api]
+    jwe: {used: false, note: 個人情報を載せない。エージェントの実行基盤（client）は中身を読めるが、載るのは ID と task_id だけ}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: 30, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: sts の鍵（INT_AT と同じ）}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 6}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: >-
+      max_delegation_depth の 3 はケーススタディ C の組織の規則（depth_rule。標準による深さの強制はない）。other_headers_bytes は同じ要求の
+      DPoP ヘッダー（DPOP、最悪 1 KB 程度）を含む見積もり（筆者の提案）
+
+  - id: TASK_AT
+    kind: access_token
+    decision: 採用
+    rationale: >-
+      invoice-mcp は受け取った AGENT_AT を上流に渡さず（ケーススタディ C2）、交換で invoices 宛ての 1 件のタスクだけのトークンを得る。
+      act の最も外側が今の行為者（invoice-mcp）、その内側が agent:expense。支払いは承認の内容（authorization_details の金額・相手先・対象）と
+      承認の ID で束縛する（C5〜C7）
+    purpose: ツールサーバーから請求書の API への、タスク単位の呼び出し
+    issuer: 組織のトークン発行サービス（sts）
+    aud: [invoices]
+    holder: ツールサーバー（invoice-mcp）
+    format: jwt
+    typ: at+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: "https://sts.corp.example.com", jwks_uri: "https://sts.corp.example.com/jwks"}
+    required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, authorization_details, "https://claims.example.com/.tenant_id", "https://claims.example.com/.user_id", "https://claims.example.com/.task_id", "https://claims.example.com/.approval_id", "https://claims.example.com/.v"]
+    max_clock_skew: 30
+    max_lifetime: 300
+    lifetime_refs:
+      - {kind: guide-slide, id: p10-per-tool-scopes}
+    lifetime_set_by: [platform]
+    refresh: なし。呼び出しごとに交換する
+    revocation:
+      - {method: exp_only, delay_seconds: 330, note: 300 秒のタスク単位。交換のときに sts が委任の取り消しを確かめる}
+      - {method: db_lookup, delay_seconds: 0, note: "invoices が支払いの前に承認の DB で C-approval-id の記録の状態を引く（承認の取り消しは即時に効く）"}
+    sender_constraint: dpop
+    jti_policy: {unique_scope: per_issuer, replay_check: false}
+    long_running: 1 回の呼び出しだけに使う
+    max_delegation_depth: 3
+    subject_type: public
+    stored_at: service_memory
+    transport: authorization_dpop
+    visible_to: [api]
+    jwe: {used: false, note: 承認の金額と相手先の口座を authorization_details に載せる。組織の網の中のツールサーバーと請求書の API だけが読む}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: 30, publish_before_use_seconds: 3900, retire_after_seconds: 330, note: sts の鍵}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: shared
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 6}
+          - {name: kid, type: string, max_bytes: 22}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 3072
+    note: DPoP の鍵は invoice-mcp のもの（交換の要求に付けた proof の鍵で sts が束縛する）。AGENT_AT の cnf とは別の鍵
+
+  - id: DPOP
+    kind: dpop_proof
+    decision: 採用
+    rationale: AGENT_AT・TASK_AT を鍵に束縛し、要求ごとに鍵の所持を示す（issuance_profile.sender_constraint）
+    purpose: 要求ごとの鍵の所持の証明（トークンの要求と、保護リソースへの要求）
+    issuer: 鍵を持つクライアント（agent-runtime・invoice-mcp）
+    aud: ["（aud は無い。htm・htu で要求に束縛する）"]
+    holder: agent-runtime・invoice-mcp（要求ごとに作る）
+    format: jwt
+    typ: dpop+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: agent-runtime, jwks_uri: "https://agent-runtime.corp.example.com/.well-known/jwks.json"}
+      - {iss: invoice-mcp, jwks_uri: "https://invoice-mcp.corp.example.com/.well-known/jwks.json"}
+    max_clock_skew: 30
+    max_lifetime: 60
+    lifetime_refs:
+      - {kind: spec, id: "RFC 9449 §11.1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-11.1"}
+    lifetime_set_by: [platform]
+    refresh: なし（要求ごとに作る）
+    revocation:
+      - {method: one_time_use, delay_seconds: 0, note: 受け手は jti を受け入れの期間（iat から 60 秒＋ずれ 30 秒）だけ覚え、同じ jti の proof を拒む}
+    jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 90}
+    stored_at: none
+    transport: authorization_dpop
+    visible_to: [client, api, idp]
+    jwe: {used: false, note: proof は署名だけ。秘密を載せない}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: null, publish_before_use_seconds: 0, retire_after_seconds: 0, note: 実行基盤とツールサーバーの鍵は、それぞれの起動ごとに作り直す（短命の鍵）。sts は登録した jwks_uri の鍵でだけ束縛する（筆者の提案）}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: reject}
+    jwks_cache_ttl: 300
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: per_client
+    size:
+      signing: {alg: ES256}
+      header:
+        params:
+          - {name: alg, type: string, max_bytes: 5}
+          - {name: typ, type: string, max_bytes: 8}
+          - {name: jwk, type: string, max_bytes: 180}
+      path: [nodejs-max-http-header-size]
+      other_headers_bytes: 2048
+    note: >-
+      DPoP の proof は、ヘッダーの jwk の公開鍵で署名を確かめ、その拇印を AT の cnf.jkt と照合する（RFC 9449 §4.3）。スキーマは
+      header_key_params を reject に固定しているので、この行では「jwk を信頼の根拠にしない（cnf.jkt と、登録した jwks_uri の鍵との一致でだけ受け入れる）」
+      の意味で reject と書いた。proof には iss が無いが、R1 は JWT の行に issuers を求めるので、鍵を登録するクライアントの jwks_uri を書いた
+      （どちらもスキーマの限界。#3 への指摘。design.md の 12.）。transport の列挙に DPoP ヘッダーが無いので、同じ要求の Authorization: DPoP と
+      一緒に運ぶことを authorization_dpop で表した。proof には exp・aud・iss が無い（RFC 9449 §4.2）ので、required_claims は目録に書かず（書くと L27 が exp・aud・iss を求める）、
+      受け手が確かめる htm・htu・iat・jti（保護リソースでは ath も）は台帳の C-dpop-* と C-cnf の enforced_at に書いた。aud の列にも値が無いことを書いた。
+      issuers の iss は proof の発行者を表す名前（クライアント ID）で、proof の中の iss ではない。max_lifetime の 60 秒は受け手が iat から受け入れる期間
+      （RFC 9449 §11.1 は数値を定めない。筆者の提案）。サーバーが nonce を返した後は、proof の nonce も照合する（C-nonce）
+
+  - id: CLIENTASSERTION
+    kind: client_assertion
+    decision: 採用
+    rationale: portal・agent-runtime・invoice-mcp のクライアント認証を private_key_jwt にした（issuance_profile.client_auth）
+    purpose: Keycloak・sts のトークンの端点でのクライアント認証
+    issuer: portal・agent-runtime・invoice-mcp（クライアント自身）
+    aud: ["https://idp.example.com/realms/corp", "https://sts.corp.example.com"]
+    holder: 各クライアント（要求ごとに作る）
+    format: jwt
+    typ: client-authentication+jwt
+    alg_allowlist: [ES256]
+    issuers:
+      - {iss: portal, jwks_uri: "https://portal.corp.example.com/.well-known/jwks.json"}
+      - {iss: agent-runtime, jwks_uri: "https://agent-runtime.corp.example.com/.well-known/jwks.json"}
+      - {iss: invoice-mcp, jwks_uri: "https://invoice-mcp.corp.example.com/.well-known/jwks.json"}
+    max_clock_skew: 30
+    max_lifetime: 60
+    lifetime_refs:
+      - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
+    lifetime_set_by: [platform]
+    refresh: なし（要求ごとに作る）
+    revocation:
+      - {method: one_time_use, delay_seconds: 0, note: Keycloak・sts は jti を exp まで覚え、同じ assertion を拒む}
+    jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 90}
+    stored_at: none
+    transport: form_post_body
+    visible_to: [client, idp]
+    jwe: {used: false, note: 秘密を載せない}
+    log_policy: jti だけ記録
+    key_rotation: {period_days: 90, publish_before_use_seconds: 3900, retire_after_seconds: 90, note: クライアントの鍵は jwks_uri で公開し、新しい鍵を先に載せてから使う（筆者の提案）}
+    unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: reject}
+    jwks_cache_ttl: 3600
+    key_source: {from: configured_jwks_uri, header_key_params: reject}
+    signing_key_scope: per_client
+    note: >-
+      typ の client-authentication+jwt は、client assertion を別の種類の JWT と取り違えないための組織の値（RFC 7523 は typ を定めない。筆者の提案）。
+      クライアントの assertion にクレームの台帳の行は置かない（iss・sub はクライアント ID で、受け手は Keycloak・sts だけ）。そのため required_claims も目録に書かず、RFC 7523 §3 の iss・sub・aud・exp・jti の確認は Keycloak・sts の設定に任せる
+
+  # ---------------------------------------------------------------- 却下の行（カタログの全種類に採否を付ける）
+  # 前提と崩れる条件は、catalog_answers.yaml の、その種類を出す発行イベントへの回答と同じ
+  - id: IDJAG
+    kind: id_jag
+    decision: 却下
+    rationale: ドメインをまたぐ SSO 済みの利用者のトークンを受けない。グループ会社の IdP は、入口が EXT_AT を検証して作り直す
+    assumption: グループ会社の IdP から ID-JAG で組織の API を呼ぶ連携がない（I16 の回答）
+    revisit_trigger: グループ会社や SaaS から ID-JAG で組織の API・エージェントを呼ぶ連携を受け入れるとき
+    format: jwt
+
+  - id: JAR
+    kind: jar_request_object
+    decision: 却下
+    rationale: 認可要求は PAR で送る。要求の完全性は PAR の端点でのクライアント認証で守り、Request Object に署名しない
+    assumption: 認可要求の否認防止を求める規則（FAPI 2.0 の Message Signing など）の対象ではない（I31 の回答）
+    revisit_trigger: 認可要求の署名を求める規則の対象になったとき
+    format: jwt
+
+  - id: JARM
+    kind: jarm_response
+    decision: 却下
+    rationale: 認可応答を JWT にしない。応答は portal のサーバーが PKCE と state で確かめる
+    assumption: 認可応答の改ざんを防ぐ規則の対象ではない（I32 の回答）
+    revisit_trigger: 認可応答の改ざんを防ぐ必要が出たとき（FAPI 2.0 の Message Signing など）
+    format: jwt
+
+  - id: WORKLOADJWT
+    kind: jwt
+    decision: 却下
+    rationale: サービス・ワーカーの通信相手は mTLS（SPIFFE の X.509-SVID）で確かめ、ワークロードの ID のトークン（JWT-SVID）やアサーショングラントの JWT を使わない
+    assumption: 入口の内側はすべて mTLS で、TLS を途中で終端する部品が無い（I20 の回答）
+    revisit_trigger: TLS を終端する部品（L7 のプロキシ・メッシュの外のキュー）を通す経路ができ、通信相手をトークンで示す必要が出たとき
+    format: jwt
+
+  - id: SET
+    kind: security_event_token
+    decision: 却下
+    rationale: SSF・CAEP の SET を受けない。IdP のセッションの終了は Back-Channel Logout（LOGOUT）で受け、重要な操作は ledger が都度引き直す
+    assumption: 剥奪を受け手に届ける手段が、Back-Channel Logout と重要な操作の引き直しで足りる（I23・U17 の回答）
+    revisit_trigger: グループ会社の IdP（Entra ID など）でのリスクの検知やセッションの剥奪を、入口と内側の API に届ける必要が出たとき
+    format: jwt
+
+  - id: STATUSLIST
+    kind: status_list_token
+    decision: 却下
+    rationale: 状態リストを出さない。トークンの寿命は 300 秒で、即時の剥奪が要る操作は引き直す
+    assumption: 受け手に失効を届ける仕組みが、短い寿命と重要な操作の引き直しで足りる（I27・U16 の回答）
+    revisit_trigger: 寿命の長いトークン（エージェントの長時間のタスクなど）を出し、受け手に失効を届ける仕組みが要るようになったとき
+    format: jwt
+
+  - id: INTROSPECTIONJWT
+    kind: introspection_response_jwt
+    decision: 却下
+    rationale: イントロスペクションを使わない（at_format は jwt）。重要な操作の鮮度は Keycloak の管理 API でセッションと部署を引き直す
+    assumption: AS の判断を否認できない形で残す必要がない（I33 の回答）
+    revisit_trigger: イントロスペクションを使い、AS の判断を否認できない形で残す必要が出たとき
+    format: jwt

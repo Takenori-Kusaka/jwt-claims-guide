@@ -130,6 +130,21 @@ def test_l1b_same_name_different_meaning_fails(tmp_path):
     assert any('同じ名前' in f['message'] for f in bad(lint(tmp_path, d), 'L1b'))
 
 
+def test_l1b_name_defined_by_a_versioned_draft_is_warn(tmp_path):
+    """A name the draft defines (Txn-Token req_wl; #4 scenario B) warns instead of failing, only when registered_ref points
+    at the draft section and spec_version lists the same draft."""
+    d = base()
+    draft = 'draft-ietf-oauth-transaction-tokens-11'
+    d['claims']['claims'].append(new_claim(id='C-req-wl', name='req_wl', namespace=None, spec_version=[draft],
+                                           registered_ref={'kind': 'spec', 'id': draft + ' §9.2'}))
+    f = [x for x in lint(tmp_path, d)['findings'] if x['rule'] == 'L1b' and x['target'] == 'C-req-wl']
+    assert [x['severity'] for x in f] == ['warn']
+    d2 = base()
+    d2['claims']['claims'].append(new_claim(id='C-req-wl', name='req_wl', namespace=None,
+                                            registered_ref={'kind': 'spec', 'id': draft + ' §9.2'}))  # no spec_version
+    assert [x['target'] for x in bad(lint(tmp_path / 'b', d2), 'L1b')] == ['C-req-wl']
+
+
 def test_l1b_idp_default_private_name_is_info(example):
     assert [f['target'] for f in by(example, 'L1b')] == ['C-typ-claim'] and by(example, 'L1b')[0]['severity'] == 'info'
 
