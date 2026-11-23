@@ -75,13 +75,13 @@ def example():
 
 # ------------------------------------------------------------------ the worked example
 def test_example_has_no_semantic_error(example):
-    errs = [f for f in example['findings'] if f['rule'].startswith('L') and f['severity'] == 'error']
+    errs = [f for f in example['findings'] if f['rule'] in semantic.SEV and f['severity'] == 'error']
     assert not errs, core.format_table(example)
 
 
 def test_example_known_semantic_warnings(example):
     # the 3 shared claims without the 25 answers (L72, true positives left for #4: claim_request.md)
-    got = sorted((f['rule'], f['target']) for f in example['findings'] if f['rule'].startswith('L') and f['severity'] == 'warn')
+    got = sorted((f['rule'], f['target']) for f in example['findings'] if f['rule'] in semantic.SEV and f['severity'] == 'warn')
     assert got == [('L72', 'C-roles'), ('L72', 'C-user-id'), ('L72', 'C-v')]
 
 

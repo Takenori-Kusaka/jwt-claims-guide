@@ -8,12 +8,12 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 750
-  未着手: 617
-  実装済み: 90
+  未着手: 611
+  実装済み: 96
   後回し: 42
   扱わない: 1
-  core_未着手: 415
-  core_実装済み: 75
+  core_未着手: 409
+  core_実装済み: 81
   core_後回し: 0
   core_扱わない: 0
   full_未着手: 202
@@ -2267,7 +2267,7 @@ requirements:
     text: "sub・scope・authorization_details があれば、必ず認可の判断に使う（ASVS 10.3.2）"
     owner_issue: "#18"
     planned_items: [lint:L11, registry:claims#enforced_at]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 70 slide:p05-scope-vs-role
   - id: p05-scope-vs-role.R1
@@ -2741,7 +2741,7 @@ requirements:
     text: "草案の旧名（purp・azd）を使わず、依存する草案の版と見直しの条件を記録する"
     owner_issue: "#18"
     planned_items: [lint:L14, registry:claims#spec_version]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-transaction-tokens.R9
     slide: slide:p06-transaction-tokens
@@ -2856,7 +2856,7 @@ requirements:
     text: "独自クレームの意味を、各サービスでその操作に当てはめて照合する場所を宣言する"
     owner_issue: "#18"
     planned_items: [registry:claims#enforced_at, lint:L11]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-validation-split.R5
     slide: slide:p06-validation-split
@@ -3834,7 +3834,7 @@ requirements:
     text: "草案（Token Status List）に依存するなら版と見直しの条件を書く"
     owner_issue: "#18"
     planned_items: [lint:L14, registry:claims#spec_version]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p08-revocation-propagation.R7
     slide: slide:p08-revocation-propagation
@@ -4604,7 +4604,7 @@ requirements:
     text: "プレビュー・早期アクセスの製品機能（Keycloak 26.8 の委任など）に依存する行には、版と見直しの条件を書く"
     owner_issue: "#18"
     planned_items: [lint:L14, registry:claims#spec_version, registry:claims#revisit_trigger]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 137 slide:p10-guidance-standards
   - id: p10-guidance-standards.R1
@@ -4619,7 +4619,7 @@ requirements:
     text: "草案に依存する行には版と確認日を書き、状態が変わったら見直す"
     owner_issue: "#18"
     planned_items: [lint:L14, registry:claims#spec_version, registry:claims#revisit_trigger]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 138 slide:p10-agent-checklist
   - id: p10-agent-checklist.R1

@@ -17,7 +17,7 @@ import sys
 
 import yaml
 
-from . import coverage, r8, semantic
+from . import coverage, purpose, r8, semantic
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.dirname(HERE)
@@ -425,6 +425,9 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     findings += coverage.rule_r10(catalog_dir, limits_path, tts, today)
     sem_findings, checked = semantic.run(docs, profile, design_dir, root, catalog_dir, today, caps_path)  # #6
     findings += sem_findings
+    pur_findings, pur_checked = purpose.run(docs, root)  # #18: declaration consistency only
+    findings += pur_findings
+    checked.update(pur_checked)
     files = [p for p in paths.values() if os.path.isfile(p)] + list(extra_files)
     findings += rule_slides({k: docs[k] for k in docs}, files, root)
     counts = {s: sum(1 for f in findings if f['severity'] == s) for s in SEVERITIES}

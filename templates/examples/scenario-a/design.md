@@ -3,7 +3,7 @@
 
 > **記入例です。推奨ではありません。** ケーススタディ（jwt-claims-casestudy@080b8da）のシナリオ A の前提での一例で、自組織の判断の代わりに写さないでください。判断の正は同じディレクトリの `claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml` で、この文書はその読み物です。
 
-- 版：0.2.1（#6 の意味の規則が求める宣言を足した版）。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
+- 版：0.2.2（#18 の目的と仕組みの規則が求める宣言を足した版）。0.2.1 は #6 の意味の規則が求める宣言を足した版。0.2.0 は #3 の台帳 v1 に移し替えた版（前の版は 0.1.4。#16 の縦の一本。0.1.4 は #17 の網羅の規則が求める節を `catalog_answers.yaml` に足した版。0.1.3 は #2 でカタログを全体に広げたのに合わせて、カタログへの回答を足した版。テンプレート（#4）ができる前に、#4 の節の順に沿って書いた。0.1.1 は PR #28 の独立レビューの 17 件を反映した版）
 - **このケースは #4 の定義では Full です。** #4 の Lite の判定（5 問）のうち「マルチテナントか」が Yes なので、1 つでも Yes なら Full になります。縦の一本では、Lite の欄（#4 の 2・3・4・6・7・12 と台帳の必須列）がどれだけで書けるかを測るために、あえて Lite の欄で書きました。マルチテナントのレビューで要るクレームの鮮度の表と定義の寿命の欄（Full の欄）は書いていません。関門 1 の「Lite の記入時間」は、Full に当たるケースを Lite の欄で書いた時間になります（`research/template-design/gate1.md`）
 - 関門 1（2026-11-22）の判定は「絞る」。見出しの〔〕は、`research/template-design/gate1.md` の「Lite の縮小案」での扱い（手で書く／生成／Full だけ）を示す。中身は消していない。共有クレームを足すときの追加前の 25 問（`claim_request_tenant_id.md`）は、縮小 Lite でも手で書く
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。作成とは別の LLM のセッションでレビューした（`research/reviews/scenario-a-2026-11-22.md`）
@@ -24,7 +24,8 @@ L27   info      token_type AT  at+jwt の REQUIRED の client_id（RFC 9068 §2.
 L72   warn      C-user-id      共有クレーム（組織の名前空間、status が proposed 以上）に、追加前の 25 問の回答（claim_request_*.md）がない（…）
 L72   warn      C-roles        （C-user-id と同じ）
 L72   warn      C-v            （C-user-id と同じ）
-error 0, warn 5, info 6
+L11   warn      C-scope        AT に scope を載せるのに、認可の判断に使う宣言（enforced_at）がない。…（OWASP ASVS 5.0.0 10.3.2）
+error 0, warn 6, info 6
 OK
 ```
 
@@ -236,6 +237,7 @@ R3b の warn 2 件（I25・I26）は残している。カタログで Keycloak �
 
 ## 13. 前の版との差分
 
+- 0.2.2：claim_lint の目的と仕組みの規則（#18。宣言の整合の検査）が求める宣言を足した。判断は変えていない。足したもの：`catalog_answers.yaml` の `questions`（問いの一覧の 11 問のそれぞれが要るか。中身は 6. の表と同じ。L13）、`C-iss`・`C-sub` の saas-web（BFF）の `enforced_at`（ID トークンの iss の許可リストと mix-up の防止、sub をセッションに結びつける。L11）。残した warn は L11 の 1 件（C-scope：Keycloak が外せない scope=openid を AT に載せるが判断に使わない。ASVS 5.0.0 10.3.2 は載せるなら判断に使うとする。6. の「何が承認されたか」の行のとおり、使わないと決めている）
 - 0.2.1：claim_lint の意味の規則（#6）が求める宣言を足した。判断（採否・値）は変えていない。足したもの：`C-sid` の `registered_ref`（OpenID Connect Front-Channel Logout 1.0 §3。L1a）、`enforced_at` の `against`（何と照合するか。14 件）と `with`（`C-user-id` は `C-sub` と照合する。L9・L31）、IDT の `max_clock_skew: 30`（L27）、`catalog_answers.yaml` の `lite_criteria`（Lite の判定の 5 問。multitenant が Yes なので `--profile lite` では L73 の warn が出る）。値の途中の「 #」から後ろがコメントとして消えていた 3 か所（C-auth-time の note、C-roles の on_revoke、AT の note）を引用符で囲んだ（L74）。残した warn は L72 の 3 件（C-user-id・C-roles・C-v の追加前の 25 問がまだ無い。#4 で書く）。R8 の info から iss・sub・aud・azp の 4 件（ID トークンと AT の両方の仕様が定める登録名）が消えた
 - 0.2.0：台帳 v1（#3）に移し替えた。`claims.yaml` に `data_category`・`confidential_from`・`identifier_properties`・`rejection_kind` などを足し、`authoritative_writer` を段階ごとの配列（`configurable_by` つき）に、`integrity_until` を構造にした。`token_types.yaml` にカタログの残りの 9 種類の却下の行と `visible_to`・`jwe`・鍵の取り直しの規則などを足した。8. の表の中身を `hops.yaml` に宣言した。判断（採否・値）は変えていない
 - 0.1.4：#17 の網羅の規則（R3・R3b・R4・R6・R9）が求める節（`idp`・`subject_states`・`pairwise`・`outside_enumeration`）を `catalog_answers.yaml` に足した。PR #33 の独立点検で、カタログに I34（OID4VCI）が足されたので対象外で答え、R9 の探した範囲から Full だけの節（シーケンス図）を外し、停止の RT の根拠を「拒否による実質の失効」と書き直した。1. の CI の結果と 11. を直した

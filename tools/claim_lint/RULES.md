@@ -1,6 +1,6 @@
 # claim_lint の規則
 
-設計書の台帳（`claims.yaml`）・トークン目録（`token_types.yaml`）・カタログへの回答（`catalog_answers.yaml`）を検査する規則です。#16（縦の一本）で R1・R2・R8 とスライドの参照の解決を作り、#17 で網羅の規則（R2 の強化・R3・R3b・R4・R6・R9・R10。`tools/claim_lint/coverage.py`）を足しました。#6 で意味の規則（L1a〜L74 の一部と L10。`tools/claim_lint/semantic.py`・`diff.py`）を足しました。下の「意味の規則」の節にあります。
+設計書の台帳（`claims.yaml`）・トークン目録（`token_types.yaml`）・カタログへの回答（`catalog_answers.yaml`）を検査する規則です。#16（縦の一本）で R1・R2・R8 とスライドの参照の解決を作り、#17 で網羅の規則（R2 の強化・R3・R3b・R4・R6・R9・R10。`tools/claim_lint/coverage.py`）を足しました。#6 で意味の規則（L1a〜L74 の一部と L10。`tools/claim_lint/semantic.py`・`diff.py`）を足しました。下の「意味の規則」の節にあります。#18 で目的と仕組みの宣言の整合の規則（L11〜L14。`tools/claim_lint/purpose.py`）を足しました。下の「目的と仕組みの規則」の節にあります。
 
 ```
 python tools/claim_lint templates/examples/scenario-a                 # 人向けの表
@@ -95,6 +95,19 @@ R8 の info「同じクレームが 2 つ以上の種別に載る」から、名
 - **未実装（full）**：対応表で提案した lint のうち、tier が full の要件にしか結びつかないもの。L24・L28・L29・L30・L32・L33・L34・L35・L36・L38・L39・L40・L41・L42・L44・L45・L46・L47・L48・L49・L50・L51・L52・L53・L54・L56・L57・L58・L59・L61（#6）、L26・L55・L60（#18）。v1.0.0 の後に需要を見て進める（#11）
 - **一部だけ実装**：L21（シーケンス図）、L37（`effect` の列が #3 にない）、L43（外部の AT を含める宣言）、L6（ログの出力設定）。対応表のこれらの要件は未着手のまま
 - **対応表で core だが、実装済みにしていない要件**：テンプレート（#4）・観点書（#5）・実行テスト（#8）・`render`・`calib` の成果物が要るもの、要件の文が規則より広いもの（例：p04-single-issuer.R1「書くのは組織の発行者 1 か所」は L4 の「段階ごとに 1 つ」より広い）。`python tools/trace_check.py` の #6 の行が数を示す
+
+## 目的と仕組みの規則（#18。`tools/claim_lint/purpose.py`）
+
+**L11〜L14 は宣言の整合の検査です。** 設計者が書いた宣言（答える問い・答えない問い・照合する場所・草案への依存）が互いに矛盾していないかだけを見ます。受け手が実際に照合しているか、入れ子の act を本当に拒否しているかは、静的には判定できません。実際の照合は #8 の実行テスト（拒否されるべきトークン）で確かめます。**error にしたからといって「機械で保証した」とは言えません。**
+
+| ID | 内容（宣言の整合の検査） | 重大度 | 根拠（版付き） | 対応する #8 の実行テスト | シナリオ A（機会／足した直後／誤検知／後） |
+| --- | --- | --- | --- | --- | --- |
+| L11 | `usage` が authz・identifier のクレームを読む受け手（`consumers`）のそれぞれに `enforced_at` がない。`tctx` に照合の規則がない、`tctx` の項目（`value_vocabulary.values`）を照合する規則がない。AT に sub・scope・authorization_details を載せるのに `enforced_at` がない（warn。載せるなら判断に使う）（req:p05-coarse-fine-layers.R5 req:p06-validation-split.R4） | error（ASVS の部分は warn） | author-proposal（tracking #18）：本文と `tctx` の照合は仕様では MAY（draft-ietf-oauth-transaction-tokens-11 §12.2）。OWASP ASVS 5.0.0 10.3.2 | `test:negative_tests#tctx-mismatch`、`test:negative_tests#approval-mismatch` | 9／3（C-iss・C-sub の saas-web の照合が無い 2 件、C-scope の warn 1 件）／誤検知の候補 1（C-scope：Keycloak が外せない scope=openid を、設計は判断に使わないと決めている。ASVS 10.3.2 の読み方では正しい指摘とも言える。warn の部分）／1（C-scope の warn） |
+| L12 | 同じ問いが `answers` と `does_not_answer` の両方にある。questions.yaml の `not_this` で取り違えやすいとした 2 つの問いに、同じクレームで答えている（`act` と Txn-Token、`sub` と `act` の取り違え）。入れ子の `act`（`path` に act が 2 つ以上）を「誰が代理して実行しているか」（q-actor）の答えにしている | error | RFC 8693 §4.1（最も外側の act だけが今の代理者）、slide:p05-one-request-carries | `test:negative_tests#nested-act` | 5／0／0／0 |
+| L13 | `catalog_answers.yaml` の `questions` に、問いの一覧（`templates/registry/questions.yaml` の questions、11 問）のそれぞれが要るか（`needed`）の回答がない。不要とした問いに理由がない。要るとした問いに、答える仕組み（その問いを `answers` に持つ採用のクレームか、クレームでない仕組みの `channel`）が 1 つもない | error | slide:p05-one-request-carries、#11 の「問い × 仕組み」 | —（設計の網羅。実行テストはない） | 11／1（`questions` の節が無い）／0／0 |
+| L14 | 草案に依存する行（`refs` が draft-…-NN・preview を指す、草案が定めるクレーム txn・tctx・req_wl・purp・azd・status など、草案のトークン Txn-Token・ID-JAG・状態リストに載る）に `spec_version` か `revisit_trigger` がない。草案の purp・azd に依存している。草案の種別を採用したのに、版付きの草案の参照か `revisit_trigger` がない（req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2 req:p10-guidance-standards.R2） | warn | slide:p10-guidance-standards（草案を必須と書かない）、slide:p03-keycloak-aud-lightweight（preview の機能） | — | 0（草案に依存する行がない）／0／—／0 |
+
+重大度は意味の規則と同じ決め方です（シナリオ A で機会が 1 以上、error の部分で誤検知 0 のものだけ error）。L14 は #18 の本文が warn です。L11 の ASVS の部分（warn）はシナリオ A で誤検知の候補が 1 件出たので、error に上げません。
 
 カタログそのものの検査（列、種になる一覧との差集合、主体の状態の行列、`sources.md` の件数）は、設計書ではなくカタログの検査なので `tools/catalog_check.py` に分けました（#2）。R3 はその `closure()` を、R2・R4 は `_weak_reason()` を、R4 は `seed_items()`・`STATES`・`LAYERS`・`RESULTS` を使います。
 

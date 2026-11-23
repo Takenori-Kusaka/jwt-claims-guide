@@ -23,6 +23,7 @@
 
 ### 変更
 
+- claim_lint の目的と仕組みの規則（#18）：L11〜L14（宣言の整合の検査）を足した。`examples/scenario-a/catalog_answers.yaml` に `questions`（問いが要るか）を、`claims.yaml` の C-iss・C-sub に saas-web の `enforced_at` を足した（`design.md` の 13.）
 - claim_lint の意味の規則（#6）：L1a・L1b・L2〜L9・L15〜L18・L21〜L23・L25・L27・L31・L37・L43・L62〜L74 と `claim_lint diff`（L10）を足した。新しい規則は warn から入れ、シナリオ A で機会が 1 以上・誤検知 0 のものだけを error にした（`tools/claim_lint/RULES.md`）。R8 の info から、ID トークンと AT の両方の仕様が定める登録名を外した
 - `registry/claims.schema.json`（#6）：`enforced_at` の要素に任意の `against`・`with` を足した（任意の列の追加なのでマイナー）
 - `examples/scenario-a/`（#6）：意味の規則が求める宣言を足した。C-sid の `registered_ref`、`enforced_at` の `against`（14 件）と `with`（C-user-id）、IDT の `max_clock_skew`、`catalog_answers.yaml` の `lite_criteria`。値の途中の「 #」で消えていた 3 か所を引用符で囲んだ（L74、#39 と同じ直し）。判断（採否・値）は変えていない（`design.md` の 13.）

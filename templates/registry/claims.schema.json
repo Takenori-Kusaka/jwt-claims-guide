@@ -666,7 +666,8 @@
     "revisit_trigger": {
      "type": "string",
      "minLength": 1,
-     "pattern": "\\S"
+     "pattern": "\\S",
+     "$comment": "Trace: req:p10-vendor-features.R2 req:p10-guidance-standards.R2"
     },
     "refs": {
      "type": "array",
@@ -1113,7 +1114,8 @@
        "check"
       ]
      },
-     "maxItems": 30
+     "maxItems": 30,
+     "$comment": "Trace: req:p05-coarse-fine-layers.R5 req:p06-validation-split.R4"
     },
     "max_bytes": {
      "type": "integer",
@@ -1412,7 +1414,8 @@
      "maxItems": 10,
      "minItems": 1,
      "uniqueItems": true,
-     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)"
+     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)",
+     "$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2 req:p10-guidance-standards.R2"
     },
     "note": {
      "type": "string"

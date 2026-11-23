@@ -68,6 +68,7 @@ claims:
       - {service: saas-api, check: 許可リストと完全一致。鍵はその iss の JWKS だけから取る, against: [api_config]}
       - {service: saas-api, check: iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う, against: [api_config]}
       - {service: saas-api, check: iss のレルム名と tenant_id が一致するか}
+      - {service: saas-web, check: ID トークンの iss が許可リスト（テナントのレルム）にあり、認可要求を送ったレルムと一致するか（mix-up の防止。design.md の 12.）, against: [api_config]}
     max_bytes: 63
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし
@@ -113,6 +114,7 @@ claims:
     enforced_at:
       - {service: saas-api, check: 文字列であること, against: [format]}
       - {service: saas-api, check: "BOLA：請求書の owner_sub = sub、かつ請求書の tenant_id = iss から引いたテナント", against: [data_layer, iss]}
+      - {service: saas-web, check: ID トークンの sub を BFF のセッションに結びつける（文字列であること。認可には使わない）, against: [format]}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 個人情報
