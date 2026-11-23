@@ -257,7 +257,17 @@
         steps.push(() => ask('書き出していない変更があります',
           `開いている「${ws.label}」には、書き出していない変更（${unsavedLabel()}）があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、保存できていません' : '無効です'}）。zip には ${companions.some((c) => c.unsaved()) ? 'review.yaml も' : '設計書のファイルを'}入れます。`,
           [['export', 'zip で書き出してから' + verb], ['discard', '書き出さずに' + verb + '（変更は消える）'], ['cancel', 'やめる']])
-          .then((c) => { if (c === 'export') exportZip(); return c === 'cancel' ? 'cancel' : null; }));
+          .then((c) => {
+            if (c !== 'export') return c === 'cancel' ? 'cancel' : null;
+            // the review mode may ask what goes into the zip (#50: independent review); what is still not written out
+            // after the export (another reviewer's records left out) is asked about again, not dropped
+            return exportZip().then((done) => {
+              if (!done) return 'cancel';
+              if (!unsaved()) return null;
+              return ask('まだ書き出していない記録があります', `zip に入れなかった変更（${unsavedLabel()}）が残っています。${verb}と、それは消えます。`,
+                [['cancel', 'やめる'], ['discard', '書き出さずに' + verb + '（残りは消える）']]).then((c2) => (c2 === 'discard' ? null : 'cancel'));
+            });
+          }));
       }
     }
     if (opts && opts.origin !== 'autosave') {
@@ -918,18 +928,29 @@
     download(f.name, new Blob([exportText(f)], { type: /\.md$/.test(f.name) ? 'text/markdown' : 'text/yaml' }));
     f.savedText = exportText(f);
   }
+  // -> Promise<true when written, false when a companion's question was cancelled>
   function exportZip() {
-    if (!ws.open) return;
-    const dir = safeDirName(ws.designRel.split('/').pop());
-    const entries = {};
-    sortedNames().forEach((n) => { entries[dir + '/' + n] = [L.strToU8(exportText(ws.files.get(n))), { mtime: new Date(1980, 0, 2) }]; });
-    // review.yaml (#50) goes next to the design files, as it is kept in the repository
-    companions.forEach((c) => (c.exportEntries ? c.exportEntries() : []).forEach((e) => {
-      if (!entries[dir + '/' + e.name]) entries[dir + '/' + e.name] = [L.strToU8(e.text), { mtime: new Date(1980, 0, 2) }];
-    }));
-    download(dir + '.zip', new Blob([L.zipSync(entries, { level: 6 })], { type: 'application/zip' }));
-    ws.files.forEach((f) => { f.savedText = exportText(f); });
-    companions.forEach((c) => { if (c.markSaved) c.markSaved(); });
+    if (!ws.open) return Promise.resolve(false);
+    // review.yaml (#50) goes next to the design files, as it is kept in the repository. A companion may ask first what
+    // to put in (prepareExport -> {entries, markSaved} or null to cancel)
+    let p = Promise.resolve([]);
+    companions.forEach((c) => {
+      p = p.then((acc) => (c.prepareExport ? c.prepareExport() : Promise.resolve({ entries: c.exportEntries ? c.exportEntries() : [], markSaved: c.markSaved }))
+        .then((r) => (r === null || acc === null ? null : acc.concat([r]))));
+    });
+    return p.then((parts) => {
+      if (parts === null) return false;
+      const dir = safeDirName(ws.designRel.split('/').pop());
+      const entries = {};
+      sortedNames().forEach((n) => { entries[dir + '/' + n] = [L.strToU8(exportText(ws.files.get(n))), { mtime: new Date(1980, 0, 2) }]; });
+      parts.forEach((r) => (r.entries || []).forEach((e) => {
+        if (!entries[dir + '/' + e.name]) entries[dir + '/' + e.name] = [L.strToU8(e.text), { mtime: new Date(1980, 0, 2) }];
+      }));
+      download(dir + '.zip', new Blob([L.zipSync(entries, { level: 6 })], { type: 'application/zip' }));
+      ws.files.forEach((f) => { f.savedText = exportText(f); });
+      parts.forEach((r) => { if (r.markSaved) r.markSaved(); });
+      return true;
+    });
   }
   let autosaveTimer = null;
   function autosaveSoon() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(autosave, 1000); }
@@ -1185,7 +1206,7 @@
       setProfile: (p) => { ws.profile = p === 'lite' ? 'lite' : 'full'; if (lint.state === 'fresh') lint.state = 'stale'; scheduleLint(0); publish(false); },
     });
     $('#btn-export-one').addEventListener('click', exportOne);
-    $('#btn-export-zip').addEventListener('click', exportZip);
+    $('#btn-export-zip').addEventListener('click', () => { exportZip(); });
     $('#btn-close').addEventListener('click', requestClose);
     // leaving the page with edits that were not written out (a link, a reload, closing the tab): the browser asks first.
     // With autosave on, the edits are saved to their slot instead.

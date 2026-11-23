@@ -548,6 +548,64 @@ class ReviewMode(unittest.TestCase):
         self.assertEqual(review_check.check_report(ROOT, rep), [])
         self.assertEqual(pg.problems, [])
 
+    def test_zip_export_in_independent_mode_puts_only_own_records_unless_asked(self):
+        # PR #52 re-check: "zip で書き出す" and "zip で書き出してから閉じる" wrote every reviewer's records silently
+        pg = self.page()
+        self.sample(pg, 'b')
+        llm = pg.evaluate('() => ClaimsReview.visibleNames()[0]')
+        self.become(pg, 'zip の X')
+        pg.check('#rv-independent')
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        pg.check('#q-dc-01 input[value="yes"]')
+        self.poll(pg, '() => ClaimsReview.unsaved()')
+
+        def names_in(dl):
+            with zipfile.ZipFile(dl.value.path()) as z:
+                return [r['reviewer']['name'] for r in review_record.load_text(z.read('scenario-b/review.yaml').decode('utf-8'))['reviews']]
+        # 1. the button: asked; the first choice puts my records only, nothing is recorded, the rest stays unsaved
+        pg.click('#btn-export-zip')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('zip に入れる review.yaml', pg.inner_text('dialog#confirm'))
+        with pg.expect_download() as dl:
+            pg.click('dialog#confirm [data-choice="mine"]')
+        self.assertEqual(names_in(dl), ['zip の X'])
+        me = 'r => r.reviewer.name === "zip の X"'
+        self.assertEqual(pg.evaluate(f'() => ClaimsReview.data().reviews.find({me}).independence.mode'), 'kept')
+        self.assertTrue(pg.evaluate('() => ClaimsReview.unsaved()'))
+        self.assertEqual(pg.evaluate('() => ClaimsReview.visibleNames()'), ['zip の X'])
+        # Esc on that question: nothing is written
+        pg.click('#btn-export-zip')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.keyboard.press('Escape')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        # 2. closing with "zip で書き出してから閉じる": the same question; with my records only, the rest is asked about again
+        pg.click('#btn-close')
+        pg.wait_for_selector('dialog#confirm[open]')
+        pg.click('dialog#confirm [data-choice="export"]')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('zip に入れる review.yaml', pg.inner_text('dialog#confirm'))
+        with pg.expect_download() as dl:
+            pg.click('dialog#confirm [data-choice="mine"]')
+        self.assertEqual(names_in(dl), ['zip の X'])
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('まだ書き出していない記録があります', pg.inner_text('dialog#confirm'))
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
+        # every record: only when chosen, and recorded as leaving the independent review
+        with pg.expect_download() as dl:
+            pg.click('#btn-close')
+            pg.click('dialog#confirm [data-choice="export"]')
+            pg.wait_for_selector('dialog#confirm[open] [data-choice="all"]')
+            pg.click('dialog#confirm [data-choice="all"]')
+        self.assertEqual(sorted(names_in(dl)), sorted([llm, 'zip の X']))
+        with zipfile.ZipFile(dl.value.path()) as z:
+            data = review_record.load_text(z.read('scenario-b/review.yaml').decode('utf-8'))
+        ind = next(r for r in data['reviews'] if r['reviewer']['name'] == 'zip の X')['independence']
+        self.assertEqual((ind['mode'], ind['reason']), ('broken', '提出の前に全員の記録を zip で書き出した'))
+        self.poll(pg, '() => !ClaimsEditor.state().open')
+        self.assertEqual(pg.problems, [])
+
     def test_review_autosave_failure_is_shown_and_guarded(self):
         pg = self.page()
         self.sample(pg, 'a')

@@ -194,7 +194,8 @@
   }
   // the badge of a decision always names the reviewer; an LLM's decision says that no person has checked it. The
   // details (when, the hashes) are in the text for screen readers too, not only in the title
-  function stateBadge(rec, anchor, rv, set) {
+  function stateBadge(rec, anchor, rv, set, shown) {
+    const detail = (t) => h('span', { class: shown ? 'muted small rv-detail' : 'vh' }, shown ? ' ' + t : t);
     const s = rowState(rec, anchor, set);
     const d = DEC[rec.decision];
     const kind = rec.reviewer_kind || rv.reviewer.kind;
@@ -202,11 +203,11 @@
     const attrs = (state) => ({ class: 'rvb', 'data-review-for': anchor, 'data-review-state': state, 'data-review-by': rv.reviewer.name, 'data-review-kind': kind });
     if (s === 'stale') {
       const why = `${d[2]} を記録した後に、行の内容が変わった（記録 ${rec.hash.slice(0, 12)}…、今 ${String(CE.rowHash(anchor)).slice(0, 12)}…）`;
-      return h('span', attrs('stale'), badge(STALE, '再確認が要る' + who, why), h('span', { class: 'vh' }, why));
+      return h('span', attrs('stale'), badge(STALE, '再確認が要る' + who, why), detail(why));
     }
     if (s === 'missing') return h('span', attrs('missing'), badge(MISSING, '台帳に無い行' + who));
     const why = `${rec.at}${rec.comment ? '：' + rec.comment : ''}`;
-    return h('span', attrs(rec.decision), badge(d, d[2] + who, why), h('span', { class: 'vh' }, why));
+    return h('span', attrs(rec.decision), badge(d, d[2] + who, why), detail(why));
   }
   function record(anchor, decision, comment) {
     const m = mine();
@@ -290,8 +291,7 @@
         h('button', { type: 'button', onclick: () => { newFinding({ anchors: [anchor], location: anchor.replace(/^claims:/, '') }); } }, '指摘を足す'))));
     }
     if (recs.length) {
-      box.append(h('h3', null, '記録'), h('ul', { class: 'rv-recs' }, recs.map(([rv, r]) => h('li', null, stateBadge(r, anchor, rv, set), ' ',
-        h('span', { class: 'muted' }, r.at, r.comment ? '：' : ''), r.comment ? H.inline(r.comment) : null))));
+      box.append(h('h3', null, '記録'), h('ul', { class: 'rv-recs' }, recs.map(([rv, r]) => h('li', null, stateBadge(r, anchor, rv, set, true)))));
     }
     if (hiding() && hiddenCount()) box.append(h('p', { class: 'muted small', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の記録を隠しています。`));
     if (fs.length) box.append(h('h3', null, 'この行の指摘'), h('ul', null, fs.map(([rv, f]) => h('li', null, code(f.id), ' ', f.severity, '・', f.kind, '：', H.inline(f.content), st.file.reviews.length > 1 ? h('span', { class: 'muted' }, `（${rv.reviewer.name}）`) : null))));
@@ -468,6 +468,22 @@
     autosave: () => { if (!unsaved()) return true; return autosave(); },
     exportEntries: () => (st.file.reviews.length || unsaved() ? [{ name: 'review.yaml', text: dump(st.file) }] : []),
     markSaved: () => { st.savedText = dump(st.file); },
+    // "zip で書き出す" (and the export of the dialogs that close or replace the design): while the others' records are
+    // hidden (independent review, not submitted), only one's own records by default; every record only after a
+    // question, and that is recorded as leaving the independent review (PR #52 re-check)
+    prepareExport: () => {
+      const full = () => ({ entries: st.file.reviews.length || unsaved() ? [{ name: 'review.yaml', text: dump(st.file) }] : [], markSaved: () => { st.savedText = dump(st.file); } });
+      if (!(hiding() && hiddenCount())) return Promise.resolve(full());
+      return CE.ask('zip に入れる review.yaml', `独立レビューの間は、ほかのレビュアー ${hiddenCount()} 人の記録を画面で隠しています。zip の review.yaml には、ふつうは自分の記録だけを入れます（ほかの記録はこのタブに残り、書き出していないものとして扱います）。`,
+        [['mine', '自分の記録だけ入れる'], ['all', '全員の記録を入れる（独立レビューを外れたと記録する）'], ['cancel', 'やめる']]).then((c) => {
+        if (c === 'mine') { const m = mine(); return { entries: [{ name: 'review.yaml', text: dump(Object.assign({}, st.file, { reviews: m ? [m] : [] })) }], markSaved: null }; }
+        if (c !== 'all') return null;
+        const m = mine();
+        if (m) m.independence = Object.assign({}, m.independence || {}, { mode: 'broken', broken_at: now(), reason: '提出の前に全員の記録を zip で書き出した' });
+        changed(false);
+        return full();
+      });
+    },
     slotKey: () => (st.open ? slotKey() : null),
     onOpen: companionOpen,
     onClose: () => { st.slotHold = null; CE.saveWarning(null, 'review'); st.open = false; st.file = emptyFile(''); st.savedText = dump(st.file); st.me = null; st.base = null; },
