@@ -8,16 +8,16 @@ summary:
   knowledge_slides: 7
   structural_slides: 17
   requirements: 750
-  未着手: 402
-  実装済み: 305
+  未着手: 362
+  実装済み: 345
   後回し: 42
   扱わない: 1
-  core_未着手: 264
-  core_実装済み: 226
+  core_未着手: 232
+  core_実装済み: 258
   core_後回し: 0
   core_扱わない: 0
-  full_未着手: 138
-  full_実装済み: 79
+  full_未着手: 130
+  full_実装済み: 87
   full_後回し: 42
   full_扱わない: 1
 
@@ -251,8 +251,8 @@ requirements:
     slide: slide:p00-claims-are-contracts
     text: "台帳に載っていないクレームに、どのサービスも頼らない"
     owner_issue: "#8"
-    planned_items: [test:consumer_contract, registry:claims#consumers]
-    status: 未着手
+    planned_items: [test:consumer_contract#declared-reads, registry:claims#consumers]
+    status: 実装済み
     tier: core
   - id: p00-claims-are-contracts.R8
     slide: slide:p00-claims-are-contracts
@@ -382,42 +382,42 @@ requirements:
     text: "署名は、ヘッダーの URL ではなく事前に設定した発行者の鍵で検証する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#untrusted-key, registry:token_types#issuers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R4
     slide: slide:p01-validation-order
     text: "iss が想定の発行者と完全一致するかを確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#iss-mismatch, registry:token_types#issuers, template:modules/M_token_validation#issuer]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R5
     slide: slide:p01-validation-order
     text: "aud に自分が含まれるかを確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong, template:modules/M_token_validation#audience]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R6
     slide: slide:p01-validation-order
     text: "exp・nbf を確かめ、時刻のずれは数分までにする"
     owner_issue: "#8"
     planned_items: [test:negative_tests#expired, test:negative_tests#nbf-future, registry:token_types#max_clock_skew, template:modules/M_token_validation#time]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R7
     slide: slide:p01-validation-order
     text: "typ でトークンの種類を確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#typ-wrong, registry:token_types#typ]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R8
     slide: slide:p01-validation-order
     text: "必須クレームがあるか、型が想定どおりかを確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#missing-required, registry:token_types#required_claims, lint:L7]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-validation-order.R9
     slide: slide:p01-validation-order
@@ -439,7 +439,7 @@ requirements:
     text: "鍵ごとにアルゴリズムを 1 つに固定し、RS256 と HS256 の混同を防ぐ"
     owner_issue: "#8"
     planned_items: [test:negative_tests#alg-confusion, registry:token_types#alg_allowlist]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-dangerous-header-params.R3
     slide: slide:p01-dangerous-header-params
@@ -467,7 +467,7 @@ requirements:
     text: "typ を期待する種類と照合し、別の目的のトークンを持ち込ませない"
     owner_issue: "#8"
     planned_items: [test:negative_tests#typ-wrong, registry:token_types#typ]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 13 slide:p01-key-rotation-jwks
   - id: p01-key-rotation-jwks.R1
@@ -547,7 +547,7 @@ requirements:
     text: "API は aud を確かめ、別のクライアント向けのトークンを拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-id-token-vs-access-token.R3
     slide: slide:p01-id-token-vs-access-token
@@ -598,7 +598,7 @@ requirements:
     text: "exp・aud・iss が無いトークンを拒否するよう必須にする"
     owner_issue: "#8"
     planned_items: [test:negative_tests#missing-required, registry:token_types#required_claims]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-library-defaults.R3
     slide: slide:p01-library-defaults
@@ -627,21 +627,21 @@ requirements:
     text: "alg の none や RS256→HS256 の混同を、許可リストと鍵ごとの固定で拒否する"
     owner_issue: "#8"
     planned_items: [registry:token_types#alg_allowlist, test:negative_tests#alg-none, test:negative_tests#alg-confusion]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-attack-patterns.R2
     slide: slide:p01-attack-patterns
     text: "別のサービス向けのトークンの差し替えを、aud の確認で拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-attack-patterns.R3
     slide: slide:p01-attack-patterns
     text: "別のテナントのトークンを、テナントごとの発行者・鍵と照合して拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#tenant-mismatch, lint:L9]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-attack-patterns.R4
     slide: slide:p01-attack-patterns
@@ -662,7 +662,7 @@ requirements:
     text: "同名のクレームの重複を拒否するパーサを使う"
     owner_issue: "#8"
     planned_items: [test:negative_tests#duplicate-claim, template:modules/M_token_validation#library-config]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p01-attack-patterns.R7
     slide: slide:p01-attack-patterns
@@ -684,7 +684,7 @@ requirements:
     text: "iss は完全一致で比べ、部分一致で受け入れない"
     owner_issue: "#8"
     planned_items: [test:negative_tests#iss-mismatch, registry:token_types#issuers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-registered-claims.R2
     slide: slide:p02-registered-claims
@@ -806,7 +806,7 @@ requirements:
     text: "テナントごとに発行者を分けるなら、鍵と発行者の組を照合する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#tenant-mismatch, registry:token_types#issuers]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p02-tenant-org.R4
     slide: slide:p02-tenant-org
@@ -1150,7 +1150,7 @@ requirements:
     text: "自分の API 宛てでないトークン（Microsoft Graph 向けなど）を検証も受け入れもしない"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 36 slide:p03-entra-scp-roles-groups
   - id: p03-entra-scp-roles-groups.R1
@@ -1179,7 +1179,7 @@ requirements:
     text: "発行後の実トークンに、宣言した独自クレームが欠けずに入っているかを確かめる（拡張属性の黙った欠落）"
     owner_issue: "#8"
     planned_items: [test:consumer_contract#issued-claims-present]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p03-entra-scp-roles-groups.R5
     slide: slide:p03-entra-scp-roles-groups
@@ -1287,7 +1287,7 @@ requirements:
     text: "予約名との衝突で黙って外れないよう、発行後のトークンに独自クレームが入っているかをテストで確かめる"
     owner_issue: "#8"
     planned_items: [test:consumer_contract#issued-claims-present]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p03-auth0-namespace.R3
     slide: slide:p03-auth0-namespace
@@ -1517,7 +1517,7 @@ requirements:
     text: "aud は文字列と配列の両方を受け、無ければ拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#missing-required, registry:token_types#required_claims]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p03-confusing-differences.R5
     slide: slide:p03-confusing-differences
@@ -1582,7 +1582,7 @@ requirements:
     text: "権限を外したあと、許した時間を超えて古い権限で通らないことを実行で確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#revocation-latency]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 49 slide:p04-carry-or-query
   - id: p04-carry-or-query.R1
@@ -1799,7 +1799,7 @@ requirements:
     text: "受け手は値を変換せず、完全一致で比べる（大小だけ違う値を同じとみなさない）"
     owner_issue: "#8"
     planned_items: [test:negative_tests#case-variant, review:perspectives#q-consumer-expression]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p04-case-and-characters.R4
     slide: slide:p04-case-and-characters
@@ -1908,7 +1908,7 @@ requirements:
     text: "受け手は、別に求めない限り未知のクレームを無視し、未知のクレームで失敗しない"
     owner_issue: "#8"
     planned_items: [test:consumer_contract#unknown-claim-ignored]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p04-forward-compatibility.R2
     slide: slide:p04-forward-compatibility
@@ -2253,7 +2253,7 @@ requirements:
     text: "発行者は、知らない type や知らないフィールドを含む authorization_details の要求を拒否する（RFC 9396 §5）"
     owner_issue: "#8"
     planned_items: [test:negative_tests#rar-unknown-type]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p05-coarse-fine-layers.R4
     slide: slide:p05-coarse-fine-layers
@@ -2411,7 +2411,7 @@ requirements:
     text: "別のテナントのトークンが拒否されることを実行で確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#tenant-mismatch]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 74 slide:p05-cross-tenant
   - id: p05-cross-tenant.R1
@@ -2454,7 +2454,7 @@ requirements:
     text: "API は自分宛ての aud のトークンだけを受け入れる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong]
-    status: 未着手
+    status: 実装済み
     tier: core
   # ---- 75 slide:p05-bola
   - id: p05-bola.R1
@@ -2490,8 +2490,9 @@ requirements:
     text: "利用者 A・B を使った自動テストで、他人のオブジェクトを取り出せないことを確かめ、回帰を防ぐ"
     owner_issue: "#8"
     planned_items: [test:negative_tests#bola-other-owner]
-    status: 未着手
+    status: 実装済み
     tier: core
+    note: "CI はオフライン（MemoryStore。テナントと owner_sub の照合）で回帰を防ぐ。SQL の owner_sub の条件（PgStore）は live（手元）でだけ確かめる（PR #48 の点検）"
   # ---- 76 slide:p05-confused-deputy
   - id: p05-confused-deputy.R1
     slide: slide:p05-confused-deputy
@@ -2727,7 +2728,7 @@ requirements:
     text: "aud は信頼ドメインとし、その外では受け入れない"
     owner_issue: "#8"
     planned_items: [registry:hops#aud, test:negative_tests#aud-wrong]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-transaction-tokens.R7
     slide: slide:p06-transaction-tokens
@@ -2842,7 +2843,7 @@ requirements:
     text: "各サービスは aud が自分宛てかを確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#aud-wrong, registry:hops#aud]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-validation-split.R3
     slide: slide:p06-validation-split
@@ -2851,6 +2852,7 @@ requirements:
     planned_items: [registry:questions#q-peer, registry:questions#q-req-wl, test:negative_tests#req-wl-changed]
     status: 未着手
     tier: core
+    note: "#8 の test:negative_tests#req-wl-changed は ledger の 1 か所だけで確かめた（期待値は台帳の H9・H10 から引く）。各サービスでの照合ではないので未着手のまま（PR #48 の点検）"
   - id: p06-validation-split.R4
     slide: slide:p06-validation-split
     text: "独自クレームの意味を、各サービスでその操作に当てはめて照合する場所を宣言する"
@@ -2928,14 +2930,14 @@ requirements:
     text: "大文字小文字と _・- の変種も除去されることを試験で確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#spoofed-identity-header]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-header-forwarding.R3
     slide: slide:p06-header-forwarding
     text: "同名ヘッダーが重複したリクエストを拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#spoofed-identity-header]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-header-forwarding.R4
     slide: slide:p06-header-forwarding
@@ -3079,7 +3081,7 @@ requirements:
     text: "URL やヘッダーのテナント ID がトークンのテナントと一致するかを確かめ、不一致なら拒否する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#tenant-mismatch, lint:L9]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p06-flow-multitenant-saas.R3
     slide: slide:p06-flow-multitenant-saas
@@ -3490,7 +3492,7 @@ requirements:
     text: "PostgreSQL は SET LOCAL か set_config(…, true) で設定する（項目 2）"
     owner_issue: "#8"
     planned_items: [test:negative_tests#pool-context-leak, review:perspectives#checklist-p07-data-layer]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p07-data-layer-checklist.R3
     slide: slide:p07-data-layer-checklist
@@ -3553,7 +3555,7 @@ requirements:
     text: "データ層の設定を製品の既定値に任せず、設計書に書いて試験で確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#pool-context-leak, test:negative_tests#db-context-override, review:perspectives#checklist-p07-data-layer]
-    status: 未着手
+    status: 実装済み
     tier: full
   # ---- 106 slide:p08-four-lifetimes
   - id: p08-four-lifetimes.R1
@@ -3758,6 +3760,7 @@ requirements:
     planned_items: [test:negative_tests#rt-reuse]
     status: 未着手
     tier: core
+    note: "Keycloak 26.8.0（revokeRefreshToken true・refreshTokenMaxReuse 0）で系列の RT の失効を観測した（research/runtime/keycloak-observations-2026-11-23.md の 2.）。シナリオ A の台帳の reuse_detection は unverified のままなので、記入例の担当（#16・#3）が値を直すまで未着手（PR #48 の点検）"
   - id: p08-rotation.R4
     slide: slide:p08-rotation
     text: "長く使われない RT を失効させる期間を決める"
@@ -3806,8 +3809,9 @@ requirements:
     text: "失効を受け取った受け手は、トークンを拒否し、セッションを終える"
     owner_issue: "#8"
     planned_items: [test:negative_tests#revoked-token-rejected, test:negative_tests#revocation-latency]
-    status: 未着手
+    status: 実装済み
     tier: core
+    note: "この設計で失効を受け取る手段はリフレッシュの失敗だけ（ログアウトトークンと SET は却下）。その手段で BFF のセッションが終わることを確かめた。盗まれた AT は取り消しの直後に受理され、exp＋ずれの後に拒否される（PR #48 の点検で直した）"
   - id: p08-revocation-propagation.R3
     slide: slide:p08-revocation-propagation
     text: "イントロスペクションの応答のキャッシュを、応答の exp を超えて使わない"
@@ -4446,7 +4450,7 @@ requirements:
     text: "受け手が実際の要求と承認された内容の一致を照合する"
     owner_issue: "#8"
     planned_items: [test:negative_tests#approval-mismatch, lint:L11]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p10-human-approval-evidence.R4
     slide: slide:p10-human-approval-evidence
@@ -4518,7 +4522,7 @@ requirements:
     text: "トークン交換で範囲が絞られると仮定せず、交換結果の aud・scope を実際に確かめる"
     owner_issue: "#8"
     planned_items: [test:negative_tests#exchange-narrowing, lint:L16]
-    status: 未着手
+    status: 実装済み
     tier: core
   - id: p10-token-exchange-not-narrowing.R2
     slide: slide:p10-token-exchange-not-narrowing
@@ -4832,9 +4836,10 @@ requirements:
     slide: slide:p11-schema-contract-tests
     text: "受け手は読むクレームと型を宣言し、新しい Schema の版で契約テストを回す"
     owner_issue: "#8"
-    planned_items: [test:consumer_contract, registry:claims#consumers]
-    status: 未着手
+    planned_items: [test:consumer_contract#declared-reads, registry:claims#consumers]
+    status: 実装済み
     tier: core
+    note: "契約テストは、台帳から生成した今の版の consumer のスキーマで回る。台帳を変えると render --check がスキーマの生成し直しを求め、次の実行はその新しい版で回る。新旧の版を並べて回すテストではない（PR #48 の点検）"
   - id: p11-schema-contract-tests.R5
     slide: slide:p11-schema-contract-tests
     text: "Schema は additionalProperties を true にして知らないクレームで受け手を壊さず、必須クレームの欠落は拒否する"
@@ -4855,7 +4860,7 @@ requirements:
     text: "契約テストに、型が変わらない形式の変化（区切り文字・大文字化・null／false・真偽値の文字列化）のケースを入れる"
     owner_issue: "#8"
     planned_items: [test:consumer_contract#format-change-cases, registry:claims#allowed_values]
-    status: 未着手
+    status: 実装済み
     tier: full
   - id: p11-contract-test-gaps.R2
     slide: slide:p11-contract-test-gaps

@@ -23,8 +23,9 @@ Checks (all errors):
       names an incident (`事例`)
   V6  every ref in backticks in any review file resolves: `review:` (file and anchor), `template:`, `registry:`,
       `catalog:`; `lint:<id>` is a rule of tools/claim_lint/RULES.md, or a planned item of templates/trace/planned_items.yaml
-      marked `（未実装）` right after it; `test:` is a planned item marked `（未実装）` (until templates/runtime/ exists,
-      then it must resolve)
+      marked `（未実装）` right after it; `test:` is a planned item marked `（未実装）` until templates/runtime/ exists;
+      after that (#8) it resolves to an anchor of templates/runtime/<file>.md, or it is a planned item not made yet and
+      marked `（未実装）` (a test that resolves must not be marked)
   V7  every question ID quoted in backticks in a review file (`q-…`, `ap-…`, `pa-…`, `dc-…`, `cf-…`, `cd-…`) is a question
       of perspectives.md, or a question of templates/registry/questions.yaml (`q-sub`, `q-actor` ...); a perspectives
       question ID must not equal a questions.yaml ID
@@ -220,6 +221,16 @@ def check(root):
                     continue
                 if kind == 'test' and not os.path.isdir(os.path.join(root, 'templates', 'runtime')) and not unimpl:
                     errors.append(('V6', f'{rel}:{k}', f'{ref} はまだ無い実行テスト。「（未実装）」と書く'))
+                    continue
+                if kind == 'test' and os.path.isdir(os.path.join(root, 'templates', 'runtime')):
+                    # #8: like lint, a planned test not made yet is written （未実装）; a made one must not be
+                    problem = resolve(root, ref, planned)
+                    if problem:
+                        if ref in planned and unimpl:
+                            continue
+                        errors.append(('V6', f'{rel}:{k}', problem + ('（計画にあるなら「（未実装）」と書く）' if ref in planned else '（計画にも無い）')))
+                    elif unimpl:
+                        errors.append(('V6', f'{rel}:{k}', f'{ref} は実装済みなのに「（未実装）」と書いている'))
                     continue
                 problem = resolve(root, ref, planned)
                 if problem:

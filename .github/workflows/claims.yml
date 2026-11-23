@@ -82,6 +82,12 @@ jobs:
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)
         run: python -m pytest -q -rs tools/tests/test_catalog_check.py
+      # #8: crafted tokens (test keys made in memory) against the reference receivers written to scenarios A and B.
+      # The Keycloak 26.8 / Postgres 16 cases (--env live) run locally; their logs are in research/runtime/.
+      - name: Runtime tests, offline (#8) - negative tests, exchange narrowing, consumer contract
+        run: python tools/runtime_tests/run.py --env offline --log "$RUNNER_TEMP/runtime-offline.json"
+      - name: Runtime test docs and logs (#8) - anchors, req markers, lint rules, no raw token in the logs
+        run: python -m pytest -q -rs tools/tests/test_runtime.py
       - name: Viewer data (docs/claims/data/) match the YAML (#36; fix with python tools/build_claims_viewer.py)
         run: python tools/build_claims_viewer.py --check
       - name: Viewer build tests (drift detection, every schema column has a heading, CSP, pinned js-yaml, README links)

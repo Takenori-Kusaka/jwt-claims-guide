@@ -81,7 +81,7 @@ def test_v4_evidence_form(root):
 
 
 def test_v5_contrast_link_and_incident(root):
-    edit(root, PERSP, '- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L17`／実行 `test:negative_tests#alg-none`（未実装）・`test:negative_tests#alg-confusion`（未実装）／事例 CVE-2015-9235',
+    edit(root, PERSP, '- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L17`／実行 `test:negative_tests#alg-none`・`test:negative_tests#alg-confusion`／事例 CVE-2015-9235',
          '- つながり：lint `lint:L17`')
     r, errors = rules(root)
     assert r == ['V5'] and len([e for e in errors if e[0] == 'V5']) == 2
@@ -89,6 +89,17 @@ def test_v5_contrast_link_and_incident(root):
 
 def test_v6_unimplemented_lint_and_test_must_be_marked(root):
     edit(root, PERSP, '`lint:L34`（未実装）', '`lint:L34`')
+    assert rules(root)[0] == ['V6']
+
+
+def test_v6_made_test_must_not_be_marked(root):
+    # #8: templates/runtime exists, so a test that resolves must not carry （未実装）
+    edit(root, PERSP, '`test:negative_tests#alg-none`', '`test:negative_tests#alg-none`（未実装）')
+    assert rules(root)[0] == ['V6']
+
+
+def test_v6_planned_test_not_made_must_be_marked(root):
+    edit(root, PERSP, '`test:negative_tests#insufficient-acr`（未実装）', '`test:negative_tests#insufficient-acr`')
     assert rules(root)[0] == ['V6']
 
 

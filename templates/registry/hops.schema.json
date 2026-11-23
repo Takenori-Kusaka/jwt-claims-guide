@@ -75,7 +75,7 @@
      "maxItems": 10,
      "uniqueItems": true,
      "description": "aud of the token on this hop (resource indicator, RFC 8707). Downstream does not widen it",
-     "$comment": "Trace: req:p06-narrow-downstream.R2"
+     "$comment": "Trace: req:p06-narrow-downstream.R2 req:p06-transaction-tokens.R6 req:p06-validation-split.R2"
     },
     "scope": {
      "type": "array",

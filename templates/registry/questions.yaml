@@ -44,6 +44,7 @@ questions:
     refs:
       - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
       - {kind: guide-slide, id: p05-one-request-carries}
+    trace: "req:p06-validation-split.R3"
 
   - id: q-peer
     text: 直接の通信相手は誰か
@@ -53,7 +54,7 @@ questions:
     not_this: [q-req-wl, q-actor]
     refs:
       - {kind: guide-slide, id: p05-one-request-carries}
-    trace: "req:p08-async-processing.R3"
+    trace: "req:p08-async-processing.R3 req:p06-validation-split.R3"
 
   - id: q-via
     text: どこを経由したか
