@@ -120,6 +120,7 @@ token_types:
       - {iss: "https://idp.example.com/realms/t1", jwks_uri: "https://idp.example.com/realms/t1/protocol/openid-connect/certs"}
       - {iss: "https://idp.example.com/realms/t2", jwks_uri: "https://idp.example.com/realms/t2/protocol/openid-connect/certs"}
     required_claims: [iss, sub, aud, exp, iat, nonce]
+    max_clock_skew: 30
     max_lifetime: 300
     lifetime_refs:
       - {kind: guide-slide, id: p08-token-types-lifetimes}

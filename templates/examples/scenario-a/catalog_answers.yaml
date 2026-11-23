@@ -11,6 +11,30 @@
 idp:
   name: keycloak
   version: "26.8"
+# ---------------------------------------------------------------- Lite の判定の 5 問（#4。claim_lint の L73、#6 で足した）
+# 1 つでも Yes なら Full。この例はマルチテナントなので Full に当たるが、関門 1 の測定のために Lite の欄で書いた（design.md の冒頭）。
+# そのため --profile lite では L73 の warn が出る（正しい指摘。research/template-design/gate1.md の 5. の A17）
+lite_criteria:
+  crosses_boundary: {answer: false, reason: トークンは組織の中（BFF・nginx・saas-api）だけを通り、外部の組織のサービスに渡さない}
+  multitenant: {answer: true, reason: テナントごとにレルムを分けたマルチテナントの SaaS}
+  delegation_or_exchange: {answer: false, reason: 代理・委任もトークン交換も置かない（TXN・INTERNAL は却下）}
+  new_issuer: {answer: false, reason: 発行者は既存の Keycloak のレルムだけで、新しい発行者を作らない}
+  regulated: {answer: false, reason: FAPI などの規制の対象ではない（issuance_profile.conformance_profile は none）}
+# ---------------------------------------------------------------- 問いの一覧のそれぞれが、このユースケースで要るか（L13、#18 で足した）
+# 問いは templates/registry/questions.yaml の questions。要る問いには、answers にその問いを持つ採用のクレームか、channel（クレームでない仕組み）が要る。
+# 中身は design.md の 6.（問い × 仕組み）と同じ。pending の 4 問（誰が発行したか・どの種類か・認証の強さ・今も有効か）は、ここでは答えない
+questions:
+  q-sub: {needed: true}
+  q-actor: {needed: false, reason: 代理・委任がない。運用者の横断作業はこの例の範囲外}
+  q-req-wl: {needed: false, reason: Txn-Token を使わない（TXN は却下）}
+  q-peer: {needed: false, reason: BFF と API は同じ組織のネットワークの中で、通信相手の確認はネットワークの制御に任せる。mTLS を入れるときに見直す}
+  q-via: {needed: false, reason: 経由するのは BFF と nginx だけで、経由の記録をトークンに載せない}
+  q-txn: {needed: false, reason: RAR・Txn-Token を使わない。承認の内容は DB で持つ}
+  q-user: {needed: true}
+  q-agent: {needed: true}
+  q-authorized: {needed: true}
+  q-resource: {needed: true}
+  q-holder: {needed: false, reason: 送信者制約を付けない（issuance_profile.sender_constraint は none。AT はブラウザに出ない）}
 # ---------------------------------------------------------------- 主体の状態 × トークン・セッション（R4）
 # 行と列は templates/catalog/subject_state_matrix.md。結果は「発行・再計算・失効・影響なし」。カタログの結果は対策を入れる前の姿で、
 # ここはこの設計での姿。「影響なし」「再計算」には、許す遅れか対策を basis に書く

@@ -26,10 +26,10 @@
     "additionalProperties": false,
     "properties": {
      "namespace": {
-      "$comment": "Trace: req:p05-scope-vs-role.R3",
       "type": "string",
       "minLength": 1,
-      "pattern": "\\S"
+      "pattern": "\\S",
+      "$comment": "Trace: req:p02-name-categories.R1 req:p04-claim-names.R2 req:p05-scope-vs-role.R3"
      },
      "style": {
       "enum": [
@@ -278,8 +278,8 @@
      "description": "Why a row has no row in the casestudy claim list (catalog_refs: [])"
     },
     "registered_ref": {
-     "$comment": "Trace: req:p10-four-questions.R7",
-     "$ref": "#/$defs/ref"
+     "$ref": "#/$defs/ref",
+     "$comment": "Trace: req:p02-roles-groups-entitlements.R1 req:p10-four-questions.R7"
     },
     "type": {
      "enum": [
@@ -654,10 +654,10 @@
      "description": "For 却下・代替あり: the claim used instead (registry row or casestudy row)"
     },
     "rationale": {
-     "$comment": "Trace: req:p11-ownership.R5",
      "type": "string",
      "minLength": 1,
-     "pattern": "\\S"
+     "pattern": "\\S",
+     "$comment": "Trace: req:p02-name-categories.R2 req:p11-ownership.R5"
     },
     "assumption": {
      "type": "string",
@@ -665,10 +665,10 @@
      "pattern": "\\S"
     },
     "revisit_trigger": {
-     "$comment": "Trace: req:p12-priorities-deferrals.R4",
      "type": "string",
      "minLength": 1,
-     "pattern": "\\S"
+     "pattern": "\\S",
+     "$comment": "Trace: req:p10-vendor-features.R2 req:p12-priorities-deferrals.R4"
     },
     "refs": {
      "type": "array",
@@ -709,7 +709,7 @@
       "protocol"
      ],
      "description": "identifier: matches a subject or object; authz: decides access; display: shown only; protocol: protocol mechanics (exp, jti, nonce ...). A name is display only; matching uses the paired immutable ID",
-     "$comment": "Trace: req:p04-immutable-identifiers.R2 req:p04-carry-or-query.R1 req:p05-cross-tenant.R1"
+     "$comment": "Trace: req:p04-immutable-identifiers.R2 req:p03-cognito-token-use.R4 req:p04-split-by-writer.R2 req:p04-carry-or-query.R1 req:p05-cross-tenant.R1"
     },
     "issuers": {
      "type": "array",
@@ -722,7 +722,7 @@
      "minItems": 1,
      "uniqueItems": true,
      "description": "iss values allowed to put this claim. Consumers trust the claim only from these",
-     "$comment": "Trace: req:p11-registry-fields.R4"
+     "$comment": "Trace: req:p11-registry-fields.R4 req:p01-attack-patterns.R8"
     },
     "upstream_issuer": {
      "type": "object",
@@ -755,7 +755,7 @@
       "normalization"
      ],
      "description": "When the claim relays a value from an upstream issuer (broker, SAML, another IdP, declarative mapping): the upstream iss and the normalization rule to the organization key",
-     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4 req:p03-absorb-idp-differences.R3"
+     "$comment": "Trace: req:p02-saml-attributes.R1 req:p03-absorb-idp-differences.R2 req:p11-translation-layer.R4 req:p02-tenant-org.R4 req:p03-absorb-idp-differences.R3"
     },
     "authoritative_writer": {
      "type": "array",
@@ -805,7 +805,7 @@
      "maxItems": 6,
      "minItems": 1,
      "description": "The one authoritative writer per stage (L4 of #6 checks uniqueness), and who can change its setting",
-     "$comment": "Trace: req:p04-case-and-characters.R2 req:p11-registry-fields.R5 req:p09-minimize-derived.R2"
+     "$comment": "Trace: req:p04-case-and-characters.R2 req:p11-registry-fields.R5 req:p06-stage-map.R2 req:p09-minimize-derived.R2"
     },
     "modifiers": {
      "type": "array",
@@ -870,7 +870,7 @@
       "呼び出し側の申告"
      ],
      "description": "Where the value comes from and who can write it. Values of different provenance get different names",
-     "$comment": "Trace: req:p04-split-by-writer.R1 req:p11-registry-fields.R5"
+     "$comment": "Trace: req:p04-split-by-writer.R1 req:p11-registry-fields.R5 req:p03-cognito-pre-token-hook.R4 req:p07-three-db-paths.R4 req:p07-row-level-security.R2 req:p07-cloud-attributes.R1"
     },
     "issue_events": {
      "type": "array",
@@ -930,8 +930,13 @@
     },
     "volatility": {
      "anyOf": [
-      {"type": "integer", "minimum": 0},
-      {"const": "never"}
+      {
+       "type": "integer",
+       "minimum": 0
+      },
+      {
+       "const": "never"
+      }
      ],
      "description": "Seconds allowed between a change of the value and its reflection; 0: the change must be reflected at once. never: the value does not change during the life of a token that carries it (per-token values such as exp or jti, immutable identifiers such as sub). Compared with max_lifetime of the carrying token types (L5 of #6)",
      "$comment": "Trace: req:p11-registry-fields.R10 req:p08-stale-claims.R1"
@@ -1089,6 +1094,28 @@
         "type": "string",
         "minLength": 1,
         "pattern": "\\S"
+       },
+       "against": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "uniqueItems": true,
+        "items": {
+         "enum": [
+          "iss",
+          "aud",
+          "api_config",
+          "data_layer",
+          "other_claim",
+          "format"
+         ]
+        },
+        "description": "What the value is compared with: iss (the issuer of the token), aud, api_config (a value fixed on the consumer's side: allowlist, vocabulary, cap), data_layer (the stored data, e.g. RLS or the owner of the object), other_claim (another claim of the same token, named in with), format (type and length only). Input of L9 and L31 of #6 (who can write the value is compared with something they cannot write)"
+       },
+       "with": {
+        "type": "string",
+        "pattern": "^C-[a-z0-9-]+$",
+        "description": "For against other_claim: the registry row compared with (REF checks it exists)"
        }
       },
       "required": [
@@ -1096,7 +1123,8 @@
        "check"
       ]
      },
-     "maxItems": 30
+     "maxItems": 30,
+     "$comment": "Trace: req:p05-coarse-fine-layers.R5 req:p06-validation-split.R4"
     },
     "max_bytes": {
      "type": "integer",
@@ -1336,7 +1364,7 @@
       "ハッシュ化して記録",
       "記録しない"
      ],
-     "$comment": "Trace: req:p11-registry-fields.R8 req:p08-async-processing.R2 req:p09-logs-traces.R3"
+     "$comment": "Trace: req:p11-registry-fields.R8 req:p09-logs-traces.R4 req:p08-async-processing.R2 req:p09-logs-traces.R3"
     },
     "status": {
      "enum": [
@@ -1346,7 +1374,7 @@
       "sunset"
      ],
      "description": "Lifetime of the definition (slide:p11-change-procedure). The change history is the Git history of the file",
-     "$comment": "Trace: req:p11-registry-fields.R11"
+     "$comment": "Trace: req:p11-registry-fields.R11 req:p04-forward-compatibility.R4"
     },
     "sunset_on": {
      "$comment": "Trace: req:p11-change-procedure.R5",
@@ -1397,7 +1425,8 @@
      "maxItems": 10,
      "minItems": 1,
      "uniqueItems": true,
-     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)"
+     "description": "Versions of drafts the row depends on (e.g. draft-ietf-oauth-transaction-tokens-11)",
+     "$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"
     },
     "note": {
      "type": "string"

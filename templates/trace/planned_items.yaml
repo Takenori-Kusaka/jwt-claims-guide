@@ -287,7 +287,7 @@ items:
   - {ref: deferred:idp-entra, issue: "#21", origin: issue, title: Entra の IdP モジュール}
   - {ref: deferred:idp-auth0-okta, issue: "#21", origin: issue, title: Auth0/Okta の IdP モジュール}
   - {ref: deferred:idp-cognito, issue: "#21", origin: issue, title: Cognito の IdP モジュール}
-  - {ref: lint:L10, issue: "#21", origin: issue, title: 互換性を壊す変更の検出}
+  - {ref: lint:L10, issue: "#6", origin: issue, title: 互換性を壊す変更の検出（#6 で MVP に移した）}
   - {ref: deferred:prod-token-audit, issue: "#21", origin: issue, title: 本番トークンの抜き取りによる台帳とのずれの監査（スライド 144）}
   - {ref: deferred:capture-recapture, issue: "#21", origin: issue, title: capture-recapture による残りの漏れの推定}
   - {ref: deferred:excel-import, issue: "#21", origin: issue, title: 台帳を Excel・CSV から作る変換}

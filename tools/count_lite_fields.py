@@ -71,6 +71,10 @@ V0_TT_COLUMNS = {'id', 'kind', 'decision', 'rationale', 'purpose', 'issuer', 'au
 # v0 columns that the v1 migration filled in on rows that had them empty at gate 1 (PR #37 independent check:
 # C-scope became space_delimited with max_items; notes on C-scope and C-email-verified)
 V1_FILLED = {('C-scope', 'max_items'), ('C-scope', 'note'), ('C-email-verified', 'note')}
+# v0 columns that the semantic rules of #6 asked to fill on scenario A (L1a: registered_ref of C-sid; L27: max_clock_skew
+# of IDT). Not counted, so that the gate-1 record stays reproducible (tools/claim_lint/RULES.md, design.md 13.)
+L6_FILLED = {('C-sid', 'registered_ref')}
+L6_TT_FILLED = {('IDT', 'max_clock_skew')}
 V0_TT_IDS ={'AT', 'IDT', 'RT', 'CODE', 'BFFSESSION', 'SSO', 'LOGOUT', 'DPOP', 'TXN'}
 V0_PROFILE = {'client_type', 'client_auth', 'grants', 'sender_constraint', 'at_format', 'rt_strategy', 'request_protection',
               'conformance_profile'}
@@ -87,7 +91,7 @@ def count(example):
     rows = []
     groups = {'read': [0, 0, 0], 'unread': [0, 0, 0], 'rejected': [0, 0, 0]}
     for c in claims:
-        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS and (c['id'], k) not in V1_FILLED]
+        f = [k for k in fields(c) if k in V0_CLAIM_COLUMNS and (c['id'], k) not in V1_FILLED | L6_FILLED]
         if c['decision'] == '却下':
             g, after = 'rejected', f
         elif c['decision'] == '既定どおり' and c.get('consumers') == []:
@@ -101,7 +105,8 @@ def count(example):
     rows.append((f"台帳：却下の行（{groups['rejected'][0]} 行）", groups['rejected'][1], groups['rejected'][2]))
     ip = sum(len(fields(v, ())) for k, v in tts['issuance_profile'].items() if k in V0_PROFILE)
     rows.append(('発行方式の選択（既定の組み合わせのまま）', ip, 0))
-    tts['token_types'] = [{k: v for k, v in t.items() if k in V0_TT_COLUMNS} for t in tts['token_types'] if t['id'] in V0_TT_IDS]
+    tts['token_types'] = [{k: v for k, v in t.items() if k in V0_TT_COLUMNS and (t['id'], k) not in L6_TT_FILLED}
+                          for t in tts['token_types'] if t['id'] in V0_TT_IDS]
     ttb = sum(len(fields(t)) for t in tts['token_types'])
     tta = sum(len(fields(t)) if t['decision'] != '却下' else len([k for k in fields(t) if k in REJECTED_TT_KEEP]) for t in tts['token_types'])
     rows.append(('トークン目録', ttb, tta))

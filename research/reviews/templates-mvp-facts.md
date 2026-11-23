@@ -198,6 +198,6 @@ PR 2 で足します。
 
 ## 6. 対応表（#22）の変更の点検
 
-- #4 の要件 199 件のうち 111 件（core 82・full 29）を実装済みにした。実装済みの検査（`trace_check.py`）が確かめるのは、成果物の節に `req:<ID>` の印があることまでで、中身が要件を満たすかは確かめない（`templates/trace/README.md`）。点検者は、実装済みにした要件から 10%（12 件）を選び、その節が要件の文を満たすかを見てください
-- 未着手のまま残した 88 件の内訳：#5 の観点書（`review:`）・#8 の実行テスト（`test:`）・PR #40・#41 の lint の規則（L3・L5・L8・L9・L14・L18・L30・L32・L43・L51・L55・L60・L72 など）が、まだ main に無く解決しないもの、カタログ・RULES.md の印が要るもの（p03-keycloak-aud-lightweight.R7、p05-three-principals.R1、p05-system-privileges.R1、p09-do-not-carry.R5）、作業者が中身を満たせないとしたもの（p04-case-and-characters.R4：Keycloak の大小の扱いを確かめられなかった）
+- #4 の要件 199 件のうち 122 件（core 92・full 30）を実装済みにした（main に #40・#41 が入った後、`RULES.md` の L3・L5・L6・L9・L14・L18・L23・L43・R8 の行に印を足した 11 件を含む）。実装済みの検査（`trace_check.py`）が確かめるのは、成果物の節に `req:<ID>` の印があることまでで、中身が要件を満たすかは確かめない（`templates/trace/README.md`）。点検者は、実装済みにした要件から 10%（13 件）を選び、その節が要件の文を満たすかを見てください
+- 未着手のまま残した 77 件の内訳：#5 の観点書（`review:`）・#8 の実行テスト（`test:`）が無く解決しないもの、提案のままで RULES.md に無い lint の規則（L24・L30・L32・L34・L51・L55・L60 など）、カタログの印が要るもの（p03-keycloak-aud-lightweight.R7、p05-three-principals.R1、p05-system-privileges.R1）、作業者が中身を満たせないとしたもの（p04-case-and-characters.R4：Keycloak の大小の扱いを確かめられなかった）
 - planned_items に足したもの（`template:00_core#issuance-profile`、`template:modules/M_sender_constraint#dpop-vs-mtls`・`#tls-termination`・`#dpop-nonce-jti`・`#rt-rotation`・`#registry-effects`、`template:claim_request#form`）と、結び直した要件（p01-client-made-jwts.R2、p02-keys-events-identity-assurance.R2、p06-grant-types.R1、p08-rotation.R1・R2、p09-url-browser.R2、p10-four-questions.R5。`template:claim_request` から `#form`・`#gate` への付け替え 5 件）が妥当か

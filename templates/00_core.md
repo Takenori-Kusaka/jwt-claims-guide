@@ -238,7 +238,7 @@ flowchart LR
 ### 5.1 寿命の上限の方針〔Full だけ〕
 
 項目 ID：`template:00_core#lifetime-policy`
-<!-- req:p08-token-types-lifetimes.R4 -->
+<!-- req:p08-token-types-lifetimes.R4 req:p08-choosing-lifetime.R2 -->
 
 決めること：種類ごとの寿命の上限を、組織の規則として文書にします。上限を超える種別には、例外を認める手順（誰が承認し、どこに記録するか）を書きます。上限のファイルは `tools/claim_lint/lifetime_caps.yaml` の形（#6 の L23。自組織のファイルに替えられる）です。
 

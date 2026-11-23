@@ -602,9 +602,9 @@
      "description": "Claims the consumer rejects the token without (RFC 9068 §2.2 for at+jwt: iss, exp, aud, sub, client_id, iat, jti). Namespaced claims as <namespace>.<name>"
     },
     "max_clock_skew": {
-     "$comment": "Trace: req:p01-library-defaults.R5",
      "type": "integer",
-     "minimum": 0
+     "minimum": 0,
+     "$comment": "Trace: req:p01-attack-patterns.R5 req:p01-library-defaults.R5"
     },
     "max_lifetime": {
      "type": "integer",
@@ -883,7 +883,7 @@
      ]
     },
     "stored_at": {
-     "$comment": "Trace: req:p09-url-browser.R4",
+     "$comment": "Trace: req:p09-url-browser.R4 req:p06-flow-browser-to-db.R1",
      "enum": [
       "browser",
       "bff_server",

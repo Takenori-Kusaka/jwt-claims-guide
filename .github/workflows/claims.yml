@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0   # claim_lint diff (L10) reads the base version with git show
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
@@ -40,6 +41,14 @@ jobs:
         run: python -m pytest -q -rs tools/tests/test_claim_lint_coverage.py
       - name: claim_lint on scenario A with --profile lite
         run: python tools/claim_lint templates/examples/scenario-a --profile lite
+      - name: claim_lint semantic rule tests (L1a-L73 of #6, pass and fail cases, scenario A false positives)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_semantic.py
+      - name: claim_lint purpose rule tests (L11-L14 of #18, declaration consistency)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_purpose.py
+      - name: claim_lint diff tests (L10, breaking changes against a git ref)
+        run: python -m pytest -q -rs tools/tests/test_claim_lint_diff.py
+      - name: claim_lint diff on scenario A against main (L10)
+        run: python tools/claim_lint diff --base origin/main templates/examples/scenario-a
       - name: render --check (generated regions of design.md and payload schemas match the registry, #19)
         run: python tools/claim_lint render templates/examples/scenario-a --check
       - name: Keycloak-issued golden AT conforms to the issuer-conformance payload schema (additionalProperties false)
@@ -78,7 +87,8 @@ jobs:
           # the key is made at run time so that no secret-looking literal is committed
           key=$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)
           printf 'api_key = "%s"\n' "$key" > "$d/leak.env"
-          printf '{"$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"}\n' > "$d/trace.json"
+          mkdir -p "$d/templates/registry"   # the allowlist is restricted by path to the files that hold reverse references
+          printf '{"$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"}\n' > "$d/templates/registry/trace.schema.json"
           ./gitleaks dir --no-banner --redact --config .gitleaks.toml --report-format json --report-path "$d/report.json" "$d" || true
           jq -c '[.[] | {RuleID, File}]' "$d/report.json"
           jq -e 'length == 1 and (.[0].File | endswith("/leak.env"))' "$d/report.json"
