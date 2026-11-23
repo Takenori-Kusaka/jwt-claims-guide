@@ -105,26 +105,26 @@ flowchart LR
 <!-- render:token-inventory:begin -->
 `token_types.yaml` の 18 行（却下 12）。種類の名前は `templates/catalog/token_kinds.yaml`。
 
-| ID | 種類 | 採否 | 発行 → 受け手 | 形式 | 寿命 | 保存場所 | 運び方 | 読める相手 | JWE | 理由 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AT` | アクセストークン | 採用 | テナントのレルム（Keycloak） → saas-api | jwt（at+jwt、RS256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`api`・`hop:nginx` | なし | API（saas-api）の認可に使う |
-| `IDT` | ID トークン | 採用 | テナントのレルム（Keycloak） → saas-web | jwt（JWT、RS256） | 300 秒 | BFF のサーバー | トークンの応答 | `bff` | なし | BFF がログインを確かめ、画面の表示名を得る |
-| `RT` | リフレッシュトークン | 採用 | テナントのレルム（Keycloak） → テナントのレルム（自分自身） | opaque | idle 1800 秒、最大 36000 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | AT を 300 秒にしたまま、SSO セッションの間は利用者に再ログインさせない |
-| `CODE` | 認可コード | 既定どおり | テナントのレルム（Keycloak） → ブラウザを経由して BFF へ | opaque | 60 秒 | なし | リダイレクトの query | `browser`・`bff`・`idp` | — | 認可コード＋PKCE の流れで Keycloak が出す |
-| `BFFSESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | BFF（saas-web） → ブラウザ（HttpOnly・Secure・SameSite=Lax の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | ブラウザ | Cookie | `browser`・`bff` | — | ブラウザは BFF のセッションの Cookie だけを持つ。トークンをブラウザに置かない |
-| `SSO` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | テナントのレルム（Keycloak） → Keycloak（ブラウザには Keycloak の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | Keycloak の SSO セッション（レルムの設定）。SSO Session Max を 36000 秒に設定するので、既定どおりではない（design.md の 3.） |
-| `LOGOUT` | ログアウトトークン（Back-Channel Logout の Logout Token） | 却下 | — | jwt | — | — | — | — | — | IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 330 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない |
-| `DPOP` | DPoP の proof | 却下 | — | jwt | — | — | — | — | — | 送信者制約を付けない（issuance_profile.sender_constraint） |
-| `TXN` | Transaction Token（Txn-Token） | 却下 | — | jwt | — | — | — | — | — | この例は BFF → API → DB の 1 段で、サービス間の伝搬がない |
-| `INTERNAL` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 却下 | — | jwt | — | — | — | — | — | 入口（nginx）はトークンを作り直さず、saas-api が Keycloak の AT をそのまま検証する（design.md の 2.） |
-| `IDJAG` | ID-JAG（Identity Assertion JWT Authorization Grant） | 却下 | — | jwt | — | — | — | — | — | ドメインをまたぐ SSO 済みの利用者のトークンを受けない |
-| `CLIENTASSERTION` | クライアントの assertion（private_key_jwt・client_secret_jwt） | 却下 | — | jwt | — | — | — | — | — | BFF のクライアント認証は client_secret_basic（issuance_profile.client_auth）で、assertion を作らない |
-| `JAR` | 署名つきの認可要求（JAR の Request Object） | 却下 | — | jwt | — | — | — | — | — | 認可要求に署名しない（issuance_profile.request_protection は空） |
-| `JARM` | 署名つきの認可応答（JARM） | 却下 | — | jwt | — | — | — | — | — | 認可応答を JWT にしない。応答は BFF のサーバーが受ける |
-| `WORKLOADJWT` | 汎用の JWT（ワークロードの ID のトークン・アサーショングラントに出す JWT など） | 却下 | — | jwt | — | — | — | — | — | ワークロードの ID のトークンやアサーショングラントの JWT を使わない |
-| `SET` | Security Event Token（SET。SSF・CAEP の通知） | 却下 | — | jwt | — | — | — | — | — | Keycloak から SET を受けない。剥奪と利用者の無効化は最大 330 秒の遅れを許す |
-| `STATUSLIST` | 状態リストのトークン（Token Status List） | 却下 | — | jwt | — | — | — | — | — | 状態リストを出さない。失効は AT の短い寿命と DB の確認で扱う |
-| `INTROSPECTIONJWT` | JWT 形式のイントロスペクションの応答 | 却下 | — | jwt | — | — | — | — | — | イントロスペクションを使わない（at_format は jwt）ので、JWT 形式の応答も受けない |
+| ID | 種類 | 採否 | 発行 → 宛先（aud） | 持ち手 | 形式 | 寿命 | 保存場所 | 運び方 | 読める相手 | JWE | 理由 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `AT` | アクセストークン | 採用 | テナントのレルム（Keycloak） → saas-api | BFF（saas-web のサーバー） | jwt（at+jwt、RS256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`api`・`hop:nginx` | なし | API（saas-api）の認可に使う |
+| `IDT` | ID トークン | 採用 | テナントのレルム（Keycloak） → saas-web | BFF（saas-web のサーバー）。ブラウザには渡さない | jwt（JWT、RS256） | 300 秒 | BFF のサーバー | トークンの応答 | `bff` | なし | BFF がログインを確かめ、画面の表示名を得る |
+| `RT` | リフレッシュトークン | 採用 | テナントのレルム（Keycloak） → テナントのレルム（自分自身） | BFF（saas-web のサーバー） | opaque | idle 1800 秒、最大 36000 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | AT を 300 秒にしたまま、SSO セッションの間は利用者に再ログインさせない |
+| `CODE` | 認可コード | 既定どおり | テナントのレルム（Keycloak） → — | ブラウザを経由して BFF へ | opaque | 60 秒 | なし | リダイレクトの query | `browser`・`bff`・`idp` | — | 認可コード＋PKCE の流れで Keycloak が出す |
+| `BFFSESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | BFF（saas-web） → — | ブラウザ（HttpOnly・Secure・SameSite=Lax の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | ブラウザ | Cookie | `browser`・`bff` | — | ブラウザは BFF のセッションの Cookie だけを持つ。トークンをブラウザに置かない |
+| `SSO` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | テナントのレルム（Keycloak） → — | Keycloak（ブラウザには Keycloak の Cookie） | opaque | idle 1800 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | Keycloak の SSO セッション（レルムの設定）。SSO Session Max を 36000 秒に設定するので、既定どおりではない（design.md の 3.） |
+| `LOGOUT` | ログアウトトークン（Back-Channel Logout の Logout Token） | 却下 | — | — | jwt | — | — | — | — | — | IdP 側でセッションが終わったこと（管理者による削除、利用者の無効化、レルムの無効化）は、BFF が次に RT でリフレッシュするときの失敗で検知し、BFF は自分のセッションを終える。AT の寿命が 300 秒なので、要求が続く利用者では最大 330 秒で反映する。要求の無い利用者は次の要求で反映する。300 秒の遅れを許すので、ログアウトトークンを受ける公開の受け口と、その検証を作らない |
+| `DPOP` | DPoP の proof | 却下 | — | — | jwt | — | — | — | — | — | 送信者制約を付けない（issuance_profile.sender_constraint） |
+| `TXN` | Transaction Token（Txn-Token） | 却下 | — | — | jwt | — | — | — | — | — | この例は BFF → API → DB の 1 段で、サービス間の伝搬がない |
+| `INTERNAL` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 却下 | — | — | jwt | — | — | — | — | — | 入口（nginx）はトークンを作り直さず、saas-api が Keycloak の AT をそのまま検証する（design.md の 2.） |
+| `IDJAG` | ID-JAG（Identity Assertion JWT Authorization Grant） | 却下 | — | — | jwt | — | — | — | — | — | ドメインをまたぐ SSO 済みの利用者のトークンを受けない |
+| `CLIENTASSERTION` | クライアントの assertion（private_key_jwt・client_secret_jwt） | 却下 | — | — | jwt | — | — | — | — | — | BFF のクライアント認証は client_secret_basic（issuance_profile.client_auth）で、assertion を作らない |
+| `JAR` | 署名つきの認可要求（JAR の Request Object） | 却下 | — | — | jwt | — | — | — | — | — | 認可要求に署名しない（issuance_profile.request_protection は空） |
+| `JARM` | 署名つきの認可応答（JARM） | 却下 | — | — | jwt | — | — | — | — | — | 認可応答を JWT にしない。応答は BFF のサーバーが受ける |
+| `WORKLOADJWT` | 汎用の JWT（ワークロードの ID のトークン・アサーショングラントに出す JWT など） | 却下 | — | — | jwt | — | — | — | — | — | ワークロードの ID のトークンやアサーショングラントの JWT を使わない |
+| `SET` | Security Event Token（SET。SSF・CAEP の通知） | 却下 | — | — | jwt | — | — | — | — | — | Keycloak から SET を受けない。剥奪と利用者の無効化は最大 330 秒の遅れを許す |
+| `STATUSLIST` | 状態リストのトークン（Token Status List） | 却下 | — | — | jwt | — | — | — | — | — | 状態リストを出さない。失効は AT の短い寿命と DB の確認で扱う |
+| `INTROSPECTIONJWT` | JWT 形式のイントロスペクションの応答 | 却下 | — | — | jwt | — | — | — | — | — | イントロスペクションを使わない（at_format は jwt）ので、JWT 形式の応答も受けない |
 <!-- render:token-inventory:end -->
 
 AT は BFF・API・経路の nginx が読め、IDT は BFF だけが読む。JWE はどの種類でも使わない。却下の行の前提と崩れる条件は、`token_types.yaml` の各行と、その種類を出す発行イベントへのカタログの回答（11.）にある。
@@ -227,7 +227,7 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 矢印ごとに、受け手が確かめるクレームと書き手を並べた表（シーケンス図の矢印の読み物。〔生成〕）。
 
 <!-- render:arrow-table:begin -->
-ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。
+ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。
 
 | ホップ | トークン | 確かめるクレーム | 書き手 | 確かめること | aud | 寿命 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -243,7 +243,7 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 | `H2` | `AT` | `https://claims.example.com/.user_id` | ② Keycloak（User Property マッパー id） | 文字列であること。sub と一致しなければ拒否 | `saas-api` | 300 秒 |
 | `H2` | `AT` | `https://claims.example.com/.roles` | ② Keycloak（User Realm Role マッパー。スコープで 2 つに限る） | 配列であること。2 件を超えたら拒否。approver・tenant-admin 以外の値は無視する（語彙は API 側で固定） | `saas-api` | 300 秒 |
 | `H2` | `AT` | `https://claims.example.com/.v` | ② Keycloak（Hardcoded claim マッパー） | 知っている版（"1"）か | `saas-api` | 300 秒 |
-| `H3` | — | `https://claims.example.com/.tenant_id` | ② Keycloak（クライアント saas-web の Hardcoded claim マッパー。レルムごとに固定値） | アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）<br>app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止） | — | — |
+| `H3` | — | `https://claims.example.com/.tenant_id` | saas-api（トークンなし。書き先：Postgres のセッション変数 app.tenant（set_config の第 3 引数 true。U02））。ここから先は JWS で守られない。守りはトランザクションの境界（コミットで消える）と、RLS をすり抜けないアプリのロール app_rls（NOBYPASSRLS・テーブルの所有者でない）。写す値は iss から引いたテナントで、トークンの値ではない | アプリのロール app_rls は、テーブルの所有者ではなく NOSUPERUSER・NOBYPASSRLS。テーブルは ENABLE と FORCE ROW LEVEL SECURITY。所有者はマイグレーションのロールで、アプリからは使わない。ビューは作らないか、security_invoker で作る。所有者の権限で動く SECURITY DEFINER の関数は作らない（作るなら所有者を RLS の対象のロールにする）<br>app.tenant が未設定（NULL・空文字）のとき、ポリシー tenant_id = current_setting('app.tenant', true) に一致する行はなく、全件を拒否する（tenant_id は NOT NULL、空文字は CHECK で禁止） | — | — |
 <!-- render:arrow-table:end -->
 
 ## 9. ライフサイクル表　〔縮小 Lite：手で書く〕
@@ -263,6 +263,8 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 <!-- render:lifecycle:begin -->
 slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates/registry/README.md` の 6.）。長時間の処理と剥奪の反映の書き方は、手で書くライフサイクル表に書く。
 
+2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、0 は即時の反映が要ることを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。
+
 **1. トークンの寿命**
 
 | トークン | 寿命 | 時計のずれ | 寿命を変えられる主体 | ホップでの寿命 |
@@ -273,23 +275,23 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 **2. クレームの値の鮮度（受け手のいる行）**
 
-| クレーム | 載るトークン | 受け入れの最大 | 値が変わりうる間隔 | 反映の遅れ | 再計算 | 剥奪・停止のとき | 注意 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `iss` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 値は変わらない。レルムを廃止したら、API の許可リストから外す | — |
-| `sub` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 利用者を無効にしたら、新しい発行は止まる。発行済みの AT は exp まで残る（ライフサイクル表） | — |
-| `aud` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 値は変わらない | — |
-| `exp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 該当なし | — |
-| `iat` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 該当なし | — |
-| `jti` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 該当なし | — |
-| `azp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | クライアントを無効にしたら新しい発行が止まる | — |
-| `nonce` | `IDT` | 300 秒 | 0 秒 | 0 秒 | `login` | 該当なし | — |
-| `name` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | 表示だけなので、次のリフレッシュで替わればよい | — |
-| `email` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | 表示だけなので、次のリフレッシュで替わればよい | — |
-| `email_verified` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | 表示だけ | — |
-| `https://claims.example.com/.tenant_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない） | — |
-| `https://claims.example.com/.user_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | sub と同じ | — |
-| `https://claims.example.com/.roles` | `AT` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh` | ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6） | — |
-| `https://claims.example.com/.v` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 該当なし | — |
+| クレーム | 載るトークン | 受け入れの最大 | 反映までに許す秒数 | 反映の遅れ | 再計算 | 受け入れの最大と許容 | 許容以内の失効の手段（目録） | 剥奪・停止のとき（台帳） |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `iss` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 値は変わらない。レルムを廃止したら、API の許可リストから外す |
+| `sub` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 利用者を無効にしたら、新しい発行は止まる。発行済みの AT は exp まで残る（ライフサイクル表） |
+| `aud` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 値は変わらない |
+| `exp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
+| `iat` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
+| `jti` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
+| `azp` | `AT`・`IDT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒・IDT 300 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | クライアントを無効にしたら新しい発行が止まる |
+| `nonce` | `IDT` | 300 秒 | 0 秒 | 0 秒 | `login` | 超える（IDT 300 秒 > 許容 0 秒） | — | 該当なし |
+| `name` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
+| `email` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけなので、次のリフレッシュで替わればよい |
+| `email_verified` | `IDT` | 300 秒 | 86400 秒 | 300 秒 | `login`・`refresh` | — | — | 表示だけ |
+| `https://claims.example.com/.tenant_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | テナントを停止したら、SaaS のテナントの台帳（Postgres の tenants.status）を停止にし、レルムも無効にして新しい発行を止める。API はすべての要求で、同じトランザクションの中で tenants.status を引き、停止なら拒否する（反映まで 0 秒。AT の exp を待たない） |
+| `https://claims.example.com/.user_id` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | sub と同じ |
+| `https://claims.example.com/.roles` | `AT` | 330 秒 | 330 秒 | 330 秒 | `login`・`refresh` | — | — | ロールを外しても、受け入れの上限（寿命 300 秒＋時計のずれ 30 秒＝330 秒）の間は残る。volatility を 330 秒とし、これに合わせた（L5 の検査は #6） |
+| `https://claims.example.com/.v` | `AT` | 330 秒 | 0 秒 | 0 秒 | `login`・`refresh` | 超える（AT 330 秒 > 許容 0 秒） | AT：DB の確認（0 秒） | 該当なし |
 
 **3. セッションと RT の寿命**
 
@@ -332,33 +334,33 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 <!-- render:decision-rows:begin -->
 `claims.yaml` の 25 行（採用 14・既定どおり 5・却下 6）。根拠 ID は `refs`、裏付けは `evidence`（ケーススタディの実測など）。
 
-| ID | 候補 | 採否 | 理由 | 前提 | 根拠 ID | 裏付け | 見直しの条件 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `C-iss` | `iss` | 採用 | レルムがテナントごとに分かれているので、iss がテナントの境界になる。テナントを決めるのは iss（許可リストとレルムごとの鍵）で、API は iss から対応表でテナントを引く。tenant_id は照合に使い、他テナントの管理者のマッパーで書かれた tenant_id を拒否する | テナントとレルムが 1 対 1 で、レルムの名前はテナント ID と同じ | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p05-multitenancy` | jwt-claims-casestudy@080b8da:A8<br>jwt-claims-casestudy@080b8da:A9<br>jwt-claims-casestudy@080b8da:A10 | 1 つのレルムに複数のテナントを入れる（Keycloak の Organizations など）とき |
-| `C-sub` | `sub` | 採用 | BOLA の照合（請求書の持ち主との一致）の鍵は sub だけにする。請求書の持ち主の列（owner_sub）に sub を入れ、iss から引いたテナントと組で照合する。変わらない ID なので、名前の再利用で別人に一致しない | 利用者はレルムの中で作り直さない（作り直すと別の sub になる）。テナントの管理者は自分のレルムで利用者を作り直せるが、これはテナントの中の権限として受け入れる（他テナントには効かない） | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p04-immutable-identifiers` | jwt-claims-casestudy@080b8da:A3<br>jwt-claims-casestudy@080b8da:A6 | 利用者を別のレルムへ移す運用を始めるとき |
-| `C-aud` | `aud` | 採用 | ID トークンを API に送る誤りと、別の API 宛てのトークンの流用を拒否する | AT の宛先は saas-api の 1 つだけ（Keycloak は宛先が 1 つなら文字列で出す） | [RFC 9068 §4](https://www.rfc-editor.org/rfc/rfc9068#section-4)<br>`slide:p06-validation-split` | jwt-claims-casestudy@080b8da:A13 | AT を 2 つ以上の API に送る構成にするとき（配列になる） |
-| `C-exp` | `exp` | 採用 | 寿命 300 秒を強制する。剥奪が反映されるまでの上限がこの値で決まる | API の時計は NTP で合わせ、ずれは 30 秒まで | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p08-token-types-lifetimes` | jwt-claims-casestudy@080b8da:A14 | AT の寿命を変えるとき |
-| `C-iat` | `iat` | 採用 | 監査で、どの時点の属性で発行されたかを追う | 監査ログに iat を残す | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | — |
-| `C-jti` | `jti` | 採用 | 監査ログでトークンを特定する。RFC 9068 が AT に必須としている | 接頭辞は 6 文字（見本の onrtac）。リフレッシュなど別の発行で長さが変わるかは確かめていない | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | Keycloak の版を上げるとき（jti の形式が変わる） |
-| `C-auth-time` | `auth_time` | 既定どおり | Keycloak の basic スコープが sub と一緒に出す。外すには sub だけの独自のスコープを作る必要があり、JSON で 23 バイト（"auth_time":と 10 桁とカンマ）のために設定の差分を増やさない。API は読まない | — | `slide:p06-stage-map` | — | — |
-| `C-typ-claim` | `typ` | 既定どおり | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た） | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
-| `C-azp` | `azp` | 既定どおり | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。Keycloak の AT には client_id が無いので、API が呼び出し元のクライアントを知る手段はこれだけになる | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
-| `C-sid` | `sid` | 既定どおり | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API は読まない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
-| `C-scope` | `scope` | 既定どおり | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token)<br>`slide:p05-scope-vs-role` | — | — |
-| `C-nonce` | `nonce` | 採用 | BFF がログインの応答を照合し、ID トークンの差し込みを拒否する | BFF が認可要求ごとに推測できない値を作り、セッションに保存する | [OpenID Connect Core 1.0 §3.1.3.7](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) | — | — |
-| `C-name` | `name` | 採用 | ログイン後の画面の表示に使う。AT には載せない（API は表示名を要らない） | ID トークンは BFF のサーバーの中に留まり、ブラウザには渡さない | `slide:p09-do-not-carry` | — | SPA がトークンを持つ構成に変えるとき |
-| `C-email` | `email` | 採用 | ログイン後の画面の表示に使う。AT には載せない | ID トークンは BFF のサーバーの中に留まる | `slide:p09-do-not-carry` | — | SPA がトークンを持つ構成に変えるとき |
-| `C-email-verified` | `email_verified` | 採用 | 画面で未確認のメールに印を付ける | ID トークンは BFF のサーバーの中に留まる | `slide:p09-do-not-carry` | — | — |
-| `C-tenant-id` | `https://claims.example.com/.tenant_id` | 採用 | テナントを決めるのは iss で、tenant_id は照合用の写し。API は iss から引いたテナントと tenant_id とパスのテナントがすべて一致するときだけ受け入れ、iss から引いた値を DB の文脈（app.tenant）に入れる。パスやヘッダーのテナントでは決めない。ケーススタディの共通の基準（必須）に合わせて載せ、下流（ログ・将来の内部トークン）にテナントを明示する | テナントの管理者は自分のレルムの中では全権を持つ（マッパー・ロールの割り当て・AT の寿命を変えられる）。そのため API は、テナントの外に効くもの（どのテナントか、寿命の上限、ロールの語彙と件数、利用者の識別子）を iss と API 側の設定で強制し、トークンの値だけに頼らない | `slide:p05-multitenancy`<br>`slide:p07-row-level-security` | jwt-claims-casestudy@080b8da:A5<br>jwt-claims-casestudy@080b8da:A7<br>jwt-claims-casestudy@080b8da:A8<br>jwt-claims-casestudy@080b8da:A11<br>jwt-claims-casestudy@080b8da:A12 | 1 人の利用者が複数のテナントに属する（テナントの切り替え）要件が出たとき |
-| `C-user-id` | `https://claims.example.com/.user_id` | 採用 | 組織の名前空間の user_id を載せておき、IdP を替えるときに受け手が移れるようにする。ただしこの例では認可（BOLA）の鍵にはせず（鍵は sub）、sub と一致しなければ拒否するだけにする。書き手のマッパーをテナントの管理者が変えられるため | 当面は Keycloak だけを使う。そのため sub と同じ値になる（別の名前のクレームなので、R8 の重複の検査には出ない） | `slide:p04-namespace-object-example` | jwt-claims-casestudy@080b8da:A3 | 顧客が自分の IdP を持ち込む（BYO IdP）とき |
-| `C-roles` | `https://claims.example.com/.roles` | 採用 | API の入口で、承認と管理の操作を粗く絞る。値は 2 つの語彙に固定する | クライアントの Full Scope Allowed を OFF にし、スコープのロールの割り当てを approver・tenant-admin の 2 つに限る。そのため最大 2 件。この設定はテナントの管理者が変えられるので、API が語彙と件数を強制する。誰に tenant-admin を付けるかは、テナントの中の権限として受け入れる | `slide:p05-coarse-fine-layers`<br>`slide:p05-role-explosion` | jwt-claims-casestudy@080b8da:keycloak.full_scope | ロールを足すとき（max_items と R8 を見直す） |
-| `C-v` | `https://claims.example.com/.v` | 採用 | 名前空間の中の構造を変えるときに、受け手が古い構造と区別する | 構造を変えるときは受け手を先に直し、発行者を後に変える | `slide:p04-namespace-object-example`<br>`slide:p11-change-procedure` | — | — |
-| `C-client-id` | `client_id` | 却下（IdP が出さない） | Keycloak 26.8 の AT は（この例の認可コードの発行では）client_id を出さず、azp で同じ情報を出す。API は azp を読む。そのためこの AT は、ヘッダーで at+jwt を名乗るのに RFC 9068 §2.2 が REQUIRED とする client_id を欠き、RFC 9068 に適合しない。RFC 9068 どおりに検証する汎用の部品は拒否する | 2026-11-22 に発行した見本の AT に client_id が無かった | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | RFC 9068 の client_id を必須とする受け手（ライブラリ）を使うとき |
-| `C-idp` | `https://claims.example.com/.idp` | 却下（不要） | この例では IdP は Keycloak だけで、元の IdP を区別する必要がない | 顧客が自分の IdP を持ち込まない | — | — | BYO IdP を受け入れるとき（ケーススタディの条件付き採用の条件） |
-| `C-preferred-username` | `preferred_username` | 却下（代替あり） | 変わりうる名前で、識別にも認可にも使えない。表示には name を使う | クライアントに profile スコープを付けない（付けると Keycloak が出す） | `slide:p04-immutable-identifiers` | — | — |
-| `C-realm-access` | `realm_access` | 却下（代替あり） | Keycloak の形のロールを受け手に読ませない。ロールは名前空間の roles に、2 つの語彙だけを出す | クライアントに roles スコープを付けない | `slide:p03-absorb-idp-differences` | — | — |
-| `C-acr` | `acr` | 却下（不要） | この例では認証の強さで操作を分けない | 追加認証（step-up）を要る操作がない | — | — | 承認の操作で追加認証を求めるとき |
-| `C-allowed-origins` | `allowed-origins` | 却下（不要） | ブラウザから API を直接呼ばない（BFF 経由）ので、CORS の許可元を AT に載せる必要がない | クライアントに web-origins スコープを付けない | — | — | SPA から API を直接呼ぶ構成に変えるとき |
+| ID | 候補 | 採否 | 代わりの行 | 理由 | 前提 | 根拠 ID | 裏付け | 見直しの条件 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `C-iss` | `iss` | 採用 | — | レルムがテナントごとに分かれているので、iss がテナントの境界になる。テナントを決めるのは iss（許可リストとレルムごとの鍵）で、API は iss から対応表でテナントを引く。tenant_id は照合に使い、他テナントの管理者のマッパーで書かれた tenant_id を拒否する | テナントとレルムが 1 対 1 で、レルムの名前はテナント ID と同じ | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p05-multitenancy` | jwt-claims-casestudy@080b8da:A8<br>jwt-claims-casestudy@080b8da:A9<br>jwt-claims-casestudy@080b8da:A10 | 1 つのレルムに複数のテナントを入れる（Keycloak の Organizations など）とき |
+| `C-sub` | `sub` | 採用 | — | BOLA の照合（請求書の持ち主との一致）の鍵は sub だけにする。請求書の持ち主の列（owner_sub）に sub を入れ、iss から引いたテナントと組で照合する。変わらない ID なので、名前の再利用で別人に一致しない | 利用者はレルムの中で作り直さない（作り直すと別の sub になる）。テナントの管理者は自分のレルムで利用者を作り直せるが、これはテナントの中の権限として受け入れる（他テナントには効かない） | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p04-immutable-identifiers` | jwt-claims-casestudy@080b8da:A3<br>jwt-claims-casestudy@080b8da:A6 | 利用者を別のレルムへ移す運用を始めるとき |
+| `C-aud` | `aud` | 採用 | — | ID トークンを API に送る誤りと、別の API 宛てのトークンの流用を拒否する | AT の宛先は saas-api の 1 つだけ（Keycloak は宛先が 1 つなら文字列で出す） | [RFC 9068 §4](https://www.rfc-editor.org/rfc/rfc9068#section-4)<br>`slide:p06-validation-split` | jwt-claims-casestudy@080b8da:A13 | AT を 2 つ以上の API に送る構成にするとき（配列になる） |
+| `C-exp` | `exp` | 採用 | — | 寿命 300 秒を強制する。剥奪が反映されるまでの上限がこの値で決まる | API の時計は NTP で合わせ、ずれは 30 秒まで | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>`slide:p08-token-types-lifetimes` | jwt-claims-casestudy@080b8da:A14 | AT の寿命を変えるとき |
+| `C-iat` | `iat` | 採用 | — | 監査で、どの時点の属性で発行されたかを追う | 監査ログに iat を残す | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | — |
+| `C-jti` | `jti` | 採用 | — | 監査ログでトークンを特定する。RFC 9068 が AT に必須としている | 接頭辞は 6 文字（見本の onrtac）。リフレッシュなど別の発行で長さが変わるかは確かめていない | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | Keycloak の版を上げるとき（jti の形式が変わる） |
+| `C-auth-time` | `auth_time` | 既定どおり | — | Keycloak の basic スコープが sub と一緒に出す。外すには sub だけの独自のスコープを作る必要があり、JSON で 23 バイト（"auth_time":と 10 桁とカンマ）のために設定の差分を増やさない。API は読まない | — | `slide:p06-stage-map` | — | — |
+| `C-typ-claim` | `typ` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た） | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
+| `C-azp` | `azp` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。Keycloak の AT には client_id が無いので、API が呼び出し元のクライアントを知る手段はこれだけになる | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
+| `C-sid` | `sid` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API は読まない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token) | — | — |
+| `C-scope` | `scope` | 既定どおり | — | 公式文書（26.8.2「Using lightweight access token」）は、軽量アクセストークンから外せない情報としてこれを挙げている。通常の AT について同じことは書いていないが、軽量にしても残るものは通常の AT でもマッパーで外せないと推論した（推論。2026-11-22 の見本の通常の AT にも出た）。API の認可はロールとデータ側の照合で行い、scope は使わない | — | [Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」](https://www.keycloak.org/docs/26.8.2/server_admin/#_using_lightweight_access_token)<br>`slide:p05-scope-vs-role` | — | — |
+| `C-nonce` | `nonce` | 採用 | — | BFF がログインの応答を照合し、ID トークンの差し込みを拒否する | BFF が認可要求ごとに推測できない値を作り、セッションに保存する | [OpenID Connect Core 1.0 §3.1.3.7](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) | — | — |
+| `C-name` | `name` | 採用 | — | ログイン後の画面の表示に使う。AT には載せない（API は表示名を要らない） | ID トークンは BFF のサーバーの中に留まり、ブラウザには渡さない | `slide:p09-do-not-carry` | — | SPA がトークンを持つ構成に変えるとき |
+| `C-email` | `email` | 採用 | — | ログイン後の画面の表示に使う。AT には載せない | ID トークンは BFF のサーバーの中に留まる | `slide:p09-do-not-carry` | — | SPA がトークンを持つ構成に変えるとき |
+| `C-email-verified` | `email_verified` | 採用 | — | 画面で未確認のメールに印を付ける | ID トークンは BFF のサーバーの中に留まる | `slide:p09-do-not-carry` | — | — |
+| `C-tenant-id` | `https://claims.example.com/.tenant_id` | 採用 | — | テナントを決めるのは iss で、tenant_id は照合用の写し。API は iss から引いたテナントと tenant_id とパスのテナントがすべて一致するときだけ受け入れ、iss から引いた値を DB の文脈（app.tenant）に入れる。パスやヘッダーのテナントでは決めない。ケーススタディの共通の基準（必須）に合わせて載せ、下流（ログ・将来の内部トークン）にテナントを明示する | テナントの管理者は自分のレルムの中では全権を持つ（マッパー・ロールの割り当て・AT の寿命を変えられる）。そのため API は、テナントの外に効くもの（どのテナントか、寿命の上限、ロールの語彙と件数、利用者の識別子）を iss と API 側の設定で強制し、トークンの値だけに頼らない | `slide:p05-multitenancy`<br>`slide:p07-row-level-security` | jwt-claims-casestudy@080b8da:A5<br>jwt-claims-casestudy@080b8da:A7<br>jwt-claims-casestudy@080b8da:A8<br>jwt-claims-casestudy@080b8da:A11<br>jwt-claims-casestudy@080b8da:A12 | 1 人の利用者が複数のテナントに属する（テナントの切り替え）要件が出たとき |
+| `C-user-id` | `https://claims.example.com/.user_id` | 採用 | — | 組織の名前空間の user_id を載せておき、IdP を替えるときに受け手が移れるようにする。ただしこの例では認可（BOLA）の鍵にはせず（鍵は sub）、sub と一致しなければ拒否するだけにする。書き手のマッパーをテナントの管理者が変えられるため | 当面は Keycloak だけを使う。そのため sub と同じ値になる（別の名前のクレームなので、R8 の重複の検査には出ない） | `slide:p04-namespace-object-example` | jwt-claims-casestudy@080b8da:A3 | 顧客が自分の IdP を持ち込む（BYO IdP）とき |
+| `C-roles` | `https://claims.example.com/.roles` | 採用 | — | API の入口で、承認と管理の操作を粗く絞る。値は 2 つの語彙に固定する | クライアントの Full Scope Allowed を OFF にし、スコープのロールの割り当てを approver・tenant-admin の 2 つに限る。そのため最大 2 件。この設定はテナントの管理者が変えられるので、API が語彙と件数を強制する。誰に tenant-admin を付けるかは、テナントの中の権限として受け入れる | `slide:p05-coarse-fine-layers`<br>`slide:p05-role-explosion` | jwt-claims-casestudy@080b8da:keycloak.full_scope | ロールを足すとき（max_items と R8 を見直す） |
+| `C-v` | `https://claims.example.com/.v` | 採用 | — | 名前空間の中の構造を変えるときに、受け手が古い構造と区別する | 構造を変えるときは受け手を先に直し、発行者を後に変える | `slide:p04-namespace-object-example`<br>`slide:p11-change-procedure` | — | — |
+| `C-client-id` | `client_id` | 却下（IdP が出さない） | `C-azp` | Keycloak 26.8 の AT は（この例の認可コードの発行では）client_id を出さず、azp で同じ情報を出す。API は azp を読む。そのためこの AT は、ヘッダーで at+jwt を名乗るのに RFC 9068 §2.2 が REQUIRED とする client_id を欠き、RFC 9068 に適合しない。RFC 9068 どおりに検証する汎用の部品は拒否する | 2026-11-22 に発行した見本の AT に client_id が無かった | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2) | — | RFC 9068 の client_id を必須とする受け手（ライブラリ）を使うとき |
+| `C-idp` | `https://claims.example.com/.idp` | 却下（不要） | — | この例では IdP は Keycloak だけで、元の IdP を区別する必要がない | 顧客が自分の IdP を持ち込まない | — | — | BYO IdP を受け入れるとき（ケーススタディの条件付き採用の条件） |
+| `C-preferred-username` | `preferred_username` | 却下（代替あり） | `C-name`・`C-sub` | 変わりうる名前で、識別にも認可にも使えない。表示には name を使う | クライアントに profile スコープを付けない（付けると Keycloak が出す） | `slide:p04-immutable-identifiers` | — | — |
+| `C-realm-access` | `realm_access` | 却下（代替あり） | `C-roles` | Keycloak の形のロールを受け手に読ませない。ロールは名前空間の roles に、2 つの語彙だけを出す | クライアントに roles スコープを付けない | `slide:p03-absorb-idp-differences` | — | — |
+| `C-acr` | `acr` | 却下（不要） | — | この例では認証の強さで操作を分けない | 追加認証（step-up）を要る操作がない | — | — | 承認の操作で追加認証を求めるとき |
+| `C-allowed-origins` | `allowed-origins` | 却下（不要） | — | ブラウザから API を直接呼ばない（BFF 経由）ので、CORS の許可元を AT に載せる必要がない | クライアントに web-origins スコープを付けない | — | — | SPA から API を直接呼ぶ構成に変えるとき |
 <!-- render:decision-rows:end -->
 
 ケーススタディの判定と違う行（8 件）は `templates/casestudy-deviations.yaml` にある。
@@ -368,7 +370,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 <!-- render:data-sources:begin -->
 載せる行（採用・既定どおり）の `source_system`・`authoritative_writer`・発行の契機。
 
-| ID | クレーム | データ源 | 書き手（段階） | 発行の契機 | 再計算 | 値が変わりうる間隔 | 反映の遅れ |
+| ID | クレーム | データ源 | 書き手（段階） | 発行の契機 | 再計算 | 反映までに許す秒数 | 反映の遅れ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `C-iss` | `iss` | Keycloak のレルムの設定（Frontend URL とレルム名） | ② Keycloak（テナントのレルム）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |
 | `C-sub` | `sub` | Keycloak のユーザー（レルムの DB） | ② Keycloak（basic スコープの sub マッパー）（設定できる主体：platform・tenant_admin） | `I01`・`I02` | `login`・`refresh` | 0 秒 | 0 秒 |

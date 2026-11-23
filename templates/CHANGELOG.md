@@ -23,6 +23,7 @@
 - `python tools/claim_lint render`（#19。`tools/claim_lint/render.py`・`RENDER.md`）：台帳から設計書の表（CI の結果・発行方式の選択と導かれる要件・トークン目録・問い × 仕組み・ホップ・矢印ごと・寿命の 4 層・判断の行・データ源・カタログへの回答の集計）と、ビューアー（#36）向けの JSON の束を生成する。設計書の `<!-- render:<節>:begin/end -->` の区間を `--write` で書き直し、`--check` で食い違いを検出する
 - `examples/scenario-a/schemas/`：トークン種別（AT・IDT）ごとのペイロードの JSON Schema を、受け手向け（`additionalProperties: true`）と発行側の適合の検査用（`additionalProperties: false`）の 2 つずつ生成した（#19）。Keycloak で発行した見本の AT を発行側の Schema で CI で検証する
 - `examples/scenario-a/design.md`（0.2.1）：縮小 Lite の〔生成〕の節を生成の区間に置き換えた（#19）。`claims.yaml`・`token_types.yaml` の 3 か所で、値の中の「 #」から後ろが YAML のコメントとして落ちていたのを、引用符で囲んで直した
+- 同じ落ち方の残り 2 か所（`catalog/issue_events.yaml` の I24 の Auth0 の `hook_note`、`tools/claim_lint/path_limits.yaml` の Node.js の `note`）を直し、`templates/`・`tools/` の YAML で、引用符のない値が「 #」に続く語で切れていないかを確かめるテスト（`tools/tests/test_yaml_comment_truncation.py`）を足した（PR #39 の独立点検）
 
 ### 変更
 

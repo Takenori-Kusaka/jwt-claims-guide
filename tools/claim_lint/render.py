@@ -29,6 +29,8 @@ DOC_NAME = 'design.md'
 SCHEMA_DIR = 'schemas'
 CARRIED_DECISIONS = ('採用', '既定どおり')
 NONE = '—'
+REPO_URL = 'https://github.com/Takenori-Kusaka/jwt-claims-guide'  # the $id base of templates/registry/*.schema.json
+TEMPLATE_VERSION_RE = re.compile(r'^#\s*template_version:\s*(\d+\.\d+\.\d+)')
 
 # ------------------------------------------------------------------ labels (display only; the values stay as written)
 STORED_AT = {'browser': 'ブラウザ', 'bff_server': 'BFF のサーバー', 'idp': 'IdP', 'rp_server': 'RP のサーバー',
@@ -72,6 +74,15 @@ def load_design(design_dir):
     for name in ('issue_events', 'use_events'):
         events += [dict(e, _file=name) for e in (_load(os.path.join(CATALOG, name + '.yaml'), {}) or {}).get('events') or []]
     d['events'] = events
+    # the $id of a payload schema names the design by its directory name, so that a copy of the directory generates
+    # the same schema files (the files are compared by --check)
+    d['_design'] = os.path.basename(os.path.abspath(design_dir).rstrip('/\\'))
+    d['_template_version'] = None
+    p = os.path.join(design_dir, 'claims.yaml')
+    if os.path.isfile(p):
+        with open(p, encoding='utf-8') as f:
+            m = TEMPLATE_VERSION_RE.match(f.readline())
+        d['_template_version'] = m.group(1) if m else None
     return d
 
 
@@ -112,7 +123,8 @@ def sec_decision_rows(d):
         rows.append({'id': c.get('id'), 'candidate': _full_name(c), 'decision': decision, 'rationale': c.get('rationale'),
                      'assumption': c.get('assumption'), 'refs': c.get('refs') or [], 'evidence': c.get('evidence') or [],
                      'alt': c.get('alt') or [], 'revisit_trigger': c.get('revisit_trigger')})
-    cols = [('id', 'ID', 'code'), ('candidate', '候補', 'code'), ('decision', '採否', 'text'), ('rationale', '理由', 'text'),
+    cols = [('id', 'ID', 'code'), ('candidate', '候補', 'code'), ('decision', '採否', 'text'), ('alt', '代わりの行', 'codes'),
+            ('rationale', '理由', 'text'),
             ('assumption', '前提', 'text'), ('refs', '根拠 ID', 'refs'), ('evidence', '裏付け', 'list'),
             ('revisit_trigger', '見直しの条件', 'text')]
     return {'id': 'decision-rows', 'title': '判断の行',
@@ -134,7 +146,7 @@ def sec_data_sources(d):
                      'volatility': c.get('volatility'), 'propagation_delay': c.get('propagation_delay')})
     cols = [('id', 'ID', 'code'), ('claim', 'クレーム', 'code'), ('source_system', 'データ源', 'text'),
             ('writers', '書き手（段階）', 'list'), ('issue_events', '発行の契機', 'codes'),
-            ('recompute_trigger', '再計算', 'codes'), ('volatility', '値が変わりうる間隔', 'seconds'),
+            ('recompute_trigger', '再計算', 'codes'), ('volatility', '反映までに許す秒数', 'seconds'),
             ('propagation_delay', '反映の遅れ', 'seconds')]
     return {'id': 'data-sources', 'title': 'データ源', 'notes': ['載せる行（採用・既定どおり）の `source_system`・`authoritative_writer`・発行の契機。'],
             'tables': [_table('data-sources', cols, rows)]}
@@ -167,8 +179,9 @@ def sec_token_inventory(d):
         jwe = t.get('jwe')
         rows.append({'id': t.get('id'), 'kind': t.get('kind'), 'kind_name': _kind_name(d, t.get('kind')),
                      'decision': t.get('decision'),
-                     'issuer_to': f"{t.get('issuer')} → {'・'.join(map(str, t.get('aud') or [])) or t.get('holder') or NONE}"
+                     'issuer_to': f"{t.get('issuer')} → {'・'.join(map(str, t.get('aud') or [])) or NONE}"
                      if adopted and t.get('issuer') else None,
+                     'holder': t.get('holder') if adopted else None,
                      'format': _format(t), 'lifetime': _lifetime(t) if adopted else None,
                      'stored_at': STORED_AT.get(t.get('stored_at'), t.get('stored_at')) if adopted else None,
                      'transport': TRANSPORT.get(t.get('transport'), t.get('transport')) if adopted else None,
@@ -176,7 +189,7 @@ def sec_token_inventory(d):
                      'jwe': None if not isinstance(jwe, dict) else ('あり' if jwe.get('used') else 'なし'),
                      'rationale': t.get('rationale')})
     cols = [('id', 'ID', 'code'), ('kind_name', '種類', 'text'), ('decision', '採否', 'text'),
-            ('issuer_to', '発行 → 受け手', 'text'), ('format', '形式', 'text'), ('lifetime', '寿命', 'text'),
+            ('issuer_to', '発行 → 宛先（aud）', 'text'), ('holder', '持ち手', 'text'), ('format', '形式', 'text'), ('lifetime', '寿命', 'text'),
             ('stored_at', '保存場所', 'text'), ('transport', '運び方', 'text'), ('visible_to', '読める相手', 'codes'),
             ('jwe', 'JWE', 'text'), ('rationale', '理由', 'text')]
     n = sum(1 for t in _tts(d) if t.get('decision') == '却下')
@@ -236,8 +249,19 @@ def _includes_token(d, carried, value):
     return False if known else None
 
 
+WORD_RE = re.compile(r'[A-Za-z0-9_#+-]+')
+
+
+def _matches(v, want):
+    """equals: a mapping matches when every key of `want` has that value (other keys of the row are ignored)."""
+    if isinstance(want, dict):
+        return isinstance(v, dict) and all(_matches(v.get(k), x) for k, x in want.items())
+    return v == want
+
+
 def evaluate_check(d, check):
-    """Return (status, matched row ids). status: satisfied / unsatisfied / unknown (render's simple reading)."""
+    """Return (status, matched row ids). status: satisfied / unsatisfied / unknown. A simple reading for display only;
+    the rule is #6's L62. `[*]` with includes means every row; all_consumers matches whole words of the checks."""
     path, op, value = check.get('path', ''), check.get('op'), check.get('value')
     if op == 'not_required':
         return 'satisfied', []
@@ -269,7 +293,7 @@ def evaluate_check(d, check):
         if op == 'present':
             return ('satisfied' if rows else 'unsatisfied'), ids
         if op == 'equals' and isinstance(value, dict):
-            hit = [r.get('id') for r in rows if all(r.get(k) == v for k, v in value.items())]
+            hit = [r.get('id') for r in rows if _matches(r, value)]
             return ('satisfied' if hit else 'unsatisfied'), hit
         return 'unknown', ids
     vals = [(r.get('id'), *_get(r, fields)) for r in rows]
@@ -285,10 +309,11 @@ def evaluate_check(d, check):
             return 'unknown', ids
         hit = [i for i, r in res if r]
         if op == 'includes':
-            return ('satisfied' if hit else 'unsatisfied'), hit
+            ok = (rows and len(hit) == len(rows)) if m['key'] == '*' else bool(hit)  # [*]: every row
+            return ('satisfied' if ok else 'unsatisfied'), hit
         return ('unsatisfied' if hit else 'satisfied'), hit
     if op == 'equals':
-        hit = [i for i, v, f in vals if f and v == value]
+        hit = [i for i, v, f in vals if f and _matches(v, value)]
         return ('satisfied' if hit else 'unsatisfied'), hit
     if op == 'all_consumers' and fields == ['enforced_at']:
         hit = []
@@ -296,8 +321,8 @@ def evaluate_check(d, check):
             checks = {}
             for e in r.get('enforced_at') or []:
                 checks.setdefault(e.get('service'), []).append(str(e.get('check')))
-            if r.get('consumers') and all(all(str(x) in ' '.join(checks.get(s, [])) for x in value or [])
-                                          for s in r['consumers']):
+            words = {s: set(WORD_RE.findall(' '.join(checks.get(s, [])))) for s in r.get('consumers') or []}
+            if r.get('consumers') and all(all(str(x) in words[s] for x in value or []) for s in r['consumers']):
                 hit.append(r.get('id'))
         return ('satisfied' if rows and len(hit) == len(rows) else 'unsatisfied'), hit
     return 'unknown', ids
@@ -348,10 +373,12 @@ def sec_issuance_profile(d):
     after = [f"選択から導かれる要件（`templates/registry/issuance_effects.yaml`）：条件が成り立つ行は {len(held)} 件／全 {len(effects)} 件"
              + ('。' if held else f"（成り立たない行：{'・'.join(e['id'] for e in effects)}）。")]
     if held:
-        tables.append(_table('issuance-effects', [('effect', '行', 'code'), ('id', '要件', 'code'), ('text', '台帳で必要になるもの', 'text'),
-                                                  ('status_text', '判定', 'text'), ('rows', '満たしている行', 'codes'),
-                                                  ('lint', '規則', 'codes')], erows))
-        after.append('判定は render の簡易な読み取りで、正は #6 の規則（L62 ほか）。「満たしている行」は、要件の場所にある台帳の行。')
+        t = _table('issuance-effects', [('effect', '行', 'code'), ('id', '要件', 'code'), ('text', '台帳で必要になるもの', 'text'),
+                                        ('status_text', '簡易な読み取り（正は L62）', 'text'),
+                                        ('rows', '満たしている行', 'codes'), ('lint', '規則', 'codes')], erows)
+        t['note'] = (after.pop() + '**次の表は検査ではない。** render が `check` を簡易に読み取った表示で、検査の正は'
+                     ' `tools/claim_lint/RULES.md` の L62〜L64（#6）。「満たしている行」は、要件の場所にある台帳の行。')
+        tables.append(t)
     return {'id': 'issuance-profile', 'title': '発行方式の選択', 'notes': notes, 'tables': tables, 'after': after,
             'effects': effects}
 
@@ -398,8 +425,15 @@ def sec_arrow_table(d):
             if not checks:
                 continue
             hit = True
+            if tid:
+                writers = [f"{w.get('stage')} {w.get('writer')}" for w in c.get('authoritative_writer') or []]
+            else:
+                # no token on this hop: the sender (`from`) writes the value; the registry says what it copies and where
+                # the token's protection ends (integrity_until), so the token's writer is not shown as the writer here
+                writers = [f"{h.get('from')}（トークンなし。書き先：{u.get('target')}）" + (f"。{u['trust_boundary']}" if u.get('trust_boundary') else '')
+                           for u in c.get('integrity_until') or []] or [f"{h.get('from')}（トークンなし）"]
             rows.append({'hop': h.get('id'), 'token_type': tid, 'claim_id': c.get('id'), 'claim': _full_name(c),
-                         'writers': [f"{w.get('stage')} {w.get('writer')}" for w in c.get('authoritative_writer') or []],
+                         'writers': writers,
                          'checks': checks, 'aud': h.get('aud') or (tts.get(tid) or {}).get('aud') or [],
                          'lifetime': _secs(h.get('max_lifetime'))})
         if not hit:
@@ -408,7 +442,9 @@ def sec_arrow_table(d):
     cols = [('hop', 'ホップ', 'code'), ('token_type', 'トークン', 'code'), ('claim', '確かめるクレーム', 'code'),
             ('writers', '書き手', 'list'), ('checks', '確かめること', 'list'), ('aud', 'aud', 'codes'), ('lifetime', '寿命', 'text')]
     return {'id': 'arrow-table', 'title': '矢印ごとの表',
-            'notes': ['ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。'],
+            'notes': ['ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。'
+                      'トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、'
+                      '書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。'],
             'tables': [_table('arrow-table', cols, rows)]}
 
 
@@ -453,14 +489,24 @@ def sec_lifecycle(d):
     for c in _claims(d):
         if not _carried(c) or not c.get('consumers'):
             continue
-        lts = [(by_id.get(x) or {}) for x in c.get('carried_in') or []]
-        worst = max([(t.get('max_lifetime') or 0) + (t.get('max_clock_skew') or 0) for t in lts] or [0])
         vol = c.get('volatility')
-        over = bool(vol) and worst > vol
+        worst, over_tts, measures = 0, [], []
+        for x in c.get('carried_in') or []:
+            t = by_id.get(x) or {}
+            acc = (t.get('max_lifetime') or 0) + (t.get('max_clock_skew') or 0)
+            worst = max(worst, acc)
+            if vol is not None and acc > vol:
+                over_tts.append(f'{x} {acc} 秒')
+                measures += [f"{x}：{REVOCATION.get(r.get('method'), r.get('method'))}（{r.get('delay_seconds')} 秒）"
+                             for r in t.get('revocation') or []
+                             if r.get('method') != 'exp_only' and r.get('delay_seconds') is not None
+                             and r['delay_seconds'] <= vol]
+        over = bool(over_tts)
         t2.append({'id': c.get('id'), 'claim': _full_name(c), 'carried_in': c.get('carried_in') or [],
                    'acceptance': _secs(worst), 'volatility': vol, 'propagation_delay': c.get('propagation_delay'),
                    'recompute_trigger': c.get('recompute_trigger') or [], 'on_revoke': c.get('on_revoke'),
-                   'exceeds': over, 'exceeds_text': '寿命が鮮度の許容を超える' if over else NONE})
+                   'exceeds': over, 'exceeds_text': f"超える（{'・'.join(over_tts)} > 許容 {vol} 秒）" if over else NONE,
+                   'measures': measures})
     t3 = []
     for t in adopted:
         if t.get('kind') not in ('session', 'refresh_token'):
@@ -482,15 +528,21 @@ def sec_lifecycle(d):
           for n in d['claims'].get('namespaces') or []]
     return {'id': 'lifecycle', 'title': '寿命の 4 つの層（台帳から引いた分）',
             'notes': ['slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates/registry/README.md` の 6.）。'
-                      '長時間の処理と剥奪の反映の書き方は、手で書くライフサイクル表に書く。'],
+                      '長時間の処理と剥奪の反映の書き方は、手で書くライフサイクル表に書く。',
+                      '2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、'
+                      '0 は即時の反映が要ることを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、'
+                      '目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは'
+                      '機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。'],
             'tables': [
                 _table('lifecycle-token', [('id', 'トークン', 'code'), ('max_lifetime', '寿命', 'seconds'), ('skew', '時計のずれ', 'seconds'),
                                            ('set_by', '寿命を変えられる主体', 'codes'), ('hops', 'ホップでの寿命', 'list')], t1,
                        '1. トークンの寿命'),
                 _table('lifecycle-claim', [('claim', 'クレーム', 'code'), ('carried_in', '載るトークン', 'codes'),
-                                           ('acceptance', '受け入れの最大', 'text'), ('volatility', '値が変わりうる間隔', 'seconds'),
+                                           ('acceptance', '受け入れの最大', 'text'), ('volatility', '反映までに許す秒数', 'seconds'),
                                            ('propagation_delay', '反映の遅れ', 'seconds'), ('recompute_trigger', '再計算', 'codes'),
-                                           ('on_revoke', '剥奪・停止のとき', 'text'), ('exceeds_text', '注意', 'text')], t2,
+                                           ('exceeds_text', '受け入れの最大と許容', 'text'),
+                                           ('measures', '許容以内の失効の手段（目録）', 'list'),
+                                           ('on_revoke', '剥奪・停止のとき（台帳）', 'text')], t2,
                        '2. クレームの値の鮮度（受け手のいる行）'),
                 _table('lifecycle-session', [('id', 'セッション・RT・接続', 'code'), ('idle', 'idle', 'seconds'),
                                              ('max_lifetime', '最大', 'seconds'), ('rotation', 'ローテーション', 'text'),
@@ -617,6 +669,8 @@ def cell(v, fmt):
 def table_md(t):
     cols = t['columns']
     lines = []
+    if t.get('note'):
+        lines += [t['note'], '']
     if t.get('title'):
         lines += [f"**{t['title']}**", '']
     lines.append('| ' + ' | '.join(c['label'] for c in cols) + ' |')
@@ -699,10 +753,18 @@ def payload_schema(d, tt, kind):
         if nested_req.get(ns):
             o['required'] = nested_req[ns]
         props[ns] = o
+    # an aud of the consumer schema may be a string or an array (RFC 7519 §4.1.3), so a receiver is not broken by
+    # an issuer that starts sending several audiences; the issuer schema keeps the registry's shape
+    if not strict and isinstance(props.get('aud'), dict):
+        a = props['aud']
+        props['aud'] = {k: v for k, v in a.items() if k not in ('type', 'items')}
+        props['aud']['anyOf'] = [{'type': 'string'}, {'type': 'array', 'items': {'type': 'string'}}]
+    ver = d.get('_template_version') or '0.0.0'
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',
-        '$comment': f"Generated by `python tools/claim_lint render` (#19) from the registry of this design; do not edit. "
-                    f"Token type {tt.get('id')} ({tt.get('kind')}), {kind} schema.",
+        '$id': f"{REPO_URL}/payload-schemas/{d.get('_design', 'design')}/{tt.get('id')}.{kind}.schema.json/v{ver}",
+        '$comment': f"template_version: {ver}. Generated by `python tools/claim_lint render` (#19) from the registry of "
+                    f"this design; do not edit. Token type {tt.get('id')} ({tt.get('kind')}), {kind} schema.",
         'title': f"{tt.get('id')} payload ({'consumer: unknown claims allowed' if not strict else 'issuer conformance: registry claims only'})",
         'type': 'object', 'properties': props, 'required': required, 'additionalProperties': not strict}
 
@@ -764,6 +826,8 @@ def bundle(design_dir, d, sections):
             files[k + '.yaml'] = _sha(p)
     for rel in ('questions.yaml', 'issuance_effects.yaml'):
         files['templates/registry/' + rel] = _sha(os.path.join(REGISTRY, rel))
+    for rel in ('token_kinds.yaml', 'issue_events.yaml', 'use_events.yaml'):  # kind names, event names and counts
+        files['templates/catalog/' + rel] = _sha(os.path.join(CATALOG, rel))
     return {'format': BUNDLE_FORMAT, 'design': core._rel(design_dir, ROOT), 'generator': 'python tools/claim_lint render',
             'sources': files, 'section_ids': [s['id'] for s in sections], 'sections': sections,
             'payload_schemas': payload_schemas(d),
@@ -826,9 +890,22 @@ def expected_outputs(design_dir, doc_path, lint=None):
     return out
 
 
+def orphan_schemas(design_dir, expected):
+    """schemas/*.schema.json that the registry no longer generates (a token type rejected, removed or not a JWT)."""
+    base = os.path.join(design_dir, SCHEMA_DIR)
+    if not os.path.isdir(base):
+        return []
+    want = {os.path.normcase(os.path.abspath(p)) for p in expected}
+    return sorted(os.path.join(base, f) for f in os.listdir(base)
+                  if f.endswith('.schema.json') and os.path.normcase(os.path.abspath(os.path.join(base, f))) not in want)
+
+
 def check(design_dir, doc_path, lint=None):
     problems = []
-    for path, want in expected_outputs(design_dir, doc_path, lint).items():
+    expected = expected_outputs(design_dir, doc_path, lint)
+    for path in orphan_schemas(design_dir, expected):
+        problems.append(f'{core._rel(path, ROOT)}: not generated from the registry any more (run render --write to remove it)')
+    for path, want in expected.items():
         have = _read_text(path)[0] if os.path.isfile(path) else None
         if have != want:
             rel = core._rel(path, ROOT)
@@ -842,7 +919,11 @@ def check(design_dir, doc_path, lint=None):
 
 def write(design_dir, doc_path, lint=None):
     changed = []
-    for path, want in expected_outputs(design_dir, doc_path, lint).items():
+    expected = expected_outputs(design_dir, doc_path, lint)
+    for path in orphan_schemas(design_dir, expected):
+        os.remove(path)
+        changed.append('removed ' + core._rel(path, ROOT))
+    for path, want in expected.items():
         have, nl = _read_text(path) if os.path.isfile(path) else (None, '\n')
         if have != want:
             _write_text(path, want, nl)
@@ -888,7 +969,7 @@ def main(argv=None):
                 out.write(('render --check: ' + ('FAIL' if problems else 'OK') + '\n').encode('utf-8'))
                 return 1 if problems else 0
             for p in write(design_dir, doc, lint):
-                out.write(f'updated {p}\n'.encode('utf-8'))
+                out.write(((p if p.startswith('removed ') else 'updated ' + p) + '\n').encode('utf-8'))
             return 0
         except ValueError as e:
             out.write(f'render: {doc}: {e}\n'.encode('utf-8'))

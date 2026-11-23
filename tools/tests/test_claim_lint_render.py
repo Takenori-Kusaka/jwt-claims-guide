@@ -29,7 +29,7 @@ def lint():
 
 
 def copy_example(tmp_path):
-    dst = tmp_path / 'design'
+    dst = tmp_path / 'scenario-a'  # the directory name is part of the schemas' $id
     shutil.copytree(EXAMPLE, dst)
     return str(dst)
 
@@ -281,3 +281,117 @@ def test_markdown_cells_escape_pipes_and_newlines():
     assert render.cell('a|b\nc', 'text') == 'a\\|b<br>c'
     assert render.cell(None, 'text') == '—' and render.cell([], 'codes') == '—'
     assert render.cell([{'kind': 'guide-slide', 'id': 'p06-narrow-downstream'}], 'refs') == '`slide:p06-narrow-downstream`'
+
+
+# ------------------------------------------------------------------ independent check of PR #39
+def test_orphan_schema_of_a_rejected_token_type_fails_check_and_write_removes_it(tmp_path, lint):
+    dst = copy_example(tmp_path)
+    doc = os.path.join(dst, 'design.md')
+    edit_line(os.path.join(dst, 'token_types.yaml'), 'rationale: BFF がログインを確かめ、画面の表示名を得る',
+              'rationale: BFF がログインを確かめ、画面の表示名を得る（却下にした）')
+    path = os.path.join(dst, 'token_types.yaml')
+    with open(path, encoding='utf-8', newline='') as f:
+        text = f.read()
+    nl = '\r\n' if '\r\n' in text else '\n'
+    old = nl.join(['  - id: IDT', '    kind: id_token', '    decision: 採用'])
+    assert text.count(old) == 1
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(text.replace(old, old.replace('採用', '却下')))
+    render.write(dst, doc, lint)
+    orphan = os.path.join(dst, 'schemas', 'IDT.issuer.schema.json')
+    assert not os.path.exists(orphan)
+    with open(orphan, 'w', encoding='utf-8') as f:
+        f.write('{}\n')
+    problems = render.check(dst, doc, lint)
+    assert any('IDT.issuer.schema.json: not generated from the registry any more' in p for p in problems)
+    render.write(dst, doc, lint)
+    assert not os.path.exists(orphan)
+
+
+def test_tokenless_hop_shows_the_sender_as_writer_not_the_token_issuer():
+    sec = render.sec_arrow_table(render.load_design(EXAMPLE))
+    h3 = [r for r in sec['tables'][0]['rows'] if r['hop'] == 'H3']
+    assert len(h3) == 1 and h3[0]['claim_id'] == 'C-tenant-id'
+    assert h3[0]['writers'][0].startswith('saas-api（トークンなし。書き先：Postgres のセッション変数 app.tenant')
+    assert 'iss から引いたテナント' in h3[0]['writers'][0] and 'Keycloak' not in h3[0]['writers'][0].split('。')[0]
+    h2 = [r for r in sec['tables'][0]['rows'] if r['hop'] == 'H2' and r['claim_id'] == 'C-tenant-id']
+    assert h2[0]['writers'][0].startswith('② Keycloak')
+
+
+def test_volatility_zero_means_immediate_and_is_flagged():
+    rows = {r['id']: r for r in next(t for t in render.sec_lifecycle(render.load_design(EXAMPLE))['tables']
+                                     if t['id'] == 'lifecycle-claim')['rows']}
+    assert rows['C-sub']['exceeds'] and rows['C-sub']['exceeds_text'] == '超える（AT 330 秒・IDT 300 秒 > 許容 0 秒）'
+    assert rows['C-tenant-id']['measures'] == ['AT：DB の確認（0 秒）']  # a candidate; whether it applies is on_revoke
+    assert rows['C-nonce']['exceeds'] and rows['C-nonce']['measures'] == []
+    assert not rows['C-roles']['exceeds'] and not rows['C-name']['exceeds']  # 330 <= 330, 300 <= 86400
+
+
+def _dpop_design():
+    d = render.load_design(EXAMPLE)
+    d['token_types']['issuance_profile']['sender_constraint']['value'] = 'dpop'
+    return d
+
+
+def test_all_consumers_matches_whole_words_not_substrings():
+    d = _dpop_design()
+    d['claims']['claims'].append({'id': 'C-cnf', 'name': 'cnf', 'namespace': None, 'decision': '採用', 'carried_in': ['AT'],
+                                  'consumers': ['saas-api'], 'enforced_at': [
+                                      {'service': 'saas-api', 'check': 'htm・htu は path まで・iat・jti を照合'}]})
+    e = {x['id']: x for x in render.issuance_effects(d)}
+    st = {r['id']: r['status'] for r in e['E-dpop']['requires']}
+    assert st['E-dpop.2'] == 'unsatisfied'  # "ath" is not in the checks; "path" must not count as "ath"
+
+
+def test_star_includes_needs_every_row():
+    d = render.load_design(EXAMPLE)
+    d['token_types']['issuance_profile']['at_format']['value'] = 'opaque_introspection'
+    d['token_types']['token_types'].append({'id': 'INTRO', 'kind': 'introspection_response_jwt', 'decision': '採用',
+                                            'format': 'jwt', 'transport': 'introspection_response'})
+    next(c for c in d['claims']['claims'] if c['id'] == 'C-sub')['carried_in'] = ['INTRO']
+    e = {x['id']: x for x in render.issuance_effects(d)}
+    r = next(r for r in e['E-opaque']['requires'] if r['id'] == 'E-opaque.1')
+    assert r['status'] == 'unsatisfied' and r['rows'] == ['C-sub']  # one row moved, the others are still in the AT
+
+
+def test_equals_on_a_mapping_is_a_subset_match():
+    d = render.load_design(EXAMPLE)
+    d['token_types']['issuance_profile']['client_type']['value'] = 'public'
+    rt = next(t for t in d['token_types']['token_types'] if t['id'] == 'RT')
+    rt['rt_rotation'] = {'rotation': True, 'reuse_detection': 'yes', 'note': '別のキーがあってもよい'}
+    e = {x['id']: x for x in render.issuance_effects(d)}
+    r = e['E-public-no-sender-constraint']['requires'][0]
+    assert e['E-public-no-sender-constraint']['holds'] and r['status'] == 'satisfied' and r['rows'] == ['RT']
+
+
+def test_issuance_effects_table_is_labelled_as_not_a_check():
+    md = render.section_md(render.sec_issuance_profile(_dpop_design()))
+    note, table = md.index('**次の表は検査ではない。**'), md.index('| 行 | 要件 |')
+    assert note < table and 'L62' in md[note:table] and '簡易な読み取り（正は L62）' in md
+
+
+def test_decision_rows_show_alt():
+    rows = {r['id']: r for r in render.sec_decision_rows(render.load_design(EXAMPLE))['tables'][0]['rows']}
+    assert rows['C-preferred-username']['alt'] == ['C-name', 'C-sub']
+    text, _ = render._read_text(DOC)
+    assert '| `C-realm-access` | `realm_access` | 却下（代替あり） | `C-roles` |' in text
+
+
+def test_bundle_sources_include_the_catalog():
+    src = render.bundle(EXAMPLE, render.load_design(EXAMPLE), [])['sources']
+    assert {'templates/catalog/token_kinds.yaml', 'templates/catalog/issue_events.yaml',
+            'templates/catalog/use_events.yaml'} <= set(src)
+
+
+def test_schema_id_and_template_version():
+    s = render.payload_schemas(render.load_design(EXAMPLE))['AT']['issuer']
+    assert s['$id'] == 'https://github.com/Takenori-Kusaka/jwt-claims-guide/payload-schemas/scenario-a/AT.issuer.schema.json/v0.2.0'
+    assert s['$comment'].startswith('template_version: 0.2.0.')
+
+
+def test_consumer_aud_accepts_string_or_array_issuer_follows_the_registry():
+    d = render.load_design(EXAMPLE)
+    p = golden_payload()
+    p['aud'] = ['saas-api', 'other-api']
+    assert render.validate_payload(d, p, 'AT', 'consumer') == []
+    assert render.validate_payload(d, p, 'AT', 'issuer')  # the registry says shape single
