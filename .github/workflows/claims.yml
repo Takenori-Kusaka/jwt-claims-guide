@@ -114,7 +114,7 @@ jobs:
           echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           rm gitleaks.tar.gz
-      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs and the viewer's source hashes are not)
+      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs, also in the editor data, and the viewer's source hashes are not)
         run: |
           d="$RUNNER_TEMP/gitleaks-selftest"; mkdir -p "$d"
           # the keys are made at run time so that no secret-looking literal is committed
@@ -127,6 +127,8 @@ jobs:
           h1=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64); h2=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64)
           printf 'x={"sources":{"token_types.yaml":"%s"}};\n' "$h1" > "$d/docs/claims/data/scenario-x.js"
           printf 'y={"api_token":"%s"};\n' "$h2" > "$d/docs/claims/data/leak-x.js"
+          # editor data (#49): the registry schemas copied into docs/claims/data/schemas.js carry requirement IDs
+          printf 'z={"$comment":"Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"};\n' > "$d/docs/claims/data/schemas-x.js"
           ./gitleaks dir --no-banner --redact --config .gitleaks.toml --report-format json --report-path "$d/report.json" "$d" || true
           jq -c '[.[] | {RuleID, File}]' "$d/report.json"
           jq -e 'length == 2 and ([.[].File | split("/") | last] | sort == ["leak-x.js", "leak.env"])' "$d/report.json"

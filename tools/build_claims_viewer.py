@@ -318,6 +318,8 @@ def manifest():
             {'name': 'pyodide', 'version': pyo_pkg['version'], 'license': pyo_pkg['license'],
              'python': pyo_lock['info']['python'], 'source': adv['pyodide']['source'],
              'source_sha256': adv['pyodide']['source_sha256'],
+             'license_file': {'file': 'pyodide/LICENSE', 'source': adv['pyodide']['license_file'],
+                              'note': 'not in the core archive; the LICENSE of the pyodide repository at the tag 314.0.8'},
              'files': [r for r in files if r.startswith('pyodide/') and not r.endswith('.whl')],
              'packages': wheels, 'packages_source': adv['pyodide']['packages_source']},
         ],

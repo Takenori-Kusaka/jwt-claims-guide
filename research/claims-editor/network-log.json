@@ -18,7 +18,7 @@
    "GET"
   ],
   "origins": [
-   "127.0.0.1:60948"
+   "127.0.0.1:57552"
   ],
   "non_get_or_cross_origin_or_beacon": 0
  },
@@ -112,7 +112,7 @@
   },
   {
    "method": "GET",
-   "url": "blob:<origin>/282e71bf-d0dc-4daf-bf3a-03dece10debf",
+   "url": "blob:<origin>/aec9f77d-7973-44fd-aa8a-8344a8490d50",
    "type": "script"
   },
   {
@@ -196,31 +196,58 @@
    "type": "fetch"
   }
  ],
- "send_attempts_from_the_page": [
-  "fetch blocked",
-  "beacon true",
-  "websocket opened",
-  "worker fetch blocked"
- ],
- "requests_made_by_those_attempts": [
+ "send_attempts": {
+  "receiver": "an HTTP server on another port of 127.0.0.1 that records every request (another origin)",
+  "tried": [
+   "fetch POST",
+   "navigator.sendBeacon",
+   "WebSocket",
+   "<img>",
+   "form.submit() POST",
+   "fetch POST from a blob: worker (as the claim_lint worker)"
+  ],
+  "results_in_the_page": {
+   "fetch": "refused",
+   "beacon_queued": true,
+   "websocket": "error (no connection)",
+   "form": "submitted",
+   "worker_fetch": "refused"
+  },
+  "requests_received_by_the_receiver": [],
+  "websocket_events_seen_by_playwright": []
+ },
+ "requests_playwright_saw_start_during_the_attempts": [
   {
    "method": "GET",
-   "url": "blob:<origin>/e4adf157-cd56-4a58-8a60-d863957f8052",
+   "url": "blob:<origin>/3feeb80a-1725-4b9b-b52f-dfc11f60e066",
    "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:55322/img",
+   "type": "image"
   }
  ],
  "csp_violations": [
   {
    "directive": "connect-src",
-   "blocked": "https://example.com/leak"
+   "blocked": "http://127.0.0.1:55322/fetch"
   },
   {
    "directive": "connect-src",
-   "blocked": "https://example.com/beacon"
+   "blocked": "http://127.0.0.1:55322/beacon"
   },
   {
    "directive": "connect-src",
-   "blocked": "wss://example.com/ws"
+   "blocked": "ws://127.0.0.1:55322/ws"
+  },
+  {
+   "directive": "img-src",
+   "blocked": "http://127.0.0.1:55322/img"
+  },
+  {
+   "directive": "form-action",
+   "blocked": "http://127.0.0.1:55322/form"
   }
  ]
 }

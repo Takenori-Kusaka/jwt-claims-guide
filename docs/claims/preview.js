@@ -46,6 +46,8 @@
         else el.setAttribute(k, v === true ? '' : String(v));
       }
     }
+    // a link that leaves the editor (another site, the slide page) opens in a new tab, so that the edits stay
+    if (tag === 'a' && /^(https?:|\.\.\/)/i.test(el.getAttribute('href') || '')) { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener noreferrer'); }
     for (let i = 2; i < arguments.length; i++) add(el, arguments[i]);
     return el;
   }
@@ -69,7 +71,7 @@
   function route(view, id, query) {
     let r = '#/' + view + (id !== undefined && id !== null ? '/' + encodeURIComponent(id) : '');
     const q = new URLSearchParams(query || {});
-    if (state.folds.size && !q.has('fold')) q.set('fold', Array.from(state.folds).sort().join(','));
+    if (state.folds.size && !q.has('fold')) q.set('fold', foldParam());
     const qs = q.toString();
     if (qs) r += '?' + qs;
     return r;
@@ -92,12 +94,16 @@
       if (differs) state.folds.add(key); else state.folds.delete(key);
       const p = parseHash();
       const q = new URLSearchParams(p.query);
-      if (state.folds.size) q.set('fold', Array.from(state.folds).sort().join(',')); else q.delete('fold');
+      if (state.folds.size) q.set('fold', foldParam()); else q.delete('fold');
       const qs = q.toString();
       history.replaceState(null, '', '#/' + p.parts.map(encodeURIComponent).join('/') + (qs ? '?' + qs : ''));
     });
     return d;
   }
+  // fold keys are names, not positions: sec~<decision>, claim~<id>, claim~<id>~grp~<column group name>, grp~<name>.
+  // `~` does not occur in an id (^C-[a-z0-9-]+$ and the other ids) and each key is URI-encoded in the list.
+  function foldKey() { return Array.prototype.slice.call(arguments).map((x) => String(x).replace(/\s+/g, '_')).join('~'); }
+  function foldParam() { return Array.from(state.folds).sort().map(encodeURIComponent).join(','); }
   function foldAllIn(root, open) { root.querySelectorAll('details.fold').forEach((d) => { if (d.open !== open) { d.open = open; d.dispatchEvent(new Event('toggle')); } }); }
   function foldButtons(root) {
     return h('p', { class: 'foldbar' }, h('button', { type: 'button', onclick: () => foldAllIn(root(), true) }, 'すべて開く'), ' ',
@@ -162,7 +168,7 @@
   // diagnostics by target (claim id, token type id, hop id, event id), from editor.js: JSON Schema (in the browser) and
   // claim_lint (Pyodide). Each has source 'schema' | 'claim_lint' | 'yaml'.
   function lintIndex() { return state.diag.byTarget; }
-  const SOURCE = { schema: 'Schema', claim_lint: 'lint', yaml: 'YAML' };
+  const SOURCE = { schema: 'Schema', claim_lint: 'lint', yaml: 'YAML', editor: 'エディター' };
   function lintBadges(id) {
     const fs = lintIndex().get(id) || [];
     if (!fs.length) return null;
@@ -284,14 +290,14 @@
       grp.cols.push(c);
     });
     const out = [];
-    const pre = (opts && opts.foldPrefix) || 'grp-';
-    if (groups.length > 1) out.push(h('nav', { class: 'toc', 'aria-label': '列のまとまり' }, groups.map((g, i) => h('a', { href: '#' + pre + i, onclick: jump }, g.name))));
+    const key = (g) => foldKey.apply(null, ((opts && opts.foldPrefix) || []).concat(['grp', g.name]));
+    if (groups.length > 1) out.push(h('nav', { class: 'toc', 'aria-label': '列のまとまり' }, groups.map((g) => h('a', { href: '#' + key(g), onclick: jump }, g.name))));
     // each column group of README 3. is a fold (its key is in the URL when it is closed)
-    groups.forEach((g, i) => {
+    groups.forEach((g) => {
       const cols = () => h('div', { class: 'cols' }, g.cols.map((c) => column(coll, c, obj)));
       if (!g.name) { out.push(cols()); return; }
       const filled = g.cols.filter((c) => own(obj, c.key)).length;
-      out.push(foldable(pre + i, h('span', { class: 'fh' }, g.name, ' ', h('span', { class: 'muted small' }, `（${filled} / ${g.cols.length} 列を記入）`)), cols, { id: pre + i }));
+      out.push(foldable(key(g), h('span', { class: 'fh' }, g.name, ' ', h('span', { class: 'muted small' }, `（${filled} / ${g.cols.length} 列を記入）`)), cols, { id: key(g) }));
     });
     const known = new Set(cols.map((c) => c.key));
     const extra = Object.keys(obj).filter((k) => !known.has(k));
@@ -656,7 +662,7 @@
         h('span', { class: 'muted' }, 'CLI の ', code('python tools/claim_lint <dir> --profile <profile> --also-scan <dir>/design.md'), ' と同じ検査です。')));
     }
     if (st !== 'fresh' && st !== 'stale' && st !== 'running') out.push(needBundle('claim_lint の指摘'));
-    const sources = ['schema', 'yaml', 'claim_lint'];
+    const sources = ['schema', 'yaml', 'claim_lint', 'editor'];
     const fsel = h('select', { id: 'diag-source' }, h('option', { value: '' }, 'すべて'), sources.map((x) => h('option', { value: x }, SOURCE[x])));
     const ssel = h('select', { id: 'diag-severity' }, h('option', { value: '' }, 'すべて'), Object.keys(SEVERITY).map((x) => h('option', { value: x }, x)));
     const tbody = h('tbody');
@@ -722,13 +728,13 @@
     byDecision.concat(other.length ? [['', 'そのほか（採否が未記入・不正）']] : []).forEach(([dec, title]) => {
       const rows = dec ? cs.filter((c) => c.decision === dec) : other;
       if (!rows.length) return;
-      body.append(foldable('sec-' + (dec || 'other'), h('span', { class: 'fs' }, `${title}（${rows.length} 行）`),
+      body.append(foldable(foldKey('sec', dec || 'other'), h('span', { class: 'fs' }, `${title}（${rows.length} 行）`),
         () => rows.map((c) => {
           const d = lookup(DECISION, c.decision) || ['neutral', '•'];
-          return foldable('claim-' + c.id, h('span', { class: 'fs', 'data-anchor': anchorOf('claims', c.id) }, badge(d[0], d[1], c.decision || '—'), ' ',
+          return foldable(foldKey('claim', c.id), h('span', { class: 'fs', 'data-anchor': anchorOf('claims', c.id) }, badge(d[0], d[1], c.decision || '—'), ' ',
             h('strong', null, fullName(c) || c.id), ' ', h('span', { class: 'muted' }, '(' + c.id + ')'), ' ', lintBadges(c.id), rowExtras('claims', c.id, c, 'ledger')),
           () => [h('p', null, h('a', { href: route('claim', c.id) }, '詳細の画面'), ' ', revealLink('claims', c.id)), lintList(c.id),
-            record('claims', c, { foldPrefix: 'claim-' + c.id + '-' })], { closed: true, cls: 'row' });
+            record('claims', c, { foldPrefix: ['claim', c.id] })], { closed: true, cls: 'row' });
         })));
     });
     return [h('h1', { tabindex: '-1' }, '台帳（折り畳み）'),
@@ -764,7 +770,7 @@
   function render() {
     const { parts, query } = parseHash();
     const q = new URLSearchParams(query);
-    state.folds = new Set((q.get('fold') || '').split(',').filter(Boolean));
+    state.folds = new Set((q.get('fold') || '').split(',').filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch (e) { return x; } }));
     if (!state.bundle) return;
     const view = parts[0] || 'overview';
     const id = parts[1];

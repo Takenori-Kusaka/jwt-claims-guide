@@ -1,0 +1,20 @@
+{
+ "what": "ClaimsEditor.rowHash (browser) vs python tools/row_hash.py, RFC 8785 JCS + SHA-256",
+ "results": [
+  {
+   "scenario": "A",
+   "anchors": 117,
+   "equal": true
+  },
+  {
+   "scenario": "B",
+   "anchors": 155,
+   "equal": true
+  }
+ ],
+ "jcs_vectors_equal": 6,
+ "known_differences": [
+  "bare y / n, also as a key (yaml: boolean, PyYAML: string)",
+  "1e3 without a dot (yaml: number, PyYAML: string)"
+ ]
+}

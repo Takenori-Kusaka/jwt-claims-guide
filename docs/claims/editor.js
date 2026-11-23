@@ -24,7 +24,8 @@
   const ROWS = { claims: ['claims.yaml', 'claims', 'id'], token_types: ['token_types.yaml', 'token_types', 'id'],
     hops: ['hops.yaml', 'hops', 'id'], catalog_answers: ['catalog_answers.yaml', 'answers', 'event'] };
   const SEV_CM = { error: 'error', warn: 'warning', info: 'info' };
-  const AUTOSAVE_KEY = 'claims-editor:autosave:v1';
+  // autosave: one slot per design directory (claims-editor:autosave:v2:<designRel>), written only after an edit
+  const AUTOSAVE_PREFIX = 'claims-editor:autosave:v2:';
   const AUTOSAVE_ON = 'claims-editor:autosave-enabled';
   const DEBOUNCE_CHECK = 300;
   const DEBOUNCE_LINT = 700;
@@ -91,15 +92,26 @@
   function makeFile(name, raw, bom) {
     const eol = /\r\n/.test(raw) ? '\r\n' : '\n';
     const text = raw.replace(/\r\n?/g, '\n');
-    return { name, text, eol, bom: !!bom, original: raw, state: null, doc: null, lc: null, value: null,
-      yamlDiags: [], schemaDiags: [], lintDiags: [] };
+    const original = (bom ? '\ufeff' : '') + raw;
+    return { name, text, eol, bom: !!bom, original, savedText: original, state: null, doc: null, lc: null, value: null,
+      yamlDiags: [], schemaDiags: [], lintDiags: [], anchorDiags: [] };
   }
   function exportText(f) { const t = f.eol === '\r\n' ? f.text.replace(/\n/g, '\r\n') : f.text; return (f.bom ? '﻿' : '') + t; }
 
   // ------------------------------------------------------------ opening a workspace (the six entry points end here)
+  // Every entry point ends here. Nothing is replaced silently (F1 of the PR #51 check): edits that were not written out
+  // are offered for export first, and an autosaved version of the design being opened is offered instead of it.
   function openWorkspace(opts, entries, skipped) {
+    return confirmReplace(opts, entries, '開く').then((c) => {
+      if (c === 'cancel') return false;
+      if (c && c.saved) return doOpen(Object.assign({}, c.saved, { origin: 'autosave' }), Object.keys(c.saved.files).map((n) => ({ name: n, text: c.saved.files[n] })), skipped);
+      return doOpen(opts, entries, skipped);
+    });
+  }
+  function doOpen(opts, entries, skipped) {
     closeWorkspace(true);
     status.note = '';
+    ws.edited = false;
     ws.open = true;
     ws.name = opts.name;
     ws.label = opts.label || opts.name;
@@ -124,8 +136,56 @@
     runChecks(true);
     if (skipped && skipped.length) status(`開かなかったファイル：${skipped.join('、')}（設計書のファイル名でも、中身で見分けられる YAML でもない）`);
     if (lint.state === 'fresh' || lint.state === 'stale' || lint.state === 'running') scheduleLint(0);
-    autosave();
     return true;
+  }
+  function unsaved() {
+    if (!ws.open) return false;
+    for (const f of ws.files.values()) if (exportText(f) !== f.savedText) return true;
+    return false;
+  }
+  function sameFiles(saved, entries) {
+    const names = Object.keys(saved || {});
+    return names.length === entries.length && entries.every((e) => saved[e.name] === (e.bom ? '\ufeff' : '') + e.text);
+  }
+  function confirmReplace(opts, entries, verb) {
+    const steps = [];
+    if (ws.open && unsaved()) {
+      if (autosaveEnabled() && ws.edited) autosave();  // kept in its own slot
+      else {
+        steps.push(() => ask('書き出していない変更があります',
+          `開いている「${ws.label}」には、書き出していない変更があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、まだ保存していません' : '無効です'}）。`,
+          [['export', 'zip で書き出してから' + verb], ['discard', '書き出さずに' + verb + '（変更は消える）'], ['cancel', 'やめる']])
+          .then((c) => { if (c === 'export') exportZip(); return c === 'cancel' ? 'cancel' : null; }));
+      }
+    }
+    if (opts && opts.origin !== 'autosave' && autosaveEnabled()) {
+      const rel = opts.designRel || 'work/' + safeDirName(opts.name);
+      const sv = slot(rel);
+      if (sv && !sameFiles(sv.files, entries)) {
+        steps.push(() => ask('自動保存した版があります',
+          `${rel} には、このブラウザに自動保存した版があります（${sv.savedAt}）。元のファイルを開いて編集すると、自動保存した版は上書きされます。`,
+          [['saved', '自動保存した版を開く'], ['original', '元のファイルを開く'], ['cancel', 'やめる']])
+          .then((c) => (c === 'cancel' ? 'cancel' : c === 'saved' ? { saved: sv } : null)));
+      }
+    }
+    let p = Promise.resolve(null);
+    steps.forEach((st) => { p = p.then((r) => (r ? r : st())); });
+    return p.then((r) => r || 'ok');
+  }
+  // an in-page dialog (not window.confirm): resolves with the key of the button, 'cancel' on Esc
+  function ask(title, text, buttons) {
+    return new Promise((resolve) => {
+      const d = h('dialog', { class: 'confirm', id: 'confirm', 'aria-labelledby': 'confirm-title', 'aria-describedby': 'confirm-text' },
+        h('h2', { id: 'confirm-title' }, title), h('p', { id: 'confirm-text' }, text),
+        h('p', { class: 'buttons' }, buttons.map(([k, label], i) => h('button', { type: 'button', 'data-choice': k, class: i === 0 ? 'primary' : null,
+          onclick: () => { d.close(k); } }, label))));
+      d.addEventListener('close', () => { const v = d.returnValue || 'cancel'; d.remove(); resolve(v); });
+      document.body.append(d);
+      d.showModal();
+    });
+  }
+  function requestClose() {
+    return confirmReplace(null, [], '閉じる').then((c) => { if (c !== 'cancel') closeWorkspace(false); });
   }
   function closeWorkspace(silent) {
     ws.open = false;
@@ -224,16 +284,27 @@
   }
 
   // ------------------------------------------------------------ the start screen (nothing open)
-  function autosaved() {
-    try { const raw = localStorage.getItem(AUTOSAVE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  function slot(rel) {
+    try { const raw = localStorage.getItem(AUTOSAVE_PREFIX + rel); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function slots() {
+    const out = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(AUTOSAVE_PREFIX)) { const v = slot(k.slice(AUTOSAVE_PREFIX.length)); if (v && v.files) out.push(v); }
+      }
+    } catch (e) { /* storage unavailable */ }
+    return out.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
   }
   function autosaveEnabled() { try { return localStorage.getItem(AUTOSAVE_ON) === '1'; } catch (e) { return false; } }
   function renderStart(focus) {
     const st = $('#start');
     st.textContent = '';
     st.hidden = false;
-    const files = h('input', { type: 'file', id: 'in-files', multiple: true, accept: '.yaml,.yml,.md,text/yaml,text/markdown', class: 'vh' });
-    const folder = h('input', { type: 'file', id: 'in-folder', webkitdirectory: true, directory: true, multiple: true, class: 'vh' });
+    // the file inputs are pressed through the buttons only: out of the tab order and hidden from assistive technology
+    const files = h('input', { type: 'file', id: 'in-files', multiple: true, accept: '.yaml,.yml,.md,text/yaml,text/markdown', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
+    const folder = h('input', { type: 'file', id: 'in-folder', webkitdirectory: true, directory: true, multiple: true, class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
     files.addEventListener('change', () => readFileList(files.files, 'files'));
     folder.addEventListener('change', () => readFileList(folder.files, 'folder'));
     const pasteArea = h('textarea', { id: 'paste-text', rows: '8', spellcheck: 'false', 'aria-label': '貼り付ける YAML' });
@@ -243,7 +314,7 @@
       h('p', null, 'YAML を貼り付けて「開く」を押します（1 つのファイル）。'), pasteArea,
       h('p', null, h('label', null, 'ファイルの種類：', pasteKind), ' ', h('button', { type: 'button', class: 'primary', id: 'paste-open', onclick: () => openPaste(pasteArea.value, pasteKind.value) }, '開く')));
     const card = (id, title, desc, onclick, extra) => h('li', null, h('button', { type: 'button', class: 'entry', id, onclick }, h('strong', null, title), h('span', null, desc)), extra || null);
-    const saved = autosaveEnabled() ? autosaved() : null;
+    const saved = autosaveEnabled() ? slots() : [];
     st.append(h('div', { class: 'start-in' },
       h('h1', { tabindex: '-1' }, '設計書のエディター'),
       h('p', { class: 'lead' }, 'YAML の設計書（台帳 claims.yaml・トークン目録と発行方式 token_types.yaml・ホップ hops.yaml・カタログへの回答 catalog_answers.yaml・claim_request_*.md）を書きながら、ブラウザの中で JSON Schema と claim_lint で検査します。何も開いていません。下のどれかで始めてください。'),
@@ -256,11 +327,13 @@
         card('btn-sample-a', 'サンプルを開く：シナリオ A', 'マルチテナント SaaS（Lite）。templates/examples/scenario-a', () => openSample('a')),
         card('btn-sample-b', 'サンプルを開く：シナリオ B', '社内の業務システムと AI エージェント（Full）。templates/examples/scenario-b', () => openSample('b'))),
       paste,
-      saved ? h('div', { class: 'note', id: 'autosave-box' }, h('p', null, `このブラウザに自動保存した設計書があります（${saved.label || saved.name}、${saved.savedAt}）。`),
-        h('p', null, h('button', { type: 'button', id: 'btn-restore', onclick: () => openWorkspace(Object.assign({}, saved, { origin: saved.origin || 'autosave' }), Object.keys(saved.files).map((n) => ({ name: n, text: saved.files[n] }))) }, '自動保存から開く'), ' ',
-          h('button', { type: 'button', onclick: () => { try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { /* ignore */ } renderStart(); } }, '自動保存を消す'))) : null,
+      saved.length ? h('div', { class: 'note', id: 'autosave-box' }, h('p', null, `このブラウザに自動保存した設計書が ${saved.length} 件あります（設計書のディレクトリごとに 1 件）。`),
+        h('ul', null, saved.map((sv) => h('li', { 'data-slot': sv.designRel }, h('strong', null, sv.label || sv.name), ' ', h('code', null, sv.designRel), `（${sv.savedAt}）`, ' ',
+          h('button', { type: 'button', 'data-restore': sv.designRel, onclick: () => openWorkspace(Object.assign({}, sv, { origin: 'autosave' }), Object.keys(sv.files).map((n) => ({ name: n, text: sv.files[n] }))) }, '開く'), ' ',
+          h('button', { type: 'button', 'data-forget': sv.designRel, onclick: () => ask('自動保存を消す', `${sv.designRel} の自動保存を消します。`, [['delete', '消す'], ['cancel', 'やめる']])
+            .then((c) => { if (c === 'delete') { try { localStorage.removeItem(AUTOSAVE_PREFIX + sv.designRel); } catch (e) { /* ignore */ } renderStart(); } }) }, '消す'))))) : null,
       h('div', { class: 'note' }, h('p', null, h('strong', null, '開いたファイルはどこにも送りません。'), 'ブラウザの中で読み、検査もブラウザの中で行います（claim_lint は Pyodide で動く Python。初めて使うときに、このサイトから約 13 MB を読み込みます）。CSP で、このサイト以外への接続を禁じています。自動保存は、上の欄で有効にしたときだけ、このブラウザの localStorage に保存します。'),
-        h('p', null, 'キーボード：', h('kbd', null, 'Tab'), ' で移動、', h('kbd', null, 'Enter'), ' で押す。エディターの中で ', h('kbd', null, 'Esc'), ' の後に ', h('kbd', null, 'Tab'), ' でエディターから出る。', h('kbd', null, 'Ctrl'), '+', h('kbd', null, 'Shift'), '+', h('kbd', null, 'M'), ' で指摘の一覧、', h('kbd', null, 'F8'), ' で次の指摘。'))));
+        h('p', null, 'キーボード：', h('kbd', null, 'Tab'), ' で移動、', h('kbd', null, 'Enter'), ' で押す。エディターの中の ', h('kbd', null, 'Tab'), ' はエディターから次へ移る（Tab ではインデントしない。インデントは空白で入れるか、行を選んで ', h('kbd', null, 'Ctrl'), '+', h('kbd', null, ']'), '・', h('kbd', null, 'Ctrl'), '+', h('kbd', null, '['), '）。', h('kbd', null, 'Ctrl'), '+', h('kbd', null, 'Shift'), '+', h('kbd', null, 'M'), ' で指摘の一覧、', h('kbd', null, 'F8'), ' で次の指摘。'))));
     if (focus) st.querySelector('h1').focus();
   }
 
@@ -268,7 +341,7 @@
   const langComp = new L.Compartment();
   function extensions(f) {
     return [
-      L.lineNumbers(), L.highlightActiveLineGutter(), L.foldGutter(), L.history(), L.drawSelection(), L.highlightActiveLine(),
+      L.lineNumbers(), L.highlightActiveLineGutter(), L.foldGutter(), L.history(), L.drawSelection(), L.highlightActiveLine(), L.EditorView.lineWrapping,
       L.indentOnInput(), L.bracketMatching(), L.highlightSelectionMatches(), L.syntaxHighlighting(L.defaultHighlightStyle, { fallback: true }),
       L.indentUnit.of('  '), L.EditorState.tabSize.of(2),
       L.keymap.of([].concat(L.defaultKeymap, L.historyKeymap, L.foldKeymap, L.searchKeymap, L.lintKeymap,
@@ -328,6 +401,7 @@
     f.state = state;
     f.text = state.doc.toString();
     ws.rev++;
+    ws.edited = true;
     if (lint.state === 'fresh') lint.state = 'stale';
     clearTimeout(checkTimer);
     checkTimer = setTimeout(() => runChecks(false), DEBOUNCE_CHECK);
@@ -345,22 +419,30 @@
       const cnt = { error: 0, warn: 0, info: 0 };
       ds.forEach((d) => { cnt[d.severity]++; });
       const changed = exportText(f) !== f.original;
+      // a tab: the file name, then the counts as symbols for the eye and as words for a screen reader
       const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + n, 'data-file': n, 'aria-selected': n === ws.active ? 'true' : 'false',
-        tabindex: n === ws.active ? '0' : '-1', title: (FILE_LABEL[n] || (n.startsWith('claim_request_') ? 'クレームの追加の申請' : '')) + (changed ? '（変更あり）' : ''),
+        'aria-controls': 'editor', tabindex: n === ws.active ? '0' : '-1', title: (FILE_LABEL[n] || (n.startsWith('claim_request_') ? 'クレームの追加の申請' : '')) + (changed ? '（変更あり）' : ''),
         onclick: () => switchTo(n) },
-      n, changed ? h('span', { class: 'dirty', 'aria-label': '変更あり' }, ' ●') : null,
-      cnt.error ? h('span', { class: 'tb ng' }, ' ✖' + cnt.error) : null, cnt.warn ? h('span', { class: 'tb warn' }, ' ▲' + cnt.warn) : null);
+      n, changed ? [h('span', { class: 'dirty', 'aria-hidden': 'true' }, ' ●'), h('span', { class: 'vh' }, '（変更あり）')] : null,
+      cnt.error ? [h('span', { class: 'tb ng', 'aria-hidden': 'true' }, ' ✖' + cnt.error), h('span', { class: 'vh' }, `（エラー ${cnt.error} 件）`)] : null,
+      cnt.warn ? [h('span', { class: 'tb warn', 'aria-hidden': 'true' }, ' ▲' + cnt.warn), h('span', { class: 'vh' }, `（警告 ${cnt.warn} 件）`)] : null);
       b.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-        const j = (i + (e.key === 'ArrowRight' ? 1 : names.length - 1)) % names.length;
+        const keys = { ArrowRight: i + 1, ArrowLeft: i - 1 + names.length, Home: 0, End: names.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        const j = keys[e.key] % names.length;
         switchTo(names[j]);
         $('#tab-' + CSS.escape(names[j])).focus();
       });
       bar.append(b);
     });
-    const addIn = h('input', { type: 'file', multiple: true, accept: '.yaml,.yml,.md', class: 'vh', id: 'in-add' });
+    $('#editor').setAttribute('aria-labelledby', 'tab-' + ws.active);
+    // outside the tablist: the button that adds files (its file input is out of the tab order)
+    const tools = $('#tab-tools');
+    tools.textContent = '';
+    const addIn = h('input', { type: 'file', multiple: true, accept: '.yaml,.yml,.md', class: 'vh', id: 'in-add', tabindex: '-1', 'aria-hidden': 'true' });
     addIn.addEventListener('change', () => addFiles(addIn.files));
-    bar.append(h('button', { type: 'button', class: 'addfile', title: 'ファイルを足す（同じ名前なら置き換える）', onclick: () => addIn.click() }, '＋ ファイルを足す'), addIn);
+    tools.append(h('button', { type: 'button', class: 'addfile', id: 'btn-add-file', title: 'ファイルを足す（同じ名前なら置き換える）', onclick: () => addIn.click() }, '＋ ファイルを足す'), addIn);
   }
   function addFiles(list) {
     Promise.all(Array.from(list || []).map((f) => f.arrayBuffer().then((buf) => ({ name: f.name, path: f.name, buf })))).then((xs) => {
@@ -550,7 +632,7 @@
     const fresh = lint.state === 'fresh';
     // the JSON Schema check in the browser is shown until claim_lint has checked the same text (claim_lint checks the
     // same schemas with jsonschema: its SCHEMA findings are then the ones shown, as the CLI prints them)
-    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !(d.rule === 'SCHEMA' && !fresh)));
+    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !(d.rule === 'SCHEMA' && !fresh)), f.anchorDiags);
   }
   function applyDiagnostics(f) {
     const doc = f.state.doc;
@@ -567,6 +649,7 @@
     ws.registry = {};
     REGISTRY.forEach((k) => { const f = ws.files.get(k + '.yaml'); if (f && f.value && typeof f.value === 'object') ws.registry[k] = f.value; });
     ws.files.forEach((f) => { const k = f.name.replace(/\.yaml$/, ''); if (REGISTRY.includes(k)) schemaCheck(f, k); });
+    anchorCheck();
     if (lint.last) {  // re-point the last claim_lint findings at the current lines
       const byFile = new Map();
       lintDiagnostics(lint.last.lint).forEach((d) => { if (!byFile.has(d.file)) byFile.set(d.file, []); byFile.get(d.file).push(d); });
@@ -680,6 +763,7 @@
     if (ws.files.get(ws.active)) ws.files.get(ws.active).state = view.state;
     const f = ws.files.get(ws.active);
     download(f.name, new Blob([exportText(f)], { type: /\.md$/.test(f.name) ? 'text/markdown' : 'text/yaml' }));
+    f.savedText = exportText(f);
   }
   function exportZip() {
     if (!ws.open) return;
@@ -687,24 +771,36 @@
     const entries = {};
     sortedNames().forEach((n) => { entries[dir + '/' + n] = [L.strToU8(exportText(ws.files.get(n))), { mtime: new Date(1980, 0, 2) }]; });
     download(dir + '.zip', new Blob([L.zipSync(entries, { level: 6 })], { type: 'application/zip' }));
+    ws.files.forEach((f) => { f.savedText = exportText(f); });
   }
   let autosaveTimer = null;
   function autosaveSoon() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(autosave, 1000); }
   function autosave() {
-    if (!ws.open || !autosaveEnabled()) return;
+    if (!ws.open || !autosaveEnabled() || !ws.edited) return;
     const files = {};
     ws.files.forEach((f) => { files[f.name] = exportText(f); });
     try {
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ name: ws.name, label: ws.label, designRel: ws.designRel, origin: ws.origin, profile: ws.profile,
+      localStorage.setItem(AUTOSAVE_PREFIX + ws.designRel, JSON.stringify({ name: ws.name, label: ws.label, designRel: ws.designRel, origin: ws.origin, profile: ws.profile,
         savedAt: new Date().toISOString().replace('T', ' ').slice(0, 19), files }));
     } catch (e) { status('自動保存できませんでした（' + (e.message || e) + '）'); }
   }
 
   // ------------------------------------------------------------ row anchors and content hashes (#50)
+  // RFC 8785 (JSON Canonicalization Scheme): object keys sorted by UTF-16 code units (the default sort of JavaScript
+  // strings), numbers as ECMAScript's Number.prototype.toString (what JSON.stringify writes: 1.0 -> 1, 1e21 -> 1e+21),
+  // strings as JSON.stringify writes them, no whitespace. The Python twin is tools/row_hash.py (jcs).
   function canonicalJson(v) {
-    if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'number') { if (!isFinite(v)) throw new Error('JCS: a number that is not finite'); return JSON.stringify(v); }
+    if (typeof v !== 'object') return JSON.stringify(v);
     if (Array.isArray(v)) return '[' + v.map(canonicalJson).join(',') + ']';
     return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canonicalJson(v[k])).join(',') + '}';
+  }
+  // the value of a YAML text as the editor reads it (the same options as the files), canonicalised: for the parity test
+  function canonicalYaml(text) {
+    const d = L.parseDocument(text, { schema: 'yaml-1.1', customTags: YAML_TAGS, uniqueKeys: true });
+    if (d.errors.length) throw new Error(d.errors[0].message);
+    return canonicalJson(d.toJS({ maxAliasCount: 100 }));
   }
   // SHA-256 (FIPS 180-4) of a string's UTF-8 bytes, synchronous so that it also works outside a secure context
   function sha256(str) {
@@ -744,16 +840,37 @@
     }
     return H.map((x) => x.toString(16).padStart(8, '0')).join('');
   }
-  function anchors() {
+  // The anchor of a row is <kind>:<id>. An id that is written twice has no anchor (the review mode cannot tell the rows
+  // apart): such rows are left out of anchors() and reported as a diagnostic (rule ANCHOR).
+  function allAnchors() {
     const out = [];
     Object.keys(ROWS).forEach((kind) => {
       const key = ROWS[kind][2];
-      rowList(kind).forEach((r, i) => { if (r && typeof r === 'object' && r[key] !== undefined) out.push({ anchor: kind + ':' + r[key], kind, id: String(r[key]), index: i }); });
+      rowList(kind).forEach((r, i) => {
+        if (r && typeof r === 'object' && !Array.isArray(r) && r[key] !== undefined && r[key] !== null) out.push({ anchor: kind + ':' + r[key], kind, id: String(r[key]), index: i });
+      });
     });
     const tt = ws.files.get('token_types.yaml');
     const prof = tt && tt.value && tt.value.issuance_profile;
-    if (prof && typeof prof === 'object') Object.keys(prof).forEach((k) => out.push({ anchor: 'issuance_profile:' + k, kind: 'issuance_profile', id: k }));
+    if (prof && typeof prof === 'object' && !Array.isArray(prof)) Object.keys(prof).forEach((k) => out.push({ anchor: 'issuance_profile:' + k, kind: 'issuance_profile', id: k }));
     return out;
+  }
+  function duplicateAnchors() {
+    const n = new Map();
+    allAnchors().forEach((a) => n.set(a.anchor, (n.get(a.anchor) || 0) + 1));
+    return new Set(Array.from(n.keys()).filter((k) => n.get(k) > 1));
+  }
+  function anchors() { const dup = duplicateAnchors(); return allAnchors().filter((a) => !dup.has(a.anchor)); }
+  function anchorCheck() {
+    ws.files.forEach((f) => { f.anchorDiags = []; });
+    const dup = duplicateAnchors();
+    allAnchors().filter((a) => dup.has(a.anchor) && ROWS[a.kind]).forEach((a) => {
+      const r = ROWS[a.kind];
+      const f = ws.files.get(r[0]);
+      if (!f) return;
+      f.anchorDiags.push({ source: 'editor', severity: 'warn', rule: 'ANCHOR', file: r[0], line: locate(f, [r[1], String(a.index)]), target: a.id,
+        message: `${r[2]} が ${a.id} の行が 2 つ以上ある。行の固定の名前（${a.anchor}）が一意にならないので、この行にはレビューの記録（#50）を付けられない` });
+    });
   }
   function rowOf(anchor) {
     const i = String(anchor).indexOf(':');
@@ -764,7 +881,7 @@
       return prof && own(prof, id) ? { kind, id, file: 'token_types.yaml', path: ['issuance_profile', id], row: prof[id] } : null;
     }
     const r = ROWS[kind];
-    if (!r) return null;
+    if (!r || duplicateAnchors().has(anchor)) return null;
     const idx = rowList(kind).findIndex((x) => x && typeof x === 'object' && String(x[r[2]]) === id);
     return idx < 0 ? null : { kind, id, file: r[0], path: [r[1], String(idx)], row: rowList(kind)[idx] };
   }
@@ -806,14 +923,26 @@
     });
     $('#btn-export-one').addEventListener('click', exportOne);
     $('#btn-export-zip').addEventListener('click', exportZip);
-    $('#btn-close').addEventListener('click', () => closeWorkspace(false));
+    $('#btn-close').addEventListener('click', requestClose);
+    // leaving the page with edits that were not written out (a link, a reload, closing the tab): the browser asks first.
+    // With autosave on, the edits are saved to their slot instead.
+    addEventListener('beforeunload', (e) => {
+      if (!unsaved()) return;
+      if (autosaveEnabled() && ws.edited) { autosave(); return; }
+      e.preventDefault();
+      e.returnValue = '';
+    });
     $('#home').addEventListener('click', (e) => { if (ws.open) { e.preventDefault(); location.hash = '#/overview'; } });
     const chk = $('#chk-autosave');
     chk.checked = autosaveEnabled();
     chk.addEventListener('change', () => {
       try {
-        if (chk.checked) { localStorage.setItem(AUTOSAVE_ON, '1'); autosave(); status('自動保存を有効にしました（このブラウザの localStorage だけに保存します）。'); }
-        else { localStorage.removeItem(AUTOSAVE_ON); localStorage.removeItem(AUTOSAVE_KEY); status('自動保存をやめ、保存した内容を消しました。'); }
+        if (chk.checked) { localStorage.setItem(AUTOSAVE_ON, '1'); if (ws.edited) autosave(); status('自動保存を有効にしました（編集した設計書を、このブラウザの localStorage に、設計書のディレクトリごとに保存します）。'); }
+        else {
+          localStorage.removeItem(AUTOSAVE_ON);
+          Object.keys(localStorage).filter((k) => k.startsWith(AUTOSAVE_PREFIX)).forEach((k) => localStorage.removeItem(k));
+          status('自動保存をやめ、保存した内容を消しました。');
+        }
       } catch (e) { status('localStorage を使えません'); chk.checked = false; }
     });
     let depth = 0;
@@ -846,6 +975,9 @@
     rowOf,
     rowHash: (anchor) => { const r = rowOf(anchor); return r ? sha256(canonicalJson(r.row)) : null; },
     canonicalJson,
+    canonicalYaml,
+    duplicateAnchors: () => Array.from(duplicateAnchors()),
+    unsaved,
     sha256,
     reveal,
     loadLint,

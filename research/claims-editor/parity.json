@@ -13,7 +13,7 @@
    },
    "findings": 9,
    "equal_to_cli": true,
-   "browser_ms": 2992
+   "browser_ms": 3001
   },
   {
    "scenario": "A",
@@ -25,7 +25,7 @@
    },
    "findings": 10,
    "equal_to_cli": true,
-   "browser_ms": 2589
+   "browser_ms": 2619
   },
   {
    "scenario": "B",
@@ -37,7 +37,7 @@
    },
    "findings": 37,
    "equal_to_cli": true,
-   "browser_ms": 3312
+   "browser_ms": 3369
   },
   {
    "scenario": "B",
@@ -49,12 +49,12 @@
    },
    "findings": 40,
    "equal_to_cli": true,
-   "browser_ms": 3324
+   "browser_ms": 3349
   }
  ],
  "pyodide": {
-  "loadMs": 2218,
-  "ms": 2202,
+  "loadMs": 2239,
+  "ms": 2207,
   "python": "3.14.2",
   "pyodide": "314.0.8"
  }
