@@ -604,3 +604,21 @@ def test_l1a_role_synonym_fails(tmp_path):
     d = base()
     d['claims']['claims'].append(new_claim(id='C-user-roles', name='user_roles', shape='array', max_items=2))
     assert 'C-user-roles' in [f['target'] for f in bad(lint(tmp_path, d), 'L1a')]
+
+
+def test_l5_never_and_zero(tmp_path, monkeypatch):
+    """volatility never skips the check; 0 (immediate reflection, from #39) needs a means with delay 0 once the schema
+    has `never` (before that, 0 keeps its old meaning "does not change")."""
+    monkeypatch.setattr(semantic, '_never_in_schema', lambda x: True)
+    d = base()
+    for c in d['claims']['claims']:
+        if c.get('volatility') == 0:
+            c['volatility'] = 'never'
+    claim(d, 'C-roles').update(volatility=0, propagation_delay=0)
+    x = semantic.Ctx(d, 'full', str(tmp_path), ROOT, os.path.join(ROOT, 'templates', 'catalog'), TODAY)
+    semantic.rule_l5(x)
+    assert [f['target'] for f in x.findings] == ['C-roles']
+    claim(d, 'C-roles')['volatility'] = 'never'
+    x = semantic.Ctx(d, 'full', str(tmp_path), ROOT, os.path.join(ROOT, 'templates', 'catalog'), TODAY)
+    semantic.rule_l5(x)
+    assert not x.findings

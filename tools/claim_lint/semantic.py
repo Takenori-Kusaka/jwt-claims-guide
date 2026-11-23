@@ -257,18 +257,32 @@ def rule_l4(x):
 TOKEN_WIDE = {'introspection', 'status_list', 'ssf_caep', 'back_channel_logout', 'revocation_endpoint'}
 
 
+def _never_in_schema(x):
+    """volatility: never (the value does not change during the token's life) exists from #39 (#19). Before it, 0 was
+    written for such values, so 0 is read the old way until the registry schema has `never`."""
+    import json
+    p = os.path.join(x.root, 'templates', 'registry', 'claims.schema.json')
+    try:
+        prop = json.load(open(p, encoding='utf-8'))['$defs']['claim']['properties']['volatility']
+    except (OSError, KeyError, ValueError):
+        return False
+    prop = {k: v for k, v in prop.items() if k not in ('description', '$comment')}
+    return '"never"' in json.dumps(prop)
+
+
 def rule_l5(x):
+    strict_zero = _never_in_schema(x)
     for c in x.adopted_claims():
         v = c.get('volatility')
-        if not isinstance(v, int):
-            continue
+        if v == 'never' or not isinstance(v, int) or isinstance(v, bool):
+            continue  # never: no freshness to keep during the token's life
         pd = c.get('propagation_delay')
         if v > 0 and isinstance(pd, int):
             x.count('L5')
             if pd > v:
                 x.add('L5', c.get('id'), f'propagation_delay（{pd} 秒）が volatility（{v} 秒）を超える。反映までの最悪の遅れが、許す時間より長い')
-        if v == 0:
-            continue  # 0: the value never changes for the subject (schema)
+        if v == 0 and not strict_zero:
+            continue  # before #39: 0 meant "never changes"
         for t in x.carried(c):
             ml = t.get('max_lifetime')
             if not isinstance(ml, int):
