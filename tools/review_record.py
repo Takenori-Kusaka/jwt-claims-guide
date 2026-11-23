@@ -157,10 +157,22 @@ def _inline(x):
     return _scalar(x)
 
 
-def dump(data):
+def materials_version():
+    with open(os.path.join(ROOT, 'templates', 'review', 'perspectives.md'), encoding='utf-8') as f:
+        return re.match(r'<!-- template_version: ([0-9.]+) -->', f.readline()).group(1)
+
+
+def version_of(text):
+    m = re.match(r'# template_version: (\d+\.\d+\.\d+)', text or '')
+    return m.group(1) if m else None
+
+
+def dump(data, version=None):
+    """The canonical text. Line 1 is the template_version of the review materials (templates/CONTRIBUTING.md 4.: every
+    YAML under templates/ starts with it): the version given (a file read in keeps its own), else that of perspectives.md."""
     out = []
     _emit(data, 0, out)
-    return HEADER + '\n'.join(out) + '\n'
+    return f'# template_version: {version or materials_version()}\n' + HEADER + '\n'.join(out) + '\n'
 
 
 # ------------------------------------------------------------------ checks
@@ -481,7 +493,7 @@ def main(argv=None):
         errs, notes = check(data, a.design)
         with open(a.file, encoding='utf-8') as f:
             raw = f.read().replace('\r\n', '\n')
-        if not errs and raw != dump(data):
+        if not errs and raw != dump(data, version_of(raw)):
             errs.append('the file is not in the canonical form the editor writes (python tools/review_record.py merge FILE -o FILE rewrites it)')
         for e in errs:
             print('error ' + e, file=out)

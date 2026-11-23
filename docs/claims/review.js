@@ -126,7 +126,13 @@
       });
     }
   }
-  function dump(data) { const out = []; emit(data, 0, out); return HEADER + out.join('\n') + '\n'; }
+  // line 1 is the template_version of the review materials the records were made with (templates/CONTRIBUTING.md 4.:
+  // every YAML under templates/ starts with it); a file read in keeps its own version
+  function versionOf(text) { const m = /^# template_version: (\d+\.\d+\.\d+)/.exec(String(text || '')); return m ? m[1] : null; }
+  function dump(data, version) {
+    const out = []; emit(data, 0, out);
+    return `# template_version: ${version || st.version || (R && R.template_version) || '0.0.0'}\n` + HEADER + out.join('\n') + '\n';
+  }
 
   // ------------------------------------------------------------ state
   // file: the records (review.yaml); me: the name of the reviewer who records in this tab (self-declared)
@@ -244,7 +250,8 @@
       return true;
     } catch (e) { return false; }
   }
-  function setFile(data, savedText, me) {
+  function setFile(data, savedText, me, text) {
+    st.version = versionOf(text || savedText) || (R && R.template_version);
     st.file = data;
     st.savedText = savedText;
     st.me = me && data.reviews.some((r) => r.reviewer.name === me) ? me : null;

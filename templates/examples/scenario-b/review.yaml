@@ -1,3 +1,4 @@
+# template_version: 0.4.0
 # review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。
 # レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。
 format: "claims-review/1"
