@@ -3,18 +3,18 @@
  "setup": "headless chromium 151.0.7922.34, local HTTP server (python http.server, no compression, no network latency), cold cache. bytes = file sizes; gzip_bytes = gzip -6 of each file (about what GitHub Pages sends when it compresses)",
  "empty_page": {
   "requests": 8,
-  "bytes": 886760,
-  "gzip_bytes": 266590,
+  "bytes": 896383,
+  "gzip_bytes": 269883,
   "files": [
    {
     "file": "index.html",
-    "bytes": 4788,
-    "gzip_bytes": 2285
+    "bytes": 4848,
+    "gzip_bytes": 2312
    },
    {
     "file": "app.css",
-    "bytes": 14738,
-    "gzip_bytes": 3782
+    "bytes": 14888,
+    "gzip_bytes": 3809
    },
    {
     "file": "vendor/editor-libs.js",
@@ -43,14 +43,14 @@
    },
    {
     "file": "editor.js",
-    "bytes": 59357,
-    "gzip_bytes": 20208
+    "bytes": 68770,
+    "gzip_bytes": 23447
    }
   ],
-  "ms_to_start_screen": 198,
+  "ms_to_start_screen": 184,
   "navigation": {
-   "dcl": 143,
-   "load": 144
+   "dcl": 132,
+   "load": 133
   }
  },
  "open_sample_b": {
@@ -64,7 +64,7 @@
     "gzip_bytes": 105196
    }
   ],
-  "ms_to_preview": 237
+  "ms_to_preview": 256
  },
  "claim_lint_first_use": {
   "requests": 16,
@@ -87,14 +87,14 @@
     "gzip_bytes": 25652
    },
    {
-    "file": "vendor/pyodide/python_stdlib.zip",
-    "bytes": 2545550,
-    "gzip_bytes": 2503822
-   },
-   {
     "file": "vendor/pyodide/pyodide.asm.mjs",
     "bytes": 1250259,
     "gzip_bytes": 262158
+   },
+   {
+    "file": "vendor/pyodide/python_stdlib.zip",
+    "bytes": 2545550,
+    "gzip_bytes": 2503822
    },
    {
     "file": "vendor/pyodide/pyodide.asm.wasm",
@@ -112,14 +112,14 @@
     "gzip_bytes": 56496
    },
    {
-    "file": "vendor/pyodide/attrs-26.1.0-py3-none-any.whl",
-    "bytes": 67548,
-    "gzip_bytes": 64902
-   },
-   {
     "file": "vendor/pyodide/jsonschema-4.26.0-py3-none-any.whl",
     "bytes": 55406,
     "gzip_bytes": 52821
+   },
+   {
+    "file": "vendor/pyodide/attrs-26.1.0-py3-none-any.whl",
+    "bytes": 67548,
+    "gzip_bytes": 64902
    },
    {
     "file": "vendor/pyodide/six-1.17.0-py2.py3-none-any.whl",
@@ -137,14 +137,14 @@
     "gzip_bytes": 115101
    },
    {
-    "file": "vendor/pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl",
-    "bytes": 17467,
-    "gzip_bytes": 13445
-   },
-   {
     "file": "vendor/pyodide/typing_extensions-4.15.0-py3-none-any.whl",
     "bytes": 44613,
     "gzip_bytes": 44220
+   },
+   {
+    "file": "vendor/pyodide/jsonschema_specifications-2025.9.1-py3-none-any.whl",
+    "bytes": 17467,
+    "gzip_bytes": 13445
    },
    {
     "file": "data/claim_lint.zip",
@@ -152,9 +152,9 @@
     "gzip_bytes": 173275
    }
   ],
-  "ms_to_first_result": 6086,
-  "pyodide_ready_ms": 2200,
-  "first_lint_ms": 3684
+  "ms_to_first_result": 6192,
+  "pyodide_ready_ms": 2217,
+  "first_lint_ms": 3758
  },
- "claim_lint_after_an_edit_ms": 3328
+ "claim_lint_after_an_edit_ms": 3380
 }

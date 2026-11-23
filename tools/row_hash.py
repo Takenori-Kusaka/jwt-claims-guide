@@ -57,6 +57,18 @@ def es_number(x):
     return digits[0] + ('.' + digits[1:] if k > 1 else '') + 'e' + ('+' if e >= 0 else '-') + str(abs(e))
 
 
+_LONE = re.compile('[\ud800-\udfff]')
+
+
+def _jcs_str(s):
+    # RFC 8785 works on I-JSON: a string must be valid Unicode. A pair of surrogates that PyYAML keeps as two code points
+    # ("😀" written as two escapes) is joined first; a surrogate left alone is refused, as editor.js does
+    s = s.encode('utf-16', 'surrogatepass').decode('utf-16', 'surrogatepass')
+    if _LONE.search(s):
+        raise ValueError('JCS: a string with a lone surrogate (not I-JSON)')
+    return json.dumps(s, ensure_ascii=False)
+
+
 def _key(k):
     """A mapping key as the editor gets it (the yaml package turns a non-string key into its text)."""
     if isinstance(k, str):
@@ -81,12 +93,12 @@ def jcs(v):
     if isinstance(v, (int, float)):
         return es_number(v)
     if isinstance(v, str):
-        return json.dumps(v, ensure_ascii=False)
+        return _jcs_str(v)
     if isinstance(v, (list, tuple)):
         return '[' + ','.join(jcs(x) for x in v) + ']'
     if isinstance(v, dict):
         items = {_key(k): x for k, x in v.items()}
-        return '{' + ','.join(json.dumps(k, ensure_ascii=False) + ':' + jcs(items[k])
+        return '{' + ','.join(_jcs_str(k) + ':' + jcs(items[k])
                               for k in sorted(items, key=lambda s: s.encode('utf-16-be'))) + '}'
     raise TypeError(f'JCS: cannot write {type(v).__name__}')
 
@@ -126,9 +138,17 @@ def anchors(docs):
 
 
 def row_hashes(design_dir):
-    """{'hashes': {anchor: sha256 hex}, 'duplicates': [anchor]}."""
+    """{'hashes': {anchor: sha256 hex}, 'duplicates': [anchor], 'errors': {anchor: why there is no hash}}."""
     rows, dup = anchors(load(design_dir))
-    return {'hashes': {a: sha256_hex(jcs(r)) for a, _, _, r in rows if a not in dup}, 'duplicates': sorted(dup)}
+    hashes, errors = {}, {}
+    for a, _, _, r in rows:
+        if a in dup:
+            continue
+        try:
+            hashes[a] = sha256_hex(jcs(r))
+        except (ValueError, TypeError) as e:
+            errors[a] = str(e)
+    return {'hashes': hashes, 'duplicates': sorted(dup), 'errors': errors}
 
 
 def main(argv=None):
@@ -141,10 +161,12 @@ def main(argv=None):
         text = json.dumps(res, ensure_ascii=False, indent=1)
     else:
         text = '\n'.join(f'{h}  {k}' for k, h in res['hashes'].items())
+        if res['errors']:
+            text += '\n' + '\n'.join(f'(no hash: {why})  {k}' for k, why in res['errors'].items())
         if res['duplicates']:
             text += '\n' + '\n'.join(f'(duplicate, no anchor)  {k}' for k in res['duplicates'])
     sys.stdout.buffer.write((text + '\n').encode('utf-8'))
-    return 0
+    return 1 if res['errors'] else 0
 
 
 if __name__ == '__main__':

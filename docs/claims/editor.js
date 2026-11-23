@@ -29,7 +29,74 @@
   const AUTOSAVE_ON = 'claims-editor:autosave-enabled';
   const DEBOUNCE_CHECK = 300;
   const DEBOUNCE_LINT = 700;
-  const YAML_TAGS = (tags) => tags.filter((t) => t.tag !== 'tag:yaml.org,2002:timestamp');  // dates stay strings, as claim_lint
+  // The YAML 1.1 schema of the yaml package, with the plain-scalar rules of PyYAML's resolver (yaml/resolver.py), which
+  // claim_lint uses: no timestamps (claim_lint keeps dates as strings), bool only for yes/no/true/false/on/off (not y/n),
+  // floats need a dot and a signed exponent (1e3 and 1.0e3 stay strings), decimal ints have no leading 0 (09 is a string),
+  // sexagesimal ints start with 1-9. So the editor, claim_lint and tools/row_hash.py get the same values.
+  const PY_TRUE = /^(?:yes|Yes|YES|true|True|TRUE|on|On|ON)$/;
+  const PY_FALSE = /^(?:no|No|NO|false|False|FALSE|off|Off|OFF)$/;
+  const PY_FLOAT = /^(?:[-+]?[0-9][0-9_]*\.[0-9_]*(?:[eE][-+][0-9]+)?|\.[0-9][0-9_]*(?:[eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\.[0-9_]*|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/;
+  const PY_INT = /^[-+]?(?:0|[1-9][0-9_]*)$/;
+  const PY_INT_TIME = /^[-+]?[1-9][0-9_]*(?::[0-5]?[0-9])+$/;
+  function pyFloat(str) {
+    let v = str.replace(/_/g, '').toLowerCase();
+    let sign = 1;
+    if (v[0] === '-' || v[0] === '+') { if (v[0] === '-') sign = -1; v = v.slice(1); }
+    if (v === '.inf') return sign * Infinity;
+    if (v === '.nan') return NaN;
+    if (v.includes(':')) { let n = 0; v.split(':').forEach((d) => { n = n * 60 + parseFloat(d); }); return sign * n; }
+    return sign * parseFloat(v);
+  }
+  const YAML_TAGS = (tags) => {
+    const out = [];
+    let floatDone = false;
+    for (const t of tags) {
+      if (t.tag === 'tag:yaml.org,2002:timestamp') continue;
+      if (t.tag === 'tag:yaml.org,2002:bool') out.push(Object.assign({}, t, { test: /rue/.test(String(t.test)) ? PY_TRUE : PY_FALSE }));
+      else if (t.tag === 'tag:yaml.org,2002:float') {
+        if (!floatDone) out.push(Object.assign({}, t, { format: undefined, test: PY_FLOAT, resolve: pyFloat }));
+        floatDone = true;
+      } else if (t.tag === 'tag:yaml.org,2002:int' && !t.format) out.push(Object.assign({}, t, { test: PY_INT }));
+      else if (t.tag === 'tag:yaml.org,2002:int' && t.format === 'TIME') out.push(Object.assign({}, t, { test: PY_INT_TIME }));
+      else out.push(t);
+    }
+    return out;
+  };
+  // plain scalars that YAML readers disagree on (PyYAML / YAML 1.1 vs YAML 1.2): a warning, so that the writer quotes them
+  const YAML11 = [
+    [/^(?:y|Y|n|N)$/, 'y・n は、claim_lint（PyYAML）とこのエディターでは文字列、ほかの YAML 1.1 の読み手では真偽値'],
+    [/^(?:yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF)$/, 'yes・no・on・off は、claim_lint（YAML 1.1）では真偽値、YAML 1.2 の読み手では文字列'],
+    [/^[-+]?(?:[0-9][0-9_]*)?\.?[0-9_]*[eE][0-9]+$/, '符号の無い指数（1e3・1.0e3）は、claim_lint では文字列、YAML 1.2 の読み手では数'],
+    [/^[-+]?0[0-7_]+$/, '0 で始まる数は、claim_lint では 8 進数（010 は 8）、YAML 1.2 の読み手では 10 進数'],
+    [/^[-+]?0[0-9_]*[89][0-9_]*$/, '0 で始まる 8・9 を含む数は、claim_lint では文字列、YAML 1.2 の読み手では数'],
+    [/^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?$/, 'コロンで区切った数（10:30）は、claim_lint では 60 進数（630）、YAML 1.2 の読み手では文字列'],
+    [/^[-+]?(?:0b[01_]+|[0-9][0-9_]*_[0-9_]*(?:\.[0-9_]*)?)$/, '0b の数や _ で区切った数は、claim_lint では数、YAML 1.2 の読み手では文字列'],
+  ];
+  function yaml11Diags(f) {
+    const out = [];
+    const seen = new Set();
+    const visit = (node, depth) => {
+      if (!node || depth > 200) return;
+      if (L.isMap(node) || L.isSeq(node)) {
+        node.items.forEach((it) => { if (L.isPair(it)) { visit(it.key, depth + 1); visit(it.value, depth + 1); } else visit(it, depth + 1); });
+        return;
+      }
+      if (!L.isScalar(node) || node.type !== 'PLAIN' || typeof node.source !== 'string' || !node.range) return;
+      const src = node.source;
+      let msg = null;
+      if (src === '<<') msg = 'マージキー（<<）は、claim_lint の読み込みでは誤りになる（このエディターは展開する）。書き下す';
+      else { const hit = YAML11.find(([re]) => re.test(src)); if (hit) msg = hit[1]; }
+      if (!msg) return;
+      const line = f.lc.linePos(node.range[0]).line;
+      const k = line + '|' + src;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ source: 'yaml', severity: src === '<<' ? 'error' : 'warn', rule: 'YAML11', file: f.name, line, target: f.name.replace(/\.yaml$/, ''),
+        message: `引用符の無い ${src}：${msg}。意味どおりに読ませるには引用符で囲む（"${src}"）` });
+    };
+    visit(f.doc && f.doc.contents, 0);
+    return out;
+  }
 
   // ------------------------------------------------------------ DOM helper (text only)
   function h(tag, attrs) {
@@ -111,6 +178,7 @@
   function doOpen(opts, entries, skipped) {
     closeWorkspace(true);
     status.note = '';
+    saveWarning(null);
     ws.edited = false;
     ws.open = true;
     ws.name = opts.name;
@@ -150,20 +218,19 @@
   function confirmReplace(opts, entries, verb) {
     const steps = [];
     if (ws.open && unsaved()) {
-      if (autosaveEnabled() && ws.edited) autosave();  // kept in its own slot
-      else {
+      if (!keptByAutosave()) {  // kept in its own slot when the save succeeds
         steps.push(() => ask('書き出していない変更があります',
-          `開いている「${ws.label}」には、書き出していない変更があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、まだ保存していません' : '無効です'}）。`,
+          `開いている「${ws.label}」には、書き出していない変更があります。${verb}と、その変更は消えます（自動保存は${autosaveEnabled() ? '有効ですが、保存できていません' : '無効です'}）。`,
           [['export', 'zip で書き出してから' + verb], ['discard', '書き出さずに' + verb + '（変更は消える）'], ['cancel', 'やめる']])
           .then((c) => { if (c === 'export') exportZip(); return c === 'cancel' ? 'cancel' : null; }));
       }
     }
-    if (opts && opts.origin !== 'autosave' && autosaveEnabled()) {
+    if (opts && opts.origin !== 'autosave') {
       const rel = opts.designRel || 'work/' + safeDirName(opts.name);
       const sv = slot(rel);
       if (sv && !sameFiles(sv.files, entries)) {
         steps.push(() => ask('自動保存した版があります',
-          `${rel} には、このブラウザに自動保存した版があります（${sv.savedAt}）。元のファイルを開いて編集すると、自動保存した版は上書きされます。`,
+          `いま開こうとしている設計書（${opts.label || rel}、保存先 ${rel}）には、このブラウザに自動保存した版（${sv.label || sv.name}、${sv.savedAt} に保存）があります。「元のファイルを開く」で開いて編集すると、自動保存した版は上書きされます。`,
           [['saved', '自動保存した版を開く'], ['original', '元のファイルを開く'], ['cancel', 'やめる']])
           .then((c) => (c === 'cancel' ? 'cancel' : c === 'saved' ? { saved: sv } : null)));
       }
@@ -232,8 +299,21 @@
   function openList(list, origin) {
     const { out, skipped, dir } = entriesFromFiles(list);
     if (!out.length) { status('開けるファイルがありません（claims.yaml・token_types.yaml・hops.yaml・catalog_answers.yaml・claim_request_*.md・design.md、または中身で見分けられる YAML）。'); return false; }
-    const name = dir ? dir.split('/').pop() : (origin === 'drop' ? 'dropped' : 'my-design');
-    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル') + `（${origin === 'folder' ? 'フォルダ' : origin === 'drop' ? 'ドロップ' : 'ファイル'}）`, origin }, out, skipped);
+    const how = origin === 'folder' ? 'フォルダ' : origin === 'drop' ? 'ドロップ' : 'ファイル';
+    // a folder names the design; files without a folder get a name of their own (their autosave slot is not shared)
+    const name = dir ? dir.split('/').pop() : uniqueName(origin === 'drop' ? 'dropped' : 'files');
+    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル（' + out.map((e) => e.from).join('・') + '）') + `（${how}、${stamp().label}）`, origin }, out, skipped);
+  }
+  function stamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return { id: `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`,
+      label: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())} に開いた` };
+  }
+  function uniqueName(base) {
+    const r = new Uint8Array(3);
+    crypto.getRandomValues(r);
+    return `${base}-${stamp().id}-${Array.from(r).map((x) => x.toString(16).padStart(2, '0')).join('')}`;
   }
   function loadScript(src, key) {
     if (DATA[key]) return Promise.resolve(DATA[key]);
@@ -258,7 +338,7 @@
   function openPaste(text, kindSel) {
     const kind = kindSel || classify('pasted.yaml', text);
     if (!kind) { status('貼り付けた内容が何のファイルか分かりません。種類を選んでください。'); return false; }
-    return openWorkspace({ name: 'pasted', label: '貼り付けた内容（' + kind + '）', origin: 'paste' }, [{ name: kind, text }]);
+    return openWorkspace({ name: uniqueName('pasted'), label: `貼り付けた内容（${kind}、${stamp().label}）`, origin: 'paste' }, [{ name: kind, text }]);
   }
   // drag and drop: files, or folders (webkitGetAsEntry)
   function readEntry(entry, path) {
@@ -314,7 +394,7 @@
       h('p', null, 'YAML を貼り付けて「開く」を押します（1 つのファイル）。'), pasteArea,
       h('p', null, h('label', null, 'ファイルの種類：', pasteKind), ' ', h('button', { type: 'button', class: 'primary', id: 'paste-open', onclick: () => openPaste(pasteArea.value, pasteKind.value) }, '開く')));
     const card = (id, title, desc, onclick, extra) => h('li', null, h('button', { type: 'button', class: 'entry', id, onclick }, h('strong', null, title), h('span', null, desc)), extra || null);
-    const saved = autosaveEnabled() ? slots() : [];
+    const saved = slots();
     st.append(h('div', { class: 'start-in' },
       h('h1', { tabindex: '-1' }, '設計書のエディター'),
       h('p', { class: 'lead' }, 'YAML の設計書（台帳 claims.yaml・トークン目録と発行方式 token_types.yaml・ホップ hops.yaml・カタログへの回答 catalog_answers.yaml・claim_request_*.md）を書きながら、ブラウザの中で JSON Schema と claim_lint で検査します。何も開いていません。下のどれかで始めてください。'),
@@ -444,12 +524,44 @@
     addIn.addEventListener('change', () => addFiles(addIn.files));
     tools.append(h('button', { type: 'button', class: 'addfile', id: 'btn-add-file', title: 'ファイルを足す（同じ名前なら置き換える）', onclick: () => addIn.click() }, '＋ ファイルを足す'), addIn);
   }
+  // a name that is free: claim_request_x.md -> claim_request_x_2.md (still a design file); claims.yaml -> claims.2.yaml
+  // (kept and editable, but not one of the design's files: the checks and claim_lint read claims.yaml only)
+  function freeName(n) {
+    for (let i = 2; ; i++) {
+      const m = /^(claim_request_[A-Za-z0-9_-]+)\.md$/.exec(n);
+      const cand = m ? `${m[1]}_${i}.md` : n.replace(/(\.[a-z]+)$/, `.${i}$1`);
+      if (!ws.files.has(cand)) return cand;
+    }
+  }
   function addFiles(list) {
-    Promise.all(Array.from(list || []).map((f) => f.arrayBuffer().then((buf) => ({ name: f.name, path: f.name, buf })))).then((xs) => {
+    return Promise.all(Array.from(list || []).map((f) => f.arrayBuffer().then((buf) => ({ name: f.name, path: f.name, buf })))).then((xs) => {
       const { out, skipped } = entriesFromFiles(xs);
-      out.forEach((e) => { const f = makeFile(e.name, e.text, e.bom); f.state = makeState(f); ws.files.set(e.name, f); });
-      if (out.length) { ws.rev++; switchTo(out[0].name); runChecks(true); }
       if (skipped.length) status('開かなかったファイル：' + skipped.join('、'));
+      let p = Promise.resolve();
+      const added = [];
+      out.forEach((e) => {
+        p = p.then(() => {
+          if (!ws.files.has(e.name)) return e.name;
+          const cur = ws.files.get(e.name);
+          const dirty = exportText(cur) !== cur.savedText;
+          const alt = freeName(e.name);
+          return ask('同じ名前のファイルがあります',
+            `「${e.from}」を足そうとしています。開いている ${e.name} ${dirty ? 'には書き出していない変更があり、' : 'は'}置き換えると今の中身は消えます。`,
+            [['replace', `${e.name} を置き換える`], ['both', `両方残す（足すほうを ${alt} にする）`], ['cancel', 'やめる']])
+            .then((c) => (c === 'replace' ? e.name : c === 'both' ? alt : null));
+        }).then((name) => {
+          if (!name) return;
+          const f = makeFile(name, e.text, e.bom);
+          f.savedText = '';  // not written out yet under this name
+          f.state = makeState(f);
+          ws.files.set(name, f);
+          added.push(name);
+        });
+      });
+      return p.then(() => {
+        if (added.length) { ws.rev++; ws.edited = true; switchTo(added[0]); runChecks(true); autosaveSoon(); }
+        return added;
+      });
     });
   }
 
@@ -497,6 +609,7 @@
           message: 'YAML の誤り：' + String(e.message).split('\n')[0] });
       });
       if (!f.doc.errors.length) f.value = f.doc.toJS({ maxAliasCount: 100 });
+      f.yamlDiags.push(...yaml11Diags(f));
     } catch (e) {
       f.yamlDiags.push({ source: 'yaml', severity: 'error', rule: 'YAML', file: f.name, line: 1, target: f.name, message: 'YAML の誤り：' + (e.message || e) });
     }
@@ -775,15 +888,29 @@
   }
   let autosaveTimer = null;
   function autosaveSoon() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(autosave, 1000); }
+  // true when the current text is in the slot. A failure (quota, storage blocked) keeps the edits counted as not saved:
+  // the dialogs and beforeunload still ask, and a warning stays on screen until a save succeeds
   function autosave() {
-    if (!ws.open || !autosaveEnabled() || !ws.edited) return;
+    if (!ws.open || !autosaveEnabled() || !ws.edited) return false;
     const files = {};
     ws.files.forEach((f) => { files[f.name] = exportText(f); });
     try {
       localStorage.setItem(AUTOSAVE_PREFIX + ws.designRel, JSON.stringify({ name: ws.name, label: ws.label, designRel: ws.designRel, origin: ws.origin, profile: ws.profile,
         savedAt: new Date().toISOString().replace('T', ' ').slice(0, 19), files }));
-    } catch (e) { status('自動保存できませんでした（' + (e.message || e) + '）'); }
+      saveWarning(null);
+      return true;
+    } catch (e) {
+      saveWarning(`自動保存に失敗しました（${e.name || 'Error'}：${e.message || e}）。今の変更はこのブラウザに保存されていません。「zip で書き出す」で保存してください。`);
+      return false;
+    }
   }
+  function saveWarning(text) {
+    const el = $('#save-warn');
+    if (!el) return;
+    el.hidden = !text;
+    el.textContent = text ? '⚠ ' + text : '';
+  }
+  function keptByAutosave() { return autosaveEnabled() && ws.edited && autosave(); }
 
   // ------------------------------------------------------------ row anchors and content hashes (#50)
   // RFC 8785 (JSON Canonicalization Scheme): object keys sorted by UTF-16 code units (the default sort of JavaScript
@@ -792,10 +919,17 @@
   function canonicalJson(v) {
     if (v === null || v === undefined) return 'null';
     if (typeof v === 'number') { if (!isFinite(v)) throw new Error('JCS: a number that is not finite'); return JSON.stringify(v); }
+    if (typeof v === 'string') return jcsString(v);
     if (typeof v !== 'object') return JSON.stringify(v);
     if (Array.isArray(v)) return '[' + v.map(canonicalJson).join(',') + ']';
-    return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canonicalJson(v[k])).join(',') + '}';
+    return '{' + Object.keys(v).sort().map((k) => jcsString(k) + ':' + canonicalJson(v[k])).join(',') + '}';
   }
+  const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?:^|[^\ud800-\udbff])[\udc00-\udfff]/;
+  function jcsString(x) {
+    if (LONE_SURROGATE.test(x)) throw new Error('JCS: a string with a lone surrogate (not I-JSON)');
+    return JSON.stringify(x);
+  }
+  function hashOf(row) { try { return sha256(canonicalJson(row)); } catch (e) { return null; } }
   // the value of a YAML text as the editor reads it (the same options as the files), canonicalised: for the parity test
   function canonicalYaml(text) {
     const d = L.parseDocument(text, { schema: 'yaml-1.1', customTags: YAML_TAGS, uniqueKeys: true });
@@ -871,6 +1005,13 @@
       f.anchorDiags.push({ source: 'editor', severity: 'warn', rule: 'ANCHOR', file: r[0], line: locate(f, [r[1], String(a.index)]), target: a.id,
         message: `${r[2]} が ${a.id} の行が 2 つ以上ある。行の固定の名前（${a.anchor}）が一意にならないので、この行にはレビューの記録（#50）を付けられない` });
     });
+    allAnchors().filter((a) => !dup.has(a.anchor) && ROWS[a.kind]).forEach((a) => {
+      const r = ROWS[a.kind];
+      const f = ws.files.get(r[0]);
+      if (!f || hashOf(rowList(a.kind)[a.index]) !== null) return;
+      f.anchorDiags.push({ source: 'editor', severity: 'warn', rule: 'ANCHOR', file: r[0], line: locate(f, [r[1], String(a.index)]), target: a.id,
+        message: `行 ${a.anchor} の内容のハッシュを計算できない（対になっていないサロゲート、または有限でない数がある。RFC 8785 の JCS にできない）` });
+    });
   }
   function rowOf(anchor) {
     const i = String(anchor).indexOf(':');
@@ -928,7 +1069,7 @@
     // With autosave on, the edits are saved to their slot instead.
     addEventListener('beforeunload', (e) => {
       if (!unsaved()) return;
-      if (autosaveEnabled() && ws.edited) { autosave(); return; }
+      if (keptByAutosave()) return;
       e.preventDefault();
       e.returnValue = '';
     });
@@ -937,13 +1078,20 @@
     chk.checked = autosaveEnabled();
     chk.addEventListener('change', () => {
       try {
-        if (chk.checked) { localStorage.setItem(AUTOSAVE_ON, '1'); if (ws.edited) autosave(); status('自動保存を有効にしました（編集した設計書を、このブラウザの localStorage に、設計書のディレクトリごとに保存します）。'); }
-        else {
+        if (chk.checked) { localStorage.setItem(AUTOSAVE_ON, '1'); if (ws.edited) autosave(); status('自動保存を有効にしました（編集した設計書を、このブラウザの localStorage に、設計書のディレクトリごとに保存します）。'); return; }
+      } catch (e) { status('localStorage を使えません'); chk.checked = false; return; }
+      const n = slots().length;
+      const stop = (forget) => {
+        try {
           localStorage.removeItem(AUTOSAVE_ON);
-          Object.keys(localStorage).filter((k) => k.startsWith(AUTOSAVE_PREFIX)).forEach((k) => localStorage.removeItem(k));
-          status('自動保存をやめ、保存した内容を消しました。');
-        }
-      } catch (e) { status('localStorage を使えません'); chk.checked = false; }
+          if (forget) Object.keys(localStorage).filter((k) => k.startsWith(AUTOSAVE_PREFIX)).forEach((k) => localStorage.removeItem(k));
+        } catch (e) { /* storage unavailable */ }
+        status(forget ? `自動保存をやめ、保存した ${n} 件を消しました。` : n ? `自動保存をやめました。保存した ${n} 件は残っています（最初の画面から開ける・消せる）。` : '自動保存をやめました。');
+      };
+      if (!n) { stop(false); return; }
+      ask('自動保存をやめる', `このブラウザに自動保存した設計書が ${n} 件あります。`,
+        [['keep', `${n} 件を残して、自動保存だけやめる`], ['delete', `${n} 件を消して、自動保存をやめる`], ['cancel', 'やめない（自動保存を続ける）']])
+        .then((c) => { if (c === 'cancel') chk.checked = true; else stop(c === 'delete'); });
     });
     let depth = 0;
     addEventListener('dragenter', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { depth++; $('#drop-overlay').hidden = false; } });
@@ -973,7 +1121,7 @@
     diagnostics: () => (ws.diag.list || []).map((d) => Object.assign({}, d)),
     anchors,
     rowOf,
-    rowHash: (anchor) => { const r = rowOf(anchor); return r ? sha256(canonicalJson(r.row)) : null; },
+    rowHash: (anchor) => { const r = rowOf(anchor); return r ? hashOf(r.row) : null; },
     canonicalJson,
     canonicalYaml,
     duplicateAnchors: () => Array.from(duplicateAnchors()),

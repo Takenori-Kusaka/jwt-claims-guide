@@ -74,6 +74,20 @@ class Rows(unittest.TestCase):
             self.assertEqual(dup['duplicates'], ['claims:C-a'])
             self.assertEqual(list(dup['hashes']), ['claims:C-b'])
 
+    def test_lone_surrogate_has_no_hash(self):
+        with self.assertRaises(ValueError):
+            row_hash.jcs({'a': '\ud800'})
+        self.assertEqual(row_hash.jcs({'a': '\ud83d\ude00'}), row_hash.jcs({'a': '\U0001F600'}))  # a pair is one character
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'claims.yaml'), 'w', encoding='utf-8') as f:
+                f.write('claims:\n  - id: C-a\n    name: "\\ud800"\n  - id: C-b\n')
+            res = row_hash.row_hashes(d)
+            self.assertEqual(list(res['hashes']), ['claims:C-b'])
+            self.assertIn('lone surrogate', res['errors']['claims:C-a'])
+            import subprocess
+            out = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'row_hash.py'), d], capture_output=True)
+            self.assertEqual(out.returncode, 1)
+
     def test_cli_json(self):
         import subprocess
         out = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'row_hash.py'), os.path.join(ROOT, 'templates', 'examples', 'scenario-a'),

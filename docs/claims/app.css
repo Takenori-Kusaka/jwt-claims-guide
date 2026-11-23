@@ -194,3 +194,4 @@ dialog.confirm { max-width: 34rem; border: 1px solid var(--line); border-radius:
 dialog.confirm::backdrop { background: rgba(0, 0, 0, .35); }
 dialog.confirm h2 { margin-top: 0; font-size: 1.1rem; }
 dialog.confirm .buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.savewarn { margin: 0; padding: .4rem 1rem; background: var(--warn-bg); color: var(--warn); border-bottom: 2px solid var(--warn); font-weight: 600; }

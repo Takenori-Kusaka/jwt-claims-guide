@@ -18,7 +18,7 @@
    "GET"
   ],
   "origins": [
-   "127.0.0.1:57552"
+   "127.0.0.1:56523"
   ],
   "non_get_or_cross_origin_or_beacon": 0
  },
@@ -112,7 +112,7 @@
   },
   {
    "method": "GET",
-   "url": "blob:<origin>/aec9f77d-7973-44fd-aa8a-8344a8490d50",
+   "url": "blob:<origin>/ef2b5dee-7a09-4c24-8e6b-9f8374356110",
    "type": "script"
   },
   {
@@ -219,35 +219,35 @@
  "requests_playwright_saw_start_during_the_attempts": [
   {
    "method": "GET",
-   "url": "blob:<origin>/3feeb80a-1725-4b9b-b52f-dfc11f60e066",
+   "url": "blob:<origin>/8a7e3d9d-aed3-452a-9d46-65db15e4faae",
    "type": "script"
   },
   {
    "method": "GET",
-   "url": "http://127.0.0.1:55322/img",
+   "url": "http://127.0.0.1:55858/img",
    "type": "image"
   }
  ],
  "csp_violations": [
   {
    "directive": "connect-src",
-   "blocked": "http://127.0.0.1:55322/fetch"
+   "blocked": "http://127.0.0.1:55858/fetch"
   },
   {
    "directive": "connect-src",
-   "blocked": "http://127.0.0.1:55322/beacon"
+   "blocked": "http://127.0.0.1:55858/beacon"
   },
   {
    "directive": "connect-src",
-   "blocked": "ws://127.0.0.1:55322/ws"
+   "blocked": "ws://127.0.0.1:55858/ws"
   },
   {
    "directive": "img-src",
-   "blocked": "http://127.0.0.1:55322/img"
+   "blocked": "http://127.0.0.1:55858/img"
   },
   {
    "directive": "form-action",
-   "blocked": "http://127.0.0.1:55322/form"
+   "blocked": "http://127.0.0.1:55858/form"
   }
  ]
 }

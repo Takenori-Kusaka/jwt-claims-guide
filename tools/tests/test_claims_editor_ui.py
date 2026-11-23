@@ -468,8 +468,17 @@ class ClaimsEditor(unittest.TestCase):
         pg.click('[data-restore="templates/examples/scenario-a"]')
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertIn('# mine2', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
+        # turning autosave off asks what to do with the saved copies (R3): cancel keeps it on, delete removes them
         pg.uncheck('#chk-autosave')
-        self.assertEqual(pg.evaluate('() => Object.keys(localStorage)'), [])
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('1 件', pg.inner_text('dialog#confirm'))
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        self.assertTrue(pg.is_checked('#chk-autosave'))
+        self.assertEqual(len(pg.evaluate('() => Object.keys(localStorage)')), 2)
+        pg.uncheck('#chk-autosave')
+        pg.click('dialog#confirm [data-choice="delete"]')
+        self.poll(pg, '() => Object.keys(localStorage).length === 0', timeout=5)
         self.assertEqual(pg.problems, [])
 
     def test_opening_another_design_never_loses_work(self):
@@ -482,7 +491,9 @@ class ClaimsEditor(unittest.TestCase):
         pg.check('#chk-autosave')
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))'), [])  # opening saves nothing
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "MY-WORK", "MY-WORK-2")')
-        mine = 'claims-editor:autosave:v2:work/pasted'
+        rel = pg.evaluate('() => ClaimsEditor.state().designRel')
+        self.assertRegex(rel, r'^work/pasted-\d{8}-\d{6}-[0-9a-f]{6}$')  # a slot of its own (R4)
+        mine = 'claims-editor:autosave:v2:' + rel
         self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("MY-WORK-2")', arg=mine, timeout=5)
         pg.click('#btn-close')  # autosave holds the edit: no question
         self.poll(pg, '() => !ClaimsEditor.state().open')
@@ -490,8 +501,11 @@ class ClaimsEditor(unittest.TestCase):
         pg.wait_for_timeout(1500)
         self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))  # still there
         self.assertIsNone(pg.evaluate('() => localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a")'))
-        # without autosave (turning it off deletes every slot): an edit not written out is not replaced without asking
+        # without autosave (turned off, the saved copies kept): an edit not written out is not replaced without asking
         pg.uncheck('#chk-autosave')
+        pg.click('dialog#confirm [data-choice="keep"]')
+        self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+        self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
         pg.click('#btn-close')
         pg.wait_for_selector('dialog#confirm[open]')
@@ -522,8 +536,75 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertIn('# saved-a', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         self.assertEqual(sorted(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))')),
-                         ['claims-editor:autosave:v2:templates/examples/scenario-a'])  # turning autosave off earlier cleared MY-WORK's slot
+                         sorted([mine, 'claims-editor:autosave:v2:templates/examples/scenario-a']))
         self.shot(pg, '31_autosave_slots')
+        self.assertEqual(pg.problems, [])
+
+    def test_a_failed_autosave_still_guards_the_edits(self):
+        # R1: localStorage refuses the save (quota): the edits stay unsaved, a warning stays, closing and leaving still ask
+        pg = self.open()
+        self.sample(pg, 'b')
+        pg.check('#chk-autosave')
+        pg.evaluate('''() => { Storage.prototype.setItem = function () { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); }; }''')
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # not saved")')
+        pg.wait_for_selector('#save-warn:not([hidden])', timeout=5000)
+        self.assertIn('自動保存に失敗', pg.inner_text('#save-warn'))
+        self.assertIn('QuotaExceededError', pg.inner_text('#save-warn'))
+        self.assertEqual(pg.get_attribute('#save-warn', 'role'), 'alert')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.unsaved()'))
+        self.assertTrue(pg.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
+        pg.click('#btn-close')
+        pg.wait_for_selector('dialog#confirm[open]')
+        self.assertIn('保存できていません', pg.inner_text('dialog#confirm'))
+        pg.click('dialog#confirm [data-choice="cancel"]')
+        self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
+        self.assertTrue(pg.is_visible('#save-warn'))  # the warning stays until a save succeeds
+        self.shot(pg, '32_autosave_failed')
+
+    def test_adding_a_file_with_an_open_name_asks(self):
+        # R2: "add file" with the name of an open file: replace / keep both / cancel, never silently
+        pg = self.open()
+        self.sample(pg, 'a')
+        pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # edited here")')
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, 'hops.yaml')
+            with open(p, 'w', encoding='utf-8', newline='\n') as f:
+                f.write('hops:\n  - id: OTHER\n')
+            for choice in ('cancel', 'both', 'replace'):
+                pg.set_input_files('#in-add', [p])
+                pg.wait_for_selector('dialog#confirm[open]')
+                self.assertIn('書き出していない変更', pg.inner_text('dialog#confirm'))
+                pg.click(f'dialog#confirm [data-choice="{choice}"]')
+                self.poll(pg, '() => !document.querySelector("dialog#confirm")')
+                pg.wait_for_timeout(200)
+                if choice == 'cancel':
+                    self.assertIn('# edited here', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
+                    self.assertNotIn('hops.2.yaml', pg.evaluate('() => ClaimsEditor.state().files'))
+                elif choice == 'both':
+                    self.assertIn('# edited here', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
+                    self.assertEqual(pg.evaluate('() => ClaimsEditor.fileText("hops.2.yaml")'), 'hops:\n  - id: OTHER\n')
+                else:
+                    self.assertEqual(pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'), 'hops:\n  - id: OTHER\n')
+        self.assertEqual(pg.problems, [])
+
+    def test_yaml11_values_are_reported_and_read_as_claim_lint_reads_them(self):
+        # R5: plain scalars that YAML readers disagree on get a YAML11 warning on their line
+        pg = self.open()
+        text = ('claims:\n  - id: C-a\n    note: y\n    n: 1\n    flag: yes\n    exp: 1e3\n    exp2: 1.0e3\n    ok: 1.0e+3\n'
+                '    oct: 012\n    time: 10:30\n    under: 1_000\n    quoted: "yes"\n    plain: true\n')
+        pg.click('#btn-paste')
+        pg.fill('#paste-text', text)
+        pg.select_option('#paste-kind', 'claims.yaml')
+        pg.click('#paste-open')
+        self.poll(pg, '() => ClaimsEditor.state().open')
+        d = self.poll(pg, '() => { const d = ClaimsEditor.diagnostics().filter(x => x.rule === "YAML11"); return d.length ? d : null; }', timeout=5)
+        self.assertEqual(sorted(x['line'] for x in d), [3, 4, 5, 6, 7, 9, 10, 11])  # not 1.0e+3, "yes", true
+        self.assertTrue(all(x['severity'] == 'warn' for x in d))
+        # the values are those of claim_lint's loader (PyYAML)
+        from claim_lint.core import _Loader
+        import row_hash
+        self.assertEqual(pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', text), row_hash.jcs(yaml.load(text, Loader=_Loader)))
+        self.assertEqual(pg.evaluate('() => ClaimsEditor.diagnostics().filter(x => x.rule === "YAML11" && x.file === "claims.yaml").length'), 8)
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ folds, keyboard, #50 hooks
@@ -687,21 +768,28 @@ class ClaimsEditor(unittest.TestCase):
                  '{z: 1, "\\u00e9": 2, a: 3, "10": 4, "9": 5, "\\u20ac": 6, "\\U0001F600": 7, "\\uff61": 8, B: 9}\n',
                  'nest:\n  - {b: [1, {d: null, c: true}], a: false}\n  - []\n  - {}\n',
                  'k: yes\nl: on\nm: 012\nhex: 0x1f\no: 1:20\np: 1_000\nq: 2026-01-01\nr: ~\n',
-                 'base: &b {u: 1}\nalias: *b\n']  # an alias; a merge key (<<) is an error in claim_lint's loader
+                 'base: &b {u: 1}\nalias: *b\n',  # an alias; a merge key (<<) is an error in claim_lint's loader
+                 # plain scalars read differently by YAML 1.1 readers: the editor follows PyYAML's resolver (R5)
+                 'i: y\nj: 1e3\nn: 1\nY: N\nk2: 1.0e3\nk3: 1.0E+3\nk4: .5\nk5: 0.\nk6: -.5\nk7: +.5\nk8: 09\nk9: 0b101\nka: 10:30\n'
+                 'kb: 1:70\nkc: -1:20.5\nkd: 1_000.5\nke: 0o7\nkf: Off\nkg: NO\nkh: 1.\nki: 0_1\nkj: 0x_1F\n']
         for t in texts:
             js = pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', t)
             py = row_hash.jcs(yaml.load(t, Loader=_Loader))
             self.assertEqual(js, py, t)
-        # values that YAML 1.1 readers disagree on (documented in README): not used in the samples
-        for t, js_v, py_v in (('i: y\n', '{"i":true}', '{"i":"y"}'), ('j: 1e3\n', '{"j":1000}', '{"j":"1e3"}'),
-                                ('n: 1\n', '{"false":1}', '{"n":1}')):
-            self.assertEqual(pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', t), js_v)
-            self.assertEqual(row_hash.jcs(yaml.load(t, Loader=_Loader)), py_v)
+        # a lone surrogate: not I-JSON, refused on both sides; a pair written as two escapes is one character on both
+        lone = 'x: "\\ud800"\n'
+        self.assertIn('lone surrogate', pg.evaluate('t => { try { return ClaimsEditor.canonicalYaml(t); } catch (e) { return String(e.message); } }', lone))
+        with self.assertRaises(ValueError):
+            row_hash.jcs(yaml.load(lone, Loader=_Loader))
+        pair = 'x: "\\ud83d\\ude00"\n'
+        self.assertEqual(pg.evaluate('t => ClaimsEditor.canonicalYaml(t)', pair), row_hash.jcs(yaml.load(pair, Loader=_Loader)))
         if EVIDENCE:
             with open(os.path.join(ROOT, EVIDENCE, 'row-hash-parity.json'), 'w', encoding='utf-8', newline='\n') as f:
                 json.dump({'what': 'ClaimsEditor.rowHash (browser) vs python tools/row_hash.py, RFC 8785 JCS + SHA-256',
                            'results': report, 'jcs_vectors_equal': len(texts),
-                           'known_differences': ['bare y / n, also as a key (yaml: boolean, PyYAML: string)', '1e3 without a dot (yaml: number, PyYAML: string)']},
+                           'yaml11': 'the editor reads plain scalars with the rules of PyYAML (claim_lint): y/n, 1e3, 1.0e3, 09 are strings, '
+                                     'yes/no/on/off booleans, 012 octal, 10:30 sexagesimal; they also get a YAML11 warning',
+                           'lone_surrogate': 'refused by both (RFC 8785 works on I-JSON)'},
                           f, ensure_ascii=False, indent=1)
                 f.write('\n')
         self.assertEqual(pg.problems, [])

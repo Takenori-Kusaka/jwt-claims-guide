@@ -12,9 +12,7 @@
    "equal": true
   }
  ],
- "jcs_vectors_equal": 6,
- "known_differences": [
-  "bare y / n, also as a key (yaml: boolean, PyYAML: string)",
-  "1e3 without a dot (yaml: number, PyYAML: string)"
- ]
+ "jcs_vectors_equal": 7,
+ "yaml11": "the editor reads plain scalars with the rules of PyYAML (claim_lint): y/n, 1e3, 1.0e3, 09 are strings, yes/no/on/off booleans, 012 octal, 10:30 sexagesimal; they also get a YAML11 warning",
+ "lone_surrogate": "refused by both (RFC 8785 works on I-JSON)"
 }
