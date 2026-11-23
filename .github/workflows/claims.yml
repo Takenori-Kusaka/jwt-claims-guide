@@ -71,6 +71,13 @@ jobs:
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)
         run: python -m pytest -q -rs tools/tests/test_catalog_check.py
+      - name: Viewer data (docs/claims/data/) match the YAML (#36; fix with python tools/build_claims_viewer.py)
+        run: python tools/build_claims_viewer.py --check
+      - name: Viewer build tests (drift detection, every schema column has a heading, CSP, pinned js-yaml, README links)
+        run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
+      # The browser tests of the viewer (tools/tests/test_claims_viewer_ui.py: rendering, filters, every column on the
+      # detail screen, no network in local-file mode) need Playwright and Chromium, which this job does not install;
+      # they are skipped here and run locally (README.md, 設計書のビューアー).
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -89,17 +96,22 @@ jobs:
           echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           rm gitleaks.tar.gz
-      - name: Self-test of .gitleaks.toml (a random API key is still found; trace requirement IDs are not)
+      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs and the viewer's source hashes are not)
         run: |
           d="$RUNNER_TEMP/gitleaks-selftest"; mkdir -p "$d"
-          # the key is made at run time so that no secret-looking literal is committed
+          # the keys are made at run time so that no secret-looking literal is committed
           key=$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)
           printf 'api_key = "%s"\n' "$key" > "$d/leak.env"
           mkdir -p "$d/templates/registry"   # the allowlist is restricted by path to the files that hold reverse references
           printf '{"$comment": "Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"}\n' > "$d/templates/registry/trace.schema.json"
+          # viewer data (#36): the sha256 of a source file is allowed, a 64-hex value under another key is not
+          mkdir -p "$d/docs/claims/data"
+          h1=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64); h2=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64)
+          printf 'x={"sources":{"token_types.yaml":"%s"}};\n' "$h1" > "$d/docs/claims/data/scenario-x.js"
+          printf 'y={"api_token":"%s"};\n' "$h2" > "$d/docs/claims/data/leak-x.js"
           ./gitleaks dir --no-banner --redact --config .gitleaks.toml --report-format json --report-path "$d/report.json" "$d" || true
           jq -c '[.[] | {RuleID, File}]' "$d/report.json"
-          jq -e 'length == 1 and (.[0].File | endswith("/leak.env"))' "$d/report.json"
+          jq -e 'length == 2 and ([.[].File | split("/") | last] | sort == ["leak-x.js", "leak.env"])' "$d/report.json"
       - name: Scan the git history reachable from HEAD (fails on any finding; exclusions are in .gitleaks.toml with reasons)
         # --log-opts HEAD: only the commits of this checkout (for a pull request, the merge of the PR and its base), not the
         # other branches that fetch-depth 0 also fetches (their findings belong to their own PRs)

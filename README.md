@@ -3,6 +3,7 @@
 認証認可とマイクロサービスの設計を任された新任のテックリーダーに向けた解説スライドです（全 159 枚、解説ノートつき）。主題は、OpenID Connect や OAuth の標準クレームそのものではなく、**組織のあらゆるサービスで共用する独自クレーム**の設計・伝搬・検証・ガバナンスです。独自クレームで既存のクレームと重複・衝突しないよう、標準クレームの地図と、4 つの IdP（Microsoft Entra ID・Keycloak・Auth0/Okta・Amazon Cognito）の実際を前提として扱います。
 
 - Web スライド: https://takenori-kusaka.github.io/jwt-claims-guide/
+- 設計書のビューアー（YAML の設計書を人が読む形で表示する。記入例のシナリオ A・B と、自分の YAML をブラウザの中だけで開く機能。データを外部に送信しない（リンクを押したときの移動は除く））: https://takenori-kusaka.github.io/jwt-claims-guide/claims/
 - PDF / PPTX: [slides/](slides/)
 - Docswell: https://www.docswell.com/s/takenori_kusaka/ZWR7NJ-jwt-claims-guide
 - ケーススタディ（実測、67 ケースの攻撃・正規の要求と除去実験）: https://github.com/Takenori-Kusaka/jwt-claims-casestudy
@@ -106,6 +107,21 @@ python tools/tests/cmp_pptx.py before.pptx after.pptx          # 2 つのビル�
 - `https://takenori-kusaka.github.io/jwt-claims-guide/#p04-carry-or-query` で、そのスライドが開きます
 - 従来の、番号で指す `#s47` の形も開けます。ただし、番号はずれるので、文書には書かないでください
 - 見つからない ID や壊れたハッシュのときは、1 枚目を開き、見つからなかったことを表示します
+
+### 設計書のビューアー（`docs/claims/`、#36）
+- `https://takenori-kusaka.github.io/jwt-claims-guide/claims/` で、記入例（`templates/examples/scenario-a`・`scenario-b`）の台帳・トークン目録・発行方式と導かれる要件・ホップ・寿命の 4 つの層・カタログへの回答・lint の結果と、対応表（#22）の進み具合を表示します。スライドの Web 版（`/`）とは別のパスで、同じ公開の方式（`main` の `/docs`）のまま共存します
+- 根拠の `slide:<id>` は、スライドの Web 版の `#<id>` に移動します
+- 静的な HTML・JS・CSS だけで、サーバーは使いません。CSP（`<meta>`）を `connect-src 'none'` にしていて、外部の CDN も使いません。YAML の読み取りに js-yaml 4.3.2（MIT、`docs/claims/vendor/`、版と sha256 を固定。GHSA-h67p-54hq-rp68・GHSA-52cp-r559-cp3m・GHSA-5p4m-2wfm-xmqj・GHSA-2883-xcg3-v3hh の修正後の版）を同梱し、`CORE_SCHEMA` で読みます（`<<` のマージと `!!omap` は扱わない。`<<` を使った YAML には画面で注意を出す）。同梱したファイルは Dependabot の対象にならないので、版を上げるときは advisory を手で確かめます
+- 根拠のリンク（RFC・GitHub など）を押せば、そのページへ移動します。ページが自分から外部に接続することはありません
+- **自分の YAML を開く**：`claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml`、または `python tools/claim_lint render <dir> --format json` の束を、ブラウザの中（FileReader）だけで読みます。ファイルは送信しません。確かめた記録は `research/claims-viewer/` にあります
+- データ（`docs/claims/data/*.js`）は YAML から生成します。台帳・記入例・`templates/registry/README.md` の列の見出し・レビュー教材・対応表を変えたら、作り直してコミットします。食い違いは CI（`.github/workflows/claims.yml`）で落ちます
+
+```bash
+python tools/build_claims_viewer.py           # docs/claims/data/ を書く
+python tools/build_claims_viewer.py --check   # YAML と食い違えば終了コード 1
+python -m pytest -q tools/tests/test_build_claims_viewer.py
+python -m pytest -q tools/tests/test_claims_viewer_ui.py   # Playwright（pip install playwright && python -m playwright install chromium）。CI では飛ばす
+```
 
 ### 文書からの参照
 参照は `slide:<id>` と書きます（例：`slide:p04-carry-or-query`）。文法は次のとおりです。
