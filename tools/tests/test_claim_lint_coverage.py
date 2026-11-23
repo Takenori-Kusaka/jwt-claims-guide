@@ -30,6 +30,10 @@ def write(path, docs):
     for k, v in docs.items():
         with open(os.path.join(path, k + '.yaml'), 'w', encoding='utf-8') as f:
             yaml.safe_dump(v, f, allow_unicode=True, sort_keys=False)
+    # the 25 answers of the shared claims belong to the design directory (L72 is error, #4)
+    for n in os.listdir(EXAMPLE):
+        if n.startswith('claim_request_'):
+            shutil.copy(os.path.join(EXAMPLE, n), os.path.join(path, n))
     return str(path)
 
 

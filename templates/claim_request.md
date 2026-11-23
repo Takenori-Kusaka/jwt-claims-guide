@@ -78,6 +78,7 @@
 
 根拠：slide:p11-pre-add-questions-1、slide:p11-pre-add-questions-2、slide:p02-check-before-creating、slide:p00-claims-are-contracts、research/template-design/gate1.md の 10.
 
+<!-- heading-only -->
 ## 3. 問いごとの説明
 
 各問いが、台帳のどの列か、どの lint の規則に対応するかと、関係するテンプレートの項目です。対応する列も規則も無い問いは、自由記述の回答が必須です（この様式の「手書き」）。lint の規則の ID は `tools/claim_lint/RULES.md`（#6 の意味の規則は PR #40・#41 で入る）によります。
@@ -254,7 +255,7 @@
 <!-- req:p11-pre-add-questions-2.R4 -->
 
 - 対応：template:modules/M_token_validation#shared-validator。自由記述が必須
-- 検討の問い：受け手ごとに読み方を実装させていないか（ケーススタディの「共有クレームを変えたとき」で、共通の部品は 10 の変更を正しく処理した）
+- 検討の問い：受け手ごとに読み方を実装させていないか（ケーススタディの「共有クレームを変えたとき」で、共通の部品は 10 の変更のどれでも誤らなかった。9 件は正しく処理し、真偽値が文字列になった 1 件は fail closed で拒否した）
 
 根拠：slide:p11-pre-add-questions-2、slide:p11-contract-test-gaps、jwt-claims-casestudy@080b8da（results/summary.md の「共有クレームを変えたとき」）
 

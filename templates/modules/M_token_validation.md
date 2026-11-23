@@ -90,7 +90,7 @@
 
 | パラメータ | 検討の問い | 候補 | 根拠 |
 | --- | --- | --- | --- |
-| `kid` | 事前に取得した鍵の一覧の中だけで探すか。ファイルのパスや検索式に使っていないか | 一覧の中だけで探す | RFC 7515 §4.1.4、slide:p01-dangerous-header-params、jwt-claims-casestudy@080b8da:G3 |
+| `kid` | 事前に取得した鍵の一覧の中だけで探すか。ファイルのパスや検索式に使っていないか | 一覧の中だけで探す | RFC 8725 §3.10、RFC 7515 §4.1.4（kid はヒント）、slide:p01-dangerous-header-params、jwt-claims-casestudy@080b8da:G3 |
 | `jku`・`x5u` | ヘッダーの URL をたどらないか | たどらない（取得元は `jwks_uri`） | RFC 8725 §3.10、jwt-claims-casestudy@080b8da:G4 |
 | `jwk`・`x5c` | ヘッダーに埋め込まれた鍵を信じないか | 信じない | RFC 8725 §3.10、jwt-claims-casestudy@080b8da:G5 |
 

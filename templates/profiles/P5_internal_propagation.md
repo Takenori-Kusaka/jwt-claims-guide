@@ -86,7 +86,7 @@
 | --- | --- | --- | --- |
 | 直接の通信相手 | 呼び出し元のサービスを何で確かめるか | mTLS（SPIFFE ID など）／ワークロードの ID のトークン／確かめない（避ける） | slide:p06-validation-split、templates/registry/questions.yaml の q-peer |
 | 利用者 | 元の利用者の権限で判断するか（仲介サービスの権限で判断しない） | 内部トークン・Txn-Token の `sub` で判断する | slide:p06-validation-split、ASVS v5.0.0-8.3.3 |
-| 両方の認可 | 呼び出し元のサービスに許す操作と、利用者に許す操作の両方を確かめるか | 両方を確かめる／利用者だけ | NIST SP 800-228 REC-API-12、slide:p06-validation-split |
+| 両方の認可 | 呼び出し元のサービスに許す操作と、利用者に許す操作の両方を確かめるか | 両方を確かめる／利用者だけ | NIST SP 800-228-upd1 REC-API-12、slide:p06-validation-split |
 | 各サービスの検証 | 入口で検証した後も、各サービスが受け手としての検証（自分宛てか・署名・期限）をするか | 共通の検証部品で再確認する／入口に任せる | RFC 9068 §4、slide:p06-validation-split |
 | 入口を通らない経路 | 入口を通らずにサービスへ届く経路はないか | ない（ネットワークで閉じる）／ある（サービスが検証する） | jwt-claims-casestudy@080b8da:B7 |
 | `req_wl` | Txn-Token の `req_wl`（Txn-Token を求めたワークロード）と、直接の通信相手を照合するか | 照合する／しない | draft-ietf-oauth-transaction-tokens-11 §9.2、slide:p06-flow-browser-to-db |
@@ -97,7 +97,7 @@
 | --- | --- | --- | --- | --- |
 |  |  |  |  | `hops[].validates`、`claims[].enforced_at` |
 
-根拠：slide:p06-validation-split、NIST SP 800-228 REC-API-12、RFC 9068 §4
+根拠：slide:p06-validation-split、NIST SP 800-228-upd1 REC-API-12、RFC 9068 §4
 
 <a id="async-messaging"></a>
 ## 4. 非同期の処理（キュー・イベント）〔Full：記入／Lite：参照〕

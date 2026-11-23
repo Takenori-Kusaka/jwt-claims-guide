@@ -28,6 +28,7 @@ GOOD = '''<!-- template_version: 0.3.0 -->
 
 
 def run(tmp_path, text):
+    tc.load_sources(ROOT)
     d = tmp_path / 'templates' / 'modules'
     d.mkdir(parents=True, exist_ok=True)
     (d / 'M_x.md').write_text(text, encoding='utf-8')
@@ -81,3 +82,30 @@ def test_t5_planned_template_items_resolve(tmp_path):
     shutil.copytree(os.path.join(ROOT, 'templates', 'trace'), tmp_path / 'templates' / 'trace')
     out = tc.check_planned(str(tmp_path), [])
     assert out and all(r == 'T5' for r, _, _ in out)
+
+
+def test_t3_offline_existence_checks(tmp_path):
+    """RFC numbers and tracking issues come from tools/template_sources.yaml; repository paths must exist (PR #43 check)."""
+    assert rules(run(tmp_path / 'a', GOOD.replace('RFC 9449 §4.3', 'RFC 99999 §1'))[0]) == ['T3']
+    assert rules(run(tmp_path / 'b', GOOD.replace('（追跡 #4）', '（追跡 #9999）'))[0]) == ['T3']
+    bad = run(tmp_path / 'c', GOOD.replace('RFC 9449 §4.3', 'templates/does-not-exist.md'))[0]
+    assert rules(bad) == ['T3'] and '存在しないパス' in bad[0][2]
+    assert run(tmp_path / 'd', GOOD.replace('RFC 9449 §4.3', 'templates/README.md の 1.'))[0] == []
+
+
+def test_t3_loose_forms_are_rejected(tmp_path):
+    for el in ('でたらめな資料（2024）', 'NIST SP 800-999', 'OWASP なにか', 'ASVS v9.9.9'):
+        assert rules(run(tmp_path / str(abs(hash(el))), GOOD.replace('RFC 9449 §4.3', el))[0]) == ['T3'], el
+
+
+def test_t4_other_columns_of_a_fill_in_table_stay_blank(tmp_path):
+    text = GOOD.replace('| 決めること | 選んだ候補（書き手が書く） | 理由（書き手が書く） |\n| --- | --- | --- |\n| 寿命 |  |  |',
+                        '記入欄：\n\n| 決めること | 中の部品 | 台帳の ID |\n| --- | --- | --- |\n| 寿命 | tid を採用（推奨） | `claims[].x` |')
+    f = run(tmp_path, text)[0]
+    assert rules(f) == ['T4'] and '中の部品' in f[0][2]
+
+
+def test_t6_heading_without_anchor(tmp_path):
+    text = GOOD + '\n## 2. 根拠の無い節\n\ntid を選ぶ。理由：簡単だから\n'
+    assert rules(run(tmp_path / 'a', text)[0]) == ['T6']
+    assert run(tmp_path / 'b', GOOD + '\n<!-- heading-only -->\n## 2. まとめの見出し\n')[0] == []

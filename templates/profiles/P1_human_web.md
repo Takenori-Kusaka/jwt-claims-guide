@@ -22,7 +22,7 @@
 | AT の置き場所 | ブラウザの JavaScript から AT が読めるか。読めるなら、XSS で何が持ち出されるか | BFF のサーバー（ブラウザには Cookie だけ）／ブラウザのメモリ／Web Worker／Service Worker／永続の保存領域 | RFC 10017 §5・§8、slide:p06-flow-browser-to-db |
 | RT の置き場所 | RT をブラウザに渡すか。渡すなら、ローテーションか送信者制約のどちらで守るか | ブラウザに渡さない（BFF が持つ）／渡してローテーション＋再利用の検知／渡して送信者制約（DPoP） | RFC 10017 §6.1.2.2・§6.3.2.3、RFC 9700 §4.14.2 |
 | クライアントの種類 | クライアント認証のできる機密クライアントか、公開クライアントか | 機密（BFF・仲介のバックエンド）／公開（ブラウザの中のクライアント） | RFC 9700 §2.2.2、`issuance_profile.client_type` |
-| Cookie の守り | セッションの Cookie を、CSRF と盗み出しからどう守るか | `HttpOnly`・`Secure`・`SameSite`・`__Host-` 接頭辞、CSRF の対策（同一オリジンの確認など） | RFC 10017 §6.1.3.2 |
+| Cookie の守り | セッションの Cookie を、CSRF と盗み出しからどう守るか | `HttpOnly`・`Secure`・`SameSite`・`__Host-` 接頭辞（RFC は `__Host-Http-` を推奨）、CSRF の対策（同一オリジンの確認など） | RFC 10017 §6.1.3.2・§6.1.3.3 |
 | ID トークン | ID トークンを API に送らないことを、どこで保証するか | BFF のサーバーに留める／ブラウザに渡す | slide:p06-flow-browser-to-db、slide:p01-id-token-vs-access-token |
 | 運び方 | AT を API へどう運ぶか | `Authorization: Bearer`／`Authorization: DPoP`／BFF が付け直す（ブラウザは Cookie） | RFC 6750 §2.1、RFC 9449 §7.1 |
 
@@ -64,7 +64,7 @@
 | API の呼び出し |  |  | `token_types[].transport`（AT の行） |
 | ログ |  |  | `token_types[].log_policy` |
 
-根拠：slide:p09-url-browser、RFC 9700 §4.2・§4.3.2、RFC 9126 §2、OAuth 2.0 Form Post Response Mode（2015）、RFC 9207 §2.4
+根拠：slide:p09-url-browser、RFC 9700 §4.2・§4.3.2、RFC 9126 §1、OAuth 2.0 Form Post Response Mode（2015）、RFC 9207 §2.4
 
 <a id="login-id-token"></a>
 ## 3. ログインと ID トークンの扱い〔Full：記入／Lite：参照〕
@@ -101,7 +101,7 @@
 | --- | --- | --- | --- |
 | 寿命 | アプリのセッションの無操作の期限と絶対的な上限を、IdP のセッション・RT とどう揃えるか | 揃える／アプリのほうを短くする | slide:p08-four-lifetimes、slide:p08-logout |
 | IdP からの通知 | IdP のセッションが終わったことを、アプリはどう知るか | Back-Channel Logout（Logout Token）／Front-Channel Logout／次のリフレッシュの失敗で知る | OpenID Connect Back-Channel Logout 1.0 §2.4・§2.6、OpenID Connect Front-Channel Logout 1.0 §3 |
-| Logout Token の検証 | `iss`・`aud`・`iat`・`jti`・`events` を確かめ、`nonce` があれば拒否するか | 仕様の手順どおり | OpenID Connect Back-Channel Logout 1.0 §2.6 |
+| Logout Token の検証 | `iss`・`aud`・`iat`・`exp`・`sub` か `sid`・`events` を確かめ、`nonce` があれば拒否するか。`jti` での再送の確認は任意（仕様は Optionally） | 仕様の手順どおり | OpenID Connect Back-Channel Logout 1.0 §2.6 |
 | 利用者のログアウト | 利用者の操作でどこまで消すか | アプリのセッションだけ／IdP のセッションも（RP-Initiated Logout）／RT も失効（RFC 7009） | OpenID Connect RP-Initiated Logout 1.0 §2、RFC 7009 §2 |
 | 発行済みの AT | ログアウトの後に残る AT の時間を許すか | `exp` まで許す（寿命で上限を決める）／API が問い合わせで止める | slide:p08-logout、slide:p08-revocation-propagation |
 

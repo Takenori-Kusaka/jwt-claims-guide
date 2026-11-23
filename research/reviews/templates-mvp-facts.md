@@ -71,7 +71,7 @@
 | X1 | 最新は draft-ietf-oauth-transaction-tokens-11（2026-07-30）で、まだ Internet-Draft | https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/（2026-11-23） | web |
 | X2 | 節：§6 寿命（分以下。元のトークンより長くてもよい）、§8.1・§8.2 発行の流れ、§9.1 ヘッダー（typ）、§9.2 クレーム（txn・req_wl など）、§9.2.2 rctx、§9.2.3 tctx、§10 TTS、§12.1 Txn-Token ヘッダー、§12.2 受け取ったまま渡す、§13.13 AT ではない、§13.15 作り直し、§15.2 ログ | https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.html（2026-11-23） | web |
 | X3 | 作り直しで scope の拡大と txn・sub・aud の変更は不可 | slide:p06-transaction-tokens | slide |
-| X4 | 用語「Transaction Token Service（TTS）」と、用語の節 §2（`glossary.md` の `notation` が引く） | draft-ietf-oauth-transaction-tokens-11 §2 | 記憶 |
+| X4 | 用語「Transaction Token Service（TTS）」と、用語の節 §3（`glossary.md` の `notation` が引く。§2 は Notational Conventions。PR #43 の点検で直した） | draft-ietf-oauth-transaction-tokens-11 §3 | 点検で確かめた |
 
 ### 2.4 データ層（`modules/M_data_layer.md`・`00_core.md` の 9.1）
 
@@ -100,7 +100,7 @@ e-Gov 法令 API の現行の本文（https://laws.e-gov.go.jp/api/1/lawdata/415
 
 - RFC 9449：§1、§4.3（proof の照合）、§5（RT を DPoP で束縛）、§6.1（`cnf.jkt`）、§7.1（DPoP の方式）、§8（AS の nonce）、§9（RS の nonce）、§11.1（proof の再送）
 - RFC 8705：§1、§2、§2.1、§3、§3.1（`x5t#S256`）、§6.5（入口での TLS の終端）
-- RFC 9700：§2.1.1、§2.2.1、§2.2.2、§2.3、§2.4、§4.2、§4.3.2、§4.14.2、§4.15.1
+- RFC 9700：§2.1.1、§2.2.1、§2.2.2、§2.4、§4.2、§4.3.2、§4.14.2、§4.15.1
 - RFC 8725：§3.1、§3.8、§3.9、§3.10、§3.11
 - RFC 7519：§2、§4.1.3〜§4.1.5、§7.2、§11.2。RFC 7515：§4.1.4、§5.2。RFC 7516：§4.1.1・§4.1.2
 - RFC 9068：§2.1、§2.2、§2.2.3、§2.2.3.1、§4
@@ -129,7 +129,7 @@ e-Gov 法令 API の現行の本文（https://laws.e-gov.go.jp/api/1/lawdata/415
 
 ## 3. 根拠の中身の抜き取り（10%、最低 10 件）
 
-母数：テンプレートの項目 142、根拠の要素 468。乱数の種 20261123 で 47 件を選んだ（`research/reviews/` に置かない作業用のスクリプトで、`tools/template_check.py` の `template_files`・`split_evidence` を使って数えた）。各行について、その根拠が項目の主張を支えるか（支える・一部・支えない）を記録してください。
+母数：テンプレートの項目 142、根拠の要素 468。乱数の種 20261123 で 47 件を選んだ。数え方：`tools/template_check.py` の `template_files()` の順にファイルを読み、各項目（アンカーの節）の `根拠：` の行を `split_evidence()` で要素に分け、出てきた順に 0 から番号を振った（表のセルの中の根拠は含めない）。選び方は `sorted(random.Random(20261123).sample(range(468), 47))`（Python 3.12・3.14 で同じ結果）。PR #43 の独立点検がこの手順で再現した各行について、その根拠が項目の主張を支えるか（支える・一部・支えない）を記録してください。
 
 | # | 項目 | 根拠 |
 | --- | --- | --- |
@@ -195,6 +195,17 @@ e-Gov 法令 API の現行の本文（https://laws.e-gov.go.jp/api/1/lawdata/415
 ## 5. 記入例（シナリオ B。PR 2）
 
 PR 2 で足します。
+
+## 5a. 手書きの欄の数の数え方
+
+`python tools/count_lite_fields.py --current <記入例> --profile lite|full`（スクリプトの冒頭に同じ説明）。
+
+- YAML の各行で、`id` を除き、値が null でない欄を 1 と数える。明示の空（`consumers: []`）は数える。入れ子の値（`refs`・`enforced_at` など）は 1
+- **lite**：生成の列（`issue_events`・`recompute_trigger`・`propagation_delay`・`change_controller`・`status`・`issuers`）と、`templates/registry/README.md` の 3. で「Full のみ」とした列（実行のたびに README から読む）を数えない。単一値の `overflow_strategy` は数えない。既定どおりで `consumers: []` の行は、R8 と判断に要る列だけ。目録の却下の行は kind・decision・rationale・format（R1 とスキーマが求める 4 列）。発行方式の選択は、既定の組み合わせから外れた項目だけ。ホップは交換・作り直しのホップだけ。カタログへの回答のうち引き継いだ対象外（`inherit: idp-default`）は 1 欄
+- **full**：書いた欄をすべて数える
+- どちらも、`claim_request_*.md` のすべてのファイルで、最後の列が「手書き」の行を足す。網羅の節（`idp`・`subject_states` など）は、書いた葉の値を 1 ずつ数える（値の並びは 1）
+- 乱数は使わない（決まった数え方なので、同じ記入例からは同じ数になる）
+- PR #43 の点検の後の値（シナリオ A）：縮小 Lite 1119、Full 1431（25 問 56 を含む。4 つの共有クレーム × 14 問）
 
 ## 6. 対応表（#22）の変更の点検
 

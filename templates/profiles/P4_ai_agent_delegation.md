@@ -15,7 +15,7 @@
 項目 ID：`template:profiles/P4_ai_agent_delegation#mcp-checklist`
 <!-- req:p10-mcp-authorization.R1 req:p10-mcp-authorization.R2 req:p10-mcp-authorization.R4 req:p10-mcp-authorization.R5 req:p10-mcp-authorization.R6 req:p08-rotation.R6 -->
 
-決めること：MCP の認可の仕様（2026-07-28 版。2026-11-23 に確認）が MUST とする事項を、自分の構成で誰が・どう確かめるか。仕様の要求なので、採否ではなく「確かめ方」と「確かめた結果」を書きます。HTTP 以外の運び方（STDIO）では、この仕様に従わず環境から資格情報を得る、と仕様は述べています（「Protocol Requirements」）。
+決めること：MCP の認可の仕様（2026-07-28 版。2026-11-23 に確認）が MUST とする事項を、自分の構成で誰が・どう確かめるか。仕様の要求なので、採否ではなく「確かめ方」と「確かめた結果」を書きます。HTTP 以外の運び方（STDIO）では、この仕様に従わず（SHOULD NOT follow）、環境から資格情報を得る、と仕様は述べています（「Protocol Requirements」）。
 
 | # | 必須の確認 | 担う部品 | 仕様の強さ | 根拠 |
 | --- | --- | --- | --- | --- |
@@ -128,7 +128,7 @@
 | 観点 | 検討の問い | 候補 | 根拠 |
 | --- | --- | --- | --- |
 | 承認を確かめる者 | 承認したかどうかを、AS が本人に確かめるか | CIBA（別の端末で本人に確かめる）／認可コードの同意画面／エージェントの申告（避ける） | slide:p10-human-approval-evidence、OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1 |
-| 本人に見せる内容 | CIBA の `binding_message` に何を出すか。結果をどう受け取るか | `binding_message` に金額・相手先／poll・ping・push の受け取り方 | OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1・§5 |
+| 本人に見せる内容 | CIBA の `binding_message` に何を出すか。結果をどう受け取るか | `binding_message` に照合用の短い値（仕様は relatively short を求める）、取引の詳細（金額・相手先）は RFC 9396 の `authorization_details`／poll・ping・push の受け取り方 | OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1・§8・§5、RFC 9396 §2 |
 | 承認の内容 | 承認した対象・金額・相手先をトークンに載せるか | `authorization_details`（`identifier` に対象、`locations` にリソースサーバー）／承認 ID だけ（中身は受け手が引く） | RFC 9396 §2・§2.2、slide:p10-human-approval-evidence |
 | 宛先ごとの絞り込み | `authorization_details` を宛先に合わせて絞るか | 宛先ごとに絞る／全部を載せる | RFC 9396 §9.1 |
 | 受け手の照合 | 受け手が、要求の内容（金額・相手先・対象）と承認の内容を照合するか | 照合する（不一致は拒否）／照合しない | jwt-claims-casestudy@080b8da:C5、slide:p10-human-approval-evidence |

@@ -18,7 +18,21 @@ Checks (all errors):
       issue). The form is checked, not whether the source supports the item (that is the 10% sampled check of #13)
   T4  fill-in tables (a header cell containing `（書き手が書く）`) leave that column empty in the template: a template
       gives candidates and questions, never a sample adopt/reject rationale (#4 方針, research report Q6)
+      T4 also checks the other columns of a fill-in table (the table right after a line that starts with 記入欄): only the
+      first column (what to decide) and columns whose header names an ID (台帳・目録の ID) may hold text
   T5  every `template:` ref of templates/trace/planned_items.yaml resolves to a file, and to an anchor when it has one
+  T6  every heading (##, ###, ####) of 00_core.md, claim_request.md, profiles/ and modules/ starts an item (an anchor in the
+      two lines before it), or is marked `<!-- heading-only -->` (a heading that only groups items: its text belongs to
+      the item above it)
+
+Offline existence checks in T3 (tools/template_sources.yaml pins the lists):
+  - slide:<id> exists in deck/slide_ids.json
+  - RFC <n>: n is in the pinned list of RFCs (the section is not checked)
+  - 筆者の提案：...（追跡 #n）: n is in the pinned list of tracking issues (whether that issue carries the proposal is not)
+  - a path in this repository exists (the section after the path is not checked)
+Not checked by machine: RFC and draft sections, versions and sections of other specifications and product documents,
+guidance item numbers, book pages, casestudy commits and case IDs, and whether a source supports the item (the 10% sampled
+check of templates/CONTRIBUTING.md 2.).
 
 --list prints the item IDs (one per line) for the review materials (#5) and the trace table (#22).
 """
@@ -48,11 +62,14 @@ FORMS = [
     ('product', re.compile(r'^(?:Keycloak|Microsoft Entra|Entra ID|Okta|Auth0|Amazon Cognito|Cognito|PostgreSQL|SQL Server'
                            r'|PostgREST|Kafka|Envoy|nginx|Node\.js|AWS|Azure|Google Cloud|Spring|Supabase|Snowflake)'
                            r'.*(?:（[^）]*\d[^）]*）|\d+\.\d+).*$')),
-    ('guidance', re.compile(r'^(?:ASVS v\d+\.\d+\.\d+-[\d.]+|NIST (?:SP|IR) [\w.-]+.*|OWASP .+|CSRB .+|デジタル庁.+|CoSAI .+'
-                            r'|IPA .+|個人情報の保護に関する法律.*|個人情報保護委員会.+)$')),
+    ('guidance', re.compile(r'^(?:ASVS v\d+\.\d+\.\d+-\d+(?:\.\d+)+'
+                            r'|NIST (?:SP 800-\d+[A-Za-z0-9-]*|IR \d{4}) (?:§[\d.]+|REC-[A-Z]+-\d+)'
+                            r'|OWASP (?:[A-Z][\w ]+ Cheat Sheet|API Security Top 10 \d{4} API\d+)'
+                            r'|CSRB 報告書（[^）]+）勧告 \d+|デジタル庁 DS-\d+.*|CoSAI .+ v\d+(?:\.\d+)* §[\d.]+'
+                            r'|個人情報の保護に関する法律（[^）]+）第\d+条.*|個人情報保護委員会「[^」]+」.*)$')),
     ('incident', re.compile(r'^CVE-\d{4}-\d{4,}$')),
     ('book', re.compile(r'^『[^』]+』（[^）]+）.*(?:p\.\s?\d+|節|章).*$')),
-    ('research', re.compile(r'^.+（[^）]*\d{4}[^）]*）.*$')),
+    ('research', re.compile(r'^[^「」]+「[^」]+」（[^）]*\d{4}[^）]*）.*$')),
     ('repo', re.compile(r'^(?:templates|research|tools|docs)/[^\s、]+(?: ?の.+)?$')),
     ('casestudy', re.compile(r'^jwt-claims-casestudy@[0-9a-f]{7,40}(?::[A-Za-z0-9_.-]+)?(?:（.*）)?$')),
     ('proposal', re.compile(r'^筆者の提案：.+（追跡 #\d+）$')),
@@ -95,6 +112,20 @@ def split_evidence(text):
     return merged
 
 
+SOURCES = {'rfcs': {}, 'tracking_issues': {}}
+ROOT_FOR_PATHS = [ROOT]
+
+
+def load_sources(root):
+    import yaml
+    p = os.path.join(root, 'tools', 'template_sources.yaml')
+    if os.path.isfile(p):
+        data = yaml.safe_load(open(p, encoding='utf-8')) or {}
+        SOURCES['rfcs'] = {int(k): v for k, v in (data.get('rfcs') or {}).items()}
+        SOURCES['tracking_issues'] = {int(k): v for k, v in (data.get('tracking_issues') or {}).items()}
+    ROOT_FOR_PATHS[0] = root
+
+
 def evidence_form(el, slides):
     el = el.strip().strip('`')
     for name, rx in FORMS:
@@ -102,6 +133,18 @@ def evidence_form(el, slides):
         if m:
             if name == 'slide' and m.group(1) not in slides:
                 return None, f'slide:{m.group(1)} は実在しないスライド'
+            if name == 'rfc' and SOURCES['rfcs']:
+                n = int(re.match(r'^RFC (\d+)', el).group(1))
+                if n not in SOURCES['rfcs']:
+                    return None, f'RFC {n} は tools/template_sources.yaml の rfcs に無い（開いて確かめてから足す）'
+            if name == 'proposal' and SOURCES['tracking_issues']:
+                n = int(re.search(r'（追跡 #(\d+)）$', el).group(1))
+                if n not in SOURCES['tracking_issues']:
+                    return None, f'追跡 #{n} は tools/template_sources.yaml の tracking_issues に無い'
+            if name == 'repo':
+                path = re.match(r'^([^\s、]+?)(?: ?の.*)?$', el).group(1)
+                if not os.path.exists(os.path.join(ROOT_FOR_PATHS[0], path)):
+                    return None, f'{path} は存在しないパス'
             return name, None
     return None, f'根拠の形が分からない：{el}'
 
@@ -151,7 +194,26 @@ def check_file(path, root, slides):
                 _, err = evidence_form(el, slides)
                 if err:
                     out.append(('T3', where, err))
+    in_items = rel in ('00_core.md', 'claim_request.md') or rel.startswith(('profiles/', 'modules/'))
     for k, line in enumerate(lines):
+        if in_items and re.match(r'^#{2,4} ', line):
+            prev = [x for x in lines[max(0, k - 2):k] if x.strip()]
+            if not any(ANCHOR_RE.search(x) or '<!-- heading-only -->' in x for x in prev):
+                out.append(('T6', f'{rel}:{k + 1}', f'見出し「{line.strip()[:40]}」の前にアンカーが無い（項目にするか <!-- heading-only --> を付ける）'))
+        if line.strip().startswith('記入欄'):
+            j = k + 1
+            while j < len(lines) and not lines[j].strip().startswith('|'):
+                if lines[j].strip() and not lines[j].strip().startswith('<!--'):
+                    break
+                j += 1
+            rows = table_rows(lines, j) if j < len(lines) and lines[j].strip().startswith('|') else []
+            if len(rows) >= 2:
+                for r in rows[2:]:
+                    for c, h in enumerate(rows[0]):
+                        if c == 0 or FILL_MARK in h or 'ID' in h:
+                            continue
+                        if c < len(r) and r[c]:
+                            out.append(('T4', f'{rel}:{j + 1}', f'記入欄の「{h}」に値がある（{r[c][:30]}）。最初の列と ID の列のほかは空にする'))
         if line.strip().startswith('|') and FILL_MARK in line:
             rows = table_rows(lines, k)
             if len(rows) < 2:
@@ -191,6 +253,7 @@ def main(argv=None):
     ap.add_argument('--no-planned', action='store_true', help='skip T5 (planned items of #4 resolve)')
     a = ap.parse_args(argv)
     slides = {s['id'] for s in check_slide_refs.load_json(os.path.join(a.root, 'deck', 'slide_ids.json'), [])}
+    load_sources(a.root)
     files = template_files(a.root)
     findings, items = [], []
     for p in files:
