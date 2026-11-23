@@ -21,7 +21,7 @@ python tools/new_design.py designs/my-service
 
 - 作られるもの：`design.md`（`templates/00_core.md` の写し）、`claims.yaml`（行なし）、`token_types.yaml`（カタログの 17 種類ごとに `decision: 却下`・`rationale` が空の行。使う種類は `採用` に変え、使わない種類は却下の理由を書く）、`hops.yaml`（行なし）、`catalog_answers.yaml`（全イベントの回答が空の行と、Lite の 5 問）
 - yaml-language-server の modeline（`$schema`）は、置き場所からの相対パスで書かれます。OS を問わず同じコマンドで動きます（シェルの展開を使わない）
-- 作った直後に `python tools/claim_lint designs/my-service --profile lite` を実行すると、空の欄の数だけ error が出ます。その一覧が、これから書くことの一覧です
+- 作った直後に `python tools/claim_lint designs/my-service --profile lite` を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です
 - 記入例（`templates/examples/`）は、書き方に迷ったときに読む資料として使います
 
 根拠：templates/CONTRIBUTING.md の 4.、research/template-design/report.md の Q6、筆者の提案：空の骨組みから始めて lint の指摘を作業の一覧にする（追跡 #4）

@@ -21,6 +21,7 @@ def test_new_design_is_blank_and_fails_lint(tmp_path):
     ans = yaml.safe_load((d / 'catalog_answers.yaml').read_text(encoding='utf-8'))['answers']
     assert ans and all(a['answer'] is None for a in ans)
     assert yaml.safe_load((d / 'claims.yaml').read_text(encoding='utf-8'))['claims'] == []
+    assert yaml.safe_load((d / 'claims.yaml').read_text(encoding='utf-8'))['data_category_vocabulary']['name'] == 'fideslang'
     # no sample rationale of a worked example reaches the new design
     example = open(os.path.join(ROOT, 'templates', 'examples', 'scenario-a', 'claims.yaml'), encoding='utf-8').read()
     assert 'saas-api' in example and 'saas-api' not in (d / 'claims.yaml').read_text(encoding='utf-8')
