@@ -328,10 +328,10 @@ def test_volatility_zero_means_immediate_and_is_flagged():
         if c['id'] in ('C-sub', 'C-tenant-id', 'C-nonce'):
             c['volatility'] = 0
     rows = _claim_rows(d)
-    assert rows['C-sub']['exceeds'] and rows['C-sub']['exceeds_text'] == '超える（AT 330 秒・IDT 300 秒 > 許容 0 秒）'
+    assert rows['C-sub']['exceeds'] and rows['C-sub']['exceeds_text'] == '超える（AT 330 秒・IDT 330 秒 > 許容 0 秒）'  # IDT max_clock_skew 30 (#6, L27)
     assert rows['C-tenant-id']['measures'] == ['AT：DB の確認（0 秒）']  # a candidate; whether it applies is on_revoke
     assert rows['C-nonce']['exceeds'] and rows['C-nonce']['measures'] == []
-    assert not rows['C-roles']['exceeds'] and not rows['C-name']['exceeds']  # 330 <= 330, 300 <= 86400
+    assert not rows['C-roles']['exceeds'] and not rows['C-name']['exceeds']  # 330 <= 330, 330 <= 86400
 
 
 def test_volatility_never_is_not_compared():
