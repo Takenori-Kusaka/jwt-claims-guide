@@ -6,6 +6,8 @@
 
 ### 追加
 
+- `review/review.schema.json`（#50）：レビューの記録 `review.yaml`（設計書と同じディレクトリ）の JSON Schema。レビュアーごとに、観点書の問いへの回答（Yes／No／該当なし とメモ）、行ごとの判定（承認・修正を求める・保留。行の内容のハッシュ `tools/row_hash.py` に結びつける）、`report_template.md` の欄の指摘、却下の理由の抜き取り（乱数の種）、専門家に回した項目、戻す事項を持つ。名前は自己申告で、本当の承認は GitHub の PR のレビュー。設計書のエディターのレビューモードが書き出し・読み込み、`tools/review_record.py` が CI で確かめる（古くなった承認の一覧、レポートの生成）。`review/README.md` に案内を足した
+- `examples/scenario-b/review.yaml`・`examples/scenario-b/review-report-2026-11-23.md`（#50）：シナリオ B の今の版を、LLM のセッション 1 つが観点書の全 168 問でレビューした記録と、そこから生成したレポート（人による点検は未実施。指摘 24 件はすべて「保留」）
 - `README.md`：設計書のビューアー（#36）の案内を、それを置き換えた設計書のエディター（#49。https://takenori-kusaka.github.io/jwt-claims-guide/claims/ 。書きながら JSON Schema と claim_lint をブラウザの中で動かす）の案内に書き換えた
 - `runtime/`（#8）：拒否のテスト `negative_tests.md`（32 件）、受け手の契約テスト `consumer_contract.md`（5 件）、見本のトークン `golden_tokens.md`、寿命と失効のテスト `lifetime_revocation.md`。実行するコードは `tools/runtime_tests/`（シナリオ A・B の設計どおりの参照の受け手、試験用の鍵をその場で作るトークンの作り方、Keycloak 26.8.0・Postgres 16 の live の環境）。オフラインの 34 件は CI で動かす。対応表に `test:consumer_contract#declared-reads` を足し、#8 の要件 40 件を実装済みにした（PR #48 の点検で p06-validation-split.R3・p08-rotation.R3 を未着手に戻した）。台帳のスキーマ（`registry/*.schema.json`・`questions.yaml`）、`modules/M_token_validation.md`、`tools/claim_lint/RULES.md` には `req:` の印を足した（中身は変えていない）。`modules/M_token_validation.md` の「検証ライブラリと明示の設定」に「同名のメンバー」の行を足した。`modules/M_idp_keycloak.md` の 8.・9. と `profiles/P1_human_web.md` の 4. に、Keycloak 26.8.0 の実測（交換の exp、RT の再提示）と BFF のリフレッシュの直列化（筆者の提案、追跡 #8）の行を足した。観点書の問いの「つながり」から、作ったテストの「（未実装）」を外し、データ層の問い（cd-06・cd-10・q-db-context-parameterized）などにテストを足した
 - `CONTRIBUTING.md`：根拠の種類と書式、完了の定義、点検者の取り決め、公開物の取り扱い、題材（#13）
