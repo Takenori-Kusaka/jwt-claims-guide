@@ -48,6 +48,10 @@ Checks (all errors):
 Not checked by machine: whether a question is the right question, whether a field really answers it, whether a source
 supports a claim (the 10% sampled check of templates/CONTRIBUTING.md 2.).
 
+--report FILE (repeatable) also checks a review report against the form of report_template.md (RP1-RP10 of
+check_report: sections, items of 1., table headers, the vocabulary of findings, the confused question of 目的と仕組みの
+不一致, the answers of 8.). The review mode of the editor (#50) writes reports in this form.
+
 --list prints the question IDs with their stage; --counts prints the number of questions per stage.
 """
 import argparse
@@ -360,13 +364,233 @@ def check_links_and_forms(root, files):
     return out
 
 
+ROLE_IDS = [('role-issuer', '発行者'), ('role-consumer', '受け手'), ('role-attacker', '攻撃者'), ('role-operations', '運用'),
+            ('role-privacy', '個人情報'), ('role-client', 'クライアントの実装')]
+QID_RANGE = re.compile(r'`((?:q|ap|pa|dc|cf|cd)-(?:[a-z]+-)?)(\d+)`〜`\1(\d+)`')
+
+
+def _section(text, anchor):
+    """The lines after <a id="anchor"></a> up to the next anchor line, a `---` rule or a second ## heading."""
+    out, on, heads = [], False, 0
+    for line in text.splitlines():
+        am = ANCHOR_LINE.match(line.strip())
+        if am:
+            if on:
+                break
+            on = am.group(1) == anchor
+            continue
+        if not on:
+            continue
+        if line.startswith('## '):
+            heads += 1
+        if line.strip() == '---' or heads > 1:
+            break
+        out.append(line)
+    return '\n'.join(out)
+
+
+def _qids(text, known):
+    """Question IDs quoted in text, with ranges such as `pa-01`〜`pa-25` expanded to the IDs that exist."""
+    ids = []
+    for m in QID_RANGE.finditer(text):
+        pre, a, b = m.group(1), int(m.group(2)), int(m.group(3))
+        ids += [f'{pre}{n:0{len(m.group(2))}d}' for n in range(a, b + 1)]
+    ids += QID_IN_TICKS.findall(text)
+    out = []
+    for i in ids:
+        if i in known and i not in out:
+            out.append(i)
+    return out
+
+
+def roles_and_stages(text, questions):
+    """The role index of perspectives.md 7. ([{id, name, title, lead, questions}]) and the heads of the stages 1.-6.
+    ([{id, name, title, who}]). A question belongs to a role when the table of the role quotes it (ranges expanded)."""
+    known = {q['id'] for q in questions}
+    lines = text.splitlines()
+    heading = {}
+    for k, line in enumerate(lines):
+        am = ANCHOR_LINE.match(line.strip())
+        if am:
+            nxt = next((x for x in lines[k + 1:k + 4] if x.startswith('#')), None)
+            if nxt:
+                heading[am.group(1)] = nxt.lstrip('#').strip()
+    roles = []
+    for rid, name in ROLE_IDS:
+        sec = _section(text, rid).splitlines()
+        lead = next((x.strip() for x in sec if x.strip().startswith('「')), '')
+        roles.append({'id': rid, 'name': name, 'title': heading.get(rid, name), 'lead': lead,
+                      'questions': _qids('\n'.join(x for x in sec if x.startswith('|')), known)})
+    stages = []
+    for sid, name in STAGES:
+        sec = _section(text, sid).splitlines()
+        who = next((x.strip() for x in sec if x.startswith('**誰が確かめるか**')), '')
+        stages.append({'id': sid, 'name': name, 'title': heading.get(sid, name), 'who': re.sub(r'^\*\*誰が確かめるか\*\*：', '', who)})
+    return roles, stages
+
+
+# ------------------------------------------------------------------ the form of a review report (#50)
+REPORT_FORM = os.path.join(REVIEW_DIR, 'report_template.md')
+ANSWER_WORDS = ('Yes', 'No', '該当なし')
+RR_WORDS = ('満', '否', '対象外')
+PASS_WORDS = ('合格', '不合格')
+EMPTY = ('', '—', '-')
+
+
+def report_form(root):
+    """The form of report_template.md (the fenced block after <a id="form">): the ## headings, the table header under
+    each, the items of 1., and the vocabulary (origins, kinds, severities, verdicts, states)."""
+    text = trace_check._read(os.path.join(root, REPORT_FORM))
+    block = re.search(r'<a id="form"></a>.*?```markdown\n(.*?)\n```', text, re.S).group(1)
+    sections, cur = [], None
+    for line in block.splitlines():
+        if line.startswith('## '):
+            cur = {'heading': line[3:].strip(), 'header': None, 'items': []}
+            sections.append(cur)
+        elif cur is not None and line.startswith('|'):
+            cells = [c.strip() for c in line.strip().strip('|').split('|')]
+            if cur['header'] is None:
+                cur['header'] = cells
+            elif not set(''.join(cells)) <= set('-: ') and cells[0]:
+                cur['items'].append(cells[0])
+
+    def first_column(anchor):
+        part = text.split(f'<a id="{anchor}"></a>', 1)[1].split('<a id=', 1)[0]
+        rows = [[c.strip() for c in x.strip().strip('|').split('|')] for x in part.splitlines() if x.startswith('|')]
+        return [r[0] for r in rows[2:]]
+    sev = text.split('<a id="severities"></a>', 1)[1].split('<a id=', 1)[0]
+
+    def words(label):
+        line = next(x for x in sev.splitlines() if x.startswith(f'- {label}：'))
+        return [re.sub(r'（.*', '', w).strip() for w in line.split('：', 1)[1].split('／')]
+    return {'sections': sections, 'origins': first_column('origins'), 'kinds': first_column('kinds'),
+            'severities': words('重大度'), 'verdicts': words('判定'), 'states': words('対応の状態')}
+
+
+def _tables(lines):
+    """[(header cells, [row cells])] of the Markdown tables in lines."""
+    out, cur = [], None
+    for line in lines:
+        if line.startswith('|'):
+            cells = [c.strip() for c in line.strip().strip('|').split('|')]
+            if cur is None:
+                cur = (cells, [])
+                out.append(cur)
+            elif not set(''.join(cells)) <= set('-: '):
+                cur[1].append(cells)
+        else:
+            cur = None
+    return out
+
+
+def check_report(root, text, questions=None):
+    """Problems of a review report against the form of report_template.md: [(rule, where, message)].
+
+    RP1 the title; RP2 the ## sections 1.-8. in order (more sections may follow); RP3 the items of 1., each with a value;
+    RP4 the table header of each section; RP5 the findings of 2.: unique IDs, the vocabulary of severity, origin, kind and
+    verdict, and the confused question exactly when the kind is 目的と仕組みの不一致; RP6 3. names findings of 2. and a
+    state of the vocabulary; RP7 4. has the line 当てはまらなかった基準; RP8 6. scores RR1-RR7 with 満・否・対象外 and
+    合格・不合格; RP9 7. is not empty; RP10 8. answers questions of perspectives.md, each at most once, with Yes・No・該当なし."""
+    form = report_form(root)
+    if questions is None:
+        questions = parse_questions(trace_check._read(os.path.join(root, REVIEW_DIR, 'perspectives.md')))
+    qids = {q['id'] for q in questions}
+    errs = []
+    lines = text.replace('\r\n', '\n').split('\n')
+    first = next((x for x in lines if x.startswith('# ')), '')
+    if not re.match(r'^# レビューレポート：.+', first):
+        errs.append(('RP1', 'title', '最初の見出しが「# レビューレポート：<設計書の名前>」でない'))
+    heads = [(k, x[3:].strip()) for k, x in enumerate(lines) if x.startswith('## ')]
+    want = [s['heading'] for s in form['sections']]
+    if [h for _, h in heads][:len(want)] != want:
+        errs.append(('RP2', 'sections', f'## の節が様式と違う（様式：{want}／実際：{[h for _, h in heads]}）'))
+        return errs
+    body = {}
+    for i, (k, hd) in enumerate(heads):
+        body[hd] = lines[k + 1:heads[i + 1][0] if i + 1 < len(heads) else len(lines)]
+    rows = {}
+    for s in form['sections']:
+        key = s['heading'][:2]
+        if s['header'] is None:
+            if not any(x.strip() for x in body[s['heading']]):
+                errs.append(('RP9', s['heading'], '空'))
+            continue
+        tabs = _tables(body[s['heading']])
+        if not tabs:
+            errs.append(('RP4', s['heading'], '表が無い'))
+            continue
+        for hdr, _ in tabs:
+            if hdr != s['header']:
+                errs.append(('RP4', s['heading'], f'表の見出しが様式と違う（様式：{s["header"]}／実際：{hdr}）'))
+        rows[key] = [r for _, rs in tabs for r in rs if any(r)]
+    if errs:
+        return errs
+    items = next(s['items'] for s in form['sections'] if s['heading'].startswith('1.'))
+    if [r[0] for r in rows['1.']] != items:
+        errs.append(('RP3', '1.', f'項目が様式と違う（様式：{items}／実際：{[r[0] for r in rows["1."]]}）'))
+    for r in rows['1.']:
+        if len(r) < 2 or r[1] in EMPTY:
+            errs.append(('RP3', '1.', f'{r[0]} の値が空'))
+    ids = []
+    for r in rows['2.']:
+        if len(r) != 8:
+            errs.append(('RP5', '2.', f'列の数が 8 でない：{r}'))
+            continue
+        fid, _, content, sev_, origin, kind, confused, verdict = r
+        where = f'2. {fid}'
+        if not fid or fid in ids:
+            errs.append(('RP5', where, 'ID が空か重複している'))
+        ids.append(fid)
+        if content in EMPTY:
+            errs.append(('RP5', where, '内容が空'))
+        for val, vocab, label in ((sev_, form['severities'], '重大度'), (origin, form['origins'], '出どころ'),
+                                  (kind, form['kinds'], '種別'), (verdict, form['verdicts'], '判定')):
+            if val not in vocab:
+                errs.append(('RP5', where, f'{label}「{val}」が語彙（{"・".join(vocab)}）に無い'))
+        mismatch = kind == '目的と仕組みの不一致'
+        if mismatch and confused in EMPTY:
+            errs.append(('RP5', where, '種別が目的と仕組みの不一致なのに、取り違えた問いが無い'))
+        if not mismatch and confused not in EMPTY:
+            errs.append(('RP5', where, '取り違えた問いは、種別が目的と仕組みの不一致のときだけ書く'))
+    for r in rows['3.']:
+        if r[0] not in ids:
+            errs.append(('RP6', f'3. {r[0]}', '2. に無い指摘 ID'))
+        if len(r) < 4 or r[3] not in form['states']:
+            errs.append(('RP6', f'3. {r[0]}', f'状態が語彙（{"・".join(form["states"])}）に無い'))
+    h4 = next(s['heading'] for s in form['sections'] if s['heading'].startswith('4.'))
+    if not any(x.startswith('当てはまらなかった基準：') for x in body[h4]):
+        errs.append(('RP7', '4.', '「当てはまらなかった基準：」の行が無い'))
+    for r in rows['6.']:
+        for v in r[2:9]:
+            if v not in RR_WORDS:
+                errs.append(('RP8', f'6. {r[0]}', f'採点「{v}」が {"・".join(RR_WORDS)} でない'))
+        if len(r) < 10 or r[9] not in PASS_WORDS:
+            errs.append(('RP8', f'6. {r[0]}', f'合否が {"・".join(PASS_WORDS)} でない'))
+    seen = set()
+    for r in rows['8.']:
+        q = r[1].strip('`') if len(r) > 1 else ''
+        if q not in qids:
+            errs.append(('RP10', f'8. {q}', '観点書に無い問い ID'))
+        if q in seen:
+            errs.append(('RP10', f'8. {q}', '問いの回答が重複している'))
+        seen.add(q)
+        if len(r) < 3 or r[2] not in ANSWER_WORDS:
+            errs.append(('RP10', f'8. {q}', f'回答が {"・".join(ANSWER_WORDS)} でない'))
+    return errs
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--root', default=ROOT)
+    ap.add_argument('--report', action='append', default=[], metavar='FILE',
+                    help='also check that a review report follows the form of report_template.md (RP1-RP10)')
     ap.add_argument('--list', action='store_true', help='print the question IDs with their stage')
     ap.add_argument('--counts', action='store_true', help='print the number of questions per stage')
     a = ap.parse_args(argv)
     errors, questions, files = check(a.root)
+    for rp in a.report:
+        with open(rp, encoding='utf-8') as f:
+            errors += [(r, f'{rp}: {w}', m) for r, w, m in check_report(a.root, f.read(), questions)]
     out = []
     if a.list:
         out += [f'{q["stage"] or "-"}\t{q["id"]}' for q in questions]

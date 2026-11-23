@@ -14,7 +14,11 @@ Files written (docs/claims/data/):
                    *.schema.json properties), review questions that look at each column (templates/review/),
                    questions, event and token-kind names, slide titles (docs/slide_ids.csv), the list of samples
   trace.js         tier x status counts of the trace table (templates/trace/requirements.yaml, #22)
-  schemas.js       the registry JSON Schemas (templates/registry/*.schema.json) for the in-browser schema check
+  schemas.js       the registry JSON Schemas (templates/registry/*.schema.json) for the in-browser schema check, and
+                   templates/review/review.schema.json (review.yaml, #50)
+  review.js        the review mode (#50): the 168 questions of templates/review/perspectives.md with stage, roles (the
+                   index 7.), 見る欄 / No なら / つながり / 根拠 and their refs; the stages and roles; the headings that
+                   見る欄 points at; contrasts, decision tree, escalation criteria, rubric; the form of report_template.md
   skeleton.js      the files of python tools/new_design.py (an empty design), for 「空の雛形から始める」
   sample-<x>.js    the files of each worked example (YAML, claim_request_*.md, design.md), for 「サンプルを開く」
   claim_lint.zip   tools/claim_lint and the files it reads (catalogue, registry, slide IDs), unpacked into Pyodide's
@@ -163,6 +167,101 @@ def review_links():
     return dict(sorted(out.items()))
 
 
+REF_TICK = re.compile(r'`((?:review|template|registry|catalog|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_][A-Za-z0-9_.-]*)?)`')
+HEAD_RE = re.compile(r'^(#{1,6})\s+(.*)$')
+NUM_RE = re.compile(r'^(\d+(?:\.\d+)*\.?|[A-Z]\.)\s+')  # 1. / 3.2 / A.
+
+
+def _md_heads(rel):
+    """{anchor: {level, number, title}} of the <a id> anchors of a Markdown file (the heading right after each)."""
+    lines = _read(rel).split('\n')
+    out = {}
+    for k, line in enumerate(lines):
+        m = re.match(r'^<a id="([^"]+)"></a>\s*$', line.strip())
+        if not m:
+            continue
+        nxt = next((x for x in lines[k + 1:k + 4] if HEAD_RE.match(x)), None)
+        if not nxt:
+            out[m.group(1)] = {'level': 0, 'number': '', 'title': ''}
+            continue
+        hm = HEAD_RE.match(nxt)
+        title = re.sub(r'〔[^〕]*〕', '', hm.group(2)).strip()
+        num = NUM_RE.match(title)
+        out[m.group(1)] = {'level': len(hm.group(1)), 'number': num.group(1) if num else '',
+                           'title': title[num.end():].strip() if num else title}
+    return out
+
+
+def _ref(r):
+    kind, rest = r.split(':', 1)
+    path, _, anchor = rest.partition('#')
+    return {'ref': r, 'kind': kind, 'path': path, 'anchor': anchor}
+
+
+def review_bundle():
+    """data/review.js: the 168 questions of templates/review/perspectives.md (stage, roles of the index 7., the four
+    fields, the refs of 見る欄 and つながり), the stages and roles, the headings that 見る欄 points at, the other review
+    materials (contrasts, decision tree, escalation criteria, rubric) and the form of report_template.md (#50)."""
+    persp_rel = 'templates/review/perspectives.md'
+    text = _read(persp_rel)
+    questions = review_check.parse_questions(text)
+    roles, stages = review_check.roles_and_stages(text, questions)
+    role_of = {}
+    for r in roles:
+        for q in r['questions']:
+            role_of.setdefault(q, []).append(r['id'])
+    version = re.match(r'<!-- template_version: ([0-9.]+) -->', text).group(1)
+    heads = {}
+
+    def head_of(r):
+        if r['kind'] != 'template' or r['ref'] in heads:
+            return
+        rel = 'templates/' + r['path'] + '.md'
+        if os.path.isfile(os.path.join(ROOT, rel)):
+            h = _md_heads(rel).get(r['anchor']) if r['anchor'] else {'level': 1, 'number': '', 'title': ''}
+            heads[r['ref']] = dict(h or {'level': 0, 'number': '', 'title': ''}, file=rel)
+    qs = []
+    for q in questions:
+        see = [_ref(m) for m in REF_TICK.findall(q['fields'].get('見る欄', ''))]
+        links = [_ref(m) for m in REF_TICK.findall(q['fields'].get('つながり', ''))]
+        for r in see:
+            head_of(r)
+        qs.append({'id': q['id'], 'stage': q['stage'], 'text': q['text'], 'roles': role_of.get(q['id'], []),
+                   'see': q['fields'].get('見る欄', ''), 'no': q['fields'].get('No なら', ''),
+                   'links': q['fields'].get('つながり', ''), 'evidence': q['fields'].get('根拠', ''),
+                   'see_refs': see, 'link_refs': links,
+                   'url': REPO_BLOB + persp_rel + (f"#{q['anchor']}" if q['anchor'] else f"?plain=1#L{q['line']}")})
+    contrasts = []
+    for path in review_check.review_files(ROOT):
+        rel = review_check.rel_of(ROOT, path)
+        if '/contrasts/' in rel:
+            title = next(x for x in _read(rel).split('\n') if x.startswith('# '))[2:].replace('対比表：', '').strip()
+            contrasts.append({'file': rel, 'name': os.path.basename(rel)[:-3], 'title': title,
+                              'sections': [{'id': a, 'title': h['title']} for a, h in _md_heads(rel).items()]})
+    dt_rel = 'templates/review/decision_tree.md'
+    esc = _read('templates/review/escalation.md')
+    criteria = [{'id': m.group(1), 'when': m.group(2).strip(), 'why': m.group(3).strip()}
+                for m in re.finditer(r'^\| `([a-z0-9-]+)` \|([^|]*)\|([^|]*)\|\s*$', esc, re.M)]
+    rub = _read('templates/review/rationale_rubric.md')
+    rubric = [{'id': m.group(1), 'name': m.group(2).strip(), 'question': m.group(3).strip()}
+              for m in re.finditer(r'^\| (RR\d) ([^|]+)\|([^|]+)\|', rub, re.M)]
+    form = review_check.report_form(ROOT)
+    return {'format': 'claims-review-data/1', 'generator': 'python tools/build_claims_viewer.py',
+            'source': persp_rel, 'template_version': version, 'repo_blob': REPO_BLOB,
+            'stages': stages, 'roles': roles, 'questions': qs, 'template_heads': dict(sorted(heads.items())),
+            'contrasts': contrasts,
+            'decision_tree': {'file': dt_rel, 'sections': [{'id': a, 'title': h['title'], 'number': h['number']}
+                                                            for a, h in _md_heads(dt_rel).items()]},
+            'escalation': {'file': 'templates/review/escalation.md', 'criteria': criteria},
+            'rubric': {'file': 'templates/review/rationale_rubric.md', 'items': rubric},
+            'report': {'file': 'templates/review/report_template.md',
+                       'sections': [{'heading': s['heading'], 'header': s['header'], 'items': s['items']} for s in form['sections']],
+                       'origins': form['origins'], 'kinds': form['kinds'], 'severities': form['severities'],
+                       'verdicts': form['verdicts'], 'states': form['states']},
+            'versions': {review_check.rel_of(ROOT, p): re.match(r'<!-- template_version: ([0-9.]+) -->', _read(review_check.rel_of(ROOT, p))).group(1)
+                         for p in review_check.review_files(ROOT)}}
+
+
 def names():
     def load(rel):
         return yaml.safe_load(_read(rel))
@@ -220,6 +319,8 @@ def schemas():
     for name in ('claims', 'token_types', 'hops'):
         with open(os.path.join(ROOT, 'templates', 'registry', name + '.schema.json'), encoding='utf-8') as f:
             out[name] = json.load(f)
+    with open(os.path.join(ROOT, 'templates', 'review', 'review.schema.json'), encoding='utf-8') as f:
+        out['review'] = json.load(f)  # review.yaml (#50), checked when it is read in
     return out
 
 
@@ -350,11 +451,14 @@ def expected():
     out['data/meta.js'] = js('meta', meta)
     out['data/trace.js'] = js('trace', trace_counts())
     out['data/schemas.js'] = js('schemas', schemas())
+    out['data/review.js'] = js('review', review_bundle())
     out['data/skeleton.js'] = js('skeleton', {'dir': SKELETON_DIR, 'generator': 'python tools/new_design.py',
                                               'files': skeleton_files()})
     for i, rel, label, prof in DATASETS:
-        out[f'data/sample-{i[len("scenario-"):]}.js'] = js('sample-' + i[len('scenario-'):], {
-            'id': i, 'design': rel, 'label': label, 'profile': prof, 'files': sample_files(rel)})
+        sample = {'id': i, 'design': rel, 'label': label, 'profile': prof, 'files': sample_files(rel)}
+        if os.path.isfile(os.path.join(ROOT, rel, 'review.yaml')):
+            sample['review'] = _read(rel + '/review.yaml')  # the recorded review of the example (#50)
+        out[f'data/sample-{i[len("scenario-"):]}.js'] = js('sample-' + i[len('scenario-'):], sample)
     out['data/claim_lint.zip'] = lint_zip()
     out['vendor/MANIFEST.json'] = json.dumps(manifest(), ensure_ascii=False, indent=1) + '\n'
     return out

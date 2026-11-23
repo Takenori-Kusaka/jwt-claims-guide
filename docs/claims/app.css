@@ -195,3 +195,28 @@ dialog.confirm::backdrop { background: rgba(0, 0, 0, .35); }
 dialog.confirm h2 { margin-top: 0; font-size: 1.1rem; }
 dialog.confirm .buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
 .savewarn { margin: 0; padding: .4rem 1rem; background: var(--warn-bg); color: var(--warn); border-bottom: 2px solid var(--warn); font-weight: 600; }
+.savewarn p { margin: .2rem 0; }
+/* ---- review mode (#50) */
+.rv-panel { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: .5rem .8rem; background: var(--panel); }
+.rv-panel h2 { margin-top: .2rem; font-size: 1.05rem; }
+.rv-panel h3 { font-size: .95rem; margin: .8rem 0 .3rem; }
+.rv-dec, .rv-ans { border: 1px solid var(--line); border-radius: 6px; padding: .3rem .6rem; margin: .4rem 0; display: flex; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; }
+.rv-dec legend, .rv-ans legend { font-size: .82rem; color: var(--muted); padding: 0 .3rem; }
+.rv-comment, .rv-memo { width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; }
+.rv-memo-l { flex-basis: 100%; font-size: .8rem; color: var(--muted); }
+.rv-q { border-top: 1px solid var(--line); padding: .6rem 0; }
+.rv-q h3 { margin: .1rem 0 .3rem; font-weight: 600; }
+.rv-q[data-answer="no"] { border-left: 4px solid var(--ng); padding-left: .6rem; }
+.rv-q[data-answer="yes"] { border-left: 4px solid var(--ok); padding-left: .6rem; }
+.rv-q[data-answer="na"] { border-left: 4px dashed var(--muted); padding-left: .6rem; }
+.rv-see { margin: .2rem 0; font-size: .88rem; }
+.rv-others { margin: .2rem 0; padding-left: 1.1rem; color: var(--muted); }
+.chip { font-size: .75rem; border: 1px solid var(--line); border-radius: 999px; padding: 0 .5em; color: var(--muted); }
+.rv-fform textarea { width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; }
+.rv-fform h2 { margin: 0; }
+.rv-rr { display: flex; flex-wrap: wrap; gap: .4rem .8rem; margin: .4rem 0; }
+.rv-rr label { display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); }
+.rv-report { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; font: .82rem/1.5 var(--mono); max-height: 70vh; overflow: auto; }
+td.done { background: var(--ok-bg); }
+td.done::after { content: " ✓"; color: var(--ok); }
+.buttons { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
