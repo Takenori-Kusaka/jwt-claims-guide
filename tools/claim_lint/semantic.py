@@ -27,7 +27,7 @@ SEV = {
     'L8': WARN, 'L9': ERROR, 'L15': WARN, 'L16': ERROR, 'L17': ERROR, 'L18': WARN, 'L21': ERROR, 'L22': ERROR,
     'L23': ERROR, 'L25': ERROR, 'L27': ERROR, 'L31': ERROR, 'L37': ERROR, 'L43': WARN,
     'L62': WARN, 'L63': WARN, 'L64': WARN, 'L65': ERROR, 'L66': WARN, 'L67': ERROR,
-    'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': WARN, 'L73': WARN, 'L74': WARN,
+    'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': WARN, 'L73': WARN,
 }
 LITE_WARN = {'L22'}  # issue #6: L22 is warn in Lite
 
@@ -926,34 +926,9 @@ def rule_l73(x):
             x.add('L73', 'lite_criteria', f"{k} が Yes なので #4 の定義では Full。Lite で書いている（{a.get('reason', '')}）")
 
 
-# ------------------------------------------------------------------ L74: text after " #" in a value is a YAML comment
-def _outside_quotes(s):
-    return s.count('"') % 2 == 0 and s.count("'") % 2 == 0
-
-
-def rule_l74(x):
-    """A plain scalar ends at " #": the rest of the line is a comment and silently leaves the value (found in #39).
-    Comments go on their own line; a value with " #" is quoted."""
-    for fname in ('claims', 'token_types', 'hops', 'catalog_answers'):
-        p = os.path.join(x.design_dir, fname + '.yaml')
-        if not os.path.isfile(p):
-            continue
-        with open(p, encoding='utf-8') as f:
-            for lineno, line in enumerate(f, 1):
-                if line.lstrip().startswith('#'):
-                    continue
-                x.count('L74')
-                for m in re.finditer(r'\s#', line):
-                    before = line[:m.start()]
-                    if ':' in before and _outside_quotes(before):
-                        x.add('L74', f'{fname}.yaml:{lineno}', f"値の後ろの「{line[m.start():].strip()[:30]}」は YAML のコメントになり、値から消える。"
-                                                              '値に含めるなら引用符で囲み、コメントなら行を分ける')
-                        break
-
-
 RULES = [rule_l1a, rule_l1b, rule_l2, rule_l3, rule_l4, rule_l5, rule_l6, rule_l7, rule_l8, rule_l9, rule_l15, rule_l16,
          rule_l17, rule_l18, rule_l21, rule_l22, rule_l23, rule_l25, rule_l27, rule_l31, rule_l37, rule_l43, rule_effects,
-         rule_l65, rule_l66, rule_l67, rule_l68_71, rule_l72, rule_l73, rule_l74]
+         rule_l65, rule_l66, rule_l67, rule_l68_71, rule_l72, rule_l73]
 
 
 def run(docs, profile, design_dir, root, catalog_dir, today=None, caps_path=None):

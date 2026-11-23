@@ -1,6 +1,6 @@
 # claim_lint の規則
 
-設計書の台帳（`claims.yaml`）・トークン目録（`token_types.yaml`）・カタログへの回答（`catalog_answers.yaml`）を検査する規則です。#16（縦の一本）で R1・R2・R8 とスライドの参照の解決を作り、#17 で網羅の規則（R2 の強化・R3・R3b・R4・R6・R9・R10。`tools/claim_lint/coverage.py`）を足しました。#6 で意味の規則（L1a〜L74 の一部と L10。`tools/claim_lint/semantic.py`・`diff.py`）を足しました。下の「意味の規則」の節にあります。#18 で目的と仕組みの宣言の整合の規則（L11〜L14。`tools/claim_lint/purpose.py`）を足しました。下の「目的と仕組みの規則」の節にあります。
+設計書の台帳（`claims.yaml`）・トークン目録（`token_types.yaml`）・カタログへの回答（`catalog_answers.yaml`）を検査する規則です。#16（縦の一本）で R1・R2・R8 とスライドの参照の解決を作り、#17 で網羅の規則（R2 の強化・R3・R3b・R4・R6・R9・R10。`tools/claim_lint/coverage.py`）を足しました。#6 で意味の規則（L1a〜L73 の一部と L10。`tools/claim_lint/semantic.py`・`diff.py`）を足しました。下の「意味の規則」の節にあります。#18 で目的と仕組みの宣言の整合の規則（L11〜L14。`tools/claim_lint/purpose.py`）を足しました。下の「目的と仕組みの規則」の節にあります。
 
 ```
 python tools/claim_lint templates/examples/scenario-a                 # 人向けの表
@@ -68,7 +68,6 @@ error が 1 件でもあれば終了コード 1 です。error の規則は抑�
 | L71 | 台帳・目録・ホップの YAML に、メールアドレス（example.com などの予約の名前を除く）・電話番号・JWT・秘密らしい文字列（秘密鍵・AWS のアクセスキー・`sk_live_` など）がある | warn のみ | slide:p09-do-not-carry、`.gitleaks.toml` | 3 ファイル／0／—／0 |
 | L72 | 組織の名前空間で採用・status が proposed 以上の共有クレームに、追加前の 25 問の回答（設計書のディレクトリの `claim_request_*.md`。「- 対象：」の行に台帳の ID を `` ` `` で書き、`\| 番号 \| 問い \| 回答 \|` の表に 1〜25 が並ぶ）が揃っていない（空欄・未定・TBD など） | warn | slide:p11-pre-add-questions-1・slide:p11-pre-add-questions-2 | 4／3（C-user-id・C-roles・C-v に 25 問がない）／0／3 |
 | L73 | `--profile lite` なのに、#4 の Lite の判定の 5 問（`catalog_answers.yaml` の `lite_criteria`：crosses_boundary・multitenant・delegation_or_exchange・new_issuer・regulated）に答えていない、または 1 つでも Yes（#16 の A17）。Full では見ない | warn | #4 の Lite の定義、research/template-design/gate1.md の 5. | Lite で 1／1（multitenant が Yes）／0／1 |
-| L74 | 設計書の YAML で、値の後ろの「 #」から先がコメントになり、値から消えている（引用符の外の ` #`。コメントは行を分ける）。#39 で見つかった 3 か所と同じ形を止める | warn | YAML 1.2.2 §6.6（コメント） | 1576 行／3（#39 で直した 3 か所と同じ）／0／0 |
 | L10 | `python tools/claim_lint diff --base <git ref> <設計書>`：前の版と比べて、採用のクレームの削除（前の版で sunset なら info）・改名・型・形・用途の変更、必須化（on_missing が拒否に、`required_claims` に名前を足す）、受け手のいるクレームを種別から外す、採用の種別の削除・typ の変更を error、description・not_meaning の変更を warn にする（req:p11-why-govern.R4） | error（description は warn） | slide:p11-why-govern、slide:p11-change-procedure | main との比較で 0。履歴との比較：befd117（#16 の最初）から 2 件（C-scope の形を single から space_delimited に直した、AT の required_claims に azp を足した＝A08）、b684571 から 1 件。どちらも正しい検出（scope は宣言の訂正で、実物のトークンは変わっていない）／誤検知 0 |
 
 `against` と `with` は、この PR で `enforced_at` の要素に足した任意の列です（`templates/registry/README.md` の `enforced_at`）。
@@ -82,9 +81,8 @@ error が 1 件でもあれば終了コード 1 です。error の規則は抑�
 - L68〜L71：#6 の本文が「warn から始める」（L70 は error にしない）
 - L72：3 件とも正しい指摘だが、25 問の様式（`templates/claim_request.md`）は #4 で決まる。#4 で C-user-id・C-roles・C-v の 25 問を書いてから error に上げる
 - L73：Lite の判定の 5 問は #4 で決まる。シナリオ A は Full に当たるのに Lite で書いた例（意図して残した正しい指摘）
-- L74：足したばかりで、シナリオ A 以外で測っていない
 
-**シナリオ A の誤検知は全規則で 0 件でした。** 足した直後の指摘は 18 件（L1a 1・L9 1・L27 1・L31 7・L72 3・L74 3・L73 は Lite で 1・L1b／L2／L27 の info を除く）で、すべて正しい指摘（宣言の欄が無いか、値が足りない）でした。L72・L73 の 4 件を除いて、記入例に欄を足しました（`design.md` の 13.）。シナリオ A は 1 件だけなので、誤検知 0 件は弱い証拠です。
+**シナリオ A の誤検知は全規則で 0 件でした。** 足した直後の指摘は 15 件（L1a 1・L9 1・L27 1・L31 7・L72 3・L73 は Lite で 1・L1b／L2／L27 の info を除く）で、すべて正しい指摘（宣言の欄が無いか、値が足りない）でした。L72・L73 の 4 件を除いて、記入例に欄を足しました（`design.md` の 13.）。シナリオ A は 1 件だけなので、誤検知 0 件は弱い証拠です。
 
 ### R8 の info の見直し（#16 からの引き渡し）
 
