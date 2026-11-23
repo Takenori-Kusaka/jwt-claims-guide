@@ -418,7 +418,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 **ap-2-4**　（アンチパターン：名前空間なしの独自クレーム）独自クレームがすべて組織の URI の名前空間の下にあるか
 - 見る欄：`registry:claims#namespace`、`registry:claims#namespaces`
 - No なら：Major（予約名と衝突し、黙って消える）
-- つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L1b`／事例 Auth0 の名前空間の規則（名前空間のない独自クレームを黙って落とす）
+- つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L1b`／事例 Auth0 の予約名（`roles`・`groups` など）と衝突した独自クレームは、エラーにならず黙って追加されない
 - 根拠：slide:p12-antipatterns-2、slide:p03-auth0-namespace
 <!-- req:p12-antipatterns-2.R4 -->
 
@@ -512,7 +512,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 **ap-1-7**　（アンチパターン：本人が書ける属性から権限を作る）権限・識別子のクレームの出どころ（`provenance`）に、本人が編集できる値・呼び出し側の申告・テナントの管理者が変えられる値が無いか（あるなら、API が `iss` や API の設定と照合しているか）
 - 見る欄：`registry:claims#provenance`、`registry:claims#modifiers`、`registry:claims#enforced_at`
 - No なら：Blocker（権限の昇格）
-- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`／事例 Cognito の custom 属性（既定で本人が書ける）
+- つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`／事例 Cognito の `custom:` 属性（読み取り専用にしない限り、本人が書き換えられる場合がある）
 - 根拠：slide:p12-antipatterns-1、slide:p03-cognito-pre-token-hook、slide:p04-split-by-writer
 <!-- req:p12-antipatterns-1.R7 -->
 
