@@ -32,6 +32,10 @@ class Numbers(unittest.TestCase):
             with self.assertRaises(ValueError):
                 row_hash.jcs({'a': v})
 
+    def test_not_finite_key_is_its_text(self):
+        # .inf / .nan as a mapping key: the editor's yaml package gives String(Infinity); row_hash does the same (#50)
+        self.assertEqual(row_hash.jcs({float('inf'): 1, float('-inf'): 2, float('nan'): 3}), '{"-Infinity":2,"Infinity":1,"NaN":3}')
+
 
 class Jcs(unittest.TestCase):
     def test_rfc8785_key_order(self):

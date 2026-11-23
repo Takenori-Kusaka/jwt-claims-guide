@@ -121,6 +121,61 @@ class Build(unittest.TestCase):
         meta = data_of(expected()['data/meta.js'])
         self.assertEqual([d['id'] for d in meta['datasets']], ['scenario-a', 'scenario-b'])
 
+    def test_review_data_are_the_questions_of_perspectives(self):
+        # #50: the 168 questions, parsed at build time; a change of perspectives.md without a rebuild fails --check
+        import review_check
+        import trace_check
+        r = data_of(expected()['data/review.js'])
+        qs = review_check.parse_questions(trace_check._read(os.path.join(ROOT, 'templates', 'review', 'perspectives.md')))
+        self.assertEqual([q['id'] for q in r['questions']], [q['id'] for q in qs])
+        self.assertEqual(len(r['questions']), 168)
+        self.assertEqual([q['text'] for q in r['questions']], [q['text'] for q in qs])
+        self.assertEqual([s['id'] for s in r['stages']], [s for s, _ in review_check.STAGES])
+        self.assertEqual(len(r['roles']), 6)
+        self.assertTrue(all(q['see_refs'] for q in r['questions']))
+        # every template ref of 見る欄 has the heading it points at
+        for q in r['questions']:
+            for ref in q['see_refs']:
+                if ref['kind'] == 'template':
+                    self.assertIn(ref['ref'], r['template_heads'], ref)
+        self.assertEqual(r['report']['severities'], ['Blocker', 'Major', 'Minor'])
+        with open(os.path.join(ROOT, 'templates', 'review', 'review.schema.json'), encoding='utf-8') as f:
+            schema = json.load(f)
+        self.assertEqual(schema['$defs']['finding']['properties']['origin']['enum'], r['report']['origins'])
+        self.assertEqual(schema['$defs']['finding']['properties']['kind']['enum'], r['report']['kinds'])
+        self.assertEqual(schema['$defs']['finding']['properties']['verdict']['enum'], r['report']['verdicts'])
+        self.assertEqual(schema['$defs']['finding']['properties']['response']['properties']['state']['enum'], r['report']['states'])
+        self.assertEqual(data_of(expected()['data/schemas.js'])['review'], schema)
+
+    def test_a_question_changed_without_a_rebuild_fails_the_check(self):
+        want = dict(expected())
+        r = data_of(want['data/review.js'])
+        r['questions'][0]['text'] += '（変えた）'
+        stale = bcv.js('review', r)
+        d = tempfile.mkdtemp()
+        old, old_viewer = bcv.OUT_DIR, bcv.VIEWER_DIR
+        try:
+            bcv.OUT_DIR, bcv.VIEWER_DIR = os.path.join(d, 'data'), d
+            os.makedirs(os.path.join(d, 'data'))
+            os.makedirs(os.path.join(d, 'vendor'))
+            for n, t in want.items():
+                with open(os.path.join(d, *n.split('/')), 'wb') as f:
+                    f.write(t if isinstance(t, bytes) else t.encode('utf-8'))
+            with open(os.path.join(d, 'data', 'review.js'), 'w', encoding='utf-8', newline='\n') as f:
+                f.write(stale)
+            probs = bcv.check(want)
+            self.assertEqual(len(probs), 1)
+            self.assertIn('review.js: differs', probs[0])
+        finally:
+            bcv.OUT_DIR, bcv.VIEWER_DIR = old, old_viewer
+            shutil.rmtree(d)
+
+    def test_sample_b_carries_its_review(self):
+        s = data_of(expected()['data/sample-b.js'])
+        with open(os.path.join(ROOT, 'templates', 'examples', 'scenario-b', 'review.yaml'), encoding='utf-8') as f:
+            self.assertEqual(s['review'], f.read().replace('\r\n', '\n'))
+        self.assertNotIn('review', data_of(expected()['data/sample-a.js']))
+
 
 class LintZip(unittest.TestCase):
     """data/claim_lint.zip and the driver of lint-worker.js, run with CPython (what Pyodide runs in the browser)."""
@@ -246,14 +301,14 @@ class StaticFiles(unittest.TestCase):
         html = self.read('index.html')
         for src in re.findall(r'<(?:script|link)[^>]+(?:src|href)="([^"]+)"', html):
             self.assertFalse(re.match(r'(?i)(https?:)?//', src), src)
-        for name in ('editor.js', 'preview.js', 'lint-worker.js'):
+        for name in ('editor.js', 'preview.js', 'lint-worker.js', 'review.js'):
             js = self.read(name)
             for api in ('XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon', 'innerHTML', 'outerHTML', 'insertAdjacentHTML',
                         'eval(', 'new Function', 'document.write', "method: 'POST'", 'method: "POST"'):
                 self.assertNotIn(api, js, (name, api))
         # the only fetch is the worker's GET of data/claim_lint.zip from the page's own directory
         self.assertEqual(re.findall(r'fetch\(([^,)]+)', self.read('lint-worker.js')), ["base + 'data/claim_lint.zip'"])
-        self.assertNotIn('fetch(', self.read('editor.js') + self.read('preview.js'))
+        self.assertNotIn('fetch(', self.read('editor.js') + self.read('preview.js') + self.read('review.js'))
         self.assertNotRegex(self.read('app.css'), r'url\(|@import')
 
     def test_editor_opens_empty(self):

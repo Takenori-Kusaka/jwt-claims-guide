@@ -9,8 +9,24 @@
 (function () {
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
-  const R = (window.CLAIMS_VIEWER_DATA || {}).review;
-  if (!CE || !P || !R) return;
+  // data/review.js (the questions, built from perspectives.md) is loaded when a design is opened, not with the page
+  // (the first screen stays light, #49); until then R is empty
+  let R = (window.CLAIMS_VIEWER_DATA || {}).review || null;
+  if (!CE || !P) return;
+  let loading = null;
+  function loadData() {
+    if (R) return Promise.resolve(R);
+    if (!loading) {
+      loading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'data/review.js';
+        s.onload = () => { R = (window.CLAIMS_VIEWER_DATA || {}).review || null; if (R) { index(); resolve(R); } else reject(new Error('no data in data/review.js')); };
+        s.onerror = () => { loading = null; reject(new Error('data/review.js を読めません')); };
+        document.head.append(s);
+      });
+    }
+    return loading;
+  }
   const H = P.helpers;
   const $ = (s, r) => (r || document).querySelector(s);
   const own = (o, k) => o !== null && o !== undefined && Object.prototype.hasOwnProperty.call(o, k);
@@ -23,9 +39,9 @@
   const ANS = { yes: ['ok', '✓', 'Yes'], no: ['ng', '✖', 'No'], na: ['neutral', '–', '該当なし'] };
   const KIND_LABEL = { claims: '台帳の行', token_types: 'トークン種別', hops: 'ホップ', catalog_answers: 'カタログへの回答', issuance_profile: '発行方式の項目' };
   const KIND_VIEW = { claims: 'claim', token_types: 'token', hops: 'hop' };
-  const QBY = new Map(R.questions.map((x) => [x.id, x]));
-  const STAGE = new Map(R.stages.map((x) => [x.id, x]));
-  const ROLE = new Map(R.roles.map((x) => [x.id, x]));
+  let QBY = new Map(); let ROLE = new Map();
+  function index() { QBY = new Map(R.questions.map((x) => [x.id, x])); ROLE = new Map(R.roles.map((x) => [x.id, x])); }
+  if (R) index();
   const MISMATCH = '目的と仕組みの不一致';
   const KEY_ORDER = ['format', 'design', 'independent', 'reviews', 'reviewer', 'id', 'criterion', 'name', 'to', 'location', 'anchors',
     'questions', 'content', 'severity', 'origin', 'kind', 'model', 'confused_question', 'verdict', 'verdict_reason',
@@ -170,7 +186,7 @@
 
   // the badges on every row of every screen, and the panel of the detail screens (registerRowPanel of #49)
   CE.registerRowPanel((anchor, row, kind, where) => {
-    if (!st.open) return null;
+    if (!st.open || !R) return null;
     const set = anchorSet();
     const recs = visible().filter((rv) => own(rv.rows, anchor)).map((rv) => [rv, rv.rows[anchor]]);
     const fs = findingsOf(anchor);
@@ -251,6 +267,10 @@
     return { data: v };
   }
   function companionOpen(info) {
+    st.opening = true;
+    loadData().then(() => companionOpen2(info), (e) => CE.ask('レビューモードを使えません', String(e.message || e), [['ok', '閉じる']]));
+  }
+  function companionOpen2(info) {
     st.open = true;
     st.designRel = info.designRel;
     st.base = null;
@@ -280,7 +300,7 @@
         });
       }
       return null;
-    }).then(() => { CE.publish(); });
+    }).then(() => { st.opening = false; CE.publish(); });
   }
   // merge review files into the open records; a reviewer who is in both with different records is asked about
   function mergeIn(datas) {
@@ -1146,13 +1166,14 @@
   function refreshCounts() {
     const m = mine();
     const a = document.querySelector('#nav a[data-view="review/checklist"] .cnt');
-    if (a) a.textContent = ' ' + (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length;
+    if (a && R) a.textContent = ' ' + (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length;
     const s = $('#rv-file-state');
     if (s) { s.dataset.unsaved = unsaved() ? '1' : '0'; }
   }
   P.registerView('review', {
     group: 'レビュー（#50）',
     nav: () => {
+      if (!R) return [{ sub: '', label: 'レビューの概要' }];
       const m = mine();
       let stale = 0;
       if (st.open) { const set = anchorSet(); visible().forEach((rv) => Object.keys(rv.rows).forEach((x) => { if (rowState(rv.rows[x], x, set) !== 'current') stale++; })); }
@@ -1161,7 +1182,7 @@
         { sub: 'analysis', label: '分析' }, { sub: 'pa', label: '25 問の回答' }, { sub: 'report', label: 'レポート' }];
     },
     render: (parts, query) => {
-      if (!st.open) return needOpen();
+      if (!st.open || !R) return needOpen();
       const sub = parts[0] || '';
       if (sub === 'checklist') return viewChecklist(query);
       if (sub === 'rows') return viewRows(query);
@@ -1175,6 +1196,7 @@
   });
 
   const RV = {
+    ready: () => !!R && st.open && !st.opening,
     data: () => JSON.parse(JSON.stringify(st.file)),
     text: () => dump(st.file),
     dump,

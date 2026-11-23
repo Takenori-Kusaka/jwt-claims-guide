@@ -1,0 +1,70 @@
+{
+ "what": "Playwright (Chromium) network log of the review mode (#50): every request of the page while a reviewer is created, a question answered, a row decided, every review screen opened and the zip with review.yaml written (tools/tests/test_claims_review_ui.py::test_review_records_are_not_sent_and_not_lost)",
+ "browser": "chromium 151.0.7922.34",
+ "summary": {
+  "requests": 11,
+  "methods": [
+   "GET"
+  ],
+  "non_get_or_cross_origin_or_beacon": 0
+ },
+ "initial_load_requests": [
+  {
+   "method": "GET",
+   "url": "<origin>/claims/",
+   "type": "document"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/app.css",
+   "type": "stylesheet"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/vendor/editor-libs.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/meta.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/schemas.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/trace.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/preview.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/editor.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/review.js",
+   "type": "script"
+  }
+ ],
+ "session_requests": [
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/sample-a.js",
+   "type": "script"
+  },
+  {
+   "method": "GET",
+   "url": "<origin>/claims/data/review.js",
+   "type": "script"
+  }
+ ]
+}
