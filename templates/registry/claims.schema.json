@@ -923,9 +923,11 @@
      "description": "Length limit of the source field with its unit, to check max_bytes (A11 of gate1.md 5.)"
     },
     "volatility": {
-     "type": "integer",
-     "minimum": 0,
-     "description": "Seconds allowed between a change of the value and its reflection. 0: never changes for the subject. Compared with max_lifetime of the carrying token types (L5 of #6)",
+     "anyOf": [
+      {"type": "integer", "minimum": 0},
+      {"const": "never"}
+     ],
+     "description": "Seconds allowed between a change of the value and its reflection; 0: the change must be reflected at once. never: the value does not change during the life of a token that carries it (per-token values such as exp or jti, immutable identifiers such as sub). Compared with max_lifetime of the carrying token types (L5 of #6)",
      "$comment": "Trace: req:p11-registry-fields.R10"
     },
     "recompute_trigger": {
