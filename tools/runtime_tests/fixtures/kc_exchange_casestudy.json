@@ -1,0 +1,13 @@
+{
+ "_note": "Decoded aud and scope (no token, no signature) of the Keycloak 26.8.0 standard token exchange V2 measurement, for the offline form of test:negative_tests#exchange-narrowing. The exchanged values and subject aud are those recorded by the casestudy (jwt-claims-casestudy@080b8da results/measurements.json, C.keycloak_exchange: subject_aud and probes.narrow_to_invoices / probes.scope_not_granted). The casestudy did not record the subject token's scope; subject.scope is the value observed by this repository's live run under the same conditions (corp realm of the casestudy, client portal, scope 'openid aud-mcp'; research/runtime/run-live-2026-11-23.json). exp is not recorded here; the live run checks it.",
+ "source": {
+  "casestudy": "jwt-claims-casestudy@080b8da:results/measurements.json#C.keycloak_exchange",
+  "subject_scope": "research/runtime/run-live-2026-11-23.json"
+ },
+ "audience_scopes": {"aud-orders": "orders", "aud-invoices": "invoices", "aud-mcp": "mcp-tools"},
+ "subject": {"aud": ["mcp-tools", "account"], "scope": "openid aud-mcp email profile"},
+ "probes": {
+  "narrow_to_invoices": {"aud": "invoices", "scope": "aud-invoices email profile"},
+  "scope_not_granted": {"aud": ["orders", "account"], "scope": "aud-orders email profile"}
+ }
+}

@@ -1,0 +1,22 @@
+# Keycloak 26.8.0 and Postgres 16 for the live runtime tests of #8 (tools/runtime_tests/run.py --env live).
+# Started by run.py with its own compose project name (jcg-issue8-runtime) and host ports 38080 / 35432, so that it does not
+# collide with other containers (the casestudy uses 18080 / 15432). The admin and DB passwords are random per run (env).
+# The realm files are generated per run into IMPORT_DIR (outside the repository) by kc.py; nothing secret is committed.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    command: ["start-dev", "--import-realm", "--features=token-exchange-standard:v2"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set by run.py}
+      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx640m"
+    ports: ["38080:8080"]
+    volumes:
+      - ${IMPORT_DIR:?set by run.py}:/opt/keycloak/data/import:ro
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: owner
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set by run.py}
+      POSTGRES_DB: saas
+    ports: ["35432:5432"]

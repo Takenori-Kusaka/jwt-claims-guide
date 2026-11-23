@@ -40,7 +40,7 @@
 ## 2. 発行者（iss）〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#issuer`
-<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 req:p12-review-viewpoints.R11 -->
+<!-- req:p05-multitenancy.R2 req:p07-db-token-auth.R3 req:p12-review-viewpoints.R11 req:p01-validation-order.R4 -->
 
 決めること：受け入れる発行者の許可リストと、発行者ごとの鍵の取得元。鍵がその発行者のものであることを確かめます（別の発行者の鍵で署名したトークンを、その発行者のものとして受けない）。
 
@@ -106,7 +106,7 @@
 ## 5. 宛先（aud）〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#audience`
-<!-- req:p02-registered-claims.R3 -->
+<!-- req:p02-registered-claims.R3 req:p01-validation-order.R5 -->
 
 決めること：受け手が自分を表す値と、`aud` の照合のしかた。`aud` は文字列のことも配列のこともあります。
 
@@ -130,6 +130,7 @@
 ## 6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#time`
+<!-- req:p01-validation-order.R6 -->
 
 決めること：`exp` を必須にするか、時計のずれを何秒まで許すか、`exp − iat` を寿命の上限と比べるか。
 
@@ -220,7 +221,7 @@
 ## 10. 検証ライブラリと明示の設定〔Full：記入／Lite：参照〕
 
 項目 ID：`template:modules/M_token_validation#library-config`
-<!-- req:p00-incident-signature-valid.R5 req:p01-library-defaults.R1 req:p01-library-defaults.R3 req:p01-library-defaults.R5 -->
+<!-- req:p00-incident-signature-valid.R5 req:p01-library-defaults.R1 req:p01-library-defaults.R3 req:p01-library-defaults.R5 req:p01-attack-patterns.R6 -->
 
 決めること：受け手ごとに使う検証ライブラリと版、既定に任せずに明示する設定。ライブラリの既定値は安全側とは限りません（aud を既定で確かめない、exp が無くても通す、など）。どのクレームを何と照合するかは、組織で決めて書きます。
 
@@ -231,6 +232,7 @@
 | `algorithms` | 許可するアルゴリズムを明示しているか | 明示する（3.） | RFC 8725 §3.1、slide:p01-library-defaults |
 | 必須クレーム | `exp` などの必須を明示しているか（golang-jwt の `WithExpirationRequired` など） | 明示する | slide:p01-library-defaults |
 | 時刻のずれ | ライブラリの既定のずれ（例：5 分）を確かめ、組織の値に設定したか | 組織の値に設定する | slide:p01-library-defaults |
+| 同名のメンバー | ヘッダーやペイロードで同じ名前のメンバーが重複した JSON を拒否するパーサーか（RFC 7519 §4 は拒否か後勝ちのどちらかを求める。部品ごとに先勝ち・後勝ちが違うと、同じトークンを別の値として読む。拒否のテストは `test:negative_tests#duplicate-claim`） | 拒否する／後勝ちで読む（全部品で同じパーサーにする） | RFC 7519 §4、slide:p01-attack-patterns |
 | 署名鍵そのものの確認 | 署名鍵そのものを確かめる設定が既定で無効のライブラリ（Microsoft.IdentityModel など）で、有効にしたか | 有効にする／確かめない | slide:p01-library-defaults |
 | 照合の一覧 | どのクレームを何と照合するか（`iss` と鍵、テナントと `iss`、`aud` と自分）を書いたか | 台帳の `enforced_at` に書く | slide:p00-incident-signature-valid |
 | 未検証の値を流すモード | 検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たないか。持つなら、本番で無効にする方法と、それを確かめる拒否のテストがあるか | 持たない／本番で無効にする（方法を書く） | slide:p11-pre-add-questions-2、slide:p01-library-defaults |

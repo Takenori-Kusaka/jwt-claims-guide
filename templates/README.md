@@ -36,6 +36,7 @@
 | [examples/](examples/) | 記入例。シナリオ A（Lite）、シナリオ B（Full。#4 の 2 つ目の PR）。ビューアーで読める：https://takenori-kusaka.github.io/jwt-claims-guide/claims/ |
 | [review/](review/) | レビュー教材（#5）：観点書・判断の木・対比表・専門家に回す基準・手順・理由の採点基準・レポートの様式・レビュー後の欠陥の記録・指標 |
 | [trace/](trace/) | ガイドのスライドとの対応表（#22） |
+| [runtime/](runtime/) | 実行での照合の確認（#8）：拒否のテスト、交換で絞られているか、寿命と失効、受け手の契約テスト、見本のトークン。コードは `tools/runtime_tests/` |
 
 P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュールは #21（後回し）です。
 

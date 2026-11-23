@@ -238,6 +238,7 @@ items:
   - {ref: test:negative_tests#exchange-narrowing, issue: "#8", origin: issue, title: 交換で絞られているか（L16）}
   - {ref: test:negative_tests#revocation-latency, issue: "#8", origin: issue, title: 剥奪後、volatility 以内に拒否されるか（L5）}
   - {ref: test:consumer_contract, issue: "#8", origin: issue, title: 受け手の契約テストの例}
+  - {ref: test:consumer_contract#declared-reads, issue: "#8", origin: issue, title: 受け手が読むクレームを宣言する契約テスト（台帳の consumers から外したクレームを読むと失敗する。#8 の完了基準）}
 
   # ---------------------------------------------------------------- #19 表の生成
   - {ref: render:decision-rows, issue: "#19", origin: issue, title: 判断の行の生成}

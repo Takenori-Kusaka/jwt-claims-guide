@@ -104,6 +104,7 @@
 | Logout Token の検証 | `iss`・`aud`・`iat`・`exp`・`sub` か `sid`・`events` を確かめ、`nonce` があれば拒否するか。`jti` での再送の確認は任意（仕様は Optionally） | 仕様の手順どおり | OpenID Connect Back-Channel Logout 1.0 §2.6 |
 | 利用者のログアウト | 利用者の操作でどこまで消すか | アプリのセッションだけ／IdP のセッションも（RP-Initiated Logout）／RT も失効（RFC 7009） | OpenID Connect RP-Initiated Logout 1.0 §2、RFC 7009 §2 |
 | 発行済みの AT | ログアウトの後に残る AT の時間を許すか | `exp` まで許す（寿命で上限を決める）／API が問い合わせで止める | slide:p08-logout、slide:p08-revocation-propagation |
+| リフレッシュの直列化 | RT のローテーションで再利用を 1 回も許さない IdP（Keycloak の Refresh Token Max Reuse 0 など）を使うとき、BFF が同じ RT で並行してリフレッシュしないか（2 つ目が再利用とみなされ、正規の利用者がログアウトする） | 利用者のセッションごとに直列にする／再利用の許容回数を上げる | 筆者の提案：Keycloak の RT のローテーションでは BFF のリフレッシュを利用者ごとに直列にする（追跡 #8）、research/runtime/keycloak-observations-2026-11-23.md |
 
 記入欄：
 
