@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<!-- No network: connect-src 'none' for the whole page. Scripts, styles and data come from this directory only. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>設計書のビューアー ― JWT クレーム設計ガイド</title>
+<meta name="description" content="YAML の設計書（クレームの台帳・トークン目録・発行方式・ホップ・カタログへの回答）を人が読むためのビューアー。外部と通信しない">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#main">本文へ移動</a>
+<header class="top">
+  <div class="brand">
+    <a class="home" href="#/">設計書のビューアー</a>
+    <span class="sub">JWT クレーム設計ガイド（<a href="../">スライドの Web 版</a>）</span>
+  </div>
+  <div class="ds">
+    <label for="dataset">表示する設計書</label>
+    <select id="dataset"></select>
+  </div>
+  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> データを外部に送信しません（リンクを押したときの移動は除く。CSP の <code>connect-src 'none'</code>）</p>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="画面">
+    <ul id="nav"></ul>
+  </nav>
+  <main id="main" tabindex="-1">
+    <noscript><p>このビューアーは JavaScript で表を組み立てます。JavaScript を有効にしてください。データは <code>data/</code> にあります。</p></noscript>
+    <p id="loading">読み込んでいます…</p>
+  </main>
+</div>
+<footer class="foot">
+  <p>正本は YAML（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/tree/main/templates/examples">templates/examples/</a>）です。このビューアーは閲覧だけで、編集はしません。データは <code>python tools/build_claims_viewer.py</code> で生成しています（#36）。</p>
+  <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE">LICENSE</a>）。YAML の読み取りに <a href="vendor/js-yaml-4.3.2.LICENSE.txt">js-yaml 4.3.2（MIT）</a> を同梱しています。作成方法：本ビューアーは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
+</footer>
+<script src="vendor/js-yaml-4.3.2.min.js"></script>
+<script src="data/meta.js"></script>
+<script src="data/trace.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

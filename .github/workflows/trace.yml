@@ -1,6 +1,6 @@
 # Slide IDs (#15) and the slide-to-artifact trace table (#22).
 # Node and Playwright are not installed here, so the tests in tools/tests that need them
-# (the deck build in test_slide_ids.py, test_viewer.py) are skipped in CI; run them locally.
+# (the deck build in test_slide_ids.py, test_viewer.py, test_claims_viewer_ui.py of #36) are skipped in CI; run them locally.
 name: trace
 
 on:
