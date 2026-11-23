@@ -27,7 +27,8 @@ SEV = {
     'L8': WARN, 'L9': ERROR, 'L15': WARN, 'L16': ERROR, 'L17': ERROR, 'L18': WARN, 'L21': ERROR, 'L22': ERROR,
     'L23': ERROR, 'L25': ERROR, 'L27': ERROR, 'L31': ERROR, 'L37': ERROR, 'L43': WARN,
     'L62': WARN, 'L63': WARN, 'L64': WARN, 'L65': ERROR, 'L66': WARN, 'L67': WARN,
-    'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': WARN, 'L73': WARN,
+    'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': ERROR,  # #4: the slide-142 gate, required in Lite too; 0 false positives on scenario A (4 claims)
+    'L73': WARN,
 }
 LITE_WARN = {'L22'}  # issue #6: L22 is warn in Lite
 

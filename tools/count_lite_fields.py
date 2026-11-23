@@ -14,8 +14,10 @@ they are a proposal (author-proposal, tracking #16), not yet the Lite definition
 
 counts the fields the writer of a worked example writes by hand today (all columns of registry v1, not the v0 subset;
 templates/README.md 「記入の目安」, #4). Same counting rule. lite applies the reduced Lite of templates/README.md (the
-generated columns and sections are not counted; issuance_profile counts only the items that leave the default combination;
-hops count only exchange / reissue hops; an inherited 対象外 answer counts one field). full counts every written field.
+generated columns, the Full-only columns (the 「Full のみ」 marks of templates/registry/README.md 3., read from that file)
+and the generated sections are not counted; issuance_profile counts only the items that leave the default combination;
+hops count only exchange / reissue hops; a rejected token type counts kind, decision, rationale and format (what R1 and
+the schema ask); an inherited 対象外 answer counts one field). full counts every written field.
 Both add the hand-written questions of every claim_request_*.md (rows whose last column is 手書き) and the hand-written
 sections of design.md (00_core: lite 2, 3, 6, 9, 12; full also 7).
 """
@@ -132,6 +134,32 @@ DEFAULT_PROFILE = {'client_type': 'confidential', 'grants': ['authorization_code
 HAND_SECTIONS = {'lite': [2, 3, 6, 9, 12], 'full': [2, 3, 6, 7, 9, 12]}
 
 
+def full_only_columns():
+    """{'claims': set, 'token_types': set, 'hops': set} of the columns marked 「Full のみ」 in templates/registry/README.md 3."""
+    out = {'claims': set(), 'token_types': set(), 'hops': set()}
+    sec = None
+    with open(os.path.join(ROOT, 'templates', 'registry', 'README.md'), encoding='utf-8') as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if line.startswith('### 3.1'):
+                sec = 'claims'
+            elif line.startswith('### 3.2'):
+                sec = 'token_types'
+            elif line.startswith('### 3.3'):
+                sec = None
+            elif line.startswith('### 3.4'):
+                sec = 'hops'
+            elif line.startswith('## 4'):
+                sec = None
+            m = re.match(r'^\| `([a-z_]+)` \|.*\| Full のみ[^|]* \|$', line)
+            if sec and m:
+                out[sec].add(m.group(1))
+    return out
+
+
+REJECTED_TT_KEEP_V1 = REJECTED_TT_KEEP | {'format'}
+
+
 def _load(example, name):
     path = os.path.join(example, name + '.yaml')
     return (core.load_yaml(path) or {}) if os.path.isfile(path) else {}
@@ -163,9 +191,10 @@ def count_current(example, profile):
     hops = _load(example, 'hops').get('hops') or []
     adoc = _load(example, 'catalog_answers')
     rows = []
+    fo = full_only_columns() if lite else {'claims': set(), 'token_types': set(), 'hops': set()}
     groups = {'read': [0, 0], 'unread': [0, 0], 'rejected': [0, 0]}
     for c in claims:
-        f = fields(c)
+        f = [k for k in fields(c) if k not in fo['claims']]
         if c.get('decision') == '却下':
             g = 'rejected'
         elif c.get('decision') == '既定どおり' and c.get('consumers') == []:
@@ -190,11 +219,12 @@ def count_current(example, profile):
         rows.append(('発行方式の選択', sum(_row(v) for v in ip.values())))
     tts = tdoc.get('token_types') or []
     rows.append((f'トークン目録（{len(tts)} 行）', sum(
-        len([k for k in fields(t) if k in REJECTED_TT_KEEP]) if lite and t.get('decision') == '却下' else len(fields(t))
+        len([k for k in fields(t) if k in REJECTED_TT_KEEP_V1]) if lite and t.get('decision') == '却下'
+        else len([k for k in fields(t) if k not in fo['token_types']])
         for t in tts)))
     hand_hops = [h for h in hops if not lite or h.get('kind') in ('exchange', 'reissue')]
     note = '。交換・作り直しのホップだけ' if lite else ''
-    rows.append((f'ホップ（{len(hand_hops)} 行{note}）', sum(len(fields(h)) for h in hand_hops)))
+    rows.append((f'ホップ（{len(hand_hops)} 行{note}）', sum(len([k for k in fields(h) if k not in fo['hops']]) for h in hand_hops)))
     answers = adoc.get('answers') or []
     inherited = [a for a in answers if a.get('inherit') == 'idp-default']
     rows.append((f'カタログへの回答（{len(answers)} 件。引き継ぎ {len(inherited)} 件は各 1 欄）', sum(

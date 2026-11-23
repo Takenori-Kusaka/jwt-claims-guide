@@ -80,9 +80,18 @@ def test_example_has_no_semantic_error(example):
 
 
 def test_example_known_semantic_warnings(example):
-    # the 3 shared claims without the 25 answers (L72, true positives left for #4: claim_request.md)
+    # #4 added the 25 answers of C-user-id, C-roles and C-v (L72 is error now): no semantic warning is left
     got = sorted((f['rule'], f['target']) for f in example['findings'] if f['rule'] in semantic.SEV and f['severity'] == 'warn')
-    assert got == [('L72', 'C-roles'), ('L72', 'C-user-id'), ('L72', 'C-v')]
+    assert got == []
+    assert not by(example, 'L72')
+
+
+def test_l72_is_error_in_lite_too(tmp_path):
+    """The 25 questions are the slide-142 gate, required in Lite too (#4): a missing claim_request fails in both profiles."""
+    d = base()
+    for profile in ('full', 'lite'):
+        res = lint(tmp_path / profile, d, profile=profile, md=False)
+        assert [f['severity'] for f in res['findings'] if f['rule'] == 'L72' and f['target'] == 'C-tenant-id'] == ['error']
 
 
 def test_example_checked_counts(example):

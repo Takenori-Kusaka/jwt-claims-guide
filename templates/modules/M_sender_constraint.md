@@ -49,7 +49,7 @@
 | 終端の場所 | TLS をどこで終端するか | 入口（at_entry）／端から端まで（end_to_end） | RFC 8705 §6.5、`issuance_profile.tls_termination` |
 | 渡すヘッダー | 証明書をどの名前のヘッダーで渡すか | 製品のヘッダー（Envoy の `x-forwarded-client-cert` など）／組織で決めた名前 | RFC 8705 §6.5、slide:p06-header-forwarding |
 | 同名のヘッダー | クライアントが送ってきた同名のヘッダー（大文字小文字・アンダースコアの変種・重複を含む）を、入口で捨てるか | 捨てる | slide:p06-header-forwarding、jwt-claims-casestudy@080b8da:B5 |
-| 書ける者 | そのヘッダーを書けるのは入口だけ、という信頼境界をどう保つか | 入口からの接続だけを受ける（mTLS・ネットワーク）／下流が入口を確かめる | slide:p06-header-forwarding、筆者の提案：証明書を渡すヘッダーは入口だけが書く（追跡 #3） |
+| 書ける者 | そのヘッダーを書けるのは入口だけ、という信頼境界をどう保つか | 入口からの接続だけを受ける（mTLS・ネットワーク）／下流が入口を確かめる | slide:p06-header-forwarding、筆者の提案：証明書を渡すヘッダーは入口だけが書く（追跡 #4） |
 | 照合する者 | `cnf.x5t#S256` と証明書を照合するのは、入口か下流か | 入口／下流（渡されたヘッダーで） | RFC 8705 §3 |
 
 記入欄：
@@ -59,7 +59,7 @@
 | 終端の場所 |  |  | `issuance_profile.tls_termination` |
 | 渡すヘッダー・同名を捨てる・書ける者 |  |  | `issuance_profile.forwarded_cert_header`（`name`・`strip_inbound`・`written_only_by`） |
 
-根拠：RFC 8705 §6.5、slide:p06-header-forwarding、templates/registry/issuance_effects.yaml の E-mtls-entry、筆者の提案：証明書を渡すヘッダーは入口だけが書く（追跡 #3）
+根拠：RFC 8705 §6.5、slide:p06-header-forwarding、templates/registry/issuance_effects.yaml の E-mtls-entry、筆者の提案：証明書を渡すヘッダーは入口だけが書く（追跡 #4）
 
 <a id="dpop-nonce-jti"></a>
 ## 3. DPoP の nonce と、使い回した proof の拒否〔Full：記入／Lite：参照〕

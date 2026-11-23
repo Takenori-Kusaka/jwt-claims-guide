@@ -14,14 +14,14 @@
 
 | 表記 | 使い方 | 書かない表記 | 根拠 |
 | --- | --- | --- | --- |
-| Transaction Token（Txn-Token） | 初出は「Transaction Token（Txn-Token）」、2 回目からは「Txn-Token」。仕様名は「Transaction Tokens」（草案の名前）。発行するサービスは「Transaction Token Service（TTS）」 | トランザクショントークン、TxnToken、txn token | slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §2 |
-| 誰の権限で | `sub` が答える問い（`templates/registry/questions.yaml` の `q-sub`）。「誰が代理して実行しているか」（`act`）と分けて書く | 誰として、誰の権限によって | slide:p05-one-request-carries、slide:p10-four-questions |
+| Transaction Token（Txn-Token） | 初出は「Transaction Token（Txn-Token）」、2 回目からは「Txn-Token」。仕様名は「Transaction Tokens」（草案の名前）。発行するサービスは「Transaction Token Service（TTS）」 | トランザクショントークン、TxnToken、txn token | slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §3 |
+| 誰の権限で | `sub` が答える問い（`q-sub` の意味。DB の主体を指す「誰として DB に接続するか」（slide:p07-connect-as-whom）は別の問いで、この表記の対象ではない）（`templates/registry/questions.yaml` の `q-sub`）。「誰が代理して実行しているか」（`act`）と分けて書く | 誰として、誰の権限によって | slide:p05-one-request-carries、slide:p10-four-questions |
 | アクセストークン（AT）・ID トークン（IDT）・リフレッシュトークン（RT） | 略称は表の中とトークン目録の ID だけで使う | アクセス・トークン | slide:p08-token-types-lifetimes |
 | クレームの名前 | JSON に現れる名前をコードで書く（`sub`・`act`・`https://claims.example.com/` の `tenant_id`） | 地の文に名前をそのまま混ぜる | slide:p04-claim-names |
 | スライド | 固定 ID で `slide:p06-narrow-downstream` と書く。番号では書かない | スライド 81 | templates/CONTRIBUTING.md の 1. |
 | 筆者の提案 | 一次資料の裏付けのない判断。追跡 issue の番号を付ける | 推奨（裏付けがあるように読める） | templates/CONTRIBUTING.md の 1.、slide:p10-guidance-standards |
 
-根拠：slide:p00-terminology、templates/CONTRIBUTING.md の 1.
+根拠：slide:p00-terminology、templates/CONTRIBUTING.md の 1.、筆者の提案：表記をこの表にそろえる（追跡 #4）
 
 <a id="terms-basic"></a>
 ## 2. ガイドの基本の用語

@@ -242,7 +242,7 @@ Lite での扱い（`research/template-design/gate1.md` の 10.、`tools/claim_l
 | Revoke Refresh Token（レルムの Tokens タブ） | 有効にすると、リフレッシュで RT を失効させ、新しい RT を出す。オフラインのトークンも 1 回限りになる | 文書 | 公開クライアントで有効にするか（RFC 9700 §4.14.2） | Keycloak Server Administration Guide（26.8.2）「Offline access」、RFC 9700 §4.14.2 |
 | Revoke Refresh Token の既定 | 無効 | ガイドのスライド（文書のこの節に既定の記載は見つからなかった。ソースの要約も false） | 既定のまま使っていないか | slide:p08-rotation |
 | 古い RT の再利用での系列の失効（再利用の検知） | 確かめていない | — | 再利用の検知を前提にしないか | slide:p08-rotation |
-| 交換で出す RT | 要求元が refresh_token を求め、クライアントの「Allow refresh token in Standard Token Exchange」が No（既定）でないときだけ出る。AT・ID トークンは subject token の exp を超えないが、RT はセッションが続く限り元の期限を超えうる（文書の警告） | 文書 | 交換で RT を出すか | Keycloak Securing Applications（26.8.2）「Standard token exchange」 |
+| 交換で出す RT | 要求元が refresh_token を求め、クライアントの「Allow refresh token in Standard Token Exchange」が No（既定）でないときだけ出る。AT・ID トークンは subject token の exp を超えない（既定。互換のスイッチ「Allow exchange token expiration after subject token expiration」を有効にすると上限が外れる）が、RT はセッションが続く限り元の期限を超えうる（文書の警告） | 文書 | 交換で RT を出すか | Keycloak Securing Applications（26.8.2）「Standard token exchange」 |
 
 記入欄：
 

@@ -347,6 +347,7 @@ sequenceDiagram
 
 決めること：寿命の 4 つの層（トークン・クレームの値の鮮度・セッションと RT・クレームの定義）を、別々に書きます。9.1 はトークン種別とセッション層と接続ごと、9.2 はクレームごと、9.3 はクレームの定義ごとです。4 つは独立に動きます（AT が 5 分でも、セッションが 10 時間なら 10 時間トークンを得られる）。
 
+<!-- heading-only -->
 ### 9.1 トークン・セッション・接続
 
 | 列 | 検討の問い | 根拠 |
@@ -364,7 +365,12 @@ sequenceDiagram
 | --- | --- | --- | --- | --- | --- | --- |
 |  |  |  |  |  |  |  |
 
-根拠：slide:p08-four-lifetimes、slide:p08-token-types-lifetimes、slide:p08-refresh-reevaluation、slide:p08-rotation、slide:p08-revocation-propagation、slide:p08-async-processing
+確かめ用の生成の表（4 つの層。寿命が鮮度の許容を超える行に「超える」と出る）：
+
+<!-- render:lifecycle:begin -->
+<!-- render:lifecycle:end -->
+
+根拠：slide:p08-four-lifetimes、slide:p08-token-types-lifetimes、slide:p08-refresh-reevaluation、slide:p08-rotation、slide:p08-revocation-propagation、slide:p08-async-processing、templates/registry/README.md の 6.
 
 <a id="lifecycle-db-connection"></a>
 #### DB・ブローカーの接続の層
@@ -379,7 +385,7 @@ sequenceDiagram
 | RDS・Aurora の IAM 認証 | 影響しない（認証時だけ使う） | slide:p07-lifetime-mismatch |
 | Cloud SQL の IAM 認証 | 影響しない（期限の後に失敗するのは新しい接続だけ） | slide:p07-lifetime-mismatch |
 | Azure Database for PostgreSQL（Entra） | 削除した利用者も最大 60 分は入れる。DB 側で削除すれば即時 | slide:p07-lifetime-mismatch |
-| Kafka | `connections.max.reauth.ms` で再認証を強制。しなければ切断されない | slide:p07-lifetime-mismatch |
+| Kafka | 既定（`connections.max.reauth.ms` が 0）では切断しない。正の値にすると、期限内に再認証しない接続をブローカーが切る（スライドの表の「しなければ切断」は、正の値にした場合の意味） | slide:p07-lifetime-mismatch、Kafka 4.4 Broker Configs「connections.max.reauth.ms」 |
 
 記入欄：
 
@@ -390,13 +396,6 @@ sequenceDiagram
 根拠：slide:p07-lifetime-mismatch、NIST IR 8587 §4.1.4、ASVS v5.0.0-8.3.2
 
 利用者のクレームを取引ごとに注入する方法は template:modules/M_data_layer#pool-context にあります。
-
-確かめ用の生成の表（4 つの層。寿命が鮮度の許容を超える行に「超える」と出る）：
-
-<!-- render:lifecycle:begin -->
-<!-- render:lifecycle:end -->
-
-根拠：slide:p08-four-lifetimes、slide:p08-token-types-lifetimes、slide:p08-rotation、slide:p08-revocation-propagation、templates/registry/README.md の 6.
 
 <a id="freshness"></a>
 ### 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕
@@ -518,6 +517,7 @@ sequenceDiagram
 
 根拠：templates/CONTRIBUTING.md の 4.、slide:p11-why-govern
 
+<!-- heading-only -->
 ## 付録（Full だけ）
 
 <a id="operational-metrics"></a>
