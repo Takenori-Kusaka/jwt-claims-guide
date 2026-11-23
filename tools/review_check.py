@@ -37,7 +37,8 @@ Checks (all errors):
   V11 escalation.md: every criterion ID in the first table has its own anchor section with a 根拠 line; every section of
       decision_tree.md has a 根拠 line
   V13 per file: no duplicate anchors; every relative Markdown link `[..](path#anchor)` (outside code fences) points to an
-      existing file and, when it names an anchor, to an `<a id>` of that file; in perspectives.md a bold question-ID line
+      existing file and, when it names an anchor, to an `<a id>` of that file (inline links with a title, reference definitions
+      `[r]: target` and `<a href>` included; anchors are counted in any quoting, `id` or `name`); in perspectives.md a bold question-ID line
       (`**q-…**`, `**ap-…**` …) that does not match the question form (full-width space after the ID) is an error, and
       見る欄・つながり must quote every ref (`template:`, `registry:`, `catalog:`, `review:`, `lint:`, `test:`) in backticks
   V12 the table between `<!-- counts:begin -->` and `<!-- counts:end -->` of templates/review/README.md equals the number
@@ -73,7 +74,7 @@ STAGES = [('stage-definition', '1. 定義'), ('stage-issuance', '2. 発行'), ('
 CONTRAST_SECTIONS = ('question', 'unit', 'table', 'not-covered', 'misuse', 'evidence')
 AP_IDS = [f'ap-1-{n}' for n in range(1, 9)] + [f'ap-2-{n}' for n in range(1, 10)]
 FIELD_KINDS = ('template', 'registry', 'catalog')
-NEGATIVE_Q = re.compile(r'(?:ないか|無いか)')
+NEGATIVE_Q = re.compile(r'(?:ないか|無いか|ませんか|なかったか|無かったか)')
 QUESTION_END = re.compile(r'か(?:（[^）]*）)?$')
 
 
@@ -289,9 +290,12 @@ def check(root):
     return errors, questions, files
 
 
-LINK_RE = re.compile(r'\[[^\]]*\]\(([^)\s]+)\)')
+LINK_RE = re.compile(r'''\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+["'(][^)]*)?\)'''   # [x](target "title")
+                     r'''|^\s{0,3}\[[^\]]+\]:\s*<?([^\s>]+)>?'''                 # [ref]: target
+                     r'''|<a\s[^>]*\bhref\s*=\s*["']([^"']+)["']''')            # <a href="target">
+ANCHOR_ANY = re.compile(r'''<a\s+(?:[^>]*\s)?(?:id|name)\s*=\s*["']([^"']+)["']''')
 BOLD_QID = re.compile(r'^\*\*(?:q|ap|pa|dc|cf|cd)-[^*]*\*\*')
-BARE_REF = re.compile(r'(?<![`\w/:-])((?:template|registry|catalog|review|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_.-]+)?)')
+BARE_REF = re.compile(r'(?<![`A-Za-z0-9_/:-])((?:template|registry|catalog|review|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_.-]+)?)')
 
 
 def _unfenced(lines):
@@ -309,7 +313,7 @@ def check_links_and_forms(root, files):
     anchors_of = {}
     for path in files:
         text = trace_check._read(path)
-        ids = re.findall(r'<a id="([^"]+)"></a>', text)
+        ids = ANCHOR_ANY.findall(text)
         anchors_of[os.path.normpath(path)] = set(ids)
         rel = rel_of(root, path)
         for a in sorted({i for i in ids if ids.count(i) > 1}):
@@ -320,7 +324,7 @@ def check_links_and_forms(root, files):
         is_persp = rel.endswith('templates/review/perspectives.md')
         for k, line in _unfenced(lines):
             for m in LINK_RE.finditer(line):
-                target = m.group(1)
+                target = m.group(1) or m.group(2) or m.group(3)
                 if re.match(r'^[a-z]+:', target):
                     continue
                 file_part, _, anchor = target.partition('#')
@@ -331,7 +335,7 @@ def check_links_and_forms(root, files):
                 if anchor and tpath.endswith('.md'):
                     ids = anchors_of.get(tpath)
                     if ids is None:
-                        ids = set(re.findall(r'<a id="([^"]+)"></a>', trace_check._read(tpath)))
+                        ids = set(ANCHOR_ANY.findall(trace_check._read(tpath)))
                     if anchor not in ids:
                         out.append(('V13', f'{rel}:{k}', f'リンク先 {target} のアンカーが無い'))
             if is_persp:

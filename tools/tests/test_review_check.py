@@ -160,6 +160,28 @@ def test_v2_negative_question_form(root):
     assert rules(root)[0] == ['V2']
 
 
+def test_v2_polite_and_past_negative_forms(root):
+    edit(root, PERSP, '**pa-07**　（問 7）型が 1 つで、区切り文字列を使わない形か', '**pa-07**　（問 7）区切り文字列を使っていませんか')
+    assert rules(root)[0] == ['V2']
+
+
+def test_v13_link_title_reference_and_href(root):
+    edit(root, PERSP, '[procedure.md](procedure.md)', '[procedure.md](procedurex.md "t")')
+    assert rules(root)[0] == ['V13']
+    edit(root, PERSP, '[procedure.md](procedurex.md "t")', '[procedure.md][r]\n\n[r]: nofile.md#nope')
+    assert rules(root)[0] == ['V13']
+
+
+def test_v13_duplicate_anchor_other_quoting(root):
+    edit(root, PERSP, '## 問いの書き方と読み方', "<a id='q-shared-validator'></a>\n\n## 問いの書き方と読み方")
+    assert 'V13' in rules(root)[0]
+
+
+def test_v13_bare_ref_after_kanji(root):
+    edit(root, PERSP, '- 見る欄：`registry:token_types#alg_allowlist`、', '- 見る欄：台帳のregistry:claims#nonexistent_col、`registry:token_types#alg_allowlist`、')
+    assert rules(root)[0] == ['V13']
+
+
 def test_v12_readme_counts(root):
     edit(root, os.path.join('templates', 'review', 'README.md'), '| 計 | 168 |', '| 計 | 169 |')
     assert rules(root)[0] == ['V12']

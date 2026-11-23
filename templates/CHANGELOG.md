@@ -45,6 +45,7 @@
 - `tools/review_check.py`：レビュー教材の問い ID・見る欄・根拠・リンクの解決と、`review:` の成果物を持つ要件の印を確かめる（#5。CI は `.github/workflows/trace.yml`）
 - 対応表（#22）：#5 の要件 94 件を実装済みにした。台帳のスキーマ・問いの一覧・テンプレート・`RULES.md` の、その要件が指す箇所に `req:` の印だけを足した（中身は変えていない）。`review:contrasts/<名前>`（アンカーなし）を `#misuse` に付け替えた。`template:claim_request`（アンカーなし）を指していた #5 の 2 件を `#q03` に付け替えた。`CONTRIBUTING.md` に `evidence-types` のアンカーを足した
 - `tools/template_sources.yaml`：RFC 7516（JWE）を足した（#5）
+- `modules/M_token_validation.md` の `library-config`：検討の行「未検証の値を流すモード」を足した（#5、PR #45 の再点検。観点書の `q-no-unverified-passthrough-mode` が見る欄）。`review/rationale_rubric.md` は採点の決まりと RR7 を足したので 0.5.0
 
 ### 変更
 

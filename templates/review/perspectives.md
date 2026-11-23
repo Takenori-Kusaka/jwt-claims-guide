@@ -196,7 +196,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／実行 `test:negative_tests#case-variant`（未実装）
 - 根拠：slide:p11-pre-add-questions-1
 
-**pa-11**　（問 11）誰が値を書けるかが、管理者・本人・呼び出し側・テナントの管理者のどれかまで書いてあり、認可に使う値の書き手が管理者だけか
+**pa-11**　（問 11）誰が値を書けるかが、管理者・本人・呼び出し側・テナントの管理者のどれかまで書いてあり、認可に使う値の書き手が `platform` か `tenant_admin` だけか（本人・呼び出し側が書ける値を認可に使っていれば No。`tenant_admin` が書けるなら、API が `iss` や API の設定と照合しているか）
 - 見る欄：`template:claim_request#q11`、`registry:claims#authoritative_writer`、`registry:claims#provenance`、`registry:claims#modifiers`
 - No なら：Blocker〜Major。「設定を変えられる者」に tenant_admin がいて API が照合していないなら Major 以上（シナリオ A の A01）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`
@@ -312,7 +312,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-reuse-standard-structure"></a>
 
-**q-reuse-standard-structure**　台帳の独自クレームの行のそれぞれで、用途が判断の木の対応表（`review:decision_tree#existing-claim-first`。端末・鍵への結び付け→`cnf`、相関 ID→`txn`、確認済みの属性→`verified_claims`、取引の承認→`authorization_details`、役割→`roles`・`groups`・`entitlements`）に当たるなら、`registered_ref` にその既存の構造が書いてあるか
+**q-reuse-standard-structure**　台帳の独自クレームの行のそれぞれで、用途が判断の木の対応表（`review:decision_tree#existing-claim-first`。例：端末・鍵への結び付け→`cnf`、相関 ID→`txn`、確認済みの属性→`verified_claims`）のどれかの行に当たるなら、`registered_ref` にその既存の構造が書いてあるか
 - 見る欄：`registry:claims#registered_ref`、`registry:claims#verification_method`、`registry:questions#q-holder`
 - No なら：Minor〜Major（独自の `device_key` などは、受け手の検証部品が知らない）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／判断の木 `review:decision_tree#existing-claim-first`
@@ -330,9 +330,9 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-scope-semantics"></a>
 
-**q-scope-semantics**　`scope` をクライアントに委ねた範囲として扱い（利用者の全権限と読まない）、各スコープが `aud` のリソースにとって意味を持つか。同じ API で `scope` と `authorization_details` を併用するなら、移行の間だけで、どちらで何を決めるかが台帳に書いてあるか
+**q-scope-semantics**　`scope` をクライアントに委ねた範囲として扱い（利用者の全権限と読まない）、各スコープが `aud` のリソースにとって意味を持つか。同じ API で `scope` と `authorization_details` を併用するなら、どちらで何を決めるかが台帳に書いてあるか
 - 見る欄：`registry:claims#not_meaning`、`registry:hops#scope`、`registry:hops#aud`、`registry:claims#value_vocabulary`
-- No なら：Major（scope を全権限と読む・aud に意味の無いスコープ）。併用の条件だけが No なら Minor（RFC 9396 §3.1 は併用を認め、1 つの API で 1 つの形を推奨する）
+- No なら：Major（scope を全権限と読む・aud に意味の無いスコープ）。併用の条件だけが No なら Minor（RFC 9396 §3.1 は併用を認め（一部は移行のため）、1 つの API で 1 つの形を推奨する）
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／判断の木 `review:decision_tree#rar-vs-custom`
 - 根拠：slide:p02-scope、RFC 9396 §3.1、RFC 9068 §2.2.3
 <!-- req:p02-scope.R1 req:p02-scope.R2 req:p02-scope.R4 req:p02-scope.R6 -->
@@ -382,9 +382,12 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Minor〜Major（取引先の間で名寄せされる）。値の作り方は次の `q-pairwise-unguessable`
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
 - 根拠：slide:p09-pairwise-identifiers、slide:p09-checklist、OpenID Connect Core 1.0 §8
+<!-- req:p09-pairwise-identifiers.R1 req:p09-pairwise-identifiers.R3 req:p09-checklist.R3 -->
 
-**q-pairwise-unguessable**　ペアワイズにした `sub` の作り方（受け手の区分と生成の方式）が書いてあり、その値が識別情報を含まず推測できない方式か
-- 見る欄：`template:modules/M_privacy_minimization#identifier-sectors`、`registry:token_types#subject_type`
+<a id="q-pairwise-unguessable"></a>
+
+**q-pairwise-unguessable**　ペアワイズにした `sub` の作り方（受け手の区分と生成の方式）が、`identifier-sectors` の記入欄の「識別子の性質」の行に書いてあり、その値が識別情報を含まず推測できない方式か
+- 見る欄：`template:modules/M_privacy_minimization#identifier-sectors`（「識別子の性質」の行）、`registry:token_types#subject_type`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
 - 根拠：slide:p09-pairwise-identifiers、OpenID Connect Core 1.0 §8
@@ -524,7 +527,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-hook-adds-raw-pii"></a>
 
-**q-hook-adds-raw-pii**　発行時フックが足すクレームが、生の個人情報（生年月日など）を含まない、と台帳から言えるか（`authoritative_writer` がフックの行の `pii_category` で確かめる）
+**q-hook-adds-raw-pii**　発行時フックが足すクレームが、生の個人情報（生年月日など）を含まない、と台帳から言えるか（`authoritative_writer` がフックである行の `pii_category` で確かめる）
 - 見る欄：`registry:claims#authoritative_writer`、`registry:claims#pii_category`、`registry:claims#data_category`
 - No なら：Major
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L70`
@@ -632,13 +635,13 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/id-vs-access-token#misuse`／lint `lint:L41`（未実装）
 - 根拠：slide:p06-flow-checklist、slide:p06-edge-exchange
 
-**cf-04**　（項目 4）サービスは受け取ったトークンを別の宛先へ渡さず、ホップごとに `token_type` か `aud` が替わるか
+**cf-04**　（項目 4）サービスは受け取ったトークンを、交換せずにそのまま別の宛先へ渡さず、ホップごとに `token_type` か `aud` が替わるか（Txn-Token を受け取ったまま下流に渡すのは、§12.2 の決まりどおりで、ここでは問わない）
 - 見る欄：`registry:hops#token_type`、`registry:hops#aud`、`registry:hops#upstream`
 - No なら：Major。詳しくは `ap-2-6`
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L41`（未実装）
 - 根拠：slide:p06-flow-checklist
 
-**cf-05**　（項目 5）下流のホップの `aud`・`scope`・寿命が、どれも上流以下か
+**cf-05**　（項目 5）下流のホップの `aud`・`scope`・寿命が、どれも上流以下か（上流より長い寿命・広い宛先は、`narrowing_exception` に理由があるものだけ）
 - 見る欄：`registry:hops#aud`、`registry:hops#scope`、`registry:hops#max_lifetime`
 - No なら：Major。詳しくは `q-hop-narrowing`・`q-hop-lifetime`
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L16`
@@ -943,16 +946,16 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-no-unverified-passthrough-mode"></a>
 
-**q-no-unverified-passthrough-mode**　`template:modules/M_token_validation#library-config` の欄に、検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たないと書いてあり、そのモードが無いことを確かめる拒否のテスト（欠落・署名なしのトークンを拒否する）が計画にあるか
-- 見る欄：`template:modules/M_token_validation#library-config`、`template:claim_request#q18`
-- No なら：Blocker〜Major
+**q-no-unverified-passthrough-mode**　`template:modules/M_token_validation#library-config` の「未検証の値を流すモード」の行と、各受け手の「明示した設定」に、検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たない（持つなら本番で無効にする方法）と書いてあり、`claim_request#q18` の回答と一致するか
+- 見る欄：`template:modules/M_token_validation#library-config`（「未検証の値を流すモード」の行と記入欄）、`template:claim_request#q18`
+- No なら：Blocker〜Major。モードが無いことを確かめる拒否のテスト（欠落・署名なしのトークン）が #8 の計画にあるかも、つながりの実行テストで確かめる
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／実行 `test:negative_tests#missing-required`（未実装）
 - 根拠：slide:p11-pre-add-questions-2、slide:p01-library-defaults
 <!-- req:p11-pre-add-questions-2.R6 -->
 
 <a id="q-consumer-expression"></a>
 
-**q-consumer-expression**　受け手の式（ゲートウェイ・ポリシー言語・コード）が、値を変換せず完全一致で比べ、真偽値は `true` と明示的に比べ、欠落のときは拒否する（`orValue(true)` のような通す既定値を使わない）と、台帳の `enforced_at`・`on_missing` から言えるか
+**q-consumer-expression**　受け手の式（ゲートウェイ・ポリシー言語・コード）が、値を変換せず完全一致で比べ、真偽値は `true` と明示的に比べ、欠落のときに拒否の側に倒れる、と台帳の `enforced_at`・`on_missing` から言えるか（`on_missing` が `拒否`、`既定値` なら拒否の側の値、`無視` なら認可に使わないクレーム。`orValue(true)` のように欠落で通す既定値があれば No）
 - 見る欄：`registry:claims#enforced_at`、`registry:claims#value_normalization`、`registry:claims#on_missing`
 - No なら：Major
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／実行 `test:negative_tests#case-variant`（未実装）
@@ -1092,7 +1095,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 
 <a id="q-operator-act"></a>
 
-**q-operator-act**　運用者の操作は、交換で得た委任のトークン（`sub` に利用者、`act` に運用者）で行い、監査で運用者の操作として見分けられるか
+**q-operator-act**　運用者の操作は、交換で得た委任のトークン（`sub` に利用者、`act` に運用者）で行い、運用者が利用者の資格情報で動かず、監査で運用者の操作として見分けられるか
 - 見る欄：`template:00_core#system-privileges`、`registry:questions#q-actor`
 - No なら：Major（監査で運用者の操作が利用者の操作に見える）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
@@ -1183,7 +1186,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-db-context-writers"></a>
 
-**q-db-context-writers**　DB の文脈を設定する注入者だけが、その接続・取引で SQL を流せるか（`RESET ROLE` などで文脈を戻せる経路があれば No）
+**q-db-context-writers**　DB の文脈を書けるのは注入者だけで、同じ接続・取引で流れる SQL は、注入者が決めた形（アプリの SQL）に限られるか（注入者のほかが任意の SQL を流せる経路、`RESET ROLE` などで文脈を戻せる経路があれば No）
 - 見る欄：`template:modules/M_data_layer#db-context-setter`、`template:00_core#scope-boundary`
 - No なら：Blocker
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
@@ -1350,7 +1353,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 
 <a id="q-deprecated-deadline"></a>
 
-**q-deprecated-deadline**　廃止予定（`deprecated`）のクレームに期日（`sunset_on`）と代わりの行（`alt`）があり、期日の後に読む受け手が 0 か
+**q-deprecated-deadline**　廃止予定（`deprecated`）のクレームに期日（`sunset_on`）と代わりの行（`alt`）があり、期日までに全受け手の移行が済む計画（`consumers_migration`）があり、期日を過ぎたクレームを読む受け手が 0 か
 - 見る欄：`registry:claims#status`、`registry:claims#sunset_on`、`registry:claims#alt`、`registry:claims#consumers_migration`、`template:00_core#definition-lifecycle`
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L18`

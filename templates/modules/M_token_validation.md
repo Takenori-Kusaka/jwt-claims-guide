@@ -233,6 +233,7 @@
 | 時刻のずれ | ライブラリの既定のずれ（例：5 分）を確かめ、組織の値に設定したか | 組織の値に設定する | slide:p01-library-defaults |
 | 署名鍵そのものの確認 | 署名鍵そのものを確かめる設定が既定で無効のライブラリ（Microsoft.IdentityModel など）で、有効にしたか | 有効にする／確かめない | slide:p01-library-defaults |
 | 照合の一覧 | どのクレームを何と照合するか（`iss` と鍵、テナントと `iss`、`aud` と自分）を書いたか | 台帳の `enforced_at` に書く | slide:p00-incident-signature-valid |
+| 未検証の値を流すモード | 検証の無効化・デバッグ・「欠けたら既定値で続行」のモードを持たないか。持つなら、本番で無効にする方法と、それを確かめる拒否のテストがあるか | 持たない／本番で無効にする（方法を書く） | slide:p11-pre-add-questions-2、slide:p01-library-defaults |
 
 記入欄：
 
