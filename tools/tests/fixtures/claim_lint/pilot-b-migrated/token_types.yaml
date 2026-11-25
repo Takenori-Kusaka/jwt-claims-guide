@@ -1,0 +1,1212 @@
+# template_version: 0.3.0
+# yaml-language-server: $schema=../../../../../templates/registry/token_types.schema.json
+# トークン目録と発行方式。パイロット #9 のシナリオ B を #58 の列で書き直した fixture。migrate.py が作る（手で直さない）
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: 社員用のポータルはサーバー側の BFF とし、AT・RT・ID トークンをサーバーに留める。ブラウザには BFF のセッションの Cookie だけを渡す。5 つの IdP のどれでも、ポータルは機密クライアントとして登録する
+    refs:
+    - kind: guide-slide
+      id: p06-grant-types
+    - kind: spec
+      id: RFC 9700 §2.1.1
+  client_auth:
+    value: private_key_jwt
+    rationale: 共有の秘密をポータルと入口のサーバーに置かないため、鍵で認証する。Keycloak・Entra（証明書の資格情報）・Okta・Auth0 は private_key_jwt を受ける。Cognito のアプリクライアントはクライアントシークレットだけなので、Cognito に限り client_secret_basic を使い、シークレットは秘密の保管庫に置く（3. の逸脱に書く）
+    refs:
+    - kind: spec
+      id: OpenID Connect Core 1.0 §9
+    - kind: guide-slide
+      id: p01-client-made-jwts
+    exceptions:
+    - idp: cognito
+      value: client_secret_basic
+      rationale: Cognito のアプリクライアントは private_key_jwt に対応していない（パイロットの記入のまま。この fixture では確かめていない）ので、クライアントの秘密で認証する
+  grants:
+    value:
+    - authorization_code_pkce
+    - refresh_token
+    - client_credentials
+    rationale: 社員のログインは認可コード＋PKCE、AT の取り直しは RT。client_credentials は、入口が Entra のグループの超過を Microsoft Graph で解決するためだけに使う（入口自身のトークン。利用者のクレームを載せない）。トークン交換は使わない（入口は IdP と交換せず、自分で内部トークンを作り直す）
+    refs:
+    - kind: guide-slide
+      id: p06-grant-types
+    - kind: spec
+      id: RFC 6749 §4.4
+  sender_constraint:
+    value: none
+    rationale: 社内業務システムの重点は入口での正規化・ヘッダーの除去・鮮度の確認・groups の超過の解決で、送信者制約は見送りの候補（ガイドの重点と見送り）。トークンは BFF と入口のサーバーの中に留まり、ブラウザに出ない。B23（漏れたトークンの別の端末からの再送）は防がない。見直しの条件は 3.1 と ACCESS 系の行の revisit_trigger に書いた
+    refs:
+    - kind: guide-slide
+      id: p12-priorities-deferrals
+    - kind: spec
+      id: RFC 9449 §1
+  at_format:
+    value: jwt
+    rationale: 5 つの IdP の AT はどれも JWT で、入口が手元で検証する（不透明な AT を出す phantom token の型ではない）。内側のサービスは IdP のトークンを受けない。入口が IdP ごとの規則で検証・正規化し、組織の内部トークン（INTERNAL_TOKEN）に作り直して渡す（hops の H7・H8、kind は reissue）。サービスは内部トークンの署名・宛先・期限だけを共通の部品で確かめる（7. の曖昧な点 1 の決定）
+    refs:
+    - kind: guide-slide
+      id: p06-edge-exchange
+    - kind: guide-slide
+      id: p03-absorb-idp-differences
+  rt_strategy:
+    value: rotation
+    rationale: RT は BFF のサーバーにだけ置く機密クライアントの RT。ローテーションは各 IdP の設定で有効にするが、再利用の検知を全 IdP で確かめていないので rotation とした（検知は unverified）
+    refs:
+    - kind: spec
+      id: RFC 9700 §4.14.2
+    - kind: guide-slide
+      id: p08-rotation
+  request_protection:
+    value: []
+    rationale: 社内の機密クライアントで、認可要求に機微な値を入れない。PAR・JAR は 5 つの IdP のすべてが対応しているかを確かめておらず、使わない。resource indicators も Entra・Cognito で使えないため、宛先は IdP ごとの scope と aud の設定で絞る
+    refs:
+    - kind: spec
+      id: RFC 9126 §1
+    - kind: spec
+      id: RFC 8707 §2
+  conformance_profile:
+    value: none
+    rationale: 金融・医療などの規制の対象ではなく、FAPI に準拠する要求がない。給与明細は個人情報だが、規制の対象のプロファイルを要求する根拠は要求に無い
+    refs:
+    - kind: spec
+      id: FAPI 2.0 Security Profile（Final）§5.3.2.1
+token_types:
+- id: KC_AT
+  kind: access_token
+  decision: 採用
+  rationale: 社内の主な IdP（Keycloak 26.8、レルム corp）の AT。ポータルの BFF が入口に送り、入口が検証して内部トークンに作り直す。サービスには渡さない
+  assumption: ポータルの BFF だけが AT を持ち、ブラウザに出さない。入口は Keycloak の AT の aud（orders・invoices）を経路ごとに照合する
+  revisit_trigger: ブラウザ・モバイルが AT を直接持つ構成になったとき、漏れたトークンの悪用が観測されたとき（送信者制約を見直す）
+  refs:
+  - kind: spec
+    id: RFC 9068 §2
+  - kind: guide-slide
+    id: p01-id-token-vs-access-token
+  purpose: 社員がポータル経由で注文・請求書のサービスを呼ぶための AT（入口だけが読む）
+  issuer: Keycloak 26.8（レルム corp）
+  aud:
+  - orders
+  - invoices
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: JWT
+  kind_discriminator:
+  - claim: typ
+    value: Bearer
+    note: ペイロードの typ。ID トークンは ID
+  - claim: aud
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://kc.corp.example.com/realms/corp
+    jwks_uri: https://kc.corp.example.com/realms/corp/protocol/openid-connect/certs
+  required_claims:
+  - iss
+  - sub
+  - aud
+  - exp
+  - iat
+  - jti
+  - azp
+  - scope
+  - typ
+  key_source:
+    from: issuer_metadata_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  - kind: guide-slide
+    id: p08-choosing-lifetime
+  lifetime_set_by:
+  - platform
+  refresh: BFF が RT で取り直す（U04）。Keycloak はリフレッシュでロール・属性を計算し直す
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  jti_policy:
+    unique_scope: per_issuer
+    replay_check: false
+  revocation:
+  - method: exp_only
+    delay_seconds: 330
+    note: 一般の操作は exp まで受け入れる
+  - method: db_lookup
+    delay_seconds: 0
+    note: 入口が要求ごとに社員台帳のログアウトの時刻と在籍の状態を引き、AT の iat がその時刻より前なら拒む
+  long_running: 非同期の処理は無い。長い操作でも AT は入口で 1 回だけ使い、サービスは内部トークンの期限で止まる
+  key_rotation:
+    period_days: 90
+    publish_before_use_seconds: 86400
+    retire_after_seconds: 86400
+    note: Keycloak のレルムの鍵の追加と無効化で行う。公開してから使い始め、AT の寿命より長く旧鍵を残す
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to:
+  - bff
+  - gateway
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: typ
+        type: string
+        max_bytes: 3
+      - name: kid
+        type: string
+        max_bytes: 43
+      serializer_extra_bytes: 4
+      serializer_extra_basis: Keycloak 26.8.0 の書き出しの空白（templates/README.md の R8 の計算に記載の値。この設計では実測していない）
+    path:
+    - id: gw-nginx-32k
+      applies_to: header_field
+      bytes: 32768
+      basis: 入口の nginx の large_client_header_buffers を 4 32k にする（この設計で決める値。Entra の groups の最大 200 件を入れるため）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: ENTRA_AT
+  kind: access_token
+  decision: 採用
+  rationale: Entra ID（マルチテナント型のアプリ登録）で認証した社員の AT。入口が自社のテナントの発行者だけを受け、oid＋tid で利用者を決め、groups（超過なら Graph で解決）からロールを作る
+  assumption: アプリ登録はマルチテナント型だが、受け入れる発行者は自社のテナント（tid を固定）の 1 つだけ。ポータルは CAE に対応すると宣言しない（xms_cc を送らない）ので、AT の寿命は延びない
+  revisit_trigger: 別のテナントの社員を受け入れる必要が出たとき（M_multitenancy を使い Full のテナントの束縛にする）、CAE を使うことにしたとき
+  refs:
+  - kind: guide-slide
+    id: p03-entra-oid-tid
+  - kind: guide-slide
+    id: p03-entra-scp-roles-groups
+  purpose: Entra ID で認証した社員がポータル経由でサービスを呼ぶための AT（入口だけが読む）
+  issuer: Entra ID（自社のテナント）
+  aud:
+  - api://orders
+  - api://invoices
+  holder: portal-bff
+  format: jwt
+  subject_type: pairwise
+  typ: JWT
+  kind_discriminator:
+  - claim: aud
+    note: API の Application ID URI。ID トークンの aud はクライアントの ID
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+    jwks_uri: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/discovery/v2.0/keys
+  required_claims:
+  - iss
+  - aud
+  - exp
+  - iat
+  - tid
+  - oid
+  - scp
+  key_source:
+    from: configured_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  - kind: spec
+    id: Microsoft identity platform - Configurable token lifetimes
+    url: https://learn.microsoft.com/en-us/entra/identity-platform/configurable-token-lifetimes
+    verified_on: '2026-11-24'
+  lifetime_set_by:
+  - platform
+  refresh: BFF が RT で取り直す。Entra はグループの所属を取り直しで計算し直す（確かめていない。12. に書いた）
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 630
+    note: 一般の操作は exp まで受け入れる（トークンの寿命のポリシーで 10 分にする前提）
+  - method: db_lookup
+    delay_seconds: 0
+    note: 入口が要求ごとに社員台帳のログアウトの時刻と在籍の状態を引く
+  long_running: 非同期の処理は無い
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: 鍵のローテーションは Microsoft が行う。入口は JWKS を取り直すだけ（周期は Microsoft が公開していない）
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to:
+  - bff
+  - gateway
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: typ
+        type: string
+        max_bytes: 3
+      - name: kid
+        type: string
+        max_bytes: 40
+      - name: x5t
+        type: string
+        max_bytes: 40
+    path:
+    - id: gw-nginx-32k
+      applies_to: header_field
+      bytes: 32768
+      basis: 入口の nginx の large_client_header_buffers を 4 32k にする（この設計で決める値。Entra の groups の最大 200 件を入れるため）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: OKTA_AT
+  kind: access_token
+  decision: 採用
+  rationale: Okta（カスタム認可サーバー default）の AT。入口は sub（再利用されうるログイン名）ではなく uid で利用者を決める。部署はインラインフックの値を使わず社員台帳から引く
+  assumption: Okta の default 認可サーバーの aud は api://default で、注文と請求書のサービスで同じ。宛先の区別は scope（orders.*・invoices.*）で行う
+  revisit_trigger: Okta でサービスごとに認可サーバーを分けたとき（aud で区別できるようにする）、uid が AT に入らなくなったとき
+  refs:
+  - kind: guide-slide
+    id: p03-confusing-differences
+  - kind: guide-slide
+    id: p02-user-identifier
+  purpose: Okta で認証した社員がポータル経由でサービスを呼ぶための AT（入口だけが読む）
+  issuer: Okta（カスタム認可サーバー default）
+  aud:
+  - api://default
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: (absent)
+  kind_discriminator:
+  - claim: aud
+  - claim: cid
+    value: portal
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://corp.okta.example.com/oauth2/default
+    jwks_uri: https://corp.okta.example.com/oauth2/default/v1/keys
+  required_claims:
+  - iss
+  - aud
+  - exp
+  - iat
+  - jti
+  - uid
+  - cid
+  - scp
+  key_source:
+    from: issuer_metadata_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  lifetime_set_by:
+  - platform
+  refresh: BFF が RT で取り直す。フックはリフレッシュでも呼ばれるが、部署は使わない
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 330
+    note: 一般の操作は exp まで受け入れる
+  - method: db_lookup
+    delay_seconds: 0
+    note: 入口が要求ごとに社員台帳のログアウトの時刻と在籍の状態を引く
+  long_running: 非同期の処理は無い
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: Okta が鍵を自動でローテーションする。入口は JWKS を取り直すだけ
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to:
+  - bff
+  - gateway
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: kid
+        type: string
+        max_bytes: 43
+    path:
+    - id: gw-nginx-32k
+      applies_to: header_field
+      bytes: 32768
+      basis: 入口の nginx の large_client_header_buffers を 4 32k にする（この設計で決める値）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: COGNITO_AT
+  kind: access_token
+  decision: 採用
+  rationale: Cognito の AT。aud が無いので、入口は client_id をポータルのアプリクライアントの ID と照合し、token_use=access を必須にする（B16 を受け、B17 を拒む）。custom:* の属性は本人が書き換えられるので認可に使わない
+  assumption: Cognito のユーザープールは自社の 1 つ。ポータルのアプリクライアントは 1 つで、その client_id を入口の設定に固定する
+  revisit_trigger: Cognito が AT に aud を入れるようになったとき（aud の照合に切り替える）、アプリクライアントを増やしたとき
+  refs:
+  - kind: guide-slide
+    id: p03-cognito-token-use
+  - kind: guide-slide
+    id: p04-reject-missing-required
+  purpose: Cognito で認証した社員がポータル経由でサービスを呼ぶための AT（入口だけが読む）
+  issuer: Amazon Cognito（自社のユーザープール）
+  aud:
+  - portal のアプリクライアント（client_id で照合）
+  audience_claim: client_id
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: (absent)
+  kind_discriminator:
+  - claim: token_use
+    value: access
+  - claim: aud
+    absent: true
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+    jwks_uri: https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE/.well-known/jwks.json
+  required_claims:
+  - iss
+  - sub
+  - exp
+  - iat
+  - jti
+  - client_id
+  - scope
+  - token_use
+  key_source:
+    from: configured_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  lifetime_set_by:
+  - platform
+  refresh: BFF が RT で取り直す。発行前のフックは取り直しでも動く
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 330
+    note: 一般の操作は exp まで受け入れる
+  - method: db_lookup
+    delay_seconds: 0
+    note: 入口が要求ごとに社員台帳のログアウトの時刻と在籍の状態を引く
+  long_running: 非同期の処理は無い
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: Cognito の鍵は AWS が管理する。入口は JWKS を取り直すだけ
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to:
+  - bff
+  - gateway
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: kid
+        type: string
+        max_bytes: 44
+    path:
+    - id: gw-nginx-32k
+      applies_to: header_field
+      bytes: 32768
+      basis: 入口の nginx の large_client_header_buffers を 4 32k にする（この設計で決める値）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: AUTH0_AT
+  kind: access_token
+  decision: 採用
+  rationale: Auth0（RFC 9068 プロファイル）の AT。ロールは Action で組織の名前空間つきの名前（C-auth0-roles）として足す。名前空間の無い roles は Auth0 が黙って外すので使わず、無ければ拒む（B20 で既定のロールを使わない）
+  assumption: API の設定で RFC 9068 プロファイルを選び、typ が at+jwt になる
+  revisit_trigger: Auth0 のプロファイルを Auth0 独自の形に戻したとき（typ が変わる）
+  refs:
+  - kind: guide-slide
+    id: p03-auth0-namespace
+  - kind: spec
+    id: RFC 9068 §2.1
+  purpose: Auth0 で認証した社員がポータル経由でサービスを呼ぶための AT（入口だけが読む）
+  issuer: Auth0（自社のテナント）
+  aud:
+  - https://api.example.com
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://corp.auth0.example.com/
+    jwks_uri: https://corp.auth0.example.com/.well-known/jwks.json
+  required_claims:
+  - iss
+  - sub
+  - aud
+  - exp
+  - iat
+  - jti
+  - client_id
+  key_source:
+    from: issuer_metadata_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  lifetime_set_by:
+  - platform
+  refresh: BFF が RT で取り直す。Action は取り直しでも動く
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 330
+    note: 一般の操作は exp まで受け入れる
+  - method: db_lookup
+    delay_seconds: 0
+    note: 入口が要求ごとに社員台帳のログアウトの時刻と在籍の状態を引く
+  long_running: 非同期の処理は無い
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: Auth0 の署名鍵のローテーションは管理画面の操作で行う。次の鍵は事前に JWKS に載る
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to:
+  - bff
+  - gateway
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: typ
+        type: string
+        max_bytes: 6
+      - name: kid
+        type: string
+        max_bytes: 32
+    path:
+    - id: gw-nginx-32k
+      applies_to: header_field
+      bytes: 32768
+      basis: 入口の nginx の large_client_header_buffers を 4 32k にする（この設計で決める値）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: GRAPH_AT
+  kind: access_token
+  decision: 採用
+  rationale: 入口が Entra のグループの超過（_claim_names・_claim_sources）を解決するために、Microsoft Graph を自分の権限（client credentials、アプリの権限 GroupMember.Read.All）で呼ぶ AT。利用者の権限を借りない
+  assumption: Graph の呼び出しは、超過した AT を受けたときだけ。結果は利用者ごとに AT の残りの寿命まで入口のメモリに置く
+  revisit_trigger: Graph の応答の遅れ・障害で正規の要求（B9）が落ちるとき（アプリロールに切り替える）
+  refs:
+  - kind: guide-slide
+    id: p03-entra-scp-roles-groups
+  - kind: spec
+    id: RFC 6749 §4.4
+  purpose: 入口が Microsoft Graph でグループの所属を引くための、入口自身の AT
+  issuer: Entra ID（自社のテナント）
+  aud:
+  - https://graph.microsoft.com
+  holder: gateway
+  format: jwt
+  subject_type: public
+  typ: JWT
+  kind_discriminator:
+  - claim: aud
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+    jwks_uri: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/discovery/v2.0/keys
+  key_source:
+    from: configured_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 3600
+  lifetime_refs:
+  - kind: spec
+    id: Microsoft identity platform access tokens
+    url: https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens
+    verified_on: '2026-11-24'
+  lifetime_set_by:
+  - platform
+  refresh: RT は無い。期限の前に client credentials で取り直す
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 3600
+    note: 入口の資格情報（証明書）を無効にしても、発行済みの AT は exp まで Graph に通る
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: Microsoft が管理する。入口はこのトークンを検証しない
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: use_last_known
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to:
+  - gateway
+  jwe:
+    used: false
+  log_policy: 記録しない
+  size:
+    signing:
+      alg: RS256
+      key_bits: 2048
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: typ
+        type: string
+        max_bytes: 3
+      - name: kid
+        type: string
+        max_bytes: 40
+    path:
+    - id: graph-header-16k
+      applies_to: header_field
+      bytes: 16384
+      basis: Graph の要求ヘッダーの上限は公開されていないため、入口の送信側で 16 KiB を超えたら送らない（この設計の値）
+      verified_on: '2026-11-24'
+      review_by: '2027-02-22'
+- id: ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: ポータルの BFF がログインの応答で検証し、BFF のセッションを作るためだけに使う。API には送らない。入口は ID トークンを拒む（B2・B17）
+  assumption: 5 つの IdP のどれも、ポータルのクライアントにだけ ID トークンを出す。ポータルは画面に氏名などを出すのに ID トークンを使わない（7. の曖昧な点 9）
+  revisit_trigger: ポータルが氏名・メールを画面に出すことにしたとき（M_privacy_minimization の行を足す）
+  refs:
+  - kind: guide-slide
+    id: p01-id-token-vs-access-token
+  - kind: spec
+    id: OpenID Connect Core 1.0 §3.1.3.7
+  purpose: ポータルの BFF が社員のログインを確かめる
+  issuer: 5 つの IdP（Keycloak・Entra ID・Okta・Cognito・Auth0）
+  aud:
+  - portal
+  - client-app
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: JWT
+  kind_discriminator:
+  - claim: aud
+    note: ポータルのクライアントの ID。API の宛先ではない
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://kc.corp.example.com/realms/corp
+    jwks_uri: https://kc.corp.example.com/realms/corp/protocol/openid-connect/certs
+  - iss: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+    jwks_uri: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/discovery/v2.0/keys
+  - iss: https://corp.okta.example.com/oauth2/default
+    jwks_uri: https://corp.okta.example.com/oauth2/default/v1/keys
+  - iss: https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+    jwks_uri: https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE/.well-known/jwks.json
+  - iss: https://corp.auth0.example.com/
+    jwks_uri: https://corp.auth0.example.com/.well-known/jwks.json
+  required_claims:
+  - iss
+  - sub
+  - aud
+  - exp
+  - iat
+  - nonce
+  key_source:
+    from: issuer_metadata_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+  - kind: guidance
+    id: NIST IR 8587 §5.3.1.1
+  lifetime_set_by:
+  - platform
+  refresh: 使わない（ログインのときに 1 回だけ検証する）
+  sender_constraint: none
+  revocation:
+  - method: exp_only
+    delay_seconds: 330
+    note: ログインの後は使わない
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 0
+    retire_after_seconds: 0
+    note: 各 IdP の鍵に従う（KC_AT などと同じ）
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: reject
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to:
+  - bff
+  jwe:
+    used: false
+  log_policy: 記録しない
+- id: REFRESH_TOKEN
+  kind: refresh_token
+  decision: 採用
+  rationale: ポータルの BFF が AT を取り直すために使う。BFF のサーバーにだけ置き、ブラウザに出さない
+  assumption: 各 IdP の RT の寿命を、BFF のセッションの最大（10 時間）以下に設定できる
+  revisit_trigger: IdP の RT の寿命を BFF のセッションより短くできない IdP が出たとき
+  refs:
+  - kind: spec
+    id: RFC 9700 §4.14.2
+  - kind: guide-slide
+    id: p08-rotation
+  purpose: BFF が AT を取り直す
+  issuer: 5 つの IdP
+  aud:
+  - 各 IdP のトークンエンドポイント
+  holder: portal-bff
+  format: opaque
+  max_lifetime: 36000
+  idle_timeout: 1800
+  lifetime_refs:
+  - kind: guidance
+    id: NIST SP 800-63B-4 §2.2.3
+  lifetime_set_by:
+  - platform
+  refresh: 取り直しで新しい RT を受け取る（ローテーション）
+  rt_rotation:
+    rotation: true
+    reuse_detection: unverified
+  sender_constraint: none
+  revocation:
+  - method: rp_initiated_logout
+    delay_seconds: 0
+    note: ポータルのログアウトで IdP のセッションを終え、RT を捨てる
+  - method: refresh_failure
+    delay_seconds: 330
+    note: 停止・削除の後の取り直しの失敗（IdP による）
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to:
+  - bff
+  jwe:
+    used: false
+  log_policy: 記録しない
+- id: BFF_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザとポータルの BFF の間のセッション。Cookie（HttpOnly・Secure・SameSite=Lax）にはセッションの ID だけを入れる
+  assumption: ポータルは同じ組織のドメインで配信し、Cookie はポータルのホストだけに送る
+  revisit_trigger: ポータルを別のドメインに分けるとき
+  refs:
+  - kind: guide-slide
+    id: p08-token-types-lifetimes
+  - kind: guidance
+    id: NIST SP 800-63B-4 §2.2.3
+  purpose: ブラウザの社員を BFF が識別する
+  issuer: portal-bff
+  aud:
+  - portal-bff
+  holder: browser
+  format: opaque
+  max_lifetime: 36000
+  idle_timeout: 1800
+  lifetime_refs:
+  - kind: guidance
+    id: NIST SP 800-63B-4 §2.2.3
+  lifetime_set_by:
+  - platform
+  refresh: 操作のたびに無操作の期限を延ばす。最大は延ばさない
+  sender_constraint: none
+  revocation:
+  - method: session_delete
+    delay_seconds: 0
+    note: ログアウトで BFF がセッションを消し、社員台帳のログアウトの時刻を今の時刻にする
+  - method: back_channel_logout
+    delay_seconds: 5
+    note: Keycloak のログアウトトークンを受けて消す（LOGOUT_TOKEN）
+  stored_at: bff_server
+  transport: cookie
+  visible_to:
+  - browser
+  - bff
+  jwe:
+    used: false
+  log_policy: ハッシュ化して記録
+- id: IDP_SESSION
+  kind: session
+  decision: 採用
+  rationale: 各 IdP の SSO のセッション。ポータルのログアウトで RP-Initiated Logout を送り終える
+  assumption: 各 IdP の SSO のセッションの寿命を、無操作 30 分・最大 10 時間に設定する
+  revisit_trigger: IdP の SSO のセッションの設定を自組織で変えられない IdP があるとき
+  refs:
+  - kind: guide-slide
+    id: p08-logout
+  - kind: guidance
+    id: NIST SP 800-63B-4 §2.2.3
+  purpose: IdP がログイン済みの社員を覚える
+  issuer: 5 つの IdP
+  aud:
+  - 各 IdP
+  holder: browser
+  format: opaque
+  max_lifetime: 36000
+  idle_timeout: 1800
+  lifetime_refs:
+  - kind: guidance
+    id: NIST SP 800-63B-4 §2.2.3
+  lifetime_set_by:
+  - platform
+  refresh: IdP の設定に従う
+  sender_constraint: none
+  revocation:
+  - method: rp_initiated_logout
+    delay_seconds: 0
+    note: ポータルのログアウトで終える
+  stored_at: idp
+  transport: cookie
+  visible_to:
+  - browser
+  - idp
+  jwe:
+    used: false
+  log_policy: 記録しない
+- id: AUTHORIZATION_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: 認可コード＋PKCE のログインで使う。1 回だけ使え、PKCE の検証子と組でだけ交換できる
+  assumption: 各 IdP が認可コードを 1 回だけ受け、寿命を 60 秒以下にする
+  revisit_trigger: 寿命が 60 秒を超える IdP があるとき
+  refs:
+  - kind: spec
+    id: RFC 6749 §4.1.2
+  - kind: spec
+    id: RFC 7636 §4
+  purpose: ログインの応答でポータルに渡し、トークンに交換する
+  issuer: 5 つの IdP
+  aud:
+  - portal
+  holder: portal-bff
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+  - kind: spec
+    id: RFC 6749 §4.1.2
+  lifetime_set_by:
+  - platform
+  refresh: 無い
+  sender_constraint: none
+  revocation:
+  - method: one_time_use
+    delay_seconds: 0
+    note: 1 回使えば終わり
+  stored_at: none
+  transport: redirect_query
+  visible_to:
+  - browser
+  - bff
+  jwe:
+    used: false
+  log_policy: 記録しない
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 採用
+  rationale: 入口が IdP の AT を検証・正規化してから作る、組織の内部トークン。宛先は 1 つのサービス、寿命 30 秒。サービスはこれだけを受け、ヘッダー（X-User-Role など）を一切信じない（B4〜B7）
+  assumption: 内部トークンの署名鍵は入口だけが持つ。サービスはネットワークで入口からの接続だけを受ける（入口を通らない経路が残っても、内部トークンが無ければ拒む）
+  revisit_trigger: サービスからサービスへの呼び出しが生まれたとき（Txn-Token を見直す）、入口を複数の組織で共有するとき
+  refs:
+  - kind: guide-slide
+    id: p06-edge-exchange
+  - kind: guide-slide
+    id: p06-header-forwarding
+  purpose: 入口の内側で、正規化した利用者の文脈（利用者・社員番号・部署・ロール）を 1 つのサービスへ運ぶ
+  issuer: gateway（入口）
+  aud:
+  - orders
+  - invoices
+  holder: gateway
+  format: jwt
+  subject_type: public
+  typ: internal+jwt
+  alg_allowlist:
+  - ES256
+  issuers:
+  - iss: https://gw.corp.example.com
+    jwks_uri: https://gw.corp.example.com/.well-known/jwks.json
+  required_claims:
+  - iss
+  - sub
+  - aud
+  - exp
+  - iat
+  - jti
+  - roles
+  - https://claims.example.com/employee_id
+  key_source:
+    from: configured_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 5
+  max_lifetime: 30
+  lifetime_refs:
+  - kind: guide-slide
+    id: p06-edge-exchange
+  - kind: author-proposal
+    id: 要求ごとに作り直す短命の内部トークン（30 秒）
+    tracking: '#9'
+  lifetime_set_by:
+  - platform
+  refresh: 無い。要求ごとに入口が作り直す
+  sender_constraint: none
+  jti_policy:
+    unique_scope: per_issuer
+    replay_check: true
+    max_age_seconds: 35
+  revocation:
+  - method: exp_only
+    delay_seconds: 35
+    note: 要求ごとに作るので exp まで 30 秒＋ずれ 5 秒
+  - method: db_lookup
+    delay_seconds: 0
+    note: 経理台帳では invoices が要求ごとに社員台帳の部署（C-department）を引き直す。ログアウトは入口が作る前に 社員台帳のログアウトの時刻で確かめる
+  - method: one_time_use
+    delay_seconds: 0
+    note: 経理台帳（重要な操作）では invoices が jti を 1 回だけ受ける
+  long_running: 非同期の処理は無い。内部トークンの期限の後にサービスが下流を呼ぶことはない
+  key_rotation:
+    period_days: 30
+    publish_before_use_seconds: 3600
+    retire_after_seconds: 3600
+    note: 入口が新しい鍵を JWKS に載せてから 1 時間後に使い始め、旧鍵は 1 時間残す
+  unknown_kid:
+    refetch_min_interval_seconds: 30
+    negative_cache_seconds: 30
+    on_fetch_failure: reject
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to:
+  - gateway
+  - api
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+  size:
+    signing:
+      alg: ES256
+    header:
+      params:
+      - name: alg
+        type: string
+        max_bytes: 5
+      - name: typ
+        type: string
+        max_bytes: 12
+      - name: kid
+        type: string
+        max_bytes: 36
+    path:
+    - nginx-large-client-header-buffers
+- id: LOGOUT_TOKEN
+  kind: logout_token
+  decision: 採用
+  rationale: Keycloak の Back-Channel Logout で、IdP 側で終えたセッションをポータルの BFF に伝える。BFF はセッションを消し、社員台帳のログアウトの時刻を進める
+  assumption: Back-Channel Logout を使うのは Keycloak だけ。ほかの 4 つの IdP は、ポータルのログアウト（RP-Initiated）だけで終える
+  revisit_trigger: ほかの IdP でも IdP 側のログアウトをポータルに伝える必要が出たとき（Okta・Entra の共有シグナルを見直す）
+  refs:
+  - kind: spec
+    id: OpenID Connect Back-Channel Logout 1.0 §2.4
+  - kind: guide-slide
+    id: p08-logout
+  purpose: IdP のセッションの終了をポータルに伝える
+  issuer: Keycloak 26.8（レルム corp）
+  aud:
+  - portal
+  holder: portal-bff
+  format: jwt
+  subject_type: public
+  typ: logout+jwt
+  alg_allowlist:
+  - RS256
+  issuers:
+  - iss: https://kc.corp.example.com/realms/corp
+    jwks_uri: https://kc.corp.example.com/realms/corp/protocol/openid-connect/certs
+  required_claims:
+  - iss
+  - aud
+  - iat
+  - exp
+  - jti
+  - events
+  - sid
+  key_source:
+    from: issuer_metadata_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 120
+  lifetime_refs:
+  - kind: spec
+    id: OpenID Connect Back-Channel Logout 1.0 §4
+  lifetime_set_by:
+  - platform
+  refresh: 無い
+  sender_constraint: none
+  jti_policy:
+    unique_scope: per_issuer
+    replay_check: true
+    max_age_seconds: 150
+  revocation:
+  - method: one_time_use
+    delay_seconds: 0
+    note: jti を 1 回だけ受ける
+  key_rotation:
+    period_days: 90
+    publish_before_use_seconds: 86400
+    retire_after_seconds: 86400
+    note: KC_AT と同じレルムの鍵
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: reject
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  stored_at: none
+  transport: back_channel_post
+  visible_to:
+  - bff
+  - idp
+  jwe:
+    used: false
+  log_policy: jti だけ記録
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 採用
+  rationale: ポータル（Cognito を除く 4 つの IdP）と入口（Graph の client credentials）が private_key_jwt でクライアント認証する
+  assumption: 鍵はポータル・入口のサーバーの鍵の保管庫にあり、取り出せない
+  revisit_trigger: 鍵の保管庫を使えない環境に置くとき
+  refs:
+  - kind: spec
+    id: RFC 7523 §3
+  - kind: guide-slide
+    id: p01-client-made-jwts
+  purpose: トークンエンドポイントでクライアントを認証する
+  issuer: portal-bff・gateway（クライアント自身）
+  aud:
+  - 各 IdP のトークンエンドポイント
+  holder: portal-bff
+  format: jwt
+  typ: JWT
+  kind_discriminator:
+  - claim: aud
+    note: IdP のトークンエンドポイント
+  alg_allowlist:
+  - RS256
+  - PS256
+  issuers:
+  - iss: portal
+    jwks_uri: https://portal.corp.example.com/.well-known/jwks.json
+  key_source:
+    from: configured_jwks_uri
+    header_key_params: reject
+  max_clock_skew: 30
+  max_lifetime: 60
+  lifetime_refs:
+  - kind: spec
+    id: RFC 7523 §3
+  lifetime_set_by:
+  - platform
+  refresh: 無い。トークンの要求ごとに作る
+  sender_constraint: none
+  jti_policy:
+    unique_scope: per_issuer
+    replay_check: true
+    max_age_seconds: 90
+  revocation:
+  - method: one_time_use
+    delay_seconds: 0
+    note: IdP が jti の再利用を拒む（IdP による）
+  key_rotation:
+    period_days: 365
+    publish_before_use_seconds: 86400
+    retire_after_seconds: 86400
+    note: 新しい鍵を IdP に登録してから使い始める
+  unknown_kid:
+    refetch_min_interval_seconds: 60
+    negative_cache_seconds: 60
+    on_fetch_failure: reject
+  jwks_cache_ttl: 3600
+  signing_key_scope: per_client
+  stored_at: none
+  transport: form_post_body
+  visible_to:
+  - bff
+  - gateway
+  - idp
+  jwe:
+    used: false
+  log_policy: 記録しない
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 却下
+  rationale: サービスからサービスへの呼び出しが無く、入口 → サービスの 1 段だけ。内部トークン（INTERNAL_TOKEN）で足り、TTS を置く費用に見合わない。できなくなること：複数のサービスにまたがる取引の識別子（txn）を改変されずに運ぶこと
+  assumption: 注文と請求書のサービスは互いを呼ばない
+  revisit_trigger: サービス間の呼び出しが生まれたとき
+  refs:
+  - kind: spec
+    id: draft-ietf-oauth-transaction-tokens-11 §6
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: 取引先・別のドメインのサービスを、SSO 済みの社員として呼ぶ経路が無い。できなくなること：ドメインをまたぐ認可グラント
+  assumption: 社外の API を社員の代わりに呼ばない
+  revisit_trigger: 社外の SaaS の API を社員として呼ぶ機能を足すとき
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: 送信者制約を見送る（issuance_profile.sender_constraint）。できなくなること：漏れた AT の別の端末からの再送を止めること（B23）
+  assumption: AT は BFF と入口のサーバーの中に留まり、ブラウザ・端末に出ない
+  revisit_trigger: B23 の型の悪用が観測されたとき、AT を端末に置く構成にしたとき
+  refs:
+  - kind: spec
+    id: RFC 9449 §1
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: 認可要求に改ざんされて困る値（RAR など）を入れない。できなくなること：認可要求の改ざんの検出
+  assumption: 認可要求のパラメータは scope・state・nonce・PKCE だけ
+  revisit_trigger: 認可要求に承認の内容を入れるとき
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: 認可コード＋PKCE と state で足りる。できなくなること：認可応答の署名による改ざんの検出
+  assumption: 5 つの IdP のすべてが JARM に対応しているとは確かめていない
+  revisit_trigger: FAPI などの準拠が求められたとき
+  format: jwt
+- id: WORKLOAD_JWT
+  kind: jwt
+  decision: 却下
+  rationale: 入口とサービスの間の通信相手は、メッシュの mTLS（ワークロードの証明書）で確かめ、ワークロードの ID のトークンは使わない。できなくなること：トークンの層でのワークロードの識別
+  assumption: 入口とサービスは同じメッシュの中にあり、mTLS を強制できる
+  revisit_trigger: メッシュの外のワークロードがサービスを呼ぶとき
+  format: jwt
+- id: SET
+  kind: security_event_token
+  decision: 却下
+  rationale: 共有シグナル（SSF・CAEP）を受ける仕組みを作らない。ログアウト・異動の反映は社員台帳の問い合わせ（db_lookup）で行う。できなくなること：IdP 側の失効の即時の受信
+  assumption: 社員台帳が異動・退職・ログアウトの時刻を即時に持つ
+  revisit_trigger: IdP 側だけで起きるアカウントの停止を、台帳より先に反映する必要が出たとき
+  format: jwt
+- id: STATUS_LIST
+  kind: status_list_token
+  decision: 却下
+  rationale: 内部トークンは 30 秒で、状態リストを置く必要が無い。できなくなること：個々のトークンの失効の配布
+  assumption: 内部トークンの寿命を 30 秒より長くしない
+  revisit_trigger: 内部トークンの寿命を延ばすとき
+  format: jwt
+- id: INTROSPECTION_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: IdP のイントロスペクションを使わない（5 つの IdP で手段がそろわないため、社員台帳の問い合わせに寄せた）。できなくなること：IdP の側でのトークンの有効性の確認
+  assumption: 社員台帳の問い合わせで、ログアウト・在籍・部署の鮮度を確かめられる
+  revisit_trigger: 社員台帳で表せない失効（IdP の管理者による個々のトークンの失効）を反映する必要が出たとき
+  format: jwt

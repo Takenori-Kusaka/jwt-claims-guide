@@ -1,0 +1,717 @@
+# template_version: 0.3.0
+# カタログへの回答。パイロット #9 のシナリオ B を #58 の列で書き直した fixture。migrate.py が作る（手で直さない）
+lite_criteria:
+  crosses_boundary:
+    answer: true
+    reason: 社員のトークンは、外部の IdP（Entra ID・Okta・Cognito・Auth0 のクラウドのサービス）から組織の入口へ境界を越えて届く
+  multitenant:
+    answer: false
+    reason: 組織は社内の 1 つで、顧客ごとのテナントは無い。Entra のアプリ登録はマルチテナント型だが、受け入れるのは自社のテナントだけ
+  delegation_or_exchange:
+    answer: true
+    reason: 入口で IdP の AT を検証し、内部トークンに作り直す（作り直しは README の判定の例に当たる）
+  new_issuer:
+    answer: true
+    reason: 入口が内部トークンの新しい発行者になる。Cognito・Auth0 などの模擬の IdP も組織で新しく使う
+  regulated:
+    answer: false
+    reason: 金融・医療の規制の対象ではない。給与明細は個人情報だが、要配慮個人情報ではない
+idp:
+- name: keycloak
+  version: '26.8'
+  token_types:
+  - KC_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+  - LOGOUT_TOKEN
+- name: entra
+  version: v2.0 エンドポイント
+  token_types:
+  - ENTRA_AT
+  - GRAPH_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+- name: okta
+  version: カスタム認可サーバー（default）
+  token_types:
+  - OKTA_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+- name: cognito
+  version: ユーザープール
+  token_types:
+  - COGNITO_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+  trigger_list_source:
+    url: https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html
+    verified_on: '2026-11-25'
+  trigger_list:
+  - trigger: TokenGeneration_HostedAuth
+    events:
+    - I01
+  - trigger: TokenGeneration_RefreshTokens
+    events:
+    - I02
+  - trigger: TokenGeneration_Authentication
+    out_of_scope:
+      assumption: ポータルはマネージドログイン（認可コード＋PKCE）だけを使い、SDK の直接のサインイン（InitiateAuth）を使わない
+      breaks_when: ネイティブのアプリなど、ユーザープールの API で直接サインインするクライアントを足したとき
+  - trigger: TokenGeneration_NewPasswordChallenge
+    out_of_scope:
+      assumption: 管理者が作った利用者の初回のパスワード変更は、マネージドログインの画面で行い、API のチャレンジを使わない
+      breaks_when: AdminCreateUser と API のチャレンジで初回のサインインを行うクライアントを足したとき
+  - trigger: TokenGeneration_AuthenticateDevice
+    out_of_scope:
+      assumption: デバイスの記憶（device tracking）をユーザープールで有効にしない
+      breaks_when: デバイスの記憶を有効にしたとき
+  - trigger: TokenGeneration_ClientCredentials
+    out_of_scope:
+      assumption: Cognito のアプリクライアントに client credentials を許さない（入口の client credentials は Keycloak と Entra だけ）
+      breaks_when: Cognito でマシン間の AT を出すアプリクライアントを足したとき
+- name: auth0
+  version: テナント（模擬）
+  token_types:
+  - AUTH0_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+questions:
+  q-sub:
+    needed: true
+  q-actor:
+    needed: false
+    reason: 代理の実行者がいない。社員が自分でポータルを使い、エージェント・運用者の代理操作は無い
+  q-req-wl:
+    needed: false
+    reason: Txn-Token を使わない（入口 → サービスの 1 段だけで、サービス間の呼び出しが無い）
+  q-peer:
+    needed: true
+    channel: 入口とサービスの間はメッシュの mTLS（ワークロードの証明書）で直接の通信相手を確かめる。サービスは入口の証明書の接続だけを受ける（B7）
+  q-via:
+    needed: true
+    channel: 入口の監査ログに、利用者を認証した IdP の iss・AT の jti・内部トークンの jti・経路を記録する（トークンの全文は記録しない）
+  q-txn:
+    needed: false
+    reason: 複数のサービスにまたがる取引が無い。経理台帳の要求は 1 つのサービスで終わる
+  q-user:
+    needed: true
+  q-agent:
+    needed: true
+  q-authorized:
+    needed: true
+  q-resource:
+    needed: true
+  q-holder:
+    needed: false
+    reason: 送信者制約を見送る（B23 を防がない判断。3.1 の見送りと見直しの条件）。トークンは BFF と入口のサーバーの中に留まる
+subject_states:
+  states:
+    subject-states/invited:
+      AT:
+        result: 影響なし
+        basis: 社員の招待の仕組みは無い。入社の手続きで社員台帳に登録してから IdP のアカウントを作るので、招待の状態でトークンは出ない
+      RT:
+        result: 影響なし
+        basis: 招待の状態ではログインしないので RT は無い
+      ID:
+        result: 影響なし
+        basis: 招待の状態ではログインしないので ID トークンは無い
+      内部トークン:
+        result: 影響なし
+        basis: 社員台帳の名寄せの表に無い利用者には、入口が内部トークンを作らない
+      Logout Token:
+        result: 影響なし
+        basis: セッションが無いのでログアウトトークンも出ない
+      IdP のセッション:
+        result: 影響なし
+        basis: ログインしていないので IdP のセッションは無い
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: ログインしていないので BFF のセッションは無い
+    subject-states/active:
+      AT:
+        result: 発行
+        basis: 初回のログイン（I25・I01）で IdP が AT を出す。入口は名寄せの表と在籍の状態を確かめてから受ける
+      RT:
+        result: 発行
+        basis: 初回のログインで BFF が RT を受け取り、サーバーに置く
+      ID:
+        result: 発行
+        basis: 初回のログインで BFF が ID トークンを受け取り、検証してセッションを作る
+      内部トークン:
+        result: 発行
+        basis: 最初の API の呼び出しで、入口が社員台帳の値で内部トークンを作る（I21）
+      Logout Token:
+        result: 影響なし
+        basis: 初回のログインはセッションを終えないのでログアウトトークンは出ない
+      IdP のセッション:
+        result: 発行
+        basis: 初回のログインで各 IdP が SSO のセッションを作る
+      RP・BFF のセッション:
+        result: 発行
+        basis: ID トークンの検証の後に BFF がセッションを作る（U03）
+    subject-states/suspended:
+      AT:
+        result: 失効
+        basis: IdP の AT は exp まで有効だが、入口が要求ごとに社員台帳の在籍の状態を引くので、停止の直後から拒む（遅れ 0 秒）
+      RT:
+        result: 失効
+        basis: 入口が拒むので BFF は使えない。IdP 側の RT の扱いは IdP ごとに違い、確かめていない（12.）
+      ID:
+        result: 影響なし
+        basis: ID トークンはログインの時点の主張で、BFF はログインのときに 1 回だけ使う
+      内部トークン:
+        result: 失効
+        basis: 入口が新しい内部トークンを作らない。発行済みのものは最悪 35 秒残る
+      Logout Token:
+        result: 発行
+        basis: Keycloak で利用者を無効にしセッションを消すと、Back-Channel Logout のログアウトトークンが出る（ほかの IdP は出ない）
+      IdP のセッション:
+        result: 失効
+        basis: 各 IdP で無効にした利用者のセッションは IdP が終える前提（IdP ごとに確かめていない）
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: BFF のセッションは残るが、入口が要求を拒むので操作はできない。Keycloak ではログアウトトークンで消える
+    subject-states/deleted:
+      AT:
+        result: 失効
+        basis: 退職の手続きで社員台帳の在籍の状態を退職にし、入口が要求ごとに拒む（遅れ 0 秒）
+      RT:
+        result: 失効
+        basis: 入口が拒むので使えない。IdP でアカウントを消すと取り直しも失敗する
+      ID:
+        result: 影響なし
+        basis: ID トークンはログインの時点の主張で、ログインの後は使わない
+      内部トークン:
+        result: 失効
+        basis: 入口が新しい内部トークンを作らない。発行済みのものは最悪 35 秒残る
+      Logout Token:
+        result: 発行
+        basis: Keycloak でアカウントを消すとセッションが終わり、ログアウトトークンが出る
+      IdP のセッション:
+        result: 失効
+        basis: アカウントを消すと IdP のセッションも使えなくなる前提
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: BFF のセッションは無操作の期限まで残るが、入口が要求を拒む
+    subject-states/tenant-switch:
+      AT:
+        result: 影響なし
+        basis: テナントの切り替えは無い（組織は 1 つ）。異動は権限変更の行で扱う
+      RT:
+        result: 影響なし
+        basis: テナントの切り替えが無いので RT は変わらない
+      ID:
+        result: 影響なし
+        basis: テナントの切り替えが無いので ID トークンは変わらない
+      内部トークン:
+        result: 影響なし
+        basis: 内部トークンにテナントのクレームは無い
+      Logout Token:
+        result: 影響なし
+        basis: テナントの切り替えでセッションを終えない
+      IdP のセッション:
+        result: 影響なし
+        basis: テナントの切り替えが無いので IdP のセッションは変わらない
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: テナントの切り替えが無いので BFF のセッションは変わらない
+    subject-states/role-change:
+      AT:
+        result: 影響なし
+        basis: 異動・ロールの変更の後も IdP の AT は exp まで古いグループを持つ（最悪 Entra で 630 秒）。部署は AT の値を使わない
+      RT:
+        result: 再計算
+        basis: 次の取り直しで IdP がグループ・ロールを計算し直す（Keycloak は計算し直す。ほかの IdP は確かめていない）
+      ID:
+        result: 影響なし
+        basis: ID トークンはログインのときだけ使い、ロールの判断に使わない
+      内部トークン:
+        result: 再計算
+        basis: 入口が要求ごとに社員台帳から部署を引くので、異動は次の要求から反映（最悪 35 秒）。経理台帳は invoices が引き直すので遅れ 0（B11）
+      Logout Token:
+        result: 影響なし
+        basis: ロールの変更ではセッションを終えない
+      IdP のセッション:
+        result: 影響なし
+        basis: ロールの変更では IdP のセッションは終わらない
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: BFF のセッションにロールを持たないので影響しない
+    subject-states/credential-change:
+      AT:
+        result: 影響なし
+        basis: パスワードの変更・リセットでも発行済みの AT は exp まで残る（最悪 630 秒）。盗まれた疑いがあればログアウトの時刻を進めて入口で止める
+      RT:
+        result: 失効
+        basis: パスワードのリセットで IdP が RT を失効させる前提（IdP ごとに確かめていない。12.）
+      ID:
+        result: 影響なし
+        basis: ID トークンはログインのときだけ使う
+      内部トークン:
+        result: 影響なし
+        basis: 内部トークンは 30 秒で、資格情報の変更と無関係に作り直される
+      Logout Token:
+        result: 発行
+        basis: Keycloak でパスワードのリセットに合わせてセッションを終えると、ログアウトトークンが出る
+      IdP のセッション:
+        result: 失効
+        basis: リセットの手続きで IdP のセッションを終える設定にする
+      RP・BFF のセッション:
+        result: 影響なし
+        basis: BFF のセッションは残るが、BFF は社員台帳のログアウトの時刻を見てログインし直させる
+pairwise:
+  subject_kinds:
+    利用者:
+      answer: 該当
+    ワークロード:
+      answer: 該当
+    システム:
+      answer: 対象外
+      reason: 夜間バッチ・運用者の代理操作・緊急時の特権の操作が無い。管理操作は管理者のロールを持つ社員が自分で行う（2.2）
+  combinations:
+  - subject: 利用者
+    event: I01
+    stage: ①
+    note: 社員が 5 つの IdP のどれかで認証する。どの IdP でも入口が名寄せの表で同じ組織の利用者にする
+  - subject: 利用者
+    event: I01
+    stage: ②
+    note: IdP が AT を出す。入口は IdP ごとの宛先・種類の規則で受け、ID トークンを拒む（B2・B17）
+  - subject: 利用者
+    event: I02
+    stage: ②
+    note: 取り直しで IdP がグループを計算し直す。異動の反映は社員台帳で行うので取り直しに頼らない
+  - subject: 利用者
+    event: I05
+    stage: ②
+    note: client credentials の AT は入口自身のもので、利用者のクレームを載せない。利用者のトークンと発行者・宛先（Graph）で区別できる
+  - subject: 利用者
+    event: I09
+    stage: ②
+    note: Keycloak のログアウトで BFF のセッションを消し、ログアウトの時刻を進める（B12）
+  - subject: 利用者
+    event: I11
+    stage: ②
+    note: SSO のセッションを再利用したログインでも、入口の規則は同じ。ログアウトの時刻より後の iat の AT だけを受ける
+  - subject: 利用者
+    event: I21
+    stage: ③
+    note: 入口が社員台帳から sub・社員番号・部署を引き、IdP の値（部署・社員番号）を使わない（B15・B18・B22）
+  - subject: 利用者
+    event: I25
+    stage: ①
+    note: 入社の初回のログイン。社員台帳の名寄せの表が先に無いと入口が拒むので、手続きの順を決める（12.）
+  - subject: 利用者
+    event: I25
+    stage: ②
+    note: 初回のログインの AT も通常のログインと同じ規則で受ける。グループが未設定ならロールは空
+  - subject: 利用者
+    event: I26
+    stage: ①
+    note: パスワードのリセットの後のログイン。古い AT はログアウトの時刻を進めれば入口で止まる
+  - subject: 利用者
+    event: I26
+    stage: ②
+    note: リセットの後に出る AT は新しい iat を持つので、ログアウトの時刻より後として受ける
+  - subject: 利用者
+    event: I28
+    stage: ②
+    note: ポータルのクライアントの assertion は利用者を表さない。利用者の sub と混ざらない
+  - subject: ワークロード
+    event: I01
+    stage: ①
+    note: ワークロードは対話のログインをしない。I01 の AT の azp・client_id はポータルで、入口はそれ以外のクライアントを拒む
+  - subject: ワークロード
+    event: I02
+    stage: ②
+    note: ワークロードは RT を持たない。RT は BFF のサーバーにだけある
+  - subject: ワークロード
+    event: I05
+    stage: ②
+    note: 入口が Graph のために client credentials の AT を取る。アプリの権限は GroupMember.Read.All だけに絞る
+  - subject: ワークロード
+    event: I09
+    stage: ②
+    note: ログアウトトークンは BFF（ワークロード）宛て。BFF は aud・events・jti の 1 回だけの受け入れを確かめる
+  - subject: ワークロード
+    event: I11
+    stage: ②
+    note: SSO の再利用はブラウザの利用者だけ。ワークロードの経路では起きない
+  - subject: ワークロード
+    event: I21
+    stage: ③
+    note: 内部トークンの発行者は入口（ワークロード）。サービスは入口の iss と mTLS の相手の両方を確かめる
+  - subject: ワークロード
+    event: I25
+    stage: ①
+    note: ワークロードに初回のログインは無い。ワークロードの資格情報は鍵の保管庫で配る
+  - subject: ワークロード
+    event: I26
+    stage: ①
+    note: ワークロードの資格情報の変更は鍵のローテーションで、IdP への登録の後に使い始める
+  - subject: ワークロード
+    event: I28
+    stage: ②
+    note: ポータルと入口が private_key_jwt の assertion を作る（Cognito は client_secret_basic）
+outside_enumeration:
+  answer: カタログの 62 件の外に、5 つの IdP の混在から来る契機を 4 つ見つけた。(1) Entra のグループの超過で入口が Graph を呼ぶ契機（I05 と U20 で扱う）、(2) Okta のインラインフックの打ち切りで部署が欠ける発行（部署を IdP から取らないことで扱う）、(3) Cognito の発行前のフックがグループを外す発行（ロールを空にし既定値を使わない）、(4) 現状の入口からの移行の間、古い入口の X-User-Role を信じるサービスが残る契機（移行の手順で扱う。12.）
+  respondent: 設計の書き手（LLM、Claude Opus 5.5。パイロット
+  date: '2026-11-24'
+  searched:
+  - 要求の概要（シナリオ B）の 2. 登場するもの・5. 脅威・7. あいまいな点
+  - templates/catalog/issue_events.yaml と use_events.yaml の全行
+  - templates/profiles/P5_internal_propagation.md の 1. 入口での変換
+  - Microsoft Entra ID の groups overage claim の文書 https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles
+  - Okta の token inline hook の文書 https://developer.okta.com/docs/guides/token-inline-hook/main/
+  - Amazon Cognito の pre token generation Lambda trigger の文書 https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html
+  - Auth0 の custom claims（namespaced）の文書 https://auth0.com/docs/secure/tokens/json-web-tokens/create-custom-claims
+  - Keycloak 26 の Server Administration Guide https://www.keycloak.org/docs/latest/server_admin/
+  found:
+  - name: Entra のグループの超過で入口が Graph を呼ぶ
+    handled_as: I05・U20・U21 の該当の回答と C-groups の absent_semantics
+  - name: Okta のインラインフックの打ち切り
+    handled_as: 部署を IdP から取らない（C-idp-department の却下）
+  - name: Cognito の発行前のフックがグループを外す
+    handled_as: ロールを空にし既定値を使わない（C-roles の absent_semantics）
+  - name: 現状の入口からの移行の間に残る X-User-Role の信頼
+    handled_as: design.md の 12. と 9.3 の移行の手順
+answers:
+- event: I01
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+  - AUTHORIZATION_CODE
+  - IDP_SESSION
+  - BFF_SESSION
+  note: 社員のログイン。5 つの IdP のどれでも認可コード＋PKCE
+- event: I02
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - REFRESH_TOKEN
+  note: BFF が RT で AT を取り直す
+- event: I03
+  answer: 対象外
+  assumption: Keycloak のポータルのクライアントで軽量アクセストークンを有効にしない。入口は AT の中の azp・aud・sub を手元で読む
+  breaks_when: クライアントの設定で Always use lightweight access token を有効にしたとき、またはトークンのサイズを減らすために軽量の AT を選んだとき
+- event: I04
+  answer: 対象外
+  assumption: 5 つの IdP のポータルのクライアントで ROPC（Direct Access Grants）を無効にし、パスワードをトークンエンドポイントに送らない
+  breaks_when: 移行の都合や試験の自動化のために Direct Access Grants を有効にしたとき
+- event: I05
+  answer: 該当
+  token_types:
+  - GRAPH_AT
+  note: 入口が Entra のグループの超過の解決のために Graph の AT を取る。利用者のクレームを載せない
+- event: I06
+  answer: 対象外
+  assumption: 入口は IdP とトークンを交換せず、自分の鍵で内部トークンを作り直す。どのクライアントにも token exchange を許さない
+  breaks_when: サービスが利用者の代わりに別の API を呼ぶ機能を足し、RFC 8693 の交換を使うことにしたとき
+- event: I07
+  answer: 対象外
+  assumption: 入力の限られた端末からのログインは無く、ポータルはブラウザだけで使う
+  breaks_when: 会議室の端末・工場の端末から業務システムを使う要求が出たとき
+- event: I08
+  answer: 対象外
+  assumption: ポータルは offline_access を求めず、社員が使っていない間に API を呼ぶ処理が無い
+  breaks_when: 夜間に社員の代わりに処理を走らせる機能を足し、オフラインの RT を求めたとき
+- event: I09
+  answer: 該当
+  token_types:
+  - LOGOUT_TOKEN
+  note: Keycloak の Back-Channel Logout だけ
+  hook_checked: Keycloak のログアウトトークンには組織の独自クレームを載せない（台帳の C-sid・C-events は登録名）。フックの有無は M_idp_keycloak の 1. の表で読んだだけで実測していない
+- event: I10
+  answer: 対象外
+  assumption: 5 つの IdP のポータルのクライアントで implicit・hybrid の応答を無効にし、トークンをフロントチャネルで返さない
+  breaks_when: SPA がトークンを直接受け取る構成に変えたとき、IdP の既定で implicit が有効なまま残っていたと分かったとき
+- event: I11
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - AUTHORIZATION_CODE
+  - BFF_SESSION
+  note: BFF のセッションが切れても IdP の SSO のセッションが残っていれば再利用する
+  hook_checked: Keycloak は SSO の再利用でも同じプロトコルマッパーで AT を作る前提（M_idp_keycloak の 1. を読んだだけで実測していない）
+- event: I12
+  answer: 対象外
+  assumption: 経理台帳・給与明細でも追加の認証を求めない。重要な操作の守りは社員台帳の鮮度の確認で行う（付録 B）
+  breaks_when: 監査で経理台帳の操作に多要素の再認証を求められたとき、なりすましの事故が起きたとき
+- event: I13
+  answer: 対象外
+  assumption: 別の端末での承認の流れが無い。承認は請求書のサービスの画面の中で、approver のロールで行う
+  breaks_when: 高額の支払いの承認を承認者の携帯で行う要求が出たとき
+- event: I14
+  answer: 対象外
+  assumption: 細かい承認の内容をトークンに載せない。操作の可否はサービスがロールと社員台帳で判断する
+  breaks_when: 操作ごとの同意（RAR の authorization_details）を IdP で取る要求が出たとき
+- event: I15
+  answer: 対象外
+  assumption: ドメインをまたぐ JWT やワークロードの JWT で AT を取る経路が無い
+  breaks_when: 別の組織の IdP の JWT を受けて AT を出す連携を始めたとき
+- event: I16
+  answer: 対象外
+  assumption: 社外の SaaS を SSO 済みの社員として呼ぶ機能が無い（ID_JAG を却下）
+  breaks_when: 社外の SaaS の API を社員として呼ぶ機能を足すとき
+- event: I17
+  answer: 対象外
+  assumption: 5 つの IdP はポータルに直接つなぎ、Keycloak のブローカーを経由させない。名寄せは入口と社員台帳で行う
+  breaks_when: IdP を 1 つにまとめるために Keycloak のブローカーで他の IdP を取り込むことにしたとき
+- event: I18
+  answer: 対象外
+  assumption: IdP の側で既存の利用者と外部の ID を結びつけない。結びつけは人事の手続きで社員台帳の名寄せの表に書く
+  breaks_when: IdP の側の自動のリンク（メールの一致など）を有効にしたとき
+- event: I19
+  answer: 対象外
+  assumption: Keycloak の Impersonate の権限を誰にも与えず、ほかの IdP の代理操作の機能も使わない
+  breaks_when: ヘルプデスクが社員の画面を代理で操作する要求が出たとき（2.2 の運用者の操作を書き直す）
+- event: I20
+  answer: 対象外
+  assumption: 入口とサービスの間はメッシュの X.509 の証明書で確かめ、ワークロードの JWT（JWT-SVID など）を使わない
+  breaks_when: メッシュの外のワークロードが JWT でサービスを呼ぶことにしたとき
+- event: I21
+  answer: 該当
+  token_types:
+  - INTERNAL_TOKEN
+  note: 入口が要求ごとに内部トークンを作る
+- event: I22
+  answer: 対象外
+  assumption: サービスからサービスへの呼び出しが無く、Transaction Token Service を置かない
+  breaks_when: 注文のサービスが請求書のサービスを呼ぶなど、サービス間の呼び出しが生まれたとき
+- event: I23
+  answer: 対象外
+  assumption: IdP から共有シグナルを受けない。停止・退職は社員台帳の在籍の状態で入口が止める
+  breaks_when: IdP 側だけで起きる停止（リスクの検知など）を社員台帳より先に反映する必要が出たとき
+- event: I24
+  answer: 対象外
+  assumption: 組織は社内の 1 つで、テナント・組織の切り替えの操作が無い
+  breaks_when: グループ会社を別のテナントとして受け入れることにしたとき
+- event: I25
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - REFRESH_TOKEN
+  - IDP_SESSION
+  - BFF_SESSION
+  note: 入社した社員の初回のログイン。社員台帳の名寄せの表が先に要る
+  hook_checked: Keycloak の初回のログインも I01 と同じマッパーで AT を作る前提（subject_state_matrix.md の active の行の「推論」による。実測していない）
+- event: I26
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - IDP_SESSION
+  note: パスワードのリセット・MFA の登録の後のログイン
+  hook_checked: Keycloak の資格情報の変更の後のログインも I01 と同じマッパーで AT を作る前提（実測していない）
+- event: I27
+  answer: 対象外
+  assumption: 内部トークンは 30 秒で、状態リストを置かない（STATUS_LIST を却下）
+  breaks_when: 内部トークンの寿命を延ばし、個々のトークンを失効させる必要が出たとき
+- event: I28
+  answer: 該当
+  token_types:
+  - CLIENT_ASSERTION
+  note: ポータルと入口の private_key_jwt
+- event: I29
+  answer: 対象外
+  assumption: 送信者制約を見送り、AT・RT を鍵に束縛しない（B23 を防がない判断）
+  breaks_when: 漏れた AT の再送（B23 の型）が観測されたとき、AT を端末に置く構成にしたとき
+- event: I30
+  answer: 対象外
+  assumption: DPoP を使わないので、クライアントは DPoP の proof を作らない
+  breaks_when: 送信者制約を DPoP で入れることにしたとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求に改ざんされて困る値を入れず、JAR の Request Object を作らない
+  breaks_when: 認可要求に承認の内容や機微な値を入れることにしたとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答は認可コード＋PKCE と state で守り、JARM を使わない
+  breaks_when: FAPI などの準拠が求められたとき
+- event: I33
+  answer: 対象外
+  assumption: IdP のイントロスペクションを使わない。鮮度の確認は社員台帳の問い合わせで行う
+  breaks_when: IdP の管理者による個々のトークンの失効を受け手に反映する必要が出たとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報（社員証の VC など）を発行しない
+  breaks_when: 社員証をデジタルの資格情報として発行する計画が始まったとき
+- event: U01
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - INTERNAL_TOKEN
+  note: 入口が IdP の AT を、サービスが内部トークンを Bearer で受けて検証する
+- event: U02
+  answer: 対象外
+  assumption: テナントが無く、DB の行単位の制御（RLS・SET LOCAL）を使わない。サービスは内部トークンの sub・社員番号を問い合わせの条件に入れて絞る
+  breaks_when: 部署ごとに DB の行単位の制御を入れることにしたとき（M_data_layer を使う）
+- event: U03
+  answer: 該当
+  token_types:
+  - ID_TOKEN
+  note: BFF が ID トークンを検証して BFF のセッションを作る。氏名・メールは読まない
+- event: U04
+  answer: 該当
+  token_types:
+  - REFRESH_TOKEN
+  note: BFF が RT を提示して AT を取り直す
+- event: U05
+  answer: 対象外
+  assumption: 入口もサービスも IdP のイントロスペクションを呼ばない（INTROSPECTION_JWT を却下）
+  breaks_when: 社員台帳で表せない失効を反映するためにイントロスペクションを使うことにしたとき
+- event: U06
+  answer: 該当
+  token_types:
+  - IDP_SESSION
+  - BFF_SESSION
+  - REFRESH_TOKEN
+  note: ポータルのログアウトで RP-Initiated Logout を送り、社員台帳のログアウトの時刻を進める
+- event: U07
+  answer: 該当
+  token_types:
+  - LOGOUT_TOKEN
+  note: BFF が Keycloak のログアウトトークンを検証してセッションを消す
+- event: U08
+  answer: 対象外
+  assumption: ポータルは氏名・メールを表示せず、UserInfo を呼ばない
+  breaks_when: ポータルが氏名・メールを表示することにしたとき
+- event: U09
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  note: 未知の kid で JWKS を取り直す（最短 60 秒、内部トークンは 30 秒）
+- event: U10
+  answer: 対象外
+  assumption: どの受け手も AT をトークン交換の subject_token として出さない
+  breaks_when: 交換を使う機能を足すとき（I06 と同じ）
+- event: U11
+  answer: 該当
+  token_types:
+  - INTERNAL_TOKEN
+  note: 入口は IdP のトークンの値をヘッダーに転記しない（内部トークンに作り直す）。外から来た X-User-Role とその変種は捨てる（B4〜B6）。現状の入口はこのイベントに当たる
+- event: U12
+  answer: 該当
+  token_types:
+  - INTERNAL_TOKEN
+  note: 入口 → サービスで利用者の文脈を内部トークンで運び、通信の相手はメッシュの mTLS で確かめる
+- event: U13
+  answer: 対象外
+  assumption: キュー・イベント・ワークフローの非同期の処理が無い
+  breaks_when: 請求書の作成を非同期の処理にするなど、キューを使い始めたとき（P5 の 4. を書く）
+- event: U14
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - INTERNAL_TOKEN
+  - BFF_SESSION
+  note: 監査ログに jti・iss・ハッシュ化した利用者の ID を残し、トークンの全文と部署・社員番号の値は残さない
+- event: U15
+  answer: 該当
+  token_types:
+  - REFRESH_TOKEN
+  - BFF_SESSION
+  note: ログアウトで RT を捨て、可能な IdP では失効のエンドポイントを呼ぶ。管理者は社員台帳のログアウトの時刻を進めて止める
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを使わない（I27 と同じ前提）
+  breaks_when: 状態リストを使うことにしたとき
+- event: U17
+  answer: 対象外
+  assumption: 共有シグナルを受けない（I23 と同じ前提）
+  breaks_when: 共有シグナルを受けることにしたとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない。Keycloak は Back-Channel Logout、ほかは RP-Initiated Logout だけ
+  breaks_when: Back-Channel Logout に対応しない IdP の側のログアウトを、ブラウザ経由で受ける必要が出たとき
+- event: U19
+  answer: 対象外
+  assumption: Webhook や署名つきの応答を出さず、受けない（付録 C）
+  breaks_when: 経理台帳の結果を外部のシステムへ Webhook で送ることにしたとき
+- event: U20
+  answer: 該当
+  token_types:
+  - GRAPH_AT
+  note: 入口が Microsoft Graph（組織の外のサービス）を呼んでグループの超過を解決する
+- event: U21
+  answer: 該当
+  token_types:
+  - ENTRA_AT
+  - GRAPH_AT
+  - INTERNAL_TOKEN
+  note: 入口は Graph の結果を利用者ごとに AT の残りの寿命まで、JWKS を目録の秒数だけキャッシュする。社員台帳の応答はキャッシュしない
+- event: U22
+  answer: 該当
+  token_types:
+  - AUTHORIZATION_CODE
+  - BFF_SESSION
+  note: URL に載るのは認可コード（60 秒・1 回だけ）だけ。AT・ID トークンはブラウザに出ない
+- event: U23
+  answer: 対象外
+  assumption: WebSocket・gRPC のストリーム・SSE の長い接続を使わない
+  breaks_when: 経理台帳の画面に即時の更新（SSE など）を足すとき
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で JWT を資格情報に替えない
+  breaks_when: サービスがクラウドの資源を社員の JWT で使うことにしたとき
+- event: U25
+  answer: 対象外
+  assumption: AI エージェントが社員の代わりにツールを呼ぶ機能が無い（P4 を使わない）
+  breaks_when: エージェントの機能を足すとき（シナリオ C の範囲）
+- event: U26
+  answer: 対象外
+  assumption: 送信者制約を見送るので、cnf と proof・証明書の照合をしない
+  breaks_when: 送信者制約を入れることにしたとき
+- event: U27
+  answer: 該当
+  token_types:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  note: 入口は 401（WWW-Authenticate の invalid_token）で拒み、BFF は取り直すかログインし直させる。insufficient_user_authentication は使わない
+- event: U28
+  answer: 対象外
+  assumption: クレームを分析基盤・データウェアハウスに複製しない
+  breaks_when: 操作のログを分析基盤に送ることにしたとき（M_privacy_minimization の 7. を見直す）

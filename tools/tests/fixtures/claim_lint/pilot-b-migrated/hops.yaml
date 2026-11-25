@@ -1,0 +1,386 @@
+# template_version: 0.3.0
+# yaml-language-server: $schema=../../../../../templates/registry/hops.schema.json
+# ホップ。パイロット #9 のシナリオ B を #58 の列で書き直した fixture。migrate.py が作る（手で直さない）
+hops:
+- id: H1
+  from: browser
+  to: portal-bff
+  kind: browser
+  token_type: BFF_SESSION
+  aud:
+  - portal-bff
+  scope: []
+  max_lifetime: 36000
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - Cookie のセッションの ID が BFF のセッションの表にある
+    - 無操作 1800 秒・最大 36000 秒を超えていない
+    - 状態を変える要求は SameSite と CSRF の対策の値を確かめる
+- id: H2
+  from: portal-bff
+  to: gateway
+  kind: entry
+  token_type: KC_AT
+  aud:
+  - orders
+  - invoices
+  scope:
+  - orders
+  - invoices
+  max_lifetime: 300
+  custom_claims:
+  - C-azp
+  - C-scope
+  - C-kc-realm-access
+  - C-kc-typ
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - iss が Keycloak のレルム corp と完全一致
+    - alg が RS256（JWKS の鍵で署名を確かめる）
+    - aud が経路のサービス（orders か invoices）を含む
+    - azp が portal
+    - exp・iat（exp − iat ≤ 300）
+    - iat が社員台帳のログアウトの時刻より後
+    - （iss
+    - sub）が社員台帳の名寄せの表にあり在籍している
+    - X-User-Role とその変種（大小・_ と -）の要求ヘッダーを捨てる
+  forwarded_headers:
+  - name: X-User-Role
+    strip_inbound: true
+    written_only_by: 誰も書かない（入口は転記せず、大小・_ と - を正規化した同名のヘッダーをすべて捨てる）
+- id: H3
+  from: portal-bff
+  to: gateway
+  kind: entry
+  token_type: ENTRA_AT
+  aud:
+  - api://orders
+  - api://invoices
+  scope:
+  - orders
+  - invoices
+  max_lifetime: 600
+  custom_claims:
+  - C-groups
+  - C-entra-tid
+  - C-entra-oid
+  - C-entra-scp
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - iss が自社のテナントの iss と完全一致（別のテナントを拒む）
+    - alg が RS256
+    - aud が経路の api://orders か api://invoices
+    - scp が経路のサービスを含む
+    - exp・iat（exp − iat ≤ 600）
+    - iat が社員台帳のログアウトの時刻より後
+    - tid と oid が社員台帳の名寄せの表にあり在籍している
+    - groups が無く _claim_names があれば Graph で所属を引く
+    - X-User-Role とその変種の要求ヘッダーを捨てる
+  forwarded_headers:
+  - name: X-User-Role
+    strip_inbound: true
+    written_only_by: 誰も書かない（入口は転記しない）
+- id: H4
+  from: portal-bff
+  to: gateway
+  kind: entry
+  token_type: OKTA_AT
+  aud:
+  - api://default
+  scope:
+  - orders
+  - invoices
+  max_lifetime: 300
+  custom_claims:
+  - C-groups
+  - C-okta-uid
+  - C-okta-cid
+  - C-okta-scp
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - iss が Okta の default 認可サーバーと完全一致
+    - alg が RS256
+    - aud が api://default
+    - scp が経路のサービスを含む（aud が共通のため）
+    - cid がポータルのクライアント ID
+    - exp・iat（exp − iat ≤ 300）
+    - iat が社員台帳のログアウトの時刻より後
+    - uid（sub ではない）が社員台帳の名寄せの表にあり在籍している
+    - X-User-Role とその変種の要求ヘッダーを捨てる
+  forwarded_headers:
+  - name: X-User-Role
+    strip_inbound: true
+    written_only_by: 誰も書かない（入口は転記しない）
+- id: H5
+  from: portal-bff
+  to: gateway
+  kind: entry
+  token_type: COGNITO_AT
+  aud: []
+  scope:
+  - orders
+  - invoices
+  max_lifetime: 300
+  custom_claims:
+  - C-client-id
+  - C-scope
+  - C-cognito-token-use
+  - C-cognito-groups
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - iss が自社のユーザープールと完全一致
+    - alg が RS256
+    - token_use が access（ID トークンを拒む）
+    - client_id がポータルのアプリクライアント（aud の代わり）
+    - scope が経路のサービスを含む
+    - exp・iat（exp − iat ≤ 300）
+    - iat が社員台帳のログアウトの時刻より後
+    - （iss
+    - sub）が社員台帳の名寄せの表にあり在籍している
+    - custom:* の属性を読まない
+    - X-User-Role とその変種の要求ヘッダーを捨てる
+  forwarded_headers:
+  - name: X-User-Role
+    strip_inbound: true
+    written_only_by: 誰も書かない（入口は転記しない）
+- id: H6
+  from: portal-bff
+  to: gateway
+  kind: entry
+  token_type: AUTH0_AT
+  aud:
+  - https://api.example.com
+  scope:
+  - orders
+  - invoices
+  max_lifetime: 300
+  custom_claims:
+  - C-client-id
+  - C-scope
+  - C-auth0-roles
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - iss が自社の Auth0 のテナントと完全一致
+    - typ が at+jwt
+    - alg が RS256
+    - aud が https://api.example.com
+    - scope が経路のサービスを含む
+    - client_id がポータル
+    - exp・iat（exp − iat ≤ 300）
+    - iat が社員台帳のログアウトの時刻より後
+    - （iss
+    - sub）が社員台帳の名寄せの表にあり在籍している
+    - X-User-Role とその変種の要求ヘッダーを捨てる
+  forwarded_headers:
+  - name: X-User-Role
+    strip_inbound: true
+    written_only_by: 誰も書かない（入口は転記しない）
+- id: H7
+  from: gateway
+  to: orders
+  kind: reissue
+  upstream:
+  - H2
+  - H3
+  - H4
+  - H5
+  - H6
+  token_type: INTERNAL_TOKEN
+  aud:
+  - orders
+  scope: []
+  max_lifetime: 30
+  custom_claims:
+  - C-roles
+  - C-department
+  added_claims:
+  - claim: C-roles
+    source: upstream_claims
+    from:
+    - C-kc-realm-access
+    - C-groups
+    - C-cognito-groups
+    - C-auth0-roles
+    reason: IdP ごとのロール・グループのクレームを、入口が写しの表で組織のロールの語彙に替える（P5 の 1.）
+  - claim: C-department
+    source: external_source
+    system: 社員台帳（人事）
+    reason: 部署は IdP の AT に無く、入口が sub で社員台帳から引く（IdP の部署の属性は却下した）
+  exchanger: gateway
+  validates:
+    mode: local
+    checks:
+    - iss が入口と完全一致
+    - typ が internal+jwt
+    - alg が ES256
+    - aud が orders だけ
+    - exp − iat ≤ 30（ずれ 5 秒）
+    - 要求ヘッダーの X-User-Role などを読まない
+    - 接続の相手がメッシュの mTLS で入口であること
+  aud_mapping:
+  - upstream: H3
+    aud: orders
+    via: aud
+    value: api://orders
+  - upstream: H4
+    aud: orders
+    via: scope
+    value: orders
+  - upstream: H5
+    aud: orders
+    via: scope
+    value: orders
+  - upstream: H6
+    aud: orders
+    via: scope
+    value: orders
+- id: H8
+  from: gateway
+  to: invoices
+  kind: reissue
+  upstream:
+  - H2
+  - H3
+  - H4
+  - H5
+  - H6
+  token_type: INTERNAL_TOKEN
+  aud:
+  - invoices
+  scope: []
+  max_lifetime: 30
+  custom_claims:
+  - C-roles
+  - C-employee-id
+  added_claims:
+  - claim: C-roles
+    source: upstream_claims
+    from:
+    - C-kc-realm-access
+    - C-groups
+    - C-cognito-groups
+    - C-auth0-roles
+    reason: IdP ごとのロール・グループのクレームを、入口が写しの表で組織のロールの語彙に替える（P5 の 1.）
+  - claim: C-employee-id
+    source: external_source
+    system: 社員台帳（人事）
+    reason: 社員番号は IdP の AT に無く、入口が sub で社員台帳から引く
+  exchanger: gateway
+  validates:
+    mode: local
+    checks:
+    - iss が入口と完全一致
+    - typ が internal+jwt
+    - alg が ES256
+    - aud が invoices だけ
+    - exp − iat ≤ 30（ずれ 5 秒）
+    - 経理台帳では jti を 1 回だけ受け、社員台帳の部署を引き直す
+    - 要求ヘッダーの X-User-Role などを読まない
+    - 接続の相手がメッシュの mTLS で入口であること
+  aud_mapping:
+  - upstream: H3
+    aud: invoices
+    via: aud
+    value: api://invoices
+  - upstream: H4
+    aud: invoices
+    via: scope
+    value: invoices
+  - upstream: H5
+    aud: invoices
+    via: scope
+    value: invoices
+  - upstream: H6
+    aud: invoices
+    via: scope
+    value: invoices
+- id: H9
+  from: gateway
+  to: graph
+  kind: service
+  token_type: GRAPH_AT
+  aud:
+  - https://graph.microsoft.com
+  scope:
+  - https://graph.microsoft.com/.default
+  max_lifetime: 3600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks:
+    - Graph が入口の AT を検証する（入口の側の検証ではない）
+  note: Entra のグループの超過のときだけ呼ぶ
+- id: H10
+  from: gateway
+  to: directory-db
+  kind: db_connection
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: none
+    checks:
+    - 社員台帳の読み取り専用の DB 利用者で接続する（利用者のトークンでは接続しない）
+  connection_max_lifetime: 3600
+- id: H11
+  from: invoices
+  to: directory-db
+  kind: db_connection
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: none
+    checks:
+    - 社員台帳の読み取り専用の DB 利用者で接続する。経理台帳の要求ごとに sub の部署を引く
+  connection_max_lifetime: 3600
+- id: H12
+  from: orders
+  to: orders-db
+  kind: db_connection
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: none
+    checks:
+    - サービスの DB 利用者で接続し、問い合わせの条件に内部トークンの sub を入れる
+  connection_max_lifetime: 3600
+- id: H13
+  from: invoices
+  to: invoices-db
+  kind: db_connection
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: none
+    checks:
+    - サービスの DB 利用者で接続し、給与明細は内部トークンの社員番号で絞る
+  connection_max_lifetime: 3600

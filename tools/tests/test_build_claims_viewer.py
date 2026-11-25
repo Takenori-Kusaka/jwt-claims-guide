@@ -282,7 +282,7 @@ class Columns(unittest.TestCase):
             for c in cols[key]:
                 self.assertTrue(c['label'] and re.search(r'[ぁ-んァ-ン一-龥]', c['label']) or c['label'] in ('typ', 'aud', 'scope', 'grant', 'JWE'), c)
         meta = data_of(expected()['data/meta.js'])
-        self.assertEqual(len(meta['columns']['claims']), 73)
+        self.assertEqual(len(meta['columns']['claims']), 74)  # 73 + idp_defined (#58)
         aw = [c for c in meta['columns']['claims'] if c['key'] == 'authoritative_writer'][0]
         self.assertEqual([p['key'] for p in aw['parts']], ['stage', 'configurable_by'])
 
