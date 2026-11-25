@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '26b0f1c1176e';
+  const BUILD_ID = 'a884478f9e1c';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -278,7 +278,7 @@
     }
     if (kind === 'hops') {
       if (r.row.token_type) out.push(['token_types:' + r.row.token_type, 'ホップのトークン種別']);
-      if (r.row.upstream) out.push(['hops:' + r.row.upstream, '上流のホップ']);
+      [].concat(r.row.upstream || []).forEach((u) => out.push(['hops:' + u, '上流のホップ']));  // one ID or a list (#58)
     }
     if (kind === 'token_types') CE.anchors().filter((a) => a.kind === 'claims' && a.row && Array.isArray(a.row.carried_in) && a.row.carried_in.includes(id)).slice(0, 40).forEach((a) => out.push([a.anchor, '載る台帳の行']));
     return out;

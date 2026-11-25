@@ -12,7 +12,7 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = '26b0f1c1176e';
+  const BUILD_ID = 'a884478f9e1c';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };

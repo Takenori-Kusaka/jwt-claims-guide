@@ -17,7 +17,7 @@ import yaml
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TOOLS)
-VERSION = '0.2.0'  # registry schema version (templates/registry/*.schema.json)
+VERSION = '0.3.0'  # registry schema version (templates/registry/*.schema.json)
 
 
 def rel_schema(dirpath, name):

@@ -160,7 +160,8 @@
 | IdP・種類 | 検討の問い | 確かめる値の候補 | 根拠 |
 | --- | --- | --- | --- |
 | JWT の AT（RFC 9068） | ヘッダーの `typ` が `at+jwt` か | `typ: at+jwt` | RFC 9068 §2.1・§4 |
-| Cognito | `typ` の代わりに `token_use` で区別するか | `token_use: access` | slide:p03-cognito-token-use |
+| Cognito | `typ` の代わりに `token_use` で区別するか（AT のヘッダーは kid と alg だけで、typ が無い） | `token_use: access` | slide:p03-cognito-token-use、Amazon Cognito Developer Guide「Understanding the access token」「Verifying JSON web tokens」（2026-11-25 に確認） |
+| ヘッダーの typ が同じ IdP | AT と ID トークンのヘッダーの typ が同じ（Entra はどちらも `JWT`。Keycloak は既定でどちらも `JWT`）とき、ペイロードのどの値で区別するか | Keycloak はペイロードの `typ`（Bearer・ID）、どの IdP でも `aud`（API の宛先か、クライアントの ID か） | RFC 8725 §3.12、Microsoft identity platform「Access token claims reference」（2026-11-25 に確認） |
 | Entra ID | アプリのトークンか利用者のトークンか（`idtyp`）を区別するか | `idtyp`（任意のクレーム） | slide:p03-confusing-differences |
 | ID トークン | API で ID トークンを拒むか | `typ`・`aud` で拒む | slide:p01-id-token-vs-access-token、jwt-claims-casestudy@080b8da:G11 |
 | 組織が作る種類 | 内部トークン・Txn-Token に、種類ごとに別の `typ` を付けるか | `txntoken+jwt` など、種類ごとに別の値 | RFC 8725 §3.11、draft-ietf-oauth-transaction-tokens-11 §9.1 |
@@ -169,9 +170,9 @@
 
 | 種別 | 確かめる値（書き手が書く） | 理由（書き手が書く） | 台帳・目録の ID |
 | --- | --- | --- | --- |
-|  |  |  | `token_types[].typ` |
+|  |  |  | `token_types[].typ`（ヘッダーの値だけ。無ければ `(absent)`）、`token_types[].kind_discriminator`（typ が同じ種別を区別するペイロードの値。L17） |
 
-根拠：RFC 8725 §3.11、RFC 9068 §2.1、slide:p03-confusing-differences
+根拠：RFC 8725 §3.11・§3.12、RFC 9068 §2.1、slide:p03-confusing-differences
 
 <a id="key-rotation"></a>
 ## 8. 鍵のローテーション〔Full：記入／Lite：参照〕

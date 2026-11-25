@@ -6,6 +6,15 @@
 
 ### 追加
 
+- `registry/`（#58。版は 0.3.0）：複数の IdP と、入口で内部トークンに作り直す設計を、回避策なしに書くための任意の列を足した。パイロット（#9）のシナリオ B で見つかった欠け（`research/template-design/pilot.md` の 6.・7.）への対応。**0.2.0 で書いた設計書は書き換えずに通り、指摘も変わらない**（記入例のシナリオ A・B、パイロットの 2 つの設計書で確かめた）ので、マイナーの変更。列と書き方は `registry/README.md` の 3.5、規則は `tools/claim_lint/RULES.md` の「複数の IdP と作り直しのホップ（#58）」
+  - `claims.schema.json`：`idp_defined`（IdP の製品が決めた名前を、入口だけが読む行として書く。`tid`・`oid`・`uid`・`cid`・`token_use`・`cognito:groups`・`realm_access` など。使える名前は `tools/claim_lint/idp_claims.yaml` に、IdP の文書の URL と確かめた日つきで固定）
+  - `token_types.schema.json`：`kind_discriminator`（ヘッダーの typ が同じ種別を区別するペイロードの値。L17）、`audience_claim`（aud の無い AT で宛先の確認に使うクレーム。Cognito の `client_id`。L27）、`issuance_profile` の各項目の `exceptions`（IdP ごとの例外。L62）。`typ` はヘッダーの値だけを書き、無い種別は `(absent)`
+  - `hops.schema.json`：`upstream` にホップの ID の配列を書ける（IdP ごとの入口のホップを上流にする）。`added_claims`（作り直しで足す独自クレームと出どころ：トークン以外の出どころか、上流のクレームから導く）、`aud_mapping`（宛先の名前が上流と違うときの対応）。L16
+  - `catalog_answers.yaml` の `idp`：1 つの対応のほかに、対応の配列を書ける（IdP ごとに `token_types`）。R3・R3b・L2 が IdP ごとに見る。`kind: self_built`（組織が自分で作る発行者。出どころは URL でなく文書と日付）
+  - claim_lint：新しい規則 L74（warn。検証の文が名指しする IdP 固有のクレームに台帳の行が無い）。L7・L16・L17・L62 に足した検査は warn。error の検査は足していない
+  - `tools/tests/fixtures/claim_lint/pilot-b-migrated/`：パイロットのシナリオ B の設計書を、新しい列で写した fixture（`migrate.py` が作る。パイロットの記録は書き換えていない）。回避策を外して error 0
+  - **移行（0.2.0 → 0.3.0）**：必須の作業はない。新しい列を使うときは、`registry/README.md` の 3.5 の「0.2.0 からの移行」の表のとおりに書き換え、YAML の 1 行目を `# template_version: 0.3.0` にする。`python tools/new_design.py` が作る骨組みは 0.3.0 になった
+- `profiles/P5_internal_propagation.md` の 1.、`modules/M_token_validation.md` の 7.、`modules/M_idp_keycloak.md` の 5.（#58）：IdP が複数のときの台帳への書き方の問い（IdP の一覧、入口だけが読む IdP 固有のクレーム、aud の無い AT、ヘッダーの typ が同じ種別、作り直しのホップの上流と足す値、IdP ごとの発行方式の例外）と、参照する台帳の列を足した
 - `glossary.md` の 5.（#53）：設計書のエディターの画面の用語（編集／レビュー・ダッシュボード・書式の検査・設計の規則の検査・レビューの記録・判定・再確認が要る・独立レビュー・段階）。画面・README・テンプレートで同じ名前を使う
 - `review/review.schema.json`（#50）：レビューの記録 `review.yaml`（設計書と同じディレクトリ）の JSON Schema。レビュアーごとに、観点書の問いへの回答（Yes／No／該当なし とメモ）、行ごとの判定（承認・修正を求める・保留。行の内容のハッシュ `tools/row_hash.py` に結びつける）、`report_template.md` の欄の指摘、却下の理由の抜き取り（乱数の種）、専門家に回した項目、戻す事項を持つ。名前は自己申告で、本当の承認は GitHub の PR のレビュー。設計書のエディターのレビューモードが書き出し・読み込み、`tools/review_record.py` が CI で確かめる（古くなった承認の一覧、レポートの生成）。`review/README.md` に案内を足した
 - `CONTRIBUTING.md`（#50、PR #52 の点検）：「レビューの記録がある設計書を変えるとき」（承認した行・却下の行・教材を変えたときの CI の反応と直し方）を足した。`review/review.schema.json` に、レビューした時の教材の版（`materials`）、独立レビューの経過（`independence`、`edited_after_viewing_others`）、判定したレビュアーの種類（`reviewer_kind`）、抜き取りの母集団（`population`）と引き直し（`reason`・`previous`）を足した
