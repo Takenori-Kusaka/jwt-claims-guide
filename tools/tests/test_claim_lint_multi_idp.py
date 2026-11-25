@@ -930,3 +930,26 @@ def test_idp_entries_reads_both_forms():
     assert is_list and not problems and [e['target'] for e in many][:2] == ['idp[keycloak]', 'idp[entra]']
     assert coverage.idp_token_types(_BASE['catalog_answers'], 'okta') == {'OKTA_AT', 'ID_TOKEN', 'REFRESH_TOKEN'}
     assert coverage.idp_name(_BASE['catalog_answers']) == 'keycloak'
+
+
+# ------------------------------------------------------------------ the columns of 0.3.0 and the TODO rule of #60
+def test_a_0_3_0_column_left_blank_is_a_todo_and_proves_nothing(tmp_path):
+    # TODO (#60) replaces SCHEMA for a required value that is still blank; it is an error too. A blank column of #58 must
+    # not count as the declaration it stands for: the error the column would have answered comes back
+    def blank(fn):
+        d = base()
+        fn(d)
+        res = lint(tmp_path / str(len(os.listdir(tmp_path))), d)
+        return res, [f['target'] for f in by(res, 'TODO', 'error')]
+    res, todo = blank(lambda d: claim(d, 'C-entra-oid').update(idp_defined={}))
+    assert todo == ['claims:claims/18/idp_defined'] and by(res, 'SCHEMA') == []
+    assert [f['target'] for f in by(res, 'L1b', 'error')] == ['C-entra-oid']
+    res, todo = blank(lambda d: tt(d, 'KC_AT').update(kind_discriminator=[]))
+    assert todo == ['token_types:token_types/0/kind_discriminator'] and by(res, 'SCHEMA') == []
+    assert any('kind_discriminator が無い種別：KC_AT' in f['message'] for f in by(res, 'L17', 'error'))
+    res, todo = blank(lambda d: tt(d, 'COGNITO_AT').update(audience_claim=''))
+    assert todo == ['token_types:token_types/3/audience_claim'] and by(res, 'SCHEMA') == []
+    assert [f['target'] for f in by(res, 'L27', 'error')] == ['token_type COGNITO_AT']
+    res, todo = blank(lambda d: hop(d, 'H7').update(added_claims=[]))
+    assert todo == ['hops:hops/6/added_claims'] and by(res, 'SCHEMA') == []
+    assert len(by(res, 'L16', 'error')) == 5   # the claims the hop adds are missing from each of the five upstream hops

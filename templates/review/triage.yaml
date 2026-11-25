@@ -49,7 +49,7 @@ conditions:
   always: {label: どの設計でも, read: "条件なし"}
   org_claims: {label: 組織独自のクレームがある, read: "採用の行に、名前空間つきの行、または登録名でない（registered_ref が無い）認可・識別子の行がある"}
   pii: {label: 個人情報を載せる, read: "採用の行の pii_category に「該当なし」以外がある"}
-  multi_idp: {label: 発行者（IdP）が複数ある, read: "採用の種別の issuers の iss のホストが 2 種類以上、または upstream_issuer のある採用の行がある（同じ IdP のレルム違いは数えない）"}
+  multi_idp: {label: 発行者（IdP）が複数ある, read: "採用の種別の issuers の iss のホストが 2 種類以上、または upstream_issuer のある採用の行がある（同じ IdP のレルム違いは数えない）。または catalog_answers.yaml の idp が、名前の違う IdP を 2 つ以上並べた配列（台帳 0.3.0、#58）"}
   exchange: {label: トークンの交換・作り直しがある, read: "ホップに kind が exchange・reissue の行がある、または catalog_answers の lite_criteria.delegation_or_exchange が Yes"}
   delegation: {label: 委任がある（代理で動く主体がいる）, read: "採用の行に act・may_act がある、採用の種別に max_delegation_depth がある、または catalog_answers の questions.q-actor が「要る」。どれも無いのに lite_criteria.delegation_or_exchange が Yes なら「読めない（要確認）」として問いを出す"}
   approval: {label: 操作ごとの承認がある, read: "採用の行かホップに authorization_details がある"}

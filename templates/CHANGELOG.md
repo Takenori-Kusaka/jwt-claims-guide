@@ -13,6 +13,7 @@
   - `catalog_answers.yaml` の `idp`：1 つの対応のほかに、対応の配列を書ける（IdP ごとに `token_types`）。R3・R3b・L2 が IdP ごとに見る。`kind: self_built`（組織が自分で作る発行者。出どころは URL でなく文書と日付）
   - claim_lint：新しい規則 L74（warn。検証の文が名指しする IdP 固有のクレームに台帳の行が無い）。L7・L16・L62 に足した検査は warn。error になるのは、もとの error が新しい列の条件を欠いて残る場合（L1b・L16・L17・L27）と、新しい書き方の形の誤り（配列の `idp`、どの IdP にも属さない種別、`kind: self_built`、REF、全 IdP に書いた `exceptions`）だけで、新しい列を使わない設計書には起きない
   - `tools/tests/fixtures/claim_lint/pilot-b-migrated/`：パイロットのシナリオ B の設計書を、新しい列で写した fixture（`migrate.py` が作る。パイロットの記録は書き換えていない）。回避策を外して error 0・warn 3・info 41
+  - #60・#56 との合わせ（main の取り込み）：`review/triage.yaml` の条件「発行者（IdP）が複数ある」は、`catalog_answers.yaml` の `idp` が名前の違う IdP を 2 つ以上並べた配列のときも成り立つ（`tools/review_triage.py` の `read_traits()` と、エディターの `docs/claims/review.js` の `readTraits()`）。0.3.0 の列を空で書くと、SCHEMA ではなく TODO（#60。重大度は同じ error）になり、空の列は宣言として数えない
   - **移行（0.2.0 → 0.3.0）**：必須の作業はない。新しい列を使うときは、`registry/README.md` の 3.5 の「0.2.0 からの移行」の表のとおりに書き換え、YAML の 1 行目を `# template_version: 0.3.0` にする。`python tools/new_design.py` が作る骨組みは 0.3.0 になった
 - `profiles/P5_internal_propagation.md` の 1.、`modules/M_token_validation.md` の 7.、`modules/M_idp_keycloak.md` の 5.（#58）：IdP が複数のときの台帳への書き方の問い（IdP の一覧、入口だけが読む IdP 固有のクレーム、aud の無い AT、ヘッダーの typ が同じ種別、作り直しのホップの上流と足す値、IdP ごとの発行方式の例外）と、参照する台帳の列を足した
 - 空の設計書と生成の表の誤り（#60。パイロット #9 の結果。`research/template-design/pilot.md` の 7.）：

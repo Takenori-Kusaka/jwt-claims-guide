@@ -17,7 +17,7 @@
 | どの設計でも | 条件なし | 8 | 1 | 5 |
 | 組織独自のクレームがある | 採用の行に、名前空間つきの行、または登録名でない（registered_ref が無い）認可・識別子の行がある | 0 | 1 | 0 |
 | 個人情報を載せる | 採用の行の pii_category に「該当なし」以外がある | 0 | 1 | 0 |
-| 発行者（IdP）が複数ある | 採用の種別の issuers の iss のホストが 2 種類以上、または upstream_issuer のある採用の行がある（同じ IdP のレルム違いは数えない） | 1 | 1 | 0 |
+| 発行者（IdP）が複数ある | 採用の種別の issuers の iss のホストが 2 種類以上、または upstream_issuer のある採用の行がある（同じ IdP のレルム違いは数えない）。または catalog_answers.yaml の idp が、名前の違う IdP を 2 つ以上並べた配列（台帳 0.3.0、#58） | 1 | 1 | 0 |
 | トークンの交換・作り直しがある | ホップに kind が exchange・reissue の行がある、または catalog_answers の lite_criteria.delegation_or_exchange が Yes | 3 | 1 | 0 |
 | 委任がある（代理で動く主体がいる） | 採用の行に act・may_act がある、採用の種別に max_delegation_depth がある、または catalog_answers の questions.q-actor が「要る」。どれも無いのに lite_criteria.delegation_or_exchange が Yes なら「読めない（要確認）」として問いを出す | 6 | 2 | 0 |
 | 操作ごとの承認がある | 採用の行かホップに authorization_details がある | 2 | 0 | 0 |

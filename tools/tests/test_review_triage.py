@@ -255,6 +255,29 @@ def test_traits_are_read_from_the_registry_and_from_what_the_author_declared():
     assert 'multitenant' in rt.traits(reg)
 
 
+def test_several_idps_declared_in_catalog_answers_turn_the_multi_idp_questions_on():
+    # #58: registry 0.3.0 lets catalog_answers.yaml declare the IdPs as an array. Scenario A has one IdP with two
+    # realms on one host and no upstream_issuer, so nothing but the declaration can turn the trait on
+    tri = rt.load(ROOT)
+    reg = design('A')
+    assert rt.read_traits(reg)['multi_idp']['state'] == 'off' and 'idp' in rt.read_traits(reg)['multi_idp']['evidence']
+    off = ids(rt.selected(tri, rt.traits(reg)))
+    reg['catalog_answers']['idp'] = [{'name': 'keycloak', 'version': '26.8', 'token_types': ['AT']}, {'name': 'entra', 'token_types': ['IDT']}]
+    t = rt.read_traits(reg)['multi_idp']
+    assert t['state'] == 'on' and 'catalog_answers.yaml の idp が 2 つの IdP の配列（entra・keycloak' in t['evidence']
+    assert 'multi_idp' in rt.traits(reg)
+    on = ids(rt.selected(tri, rt.traits(reg)))
+    assert off < on and 'q-identifier-choice' in on - off
+    # one IdP written as an array, the same name twice, and elements without a name are not several IdPs
+    for idp in ([{'name': 'keycloak'}], [{'name': 'keycloak'}, {'name': 'keycloak'}], [{'name': 'keycloak'}, {'name': ' '}, {'version': '1'}, 'entra', None],
+                {'name': 'keycloak', 'version': '26.8'}, [], None, 'keycloak, entra'):
+        reg['catalog_answers']['idp'] = idp
+        assert rt.read_traits(reg)['multi_idp']['state'] == 'off', idp
+    # the pilot design of scenario B rewritten with the 0.3.0 columns declares five IdPs
+    t = rt.read_traits(rt.load_design(os.path.join(ROOT, 'tools/tests/fixtures/claim_lint/pilot-b-migrated')))['multi_idp']
+    assert t['state'] == 'on' and '5 つの IdP の配列' in t['evidence']
+
+
 def test_a_design_that_declares_delegation_but_writes_no_act_still_gets_the_delegation_questions():
     tri = rt.load(ROOT)
     reg = design('pilot-C')

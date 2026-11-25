@@ -116,8 +116,13 @@ def read_traits(reg):
     hosts = sorted({urlparse(str(i.get('iss'))).netloc for t in types for i in (t.get('issuers') or [])
                     if isinstance(i, dict) and urlparse(str(i.get('iss'))).netloc})
     c = first(claims, lambda c: c.get('upstream_issuer'))
-    put('multi_idp', (len(hosts) > 1 and f'token_types.yaml の issuers のホストが {len(hosts)} 種類（{"・".join(hosts[:3])}{" ほか" if len(hosts) > 3 else ""}）')
-        or (c and f'claims.yaml の {c} の upstream_issuer'), 'token_types.yaml の issuers のホストは 1 種類以下で、upstream_issuer のある行も無い')
+    # #58: the author may declare the IdPs as an array (registry 0.3.0): two names are two IdPs, whatever the hosts are
+    idps = cat.get('idp') if isinstance(cat.get('idp'), list) else []
+    idps = sorted({i['name'].strip() for i in idps if isinstance(i, dict) and isinstance(i.get('name'), str) and i['name'].strip()})
+    put('multi_idp', (len(idps) > 1 and f'catalog_answers.yaml の idp が {len(idps)} つの IdP の配列（{"・".join(idps[:3])}{" ほか" if len(idps) > 3 else ""}。書き手の宣言）')
+        or (len(hosts) > 1 and f'token_types.yaml の issuers のホストが {len(hosts)} 種類（{"・".join(hosts[:3])}{" ほか" if len(hosts) > 3 else ""}）')
+        or (c and f'claims.yaml の {c} の upstream_issuer'),
+        'token_types.yaml の issuers のホストは 1 種類以下で、upstream_issuer のある行も、catalog_answers.yaml の idp に 2 つ以上の IdP の配列も無い')
     k = kinds.get('exchange') or kinds.get('reissue')
     d = declared(lite, 'delegation_or_exchange', 'answer')
     put('exchange', (k and f'hops.yaml の {k}（kind が exchange・reissue）') or (d and 'catalog_answers.yaml の lite_criteria.delegation_or_exchange が Yes（書き手の宣言）'),
