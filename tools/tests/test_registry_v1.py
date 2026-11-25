@@ -397,7 +397,8 @@ def test_hops_missing_is_info(tmp_path):
     d = _base()
     d.pop('hops')
     res = lint(tmp_path, d)
-    assert [f for f in res['findings'] if f['rule'] == 'LOAD' and f['severity'] == 'info']
+    # Full writes its hops: a missing hops.yaml is a warning there (PR #69 check), never an error
+    assert [f for f in res['findings'] if f['rule'] == 'LOAD' and f['severity'] == 'warn']
     assert res['counts']['error'] == 0
 
 

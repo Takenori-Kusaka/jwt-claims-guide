@@ -191,7 +191,7 @@ class EditorUX(unittest.TestCase):
         pg.fill('#rv-name', name)
         pg.click('#rv-new-go')
         self.poll(pg, 'n => ClaimsReview.me() === n', arg=name)
-        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        self.go(pg, '#/review/checklist?triage=all', '観点のチェックリスト')
         pg.check('#q-dc-01 input[value="yes"]')
         self.poll(pg, '() => ClaimsReview.data().reviews.some(r => r.answers["dc-01"])')
         self.assertTrue(pg.locator('#nav a[data-view="review/checklist"]').count())
@@ -437,16 +437,100 @@ class EditorUX(unittest.TestCase):
         pg.click('#btn-sample-a')
         self.poll(pg, '() => ClaimsEditor.state().open && ClaimsReview.ready()')
         self.go(pg, '#/review/checklist', '観点のチェックリスト')
-        self.assertFalse(pg.locator('#rv-f-triage').count())  # every question has the same triage today
-        n = pg.evaluate('''() => { const R = window.CLAIMS_VIEWER_DATA.review;
+        n = pg.evaluate("""() => { const R = window.CLAIMS_VIEWER_DATA.review;
+          R.questions.forEach((q) => { q.triage = 'all'; });
           R.questions.slice(0, 5).forEach((q) => { q.triage = 'human'; });
-          R.checklist = { default: { triage: ['human'] }, triage_labels: { human: '人の判断が要る問い' } }; return R.questions.length; }''')
+          R.checklist = { default: { triage: ['human'] }, triage_labels: { human: '人の判断が要る問い' } }; return R.questions.length; }""")
         self.go(pg, '#/review')
         self.go(pg, '#/review/checklist', '観点のチェックリスト')
         self.poll(pg, '() => document.querySelectorAll(".rv-q:not([hidden])").length === 5')
         self.assertEqual(pg.input_value('#rv-f-triage'), 'human')
         pg.select_option('#rv-f-triage', '')
         self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length === n', arg=n)
+        self.assertEqual(pg.problems, [])
+
+    def test_the_checklist_shows_the_short_list_of_the_open_design_by_default(self):
+        # #56: by default only the questions a reviewer answers (class C of templates/review/triage.yaml, priority 1-2,
+        # a condition that holds for the open design or cannot be read) and the open prompts. The traits and the list
+        # are the ones python tools/review_triage.py --design gives: the two samples and the two pilot designs
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import review_triage as rt
+        tri = rt.load(ROOT)
+        counts = {}
+        names = ('claims.yaml', 'token_types.yaml', 'hops.yaml', 'catalog_answers.yaml')
+        designs = (('a', 'templates/examples/scenario-a', None), ('b', 'templates/examples/scenario-b', None),
+                   ('pilot-b', 'research/pilot/scenario-b', names), ('pilot-c', 'research/pilot/scenario-c', names),
+                   ('pilot-b without hops.yaml', 'research/pilot/scenario-b', names[:2] + names[3:]))
+        for key, d, files in designs:
+            reg = rt.load_design(os.path.join(ROOT, d))
+            if files and 'hops.yaml' not in files:
+                reg['hops'] = None
+            states = {c: v['state'] for c, v in rt.read_traits(reg).items()}
+            have = rt.traits(reg)
+            on = {c for c, v in states.items() if v == 'on'}
+            pg = self.open()
+            if files:
+                self.open_files(pg, [os.path.join(ROOT, d, f) for f in files])
+            else:
+                pg.click(f'#btn-sample-{key}')
+            self.poll(pg, '() => ClaimsEditor.state().open && ClaimsReview.ready()')
+            self.go(pg, '#/review/checklist', '観点のチェックリスト')
+            self.assertEqual(pg.input_value('#rv-f-triage'), 'short')
+            self.assertEqual(pg.evaluate('() => ClaimsReview.traits()'), states, key)
+            want = {q['id'] for q in rt.selected(tri, have)}
+            optional = {q['id'] for q in tri['questions'] if q.get('show_on_lint')}   # shown when their lint rule warned
+            self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length >= n && document.querySelector("#rv-short-note:not([hidden])")', arg=len(want))
+            got = set(pg.evaluate('() => Array.from(document.querySelectorAll(".rv-q:not([hidden])")).map(e => e.dataset.q)'))
+            self.assertTrue(want <= got and got - want <= optional, (key, got ^ want))
+            self.assertEqual(pg.evaluate('() => Array.from(document.querySelectorAll("#rv-open-prompts [data-prompt]:not([hidden])")).map(e => e.dataset.prompt)'),
+                             [p['id'] for p in rt.default_prompts(tri, have, on)])
+            sl = pg.evaluate('() => ClaimsReview.shortList()')
+            self.assertEqual(set(sl['optional']), {q['id'] for q in rt.optional(tri, have)}, key)
+            self.assertEqual(sl['prompts'] + sl['morePrompts'], [p['id'] for p in rt.prompts(tri, have, on)], key)
+            self.assertIn(f'全 168 問のうち、あなたが答える {len(got)} 問', pg.inner_text('#rv-short-note'))
+            self.assertIn('lint が確かめる 81 問', pg.inner_text('#rv-short-rest'))
+            if 'unknown' in states.values():
+                self.assertIn('読めない（問いは出す）', pg.inner_text('#rv-short-traits'))
+            counts[key] = len(want)
+            if key == 'b':
+                # "if time remains": the priority 2 questions and the other open prompts are one choice away
+                pg.select_option('#rv-f-triage', 'short+')
+                self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length >= n', arg=len(want) + len(rt.optional(tri, have)))
+                self.assertEqual(pg.evaluate('() => document.querySelectorAll("#rv-open-prompts [data-prompt]:not([hidden])").length'), len(rt.prompts(tri, have)))
+            if key == 'a':
+                # the questions a machine or the author answers are one choice away, and say who answers them
+                pg.select_option('#rv-f-triage', '')
+                self.poll(pg, '() => document.querySelectorAll(".rv-q:not([hidden])").length === 168')
+                self.assertTrue(pg.locator('#rv-open-prompts').is_hidden())
+                self.assertIn('lint の lint:L5 が確かめる', pg.inner_text('#q-dc-01 .rv-triage'))
+                self.assertIn('triage=all', pg.evaluate('() => location.hash'))
+            self.assertEqual(pg.problems, [])
+            pg.close()
+        self.assertNotEqual(counts['a'], counts['b'])
+        self.assertGreaterEqual(counts['pilot-b without hops.yaml'], counts['pilot-b'])
+
+    def test_a_review_can_be_recorded_from_the_short_list(self):
+        # #56: the default view is enough to work in: answer a question of the short list (one sentence, with its hint
+        # and its fields), and turn what an open prompt made the reviewer notice into a finding
+        pg = self.open()
+        pg.click('#btn-sample-b')
+        self.poll(pg, '() => ClaimsEditor.state().open && ClaimsReview.ready()')
+        self.go(pg, '#/review')
+        pg.fill('#rv-name', '短い一覧の人')
+        pg.click('#rv-new-go')
+        self.poll(pg, '() => ClaimsReview.me()')
+        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        self.poll(pg, '() => document.querySelector("#rv-short-note:not([hidden])")')
+        self.assertTrue(pg.locator('#q-q-revocation-delivery').is_visible())
+        self.assertIn('最悪で何分か', pg.inner_text('#q-q-revocation-delivery h3'))
+        self.assertIn('手がかり：', pg.inner_text('#q-q-revocation-delivery .rv-hint'))
+        self.assertTrue(pg.locator('#q-q-revocation-delivery [data-see]').count())
+        self.assertTrue(pg.locator('#q-dc-01').is_hidden())
+        pg.check('#q-q-revocation-delivery input[value="no"]')
+        self.poll(pg, '() => ClaimsReview.data().reviews.some(r => r.answers["q-revocation-delivery"] && r.answers["q-revocation-delivery"].answer === "no")')
+        self.assertEqual(pg.input_value('#rv-f-triage'), 'short')
+        pg.click('#rv-open-prompts [data-prompt="op-one-time"]:not([hidden]) button')
+        self.poll(pg, '() => location.hash.startsWith("#/review/findings")')
         self.assertEqual(pg.problems, [])
 
     def test_the_start_screen_card_opens_files_for_a_review(self):

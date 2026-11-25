@@ -1440,7 +1440,8 @@ def rule_l73(x):
         if not isinstance(a, dict) or not isinstance(a.get('answer'), bool):
             x.add('L73', 'lite_criteria', f'{k} に Yes／No（answer: true／false）の回答がない')
         elif a['answer']:
-            x.add('L73', 'lite_criteria', f"{k} が Yes なので #4 の定義では Full。Lite で書いている（{a.get('reason', '')}）")
+            x.add('L73', 'lite_criteria', f"{k} が Yes なので #4 の定義では Full。Lite で書いている（{a.get('reason', '')}）。"
+                                          'Full の欄で書き直し、--profile を付けずに検査する（templates/README.md の「Lite と Full の判定」）')
 
 
 # ------------------------------------------------------------------ L74: IdP claims a hop checks without a registry row (#58)

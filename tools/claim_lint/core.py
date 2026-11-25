@@ -95,14 +95,28 @@ def load_yaml(path):
         return yaml.load(f, Loader=_Loader)
 
 
+# #60: what to do about a blank field whose way out is not "write a value"
+TODO_HINTS = {'hops:hops': '。ホップを書く。ホップの無い設計（Lite）は hops.yaml を置かない（templates/GETTING_STARTED.md の手順 1）',
+              'claims:namespaces': '。組織の名前空間を使わない設計は namespaces のキーを書かない'}
+
+
 def schema_check(doc, schema_path, where):
     import jsonschema
     with open(schema_path, encoding='utf-8') as f:
         schema = json.load(f)
     v = jsonschema.Draft202012Validator(schema)
-    out = []
+    out, todo = [], set()
     for e in sorted(v.iter_errors(doc), key=lambda e: list(e.absolute_path)):
         loc = '/'.join(str(p) for p in e.absolute_path) or '(root)'
+        if e.absolute_path and _empty(e.instance):
+            # #60: a value that is not written yet (null, '', [] or {}: what tools/new_design.py leaves blank) is the
+            # author's to-do list, not a broken file. It is reported once per field as TODO, still an error (no
+            # severity is lowered); SCHEMA is kept for values that are written and wrong
+            if loc not in todo:
+                todo.add(loc)
+                hint = TODO_HINTS.get(f'{where}:{loc}', '')
+                out.append(Finding('TODO', ERROR, f'{where}:{loc}', f'まだ書いていない欄（{e.message}）{hint}'))
+            continue
         out.append(Finding('SCHEMA', ERROR, f'{where}:{loc}', e.message))
     return out
 
@@ -416,6 +430,12 @@ def rule_slides(docs, files, root):
 
 
 # ------------------------------------------------------------------ driver
+# no hops.yaml, or an empty one. Index: [Full, Lite]
+NO_HOPS = ('hops.yaml {}。Full では経路のホップを書く（templates/README.md の「記入の順序」の 7.）。ホップを読む規則'
+           '（L8・L15・L16・L21・L23・L43・L67）は、何も見ていない',
+           'hops.yaml {}（ホップごとの宣言。ホップを書かない Lite の設計では置かない。DB・ブローカーの接続などホップを書くなら 1 行以上）')
+
+
 def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=(), today=None, caps_path=None):
     catalog_dir = catalog_dir or os.path.join(root, 'templates', 'catalog')
     limits_path = limits_path or os.path.join(HERE, 'path_limits.yaml')
@@ -425,7 +445,9 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     docs = {}
     for k, p in paths.items():
         if k == 'hops' and not os.path.isfile(p):
-            findings.append(Finding('LOAD', INFO, k, 'hops.yaml がない（ホップごとの宣言。交換・作り直しのホップがあれば書く）'))
+            # PR #69 check: a Full design writes its hops; without the file the hop rules (L8, L15, L16, L21, L23, L43,
+            # L67) see nothing, so Full says it as a warning (a new finding starts as warn). Lite: info, as before
+            findings.append(Finding('LOAD', INFO if profile == 'lite' else WARN, k, NO_HOPS[profile == 'lite'].format('がない')))
             docs[k] = {}
             continue
         if not os.path.isfile(p):
@@ -437,6 +459,10 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
         except yaml.YAMLError as e:
             findings.append(Finding('LOAD', ERROR, k, f'YAML の誤り: {e}'))
             docs[k] = {}
+            continue
+        if k == 'hops' and not docs[k]:
+            # a hops.yaml with comments only (or `{}`) is the same as no file: it must not pass in silence
+            findings.append(Finding('LOAD', INFO if profile == 'lite' else WARN, k, NO_HOPS[profile == 'lite'].format('が空（中身がない）')))
     findings += schema_check(docs['claims'], os.path.join(reg, 'claims.schema.json'), 'claims')
     findings += schema_check(docs['token_types'], os.path.join(reg, 'token_types.schema.json'), 'token_types')
     if docs['hops']:

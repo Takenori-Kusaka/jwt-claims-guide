@@ -47,7 +47,7 @@ YAML の 1 行目は `# template_version: 0.3.0`（0.2.0 で書いた設計書�
 | 生成 | 手で書かない。IdP モジュール（#4 の `M_idp_keycloak`）・カタログ・`token_types`・既定の組み合わせから生成する（#19）。既定から外れたときだけ手で書く |
 | Full のみ | Lite では書かない（任意の列）。Full の設計書と、その列を入力にする lint を使うときに書く |
 
-ほかに、行の種類で減らす規則があります（gate1.md の 10.）。
+ほかに、行の種類で減らす規則があります（gate1.md の 10.）。**列を減らす規則は、縮小 Lite（`claim_lint --profile lite`）だけのものです。Full（`--profile` を付けない）では、既定どおりで `consumers: []` の行にも、トークンに載せる行の必須の列をすべて書きます。**
 
 - **既定どおりで `consumers: []` の行**（IdP が出すが誰も読まない行）：`name`・`namespace`・`type`・`shape`・`decision`・`rationale`・`refs`・`max_bytes`・`pii_category`・`carried_in` だけを書く（R8 の計算に要るもの）。v1 では、これに `data_category`・`confidential_from` を足す（R1 の必須。どちらも値が決まりやすい）
 - **トークン目録の却下の行**：`kind`・`decision`・`rationale` だけ（スキーマも理由は `rationale` だけを求める）
