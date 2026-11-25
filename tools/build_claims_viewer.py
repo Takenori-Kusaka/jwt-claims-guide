@@ -161,7 +161,7 @@ def columns():
         for p in props:
             if p not in by_key:
                 problems.append(f'{README}: {key}.{p} (a property of {rel}) has no row in the column table')
-        cols = [dict(by_key[p]) for p in props if p in by_key]
+        cols = [dict(by_key[p], label=ui_terms(by_key[p]['label']), lite=ui_terms(by_key[p]['lite'])) for p in props if p in by_key]
         for k, c in by_key.items():
             if k in props:
                 continue
@@ -169,7 +169,7 @@ def columns():
             if parent is None:
                 problems.append(f'{README}: {key}.{k} is in the column table but not a property of {rel}')
             else:
-                parent.setdefault('parts', []).append(c)
+                parent.setdefault('parts', []).append(dict(c, label=ui_terms(c['label'])))
         out[key] = cols
     return out, problems
 
@@ -216,6 +216,83 @@ def review_links():
                 if not any(x['id'] == q['id'] for x in lst):
                     lst.append({'id': q['id'], 'text': q['text'], 'file': rel, 'url': url})
     return dict(sorted(out.items()))
+
+
+# ------------------------------------------------------------ 確認事項: which questions are shown for a design (#67, #56)
+# The contents (the class of each question A-D, and for the questions a reviewer answers the priority, the unit of
+# reading, the conditions under which it is shown and the plain wording) are decided in templates/review/triage.yaml
+# (#56, read by tools/review_triage.py). Until that file is merged, the table below stands in for it and gives
+# data/review.js the same shape, so that the screen (docs/claims/review.js: designTraits, triage) does not change when
+# the real contents arrive. The stand-in decides nothing about a question except the conditions: every question counts
+# as class C (a person answers it) of priority 2.
+TRIAGE_FILE = 'templates/review/triage.yaml'
+# the conditions of #56 (ids and labels as proposed there); review.js reads them from the design (designTraits)
+TRIAGE_CONDITIONS = [
+    ('always', 'どの設計でも'), ('org_claims', '組織独自のクレームがある'), ('pii', '個人情報を載せる'), ('multi_idp', '発行者（IdP）が複数ある'),
+    ('exchange', 'トークンの交換・作り直しがある'), ('delegation', '委任がある（代理で動く主体がいる）'), ('approval', '操作ごとの承認がある'),
+    ('multitenant', 'マルチテナント'), ('data_layer', 'トークンの値を DB の層まで運ぶ'), ('auth_context', '認証の強さ・新しさで判断する'),
+    ('sender_constrained', '送信者制約を選んだ'), ('sender_declined', '送信者制約を見送った'), ('long_running', '長時間・非同期の処理がある'),
+]
+TRIAGE_UNITS = OrderedDict([('row', 'クレームの行を読みながら'), ('hop', '経路を読みながら'), ('design', '設計の全体を読んでから')])
+# a question is shown when one of its conditions holds; a question that no rule names is shown for every design
+TRIAGE_FALLBACK = [
+    ('org_claims', {'id_prefix': 'pa-'}),
+    ('data_layer', {'id_prefix': 'cd-'}),
+    ('pii', {'role': 'role-privacy'}),
+    ('delegation', {'text': r'委任|エージェント|`act`|may_act'}),
+    ('exchange', {'text': r'トークンの交換|Token Exchange|交換して|作り直'}),
+    ('auth_context', {'text': r'追加認証|`acr`|`amr`|auth_time'}),
+    ('multitenant', {'text': r'テナント'}),
+    ('approval', {'text': r'authorization_details|操作ごとの承認'}),
+    ('sender_constrained', {'text': r'DPoP|mTLS|`cnf`|送信者制約'}),
+    ('long_running', {'text': r'長時間|非同期|バッチ'}),
+    ('multi_idp', {'text': r'複数の IdP|別の IdP|フェデレーション|upstream_issuer'}),
+    ('org_claims', {'text': r'名前空間|独自クレーム'}),
+]
+TRIAGE_PROVISIONAL = ('問いの選び方（どの問いを、どの性質のときに出すか）は、いまは仮のものです。中身は GitHub の issue 56 で決めています。'
+                      '出ていない問いは「すべての確認事項を見る」で見られます。')
+
+
+def _fallback_show_when(q):
+    out = []
+    for cond, rule in TRIAGE_FALLBACK:
+        if 'id_prefix' in rule:
+            hit = q['id'].startswith(rule['id_prefix'])
+        elif 'role' in rule:
+            hit = rule['role'] in q['roles']
+        else:
+            hit = bool(re.search(rule['text'], q['text']))
+        if hit and cond not in out:
+            out.append(cond)
+    return out or ['always']
+
+
+def _fallback_unit(q):
+    colls = {r['path'] for r in q['see_refs'] if r['kind'] == 'registry'}
+    return 'row' if 'claims' in colls else 'hop' if 'hops' in colls else 'design'
+
+
+def triage_fallback(questions):
+    """-> ({question id: fields of the question}, the checklist settings), in the shape that #56 gives data/review.js."""
+    per = {q['id']: {'triage': 'C', 'triage_note': '', 'priority': 2, 'unit': _fallback_unit(q), 'show_when': _fallback_show_when(q),
+                     'show_on_lint': [], 'ask': None} for q in questions}
+    checklist = {'default': {'triage': ['short']}, 'triage_labels': {'short': 'この設計書に当てはまる確認事項'},
+                 'short': {'priorities': [1, 2], 'source': None},
+                 'conditions': [{'id': k, 'label': v, 'read': ''} for k, v in TRIAGE_CONDITIONS],
+                 'units': TRIAGE_UNITS, 'priorities': {}, 'open_prompts': [], 'provisional': TRIAGE_PROVISIONAL}
+    return per, checklist
+
+
+# the words of the screens (#67): the column headings of templates/registry/README.md are shown with these words; the
+# README and the templates keep theirs (templates/glossary.md has the table)
+UI_TERMS = [('値の出どころ', '値の元データ'), ('出どころ', '元データ'), ('台帳の行', 'クレーム'), ('台帳', 'クレーム一覧'), ('ホップ', '経路'),
+            ('観点', '確認事項'), ('縮小 Lite', 'Lite'), ('載るトークン', '入るトークン')]
+
+
+def ui_terms(text):
+    for a, b in UI_TERMS:
+        text = text.replace(a, b)
+    return text
 
 
 REF_TICK = re.compile(r'`((?:review|template|registry|catalog|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_][A-Za-z0-9_.-]*)?)`')
@@ -281,9 +358,10 @@ def review_bundle():
                    'see': q['fields'].get('見る欄', ''), 'no': q['fields'].get('No なら', ''),
                    'links': q['fields'].get('つながり', ''), 'evidence': q['fields'].get('根拠', ''),
                    'see_refs': see, 'link_refs': links,
-                   # how the question is shown by default (#53, for #56): a field 「トリアージ」 of the question, else all
-                   'triage': q['fields'].get('トリアージ', '').strip() or 'all',
                    'url': REPO_BLOB + persp_rel + (f"#{q['anchor']}" if q['anchor'] else f"?plain=1#L{q['line']}")})
+    tri, checklist = triage_fallback(qs)
+    for q in qs:
+        q.update(tri[q['id']])
     contrasts = []
     for path in review_check.review_files(ROOT):
         rel = review_check.rel_of(ROOT, path)
@@ -304,7 +382,7 @@ def review_bundle():
             'stages': stages, 'roles': roles, 'questions': qs,
             # the filter the checklist starts with when the URL names none: {'triage': [values]} (empty: every question).
             # Showing a shorter list first is a change of the data (the field トリアージ and this), not of the screen
-            'checklist': {'default': {}, 'triage_labels': {'all': 'すべての問い'}}, 'template_heads': dict(sorted(heads.items())),
+            'checklist': checklist, 'template_heads': dict(sorted(heads.items())),
             'contrasts': contrasts,
             'decision_tree': {'file': dt_rel, 'sections': [{'id': a, 'title': h['title'], 'number': h['number']}
                                                             for a, h in _md_heads(dt_rel).items()]},
@@ -376,7 +454,9 @@ def schemas():
         with open(os.path.join(ROOT, 'templates', 'registry', name + '.schema.json'), encoding='utf-8') as f:
             out[name] = json.load(f)
     with open(os.path.join(ROOT, 'templates', 'review', 'review.schema.json'), encoding='utf-8') as f:
-        out['review'] = json.load(f)  # review.yaml (#50), checked when it is read in
+        out['review'] = json.load(f)  # review.yaml (#50, claims-review/2 of #67), checked when it is read in
+    with open(os.path.join(ROOT, 'templates', 'review', 'review.v1.schema.json'), encoding='utf-8') as f:
+        out['review_v1'] = json.load(f)  # a claims-review/1 file is checked with its own schema, then migrated
     return out
 
 
@@ -503,7 +583,7 @@ def js(name, obj):
 # (an index.html still in the cache, a file from the server) show a banner that asks for a reload instead of failing.
 HASH_LEN = 12
 BUILD_PLACEHOLDER = 'dev'
-HAND_WRITTEN = ('app.css', 'editor.js', 'preview.js', 'review.js', 'lint-worker.js')
+HAND_WRITTEN = ('app.css', 'editor.js', 'preview.js', 'review-format.js', 'review.js', 'lint-worker.js')
 # files that are part of the build but never rewritten (vendored, byte for byte)
 VENDOR_PARTS = ('vendor/editor-libs.js', 'vendor/pyodide/pyodide.js')
 # loaded after the page has started, by editor.js / review.js / the worker through asset(): their hash is in data/build.js
@@ -711,7 +791,7 @@ def check(want):
             k = next((j for j in range(min(len(cur), len(body))) if cur[j] != body[j]), min(len(cur), len(body)))
             problems.append(f'docs/claims/{n}: differs from the YAML at character {k}: '
                             f'committed {cur[max(0, k - 60):k + 60]!r} / generated {body[max(0, k - 60):k + 60]!r}')
-    for rel in ('editor.js', 'preview.js', 'review.js', 'lint-worker.js'):
+    for rel in ('editor.js', 'preview.js', 'review-format.js', 'review.js', 'lint-worker.js'):
         p = os.path.join(VIEWER_DIR, rel)
         if os.path.isfile(p):
             with open(p, encoding='utf-8') as f:

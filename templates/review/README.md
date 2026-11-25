@@ -20,7 +20,8 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
 | [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR7。各観点に合格と不合格の例。採点の範囲と迷いやすい点の決まり） |
 | [report_template.md](report_template.md) | レビューレポートの様式（出どころ 5 種・種別 5 種） |
-| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50。設計書のエディターのレビューが書き出す。レビュアーの名前は自己申告） |
+| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50、#67。形の名前は `claims-review/2`。設計書のエディターのレビューが書き出す。レビュアーの名前は自己申告）。レビュアーごとに、確認済みの印（`viewed`。行の内容のハッシュに結びつく。承認ではない）、コメント（`comments`。未提出・未解決・解決済み）、提出ごとの判定（`submissions`。承認・変更を依頼・コメントのみ）を持つ |
+| [review.v1.schema.json](review.v1.schema.json) | 前の形（`claims-review/1`。行ごとの判定と指摘）の JSON Schema。前の形のファイルも読める（`tools/review_record.py` とエディターが、読むときに新しい形へ移す）。書き直すなら `python tools/review_record.py migrate` |
 | [escaped_defects.md](escaped_defects.md) | レビュー後に見つかった欠陥の記録 |
 | [metrics.md](metrics.md) | レビューの指標（目標にしない観察の記録） |
 
@@ -52,7 +53,8 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 - 記録がある設計書を変える PR の手順（承認した行・却下の行・教材を変えたとき）は [../CONTRIBUTING.md](../CONTRIBUTING.md) の「レビューの記録がある設計書を変えるとき」
 
 ```
-python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・抜き取り・古くなった承認
+python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・コメントの状態・提出・抜き取り・行が変わった確認済みの印と古い承認
+python tools/review_record.py migrate <dir>/review.yaml -o <dir>/review.yaml   # 前の形（claims-review/1）を新しい形にする（--check <ファイル> で、移した結果と同じかを確かめる）
 python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"   # 母集団が変わった抜き取りを引き直す
 python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md
 python tools/review_check.py --report <レポート>                                          # report_template.md の様式どおりか

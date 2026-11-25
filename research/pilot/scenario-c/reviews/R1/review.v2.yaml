@@ -1,0 +1,1255 @@
+# template_version: 0.4.0
+# review.yaml: レビューの記録。設計書のエディター（docs/claims/）が書き出した形（claims-review/2）。
+# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。
+format: "claims-review/2"
+design: "research/pilot/scenario-c"
+independent: true
+reviews:
+  - reviewer:
+      name: "R1"
+      kind: "llm"
+      model: "claude-opus-5-5"
+      note: "LLM によるレビュー。人による検証ではない。 パイロット #9 のブラインドのレビュアー R1。author-log.md・記入例・ケーススタディ・ほかのレビュアーの記録は読んでいない"
+    self_declared: true
+    started: "2026-11-24T06:57:04+09:00"
+    updated: "2026-11-24T07:08:54+09:00"
+    submitted: "2026-11-24T07:08:54+09:00"
+    independence:
+      mode: "kept"
+      reason: "ほかのレビュアー（R2）の記録・PR #54 のコメントを開いていない"
+    target:
+      commit: "f8c26c7daeb51b61b590db9f86b1879192e02773"
+      note: "worktree agent-a9f5b6ad37dc24c26 の research/pilot/scenario-c（未コミットの状態を含む可能性あり）"
+    materials:
+      questions: 168
+      perspectives: "0.4.0"
+      report_template: "0.4.0"
+    context:
+      materials: "templates/review 一式（procedure・perspectives 168 問・decision_tree・contrasts・escalation・rationale_rubric・report_template）、tools/claim_lint、tools/review_record.py、要求の概要 brief-C.md"
+      lite_full: "設計書は Lite の欄で記入。5 問では delegation_or_exchange・new_issuer が Yes で Full（書き手の判定も Full）。パイロットの指示で Lite のままレビュー（F01）"
+      steps: "0〜7（段 0 で返す条件に当たったがパイロットの指示で続行。段 8 は対応待ち）"
+      roles_order: "攻撃者 → 受け手 → 発行者 → 運用 → 個人情報 → クライアント（1 つのセッションの中で切り替えた。別セッションでの読み直しは未実施）"
+      ci:
+        error: 53
+        warn: 1
+        info: 9
+        profile: "full"
+        matches_design: true
+        note: "設計書の 1. に貼った結果（profile full）と一致。profile lite では error 0・warn 3（L15 1・L73 2）・info 9"
+      human_check: "LLM によるレビュー。人による検証ではない。 人による点検は未実施"
+    answers:
+      ap-1-1:
+        answer: "yes"
+        memo: "alg_allowlist は ES256 だけ"
+      ap-1-2:
+        answer: "yes"
+        memo: "validates は local で署名を検証"
+      ap-1-3:
+        answer: "yes"
+        memo: "aud は required_claims にあり、受け手が自分の URI と照合"
+      ap-1-4:
+        answer: "yes"
+        memo: "iss の許可リスト（1 つ）。テナントは無い"
+      ap-1-5:
+        answer: "yes"
+        memo: "key_source は issuer の metadata の jwks_uri、ヘッダーの鍵は拒否"
+      ap-1-6:
+        answer: "yes"
+        memo: "照合は sub。email は却下"
+      ap-1-7:
+        answer: "yes"
+        memo: "代替：provenance の列は無いが、書き手はすべて platform の STS。authorization_details はエージェントの申告でなく承認の記録から写す"
+      ap-1-8:
+        answer: "yes"
+        memo: "exp 必須、ずれ 30 秒"
+      ap-2-1:
+        answer: "yes"
+        memo: "ロールを載せない。scope は max_items 3・超過で発行を失敗"
+      ap-2-2:
+        answer: "yes"
+        memo: "authorization_details は都度 DB を引く。scope は取り直し・交換で決め直す"
+      ap-2-3:
+        answer: "no"
+        memo: "authorization_details の中の項目（金額・通貨・振込先）の型が台帳にも consumer schema（items が object だけ）にも無い（F17）"
+      ap-2-4:
+        answer: "na"
+        memo: "独自クレームを採用していない"
+      ap-2-5:
+        answer: "na"
+        memo: "ヘッダーに写さない"
+      ap-2-6:
+        answer: "yes"
+        memo: "ツールは交換した TOOL_AT だけで上流を呼ぶ"
+      ap-2-7:
+        answer: "yes"
+        memo: "利用者のトークンを借りない。act の AT を同意と交換で得る"
+      ap-2-8:
+        answer: "yes"
+        memo: "台帳の log_policy で値を分け、トークン全文は残さない（U14）"
+      ap-2-9:
+        answer: "yes"
+        memo: "TOOL_AT は署名・60 秒・iss の束縛・失効の行がある"
+      cd-01:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-02:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-03:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-04:
+        answer: "yes"
+        memo: "認可に使う値はすべて STS（platform）か承認の記録が書く。本人が書き換えられない"
+      cd-05:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-06:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-07:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-08:
+        answer: "yes"
+        memo: "トークンで DB に接続しないので、接続の層は無いと 9.1 に書いてある"
+      cd-09:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-10:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cd-11:
+        answer: "na"
+        memo: "請求書の DB はアプリの資格情報で接続し、トークン・DB の文脈を使わない（lifecycle-db-connection、U02 対象外）"
+      cf-01:
+        answer: "yes"
+        memo: "書き手は段階（①②③⑥）ごとに STS"
+      cf-02:
+        answer: "yes"
+        memo: "on_missing は全行で拒否"
+      cf-03:
+        answer: "na"
+        memo: "外部のトークンが無い（発行者は社内の STS の 1 つ）"
+      cf-04:
+        answer: "yes"
+        memo: "H1→H2 で token_type と aud が替わる"
+      cf-05:
+        answer: "yes"
+        memo: "H2 は aud を置き換え、scope は同じ、寿命は 300→60"
+      cf-06:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      cf-07:
+        answer: "yes"
+        memo: "全ホップの validates に中身がある"
+      cf-08:
+        answer: "na"
+        memo: "クレームをヘッダーに転記しない"
+      cf-09:
+        answer: "na"
+        memo: "IP・端末の文脈を判断に使わない（通信の相手は mTLS のワークロード ID）"
+      cf-10:
+        answer: "yes"
+        memo: "sub はハッシュ、act・jti は記録、トークン全文は残さない（U14）。ただし approval_id の記録は F06"
+      dc-01:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-02:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-03:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-04:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-05:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-06:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-07:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-08:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-09:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-10:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-11:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-12:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      dc-gate:
+        answer: "na"
+        memo: "新しい独自クレーム（組織の名前空間）を採用していない（C-org-* は却下）。設計のチェックリストの対象の行が無い"
+      pa-01:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-02:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-03:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-04:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-05:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-06:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-07:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-08:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-09:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-10:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-11:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-12:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-13:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-14:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-15:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-16:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-17:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-18:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-19:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-20:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-21:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-22:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-23:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-24:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-25:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      pa-gate:
+        answer: "yes"
+        memo: "答えられない問いが残る独自クレームを共有にしていない（task_id・approval_id を却下し、標準の行で表した）"
+      pa-trace:
+        answer: "na"
+        memo: "共有クレームの追加が無く claim_request_*.md が無い（claims.yaml の 4 行目）。25 問の対象が無い"
+      q-access-context-from-pep:
+        answer: "na"
+        memo: "アクセス元の文脈を判断に使わない"
+      q-agent-delegation-claims:
+        answer: "yes"
+        memo: "sub＝利用者、act・client_id＝エージェント（AGENT_AT）"
+      q-agent-own-identity:
+        answer: "yes"
+        memo: "エージェントごとに client_id と証明書（2.1）"
+      q-agent-short-lived-no-rt:
+        answer: "no"
+        memo: "AGENT_RT（最大 8 時間）を出す。RT を出さない案との比較が理由に無い（F05）"
+      q-approval-from-as:
+        answer: "yes"
+        memo: "承認は承認のサービスの記録を STS が写し、請求書の API が DB で照合する。置き場所の比較は F10"
+      q-audit-correlation:
+        answer: "no"
+        memo: "U14 は approval_id を監査ログに残すと書くが、C-authorization-details の log_policy は「記録しない」で食い違う（F06）"
+      q-audit-log-protected:
+        answer: "yes"
+        memo: "integrity_until の trust_boundary に「閲覧は監査の担当だけ」とある（保存期間は無い）"
+      q-auth-context-semantics:
+        answer: "yes"
+        memo: "C-iat.not_meaning が「認証の時刻ではない」と書く。acr は却下し、強い確認は承認の記録で行う"
+      q-authorize-service-and-user:
+        answer: "yes"
+        memo: "act の最も外側を mTLS の相手と照合し、sub を持ち主と照合"
+      q-baseline-kept:
+        answer: "yes"
+        memo: "3.2 は「すべて満たす」。台帳の on_missing・目録の alg_allowlist・issuers で確かめた"
+      q-break-glass:
+        answer: "na"
+        memo: "break-glass を扱わない（I19）。2.2 が空なのは F13"
+      q-change-order:
+        answer: "yes"
+        memo: "9.3 に受け手が先・発行者が後の手順がある（変更中の行は無い）"
+      q-claim-earliest-hop:
+        answer: "yes"
+        memo: "authorization_details は値が分かる AGENT_AT から載せ、TOOL_AT は部分集合"
+      q-confidential-reaches-reader:
+        answer: "yes"
+        memo: "confidential_from の相手が無い"
+      q-consumer-expression:
+        answer: "no"
+        memo: "authorization_details の「完全一致」の比較で、金額の型・通貨・振込先の表記（大小・空白）の正規化が無い（value_normalization が無い。F17）"
+      q-copies-outlive:
+        answer: "no"
+        memo: "ツールサーバーが上流の結果をキャッシュするか、その期限と止め方が無い（F15）"
+      q-cross-tenant-identity:
+        answer: "na"
+        memo: "テナントが無い"
+      q-db-context-parameterized:
+        answer: "na"
+        memo: "DB の文脈・RLS を使わない（U02 対象外）"
+      q-db-context-writers:
+        answer: "na"
+        memo: "DB の文脈・RLS を使わない（U02 対象外）"
+      q-ddm-rls-only:
+        answer: "na"
+        memo: "DB の文脈・RLS を使わない（U02 対象外）"
+      q-delegation-depth-and-revocation:
+        answer: "yes"
+        memo: "max_delegation_depth 2、RT の系列の失効と交換の拒否で一括に止める。深さ 2 は escalation の delegation-depth に回した"
+      q-dependency-outage:
+        answer: "no"
+        memo: "承認のサービス・STS の障害時に、支払い・交換を閉じる側に倒すかが書いていない（on_fetch_failure は JWKS だけ）（F16）"
+      q-deprecated-deadline:
+        answer: "na"
+        memo: "廃止予定の行が無い"
+      q-derived-value:
+        answer: "no"
+        memo: "請求書の API は支払いのたびに承認の記録を DB で引くので、トークンは approval_id だけで足りる可能性があるのに比べていない（F10）"
+      q-evidence-attribution:
+        answer: "no"
+        memo: "3 件を抜き取った：RFC 9396 §9.1（JWT の AT。当てはまる）、RFC 8705 §3（cnf。当てはまる）、RFC 8693 §4.1（C-act。入れ子の act は access control の判断に使わない MUST に対し、設計は削る照合に使う。F19）"
+      q-external-user-deprovision:
+        answer: "na"
+        memo: "外部の IdP・取引先の利用者がいない"
+      q-four-lifetimes-written:
+        answer: "yes"
+        memo: "9.1・9.2 に分けて書いてある。9.3 は廃止予定の行が無い"
+      q-freshness-mitigation:
+        answer: "yes"
+        memo: "「超える」の authorization_details に、請求書の API の都度の DB の照会が書いてある"
+      q-gateway-bypass-path:
+        answer: "no"
+        memo: "エージェントが resource=請求書の API で AT を直接得て、ツールを通らずに呼ぶ経路の可否（STS のクライアントごとの許す resource）が書いていない（F03）"
+      q-hook-adds-raw-pii:
+        answer: "na"
+        memo: "発行時フックが無い"
+      q-hook-failure:
+        answer: "yes"
+        memo: "フックが無い（STS が自分で書く）。required_claims の欠落は拒否"
+      q-hop-lifetime:
+        answer: "yes"
+        memo: "H1 300 秒 → H2 60 秒。exp も subject_token を超えない"
+      q-hop-narrowing:
+        answer: "yes"
+        memo: "H2 は aud を 1 つに置き換え、scope・authorization_details は部分集合で、STS の enforced_at に強制が書いてある"
+      q-identifier-choice:
+        answer: "yes"
+        memo: "sub は STS の不変の opaque な ID。テナントは無い（C-tenant 却下）"
+      q-idp-capability-verified:
+        answer: "no"
+        memo: "STS は組織で作るもので、交換での深さ・取り消しの確認・resource の拒否・RT の再利用の検知を、どれも実測も文書も無い（12. が認める）。C9・C10・C13・C15 の判断が依存する（F20）"
+      q-idp-diff-absorbed:
+        answer: "na"
+        memo: "発行者は 1 つで IdP の差が無い"
+      q-internal-delegation-token:
+        answer: "yes"
+        memo: "TOOL_AT の目録の行に署名・期限・tenant_binding・revocation がある"
+      q-key-rotation:
+        answer: "yes"
+        memo: "JWKS、未知の kid は最短 60 秒・負のキャッシュ 60 秒、使う 1 日前に公開・外して 1 日残す"
+      q-lifetime-rationale:
+        answer: "no"
+        memo: "5.1（寿命の上限の方針）が空。数字の根拠はガイドと NIST の上限だけと 12. が書く（F13）"
+      q-limit-consistency:
+        answer: "no"
+        memo: "U10 の「cnf が actor の証明書と同じ」は AGENT_AT の cnf（エージェントの証明書）と食い違う（F02）。取り消しの目標 120 秒・90 秒・scope の volatility 900 秒も食い違う（F06）"
+      q-lint-workaround:
+        answer: "yes"
+        memo: "lint を通すための宣言の変更は無い"
+      q-long-running:
+        answer: "yes"
+        memo: "エージェントは自分の証明書に束縛した RT を持ち、取り直しのたびに STS が委任を確かめる。利用者のトークンを保持しない"
+      q-minimal-per-recipient:
+        answer: "no"
+        memo: "authorization_details の consumers は invoices-api と STS だけだが、H1 の AGENT_AT（宛先はツール）に載る（F10）"
+      q-nested-jwt-both-layers:
+        answer: "na"
+        memo: "JWE を使わない"
+      q-no-passthrough:
+        answer: "no"
+        memo: "交換を許す actor と、actor ごとに割り当てる宛先（どの actor がどの resource 向けを得られるか）、subject_token の宛先が actor 自身かの規則が台帳に無い（F03）"
+      q-no-secret-or-raw-pii:
+        answer: "no"
+        memo: "authorization_details の creditorAccount（user.financial.bank_account）が平文で AGENT_AT に載り、読まない受け手（エージェント・ツール）に届く（F10）"
+      q-no-unverified-passthrough-mode:
+        answer: "no"
+        memo: "M_token_validation#library-config の欄も claim_request の問 18 も無く判定できない（F13）"
+      q-object-level-authz:
+        answer: "yes"
+        memo: "請求書の API が sub と請求書の持ち主（DB）を照合して 404（C3）"
+      q-operational-metrics:
+        answer: "no"
+        memo: "付録 A（Full）が空（F13）"
+      q-operator-act:
+        answer: "na"
+        memo: "運用者の代理操作を STS が実装しない（I19）。ただし 2.2（Full）が空（F13）"
+      q-original-principal:
+        answer: "yes"
+        memo: "交換で sub を保ち、ツールの広い ID（client credentials）を作らない"
+      q-outside-catalog:
+        answer: "yes"
+        memo: "outside_enumeration に探した範囲が具体的にある。ただしレビュアーの外の質問で F03・F07・F08・F09 を足した"
+      q-pairwise-external:
+        answer: "na"
+        memo: "外部の受け手が無い（組織は 1 つ、全受け手が社内）"
+      q-pairwise-unguessable:
+        answer: "na"
+        memo: "ペアワイズにしない（外部の受け手が無い）"
+      q-payload-readable:
+        answer: "yes"
+        memo: "confidential_from は全行で空なので定義上 Yes。ただし振込先がエージェント・ツールに読める点は F10"
+      q-rar-per-audience:
+        answer: "no"
+        memo: "H1（宛先 MCP のツール）にも type payment を載せる。ツールは読まない（F10）"
+      q-refresh-reevaluated:
+        answer: "no"
+        memo: "「取り直しで scope を委任と方針から決め直す」は STS の挙動で、実測も文書も無い（F20）"
+      q-registered-synonym:
+        answer: "na"
+        memo: "独自クレームの行が採用に無い。登録名だけを使う"
+      q-relies-on-at-expiry:
+        answer: "no"
+        memo: "ツールは AGENT_AT を exp（最悪 330 秒）まで受け入れ、ツール側の結果のキャッシュを持たないことが書いていない（F15）"
+      q-required-rejected:
+        answer: "yes"
+        memo: "必須の欠落は拒否"
+      q-reuse-standard-structure:
+        answer: "yes"
+        memo: "鍵への束縛は cnf、承認は authorization_details、委任は act と、既存の構造を使う"
+      q-revocation-delivery:
+        answer: "no"
+        memo: "交換での取り消しの確認（C9 の要）が、台帳の enforced_at に無い（STS が subject_token からどうやって委任の記録を引くかが jti の行の監査の記録だけ）（F03）"
+      q-role-explosion:
+        answer: "na"
+        memo: "ロールを載せない"
+      q-rt-policy-by-client:
+        answer: "yes"
+        memo: "機密クライアントで送信者制約（加えてローテーション）。RFC 9700 §4.14.2 を引く"
+      q-scope-and-role:
+        answer: "yes"
+        memo: "scope と行為者の方針の表と、持ち主（利用者の権限）を照合。ただし H3 の validates に scope が無い（F14）"
+      q-scope-elevation-logged:
+        answer: "no"
+        memo: "ツールごとの最小の scope（呼び出しの操作だけ）から始めず、C14 の引き上げの拒否を記録する規則も無い（F11）"
+      q-scope-semantics:
+        answer: "yes"
+        memo: "scope はタスクの範囲（C-scope.not_meaning）。支払いは scope と authorization_details の両方、と UC2 と not_meaning に書いてある"
+      q-session-rt-bounds:
+        answer: "yes"
+        memo: "RT は idle 1 時間・最大 8 時間、セッションは 30 分・8 時間"
+      q-shared-validator:
+        answer: "no"
+        memo: "M_token_validation の欄が無く、共通の検証部品を使うか判定できない（F13）"
+      q-single-aud-resource:
+        answer: "yes"
+        memo: "resource で 1 つ。2 つ以上の要求は拒否（MCP の表の 1）"
+      q-single-issuer:
+        answer: "yes"
+        memo: "代替：issuers の列は空（Full の R1 error）だが、authoritative_writer はすべて STS の 1 つ。サービスが追記しない"
+      q-size-limit:
+        answer: "yes"
+        memo: "R8 で最悪 1739／8192 バイト（21%）"
+      q-sql-tenant-predicate:
+        answer: "na"
+        memo: "DB の文脈・RLS を使わない（U02 対象外）"
+      q-step-up-by-rs:
+        answer: "na"
+        memo: "追加認証を使わず、支払いは人の承認の記録で確かめる（C-acr 却下・I12 対象外）"
+      q-step-up-path-coverage:
+        answer: "na"
+        memo: "追加認証を使わない（承認の記録で確認。I12 対象外）"
+      q-system-actor-no-fake-sub:
+        answer: "yes"
+        memo: "client credentials を作らず、利用者の sub を捏造しない"
+      q-tenant-data-match:
+        answer: "na"
+        memo: "組織は 1 つでテナントが無い"
+      q-token-logging:
+        answer: "no"
+        memo: "記録する HTTP ヘッダーの許可リスト・HAR の扱いの欄（M_privacy_minimization#audit-log）が無い（F13）"
+      q-token-not-in-url:
+        answer: "yes"
+        memo: "AT は Authorization ヘッダー、クエリは拒否（MCP の表の 8）。SSE は U23"
+      q-trace-id-trust:
+        answer: "yes"
+        memo: "traceparent を使わず、jti と STS の記録で相関"
+      q-txn-required-claims:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      q-txn-scope-fixed:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      q-typ-distinguishes:
+        answer: "yes"
+        memo: "AT は at+jwt、種類は aud で分かれる。ID トークンを出さない"
+      q-unverified-claim-extraction:
+        answer: "yes"
+        memo: "全ホップで local に検証してから読む"
+      q-unwrapped-value-authz:
+        answer: "yes"
+        memo: "署名の外の値（ログ）を認可に使わない。integrity_until は監査ログだけ"
+      q-validate-before-read:
+        answer: "no"
+        memo: "検証の順序（M_token_validation#validation-order）の欄が無く判定できない（F13）"
+      q-validity-not-authz:
+        answer: "yes"
+        memo: "操作（scope と行為者の方針）・対象（持ち主）・承認の内容で判断"
+      q-value-vocabulary:
+        answer: "na"
+        memo: "roles・groups を載せない（C-roles 却下）。authorization_details の type の語彙は value_vocabulary にある"
+      q-variant-comparison:
+        answer: "yes"
+        memo: "mTLS と DPoP を攻撃の型（TLS の終端）で比べた。mTLS はトークンのサイズを増やさない"
+      q-writer-distinguished:
+        answer: "yes"
+        memo: "本人・呼び出し側が書く値で認可しない（承認の ID は本文から読まない。C7）"
+    viewed:
+      "catalog_answers:I14":
+        reviewer_kind: "llm"
+        hash: "2f8cb16bc466e604f68181dcd248c4c1c94e4d7b0ff6222a12f51fd7076a364e"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "承認つきの発行の確認を STS の enforced_at に（F07）"
+      "catalog_answers:U10":
+        reviewer_kind: "llm"
+        hash: "4f227902bc649073c35501e84d0a1883283c2caab4403b6cdc0960c0e3abc2d5"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "cnf が actor の証明書と同じ、は AGENT_AT の束縛と両立しない（F02）"
+      "claims:C-acr":
+        reviewer_kind: "llm"
+        hash: "d732203cc436b18e1a22242e5f810fed30840b4a75ca4a6d46b8bd8ef172eb3f"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "承認の記録で代える。崩れる条件もある"
+      "claims:C-act":
+        reviewer_kind: "llm"
+        hash: "99eb255407294306b49b2506403de1d093980e2dcbd7bbe58006e4a5ea9430d4"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "hold"
+          comment: "RFC 8693 §4.1 との関係（F19）と深さの数え方（F12）を専門家に回した"
+      "claims:C-aud":
+        reviewer_kind: "llm"
+        hash: "6165409433ff15e485098f3f910f47581665c922054b01c11da682aaf41819b2"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "STS の subject_token の宛先の確認を enforced_at に足す（F02・F03）"
+      "claims:C-authorization-details":
+        reviewer_kind: "llm"
+        hash: "736f75fa199de6528b775b0b98342be0e174a52edd06e67050ad110bd037719a"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "消費の原子性（F08）、中の項目の型（F17）、振込先が読まない受け手に届く（F10）"
+      "claims:C-azp":
+        reviewer_kind: "llm"
+        hash: "fcc339285e3706a8068258b1c20a779de275707e08e2fbc50751f21e31b26d28"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F18、軽微）"
+      "claims:C-client-id":
+        reviewer_kind: "llm"
+        hash: "fbf2768b6b1aeb374cde94ae9b1ac16152c9a22d28f9ebe11aeb4179ce381aa1"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "act の無い AT を受け入れる client_id を portal に限る（F09）"
+      "claims:C-cnf":
+        reviewer_kind: "llm"
+        hash: "6bf93cbda6538e4f79cf7abcfc97e055143f6a7d1fce17ad8b20bbabb58e0850"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "行は妥当。U10 の記述は catalog_answers:U10 で直す（F02）"
+      "claims:C-email":
+        reviewer_kind: "llm"
+        hash: "ae5848f9c405efe9b5f6fb6bbd96cf6cbd1c8ade830237ee6d470b06ac87d11d"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "前提と崩れる条件がある"
+      "claims:C-exp":
+        reviewer_kind: "llm"
+        hash: "5535342776ea91ae872376bc0b12f0615293ef53cd6f0929f09d3ad4848d02bd"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F18、軽微）"
+      "claims:C-iat":
+        reviewer_kind: "llm"
+        hash: "3b84cf5927a9eace8456e61387af7d4c3544f4634d77efbcef2596a6a0aa6b48"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F18、軽微）"
+      "claims:C-iss":
+        reviewer_kind: "llm"
+        hash: "8ffe325752d19e1108a07226650d3acd247d712a5448a1c19ae39acd428766cb"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "許可リストの完全一致。代償の記述が無い（F18、軽微）"
+      "claims:C-jti":
+        reviewer_kind: "llm"
+        hash: "0992eed3312c0597f4e010d31013df33e4c0adedd4cc834eb2392e1f32228b35"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "交換で委任の記録を引いて取り消しを確かめる照合を、STS の enforced_at に書く（F03）"
+      "claims:C-may-act":
+        reviewer_kind: "llm"
+        hash: "1e44c36989c170e48073e8e53ad578bc6cb6d509c09d95d3056dadb4cc497d9e"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "抜き取りで採点：合格。STS の方針の表が代わりに答える"
+      "claims:C-nbf":
+        reviewer_kind: "llm"
+        hash: "1d1914b08d8394c42909eba6213bf40974e1e4b2d35cbc65ef9488dc7a7b719d"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "予約の支払いを範囲の外と前提にし、崩れる条件もある"
+      "claims:C-org-approval-id":
+        reviewer_kind: "llm"
+        hash: "ab09efd672aa018e0cceac9e1a757e4e947ea175a7495ee0ce383924df8836d6"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "revisit_trigger が無い（F18）"
+      "claims:C-org-task-id":
+        reviewer_kind: "llm"
+        hash: "2b2af546ebfc32e2f5649a726bcf29487c5248a4dfda32968ee205eaedf746aa"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "抜き取りで採点：合格。rejection_kind は「代替あり」が近い（STS の記録で答える）"
+      "claims:C-roles":
+        reviewer_kind: "llm"
+        hash: "c5ea2dd7d1ad68c76df7ddfd34993fbae45e13dad8094d9e16684fb06749aac8"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "抜き取りで採点：RR2 否（revisit_trigger が無い。F18）"
+      "claims:C-scope":
+        reviewer_kind: "llm"
+        hash: "73f4595c74a93186b6d12423ad0df61bb71c7fdae73a5a67ab8c027265af6b5a"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "volatility 900 秒と取り消しの目標の食い違い（F06）、呼び出しごとの絞り込み（F11）"
+      "claims:C-sub":
+        reviewer_kind: "llm"
+        hash: "466ec1eff55bfa51436a5f4b5031733f8ba2062e2d6e5ca8c17b341ac30bae05"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "C3・C15 に対応。代償の記述が無い（F18、軽微）"
+      "claims:C-tenant":
+        reviewer_kind: "llm"
+        hash: "a0d758138f4120c0b9c4d68cd5f390c484dc7cba8217ea610065fae740185fbd"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "§7 の 9 に対応。崩れる条件もある"
+      "claims:C-txn":
+        reviewer_kind: "llm"
+        hash: "195a2cc2caa1df6a8d10aab09b8eb5ff808833490a292036a3abbcdd0b05b4dc"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "TXN_TOKEN の却下と一貫"
+      "hops:H1":
+        reviewer_kind: "llm"
+        hash: "b0eae68b2f07ed190d71ae474d3eea366a929c7bf7b40628f553474e70106015"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "aud・cnf・act の照合がある。authorization_details を載せる是非は F10"
+      "hops:H2":
+        reviewer_kind: "llm"
+        hash: "f8db20d92c905cd397ae36c65bebf4471da08f29ad6b196311717f2f9fadb600"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "呼び出しごとの scope の絞り込み（F11）、交換の入力の確認（F03）"
+      "hops:H3":
+        reviewer_kind: "llm"
+        hash: "e1189b538d019fca2f10a1c4dfb2c72073ec14dcfe687ac854a1b13411030952"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "validates に scope が無い（F14）"
+      "token_types:AGENT_AT":
+        reviewer_kind: "llm"
+        hash: "856fe91a85d79c7a40340014018a9fe61a65eb0aad5f3ea510169565633f30fa"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "寿命・束縛は妥当。取り消しの後のツール側の受け入れ（F15）は別の行で扱う"
+      "token_types:AGENT_RT":
+        reviewer_kind: "llm"
+        hash: "ac109c6e9c97f8241b233a067f359dc38dc6d96bd07e6367c1d451ce430ebe41"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "RT を出さない案との比較（F05）、再利用の検知は unverified（F20）"
+      "token_types:AUTHORIZATION_CODE":
+        reviewer_kind: "llm"
+        hash: "cb2f24bc9ed7997605457caa30633d45cb47dfa6187671a303904b954acc22a4"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:CLIENT_ASSERTION":
+        reviewer_kind: "llm"
+        hash: "cf144213ba16fa1618929148f9194ff6b85750c481d446cec417643605eea63a"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:DPOP_PROOF":
+        reviewer_kind: "llm"
+        hash: "c8a289fc1043ec91c860b785f6c139251eb08377088b99563096dbb87b779435"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:ID_JAG":
+        reviewer_kind: "llm"
+        hash: "63e2fb53d2377b2c0ae2324f78a00170ae80a8e9850f00310c3ca229d9a4e5cd"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:ID_TOKEN":
+        reviewer_kind: "llm"
+        hash: "1bb85f61c440143f491924718c4d63bca0a9640f080311e58a6df35f2a05ebb8"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:INTERNAL_TOKEN":
+        reviewer_kind: "llm"
+        hash: "6c507d27be4eff868ea26536aa0886fd250de3f382c4c3ea6d9cc40d971ab895"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:INTROSPECTION_RESPONSE_JWT":
+        reviewer_kind: "llm"
+        hash: "e8384c6e15fd33dbbda6955760faa1b22155df10f33d41af01aac83a95a4d507"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:JARM_RESPONSE":
+        reviewer_kind: "llm"
+        hash: "2994ef7bf866049c09ea2c596bbc77c2e1d16c52c81c959a797709d36ab322c7"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:JAR_REQUEST_OBJECT":
+        reviewer_kind: "llm"
+        hash: "031b9ea58ec32347e7b637ff49eea57263f00472c11d437254a2da410d4dc414"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:JWT":
+        reviewer_kind: "llm"
+        hash: "b0bf798c142f0b66be492c0169cb1e3f0f52758c1f541cae5710bf6be7c593a4"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:LOGOUT_TOKEN":
+        reviewer_kind: "llm"
+        hash: "fd97de2037a3ce6461d876e896bc7f434e0c570861a7336f7b91d804b7f6e3f8"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:PORTAL_AT":
+        reviewer_kind: "llm"
+        hash: "271c374b38e0caf94a6434a9f061abbd5f6ac9fbfa610d980b187d40f7266b9a"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:SECURITY_EVENT_TOKEN":
+        reviewer_kind: "llm"
+        hash: "34bf0d17e87da78bb73875470342fb6be77ec94da98450e01d098d59f6d35882"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "却下は妥当。90 秒と 3.1 の 120 秒をそろえる（F06）"
+      "token_types:SESSION":
+        reviewer_kind: "llm"
+        hash: "2afb279494c8a9c38143f6a3a8e59000ecc690fb1688fc540bda8ff09620a484"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:STATUS_LIST_TOKEN":
+        reviewer_kind: "llm"
+        hash: "3aacf7d50c74bdf0892615f85f2061f2c9b831cbc9896c3cd61f93911895889f"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+      "token_types:TOOL_AT":
+        reviewer_kind: "llm"
+        hash: "d0410c2701be280e07d724381ff4c79b3f7edce41142cce65ab92e0dae131a80"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "呼び出しのたびの交換と 60 秒の使い回しの食い違い（F06）"
+      "token_types:TXN_TOKEN":
+        reviewer_kind: "llm"
+        hash: "fb928f649dd3e0b3bcd6b722352bd42a7f27e0c77ad135605c78b25824a77880"
+        at: "2026-11-24T07:08:54+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "理由と要求の対応を確かめた"
+    comments:
+      - id: "F01"
+        location: "template:00_core#ci-results、冒頭の Lite／Full、catalog_answers.lite_criteria"
+        questions: ["q-baseline-kept"]
+        content: "段 0 の受け付けの条件に 2 つ当たる。(1) 5 問のうち delegation_or_exchange と new_issuer が Yes で、設計書自身も「判定は Full」と書くのに Lite の欄で書いている（L73 の warn 2 件）。(2) 1. に貼った CI の結果は profile full で error 53（FAIL。issuers・issue_events・propagation_delay・status・overflow_strategy の列が空）。手順どおりなら返す。パイロットの指示（Lite で記入）を受けて、レビューは続けた"
+        severity: "Major"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "procedure.md の段 0 の 1.・2. にそのまま当たる。Lite の profile では error 0・warn 3 を確かめた"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F02"
+        location: "catalog_answers.yaml の U10、token_types[AGENT_AT].holder・sender_constraint、C-cnf.enforced_at"
+        anchors: ["catalog_answers:U10", "claims:C-cnf", "claims:C-aud"]
+        questions: ["q-limit-consistency"]
+        content: "U10 の回答は「STS は subject_token の cnf が actor の証明書と同じことを確かめる」と書く。しかし AGENT_AT はエージェントの証明書に束縛され（holder・cnf）、交換を要求する actor はツールサーバーで証明書が違う。書いたとおりに実装すると、正規の C1・C8・C11 の交換がすべて拒否される。正しくは「subject_token の aud が actor（ツールサーバー）の正規の URI と一致し、actor は mTLS で認証する」ではないか。C-cnf・C-aud の consumers・enforced_at に sts-token-exchange が無く、どちらの台帳の行も STS のこの確認を表していない"
+        severity: "Major"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "2 か所（U10 と AGENT_AT の cnf）が同じトークンについて両立しない"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F03"
+        location: "claims:C-aud・C-jti・C-act の enforced_at（sts-token-exchange）、hops[H2].exchanger、issuance_profile.grants"
+        anchors: ["claims:C-aud", "claims:C-jti", "claims:C-act", "hops:H2"]
+        questions: ["q-no-passthrough", "q-revocation-delivery", "q-gateway-bypass-path"]
+        content: "交換の STS が subject_token について確かめることが台帳の enforced_at に揃っていない。(a) subject_token の aud が actor 自身の resource であること（U10 にだけある。F02）、(b) subject_token から委任の記録を引いて取り消し済みでないこと（C9 の要。jti の行は「監査ログに記録」だけ）、(c) actor ごとに得てよい宛先（tool:invoice-mcp だけが invoices 向けを得る）。(c) が無いと、悪意ある MCP サーバー B が自分宛ての AGENT_AT を交換して請求書の API 向けを得ようとしたとき、STS で止める規則が無く、止まるのは請求書の API の行為者の方針の表だけになる。エージェントのクライアントが resource=請求書の API で AT を直接得られるか（ツールを迂回する経路）も書いていない"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "攻撃者の視点で H1→STS→H2 の矢印をたどって見つけた。観点書の問いは交換の結果（aud・scope）を見るが、交換の入力（subject_token）の確認を直接は問わない"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F05"
+        location: "token_types[AGENT_RT]、issuance_profile.rt_strategy、9.1"
+        anchors: ["token_types:AGENT_RT"]
+        questions: ["q-agent-short-lived-no-rt"]
+        content: "エージェントに最大 8 時間・無操作 1 時間の RT を出す。観点書の q-agent-short-lived-no-rt（タスク単位の短命で RT を出さない）から外れるのに、RT を出さない案（AT の取り直しのたびに同意か、短い委任の付与）との比較と、エージェントの証明書と RT が同時に漏れたときの最悪の期間（8 時間）の評価が理由に無い。再利用の検知は unverified で、L15 の warn（RT に載る cnf の行が無い）も残る"
+        severity: "Major"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "RR3（代わりと代償）が満たされない。RT 自体を否定するのでなく比較を求める"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F06"
+        location: "3.1 の「タスク単位の短命トークン」、token_types[SECURITY_EVENT_TOKEN]・[TOOL_AT].revocation・refresh、C-scope.volatility、U14、C-authorization-details.log_policy"
+        anchors: ["claims:C-scope", "claims:C-authorization-details", "token_types:TOOL_AT", "token_types:SECURITY_EVENT_TOKEN", "catalog_answers:U14"]
+        questions: ["q-limit-consistency", "q-audit-correlation"]
+        content: "同じ事実の値が欄ごとに違う。(1) 取り消しの反映の目標が 3.1 で 120 秒、SET の却下・I23 で 90 秒、C-scope の volatility は 900 秒。(2) TOOL_AT の refresh は「呼び出しのたびに交換」なのに revocation の note は「手元の TOOL_AT が切れるまで最悪 60 秒」で、使い回しを前提にする。(3) U14 は監査ログに approval_id を残すと書くが、approval_id を含む C-authorization-details の log_policy は「記録しない」"
+        severity: "Minor"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "RR7 の食い違い。どれが正かを書き手が決める"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F07"
+        location: "catalog_answers.yaml の I14 と pairwise の I14、C-authorization-details.enforced_at"
+        anchors: ["catalog_answers:I14", "claims:C-authorization-details"]
+        questions: ["q-approval-from-as"]
+        content: "承認つきの AGENT_AT の発行（I14）で STS が確かめること（承認済み・持ち主が sub）は pairwise の note にしか無く、STS の enforced_at に無い。承認がタスクの同意の後に出たとき、エージェントが何の要求（RT の取り直しに authorization_details を付ける。RFC 9396 §6 は許す）で載せ直すか、承認を特定のタスク・エージェントに結ぶか（u1 の別のタスクのエージェントが同じ承認を使えるか）が書いていない。請求書の API が支払いのたびに記録を引くので、直ちに不正な支払いにはならない"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "承認の一生（作成→載せる→使う→消費）を追う外の質問で見つけた"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F08"
+        location: "C-authorization-details.enforced_at（invoices-api）、目録の db_lookup"
+        anchors: ["claims:C-authorization-details"]
+        questions: ["q-outside-catalog"]
+        content: "「承認済み・未使用を確かめて消費する」の、同時の 2 つの支払いの要求（競合）への扱い（条件つきの更新で 1 回だけ成功させる）と、消費と支払いの順序（消費した後に支払いが失敗したら承認を戻すか、タイムアウトの後の再試行を冪等に扱うか）が無い。同じ承認での二重払い（作者が outside_enumeration で見つけた場面）の防ぎ方が、実装しだいで崩れる"
+        severity: "Major"
+        origin: "カタログ外の質問"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "障害時の再送と並行の要求を問う外の質問で見つけた。カタログに戻す候補"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F09"
+        location: "C-client-id.enforced_at（invoices-api）、PORTAL_AT、§7 の 8（Keycloak）"
+        anchors: ["claims:C-client-id", "token_types:PORTAL_AT"]
+        questions: ["q-agent-delegation-claims"]
+        content: "請求書の API の「act の無い AT は client_id と mTLS の相手が一致すれば受け入れる」は、act の無い AT を出してよいクライアントを限っていない。エージェントのクライアントが act の無い利用者の AT を得る経路が 1 つでもできると（STS の設定の誤り、Keycloak の標準の交換で act が付かない構成に置き換えたとき）、エージェントは自分の証明書のまま「利用者本人」として通り、C12 の防ぎ方と行為者の方針の照合を迂回する。act の無い AT は client_id が portal のときだけ受け入れる許可リストにすべき"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "C12 の防ぎ方を cnf 以外の層で外したらどうなるかを問う外の質問で見つけた"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F10"
+        location: "C-authorization-details.carried_in・consumers・pii_category、hops[H1].authorization_details"
+        anchors: ["claims:C-authorization-details", "hops:H1"]
+        questions: ["q-minimal-per-recipient", "q-no-secret-or-raw-pii", "q-rar-per-audience", "q-derived-value"]
+        content: "振込先の口座（user.financial.bank_account）を含む authorization_details が H1 の AGENT_AT に載り、読まない受け手（エージェント・ツールサーバー）に平文で届く。請求書の API は支払いのたびに承認の記録を DB で引くので、トークンに載せるのは approval_id（と金額・相手先のハッシュ）で足りるか、STS が交換のときにだけ TOOL_AT に載せる案と比べていない。12. で書き手も迷った点"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "観点書が「個人情報が読まない受け手に届くなら Major」とする"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F11"
+        location: "hops[H2].scope、C-scope.enforced_at（sts-token-exchange）"
+        anchors: ["hops:H2", "claims:C-scope"]
+        questions: ["q-scope-elevation-logged"]
+        content: "TOOL_AT は読むだけの呼び出しでも invoices:read invoices:pay を持つ。交換は呼び出しごとなので、呼ばれたツールの操作だけに絞れる。C14 のような引き上げの要求を STS が拒否したことを、相関 ID（jti）つきで記録する規則も無い"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "最小の範囲と昇格の記録の問い"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F12"
+        location: "12. の「深さの数え方」、6. の UC1（C1・C11 を同じ行に）、C-act"
+        anchors: ["claims:C-act"]
+        questions: ["q-delegation-depth-and-revocation"]
+        content: "深さを「act の数（エージェントとツールで 2）」と読んだため、C1 と C11 が同じユースケースになっている。要求が C1 と C11 を別のケースに挙げていることから、C11 の「2 段」は C1 より長い連鎖を指す可能性がある。その場合は正規の C11 を拒否する。数え方の定義（利用者→エージェントの委任を数えるか）を台帳の description に書き、要求の出し手に確かめる"
+        severity: "Minor"
+        origin: "テンプレート項目"
+        kind: "理由の不備"
+        verdict: "保留"
+        verdict_reason: "書き手が 12. に挙げた点。要求の出し手の確認と、escalation の delegation-depth で決める"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F13"
+        location: "2.2・5.1・7.・付録 A、P4 の 2.〜9.、M_token_validation・M_privacy_minimization の欄"
+        questions: ["q-shared-validator", "q-validate-before-read", "q-no-unverified-passthrough-mode", "q-token-logging", "q-lifetime-rationale", "q-operational-metrics"]
+        content: "Lite で書いたため、Full で要る欄が無く、観点書の次の問いが判定できない（No と扱った）：q-shared-validator、q-validate-before-read、q-no-unverified-passthrough-mode、q-token-logging、q-lifetime-rationale、q-operational-metrics。2.2（console:admin の扱い）と 7.（同意・交換・支払い・取り消しのシーケンス）が無いので、C4・C9 の流れを図で追えない"
+        severity: "Major"
+        origin: "テンプレート項目"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "procedure.md の段 3（モジュールの欄が無く台帳で答えられなければ No。Full で使うと決めたモジュールの欄が無いことも指摘）"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F14"
+        location: "template:00_core#hop-table の矢印の表、hops[H3].validates、hops[*].to と claims[*].enforced_at.service"
+        anchors: ["hops:H1", "hops:H2", "hops:H3", "claims:C-scope"]
+        questions: ["q-limit-consistency"]
+        content: "矢印の表（render）が 3 ホップとも「—」で、受け手の確かめるクレームが 1 つも引けていない。hops の to が URI（https://invoices.example.com）で、enforced_at の service が名前（invoices-api・tool:invoice-mcp）のため結びつかない。機械の照合が働かず、H3 の validates に scope が無いこと（C-scope.enforced_at は請求書の API が scope を見ると書く）も表に出ない"
+        severity: "Minor"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "生成の表と台帳が食い違う。名前をそろえるか、render の側の対応づけを #6 に渡す"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F15"
+        location: "token_types[AGENT_AT].revocation、9.1、catalog_answers U21"
+        anchors: ["token_types:AGENT_AT", "catalog_answers:U21"]
+        questions: ["q-copies-outlive", "q-relies-on-at-expiry"]
+        content: "取り消しの後もツールサーバーは AGENT_AT を最悪 330 秒受け入れる。上流は交換の拒否で止まるが、ツールサーバーが上流の結果（請求書の内容）をキャッシュして返すと、要求の「取り消した後はエージェントが続けて使えてはいけない」を満たさない。U21 は認可の判断と承認の照会のキャッシュだけを否定し、ツール側の結果のキャッシュについて書いていない"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "写しの寿命の問い"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F16"
+        location: "C-authorization-details.on_revoke、TOOL_AT.revocation、3.1"
+        anchors: ["claims:C-authorization-details"]
+        questions: ["q-dependency-outage"]
+        content: "承認のサービス（DB）と STS が落ちたとき、請求書の API が支払いを拒否する（閉じる）か、交換の失敗でツールが何を返すかが書いていない。3.1 は可用性を見直しの条件に挙げるだけ"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "依存先の障害の問い"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F17"
+        location: "C-authorization-details（type・shape・value_vocabulary）、schemas/TOOL_AT.consumer.schema.json"
+        anchors: ["claims:C-authorization-details"]
+        questions: ["q-consumer-expression", "ap-2-3"]
+        content: "照合の要である authorization_details の中の項目（approval_id・invoice_id・instructedAmount.amount と currency・creditorAccount）の型と比較の方法が無い（consumer schema は items: object だけ）。金額を数値にするか文字列にするか（RFC 9396 の例は \"123.50\" の文字列）、振込先の表記の正規化が決まらないと、C5・C6 の「完全一致」が受け手ごとに違う"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "RFC 9396 §2 は項目の型を type ごとに API が決めるとする"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F18"
+        location: "台帳の rationale（抜き取り：C-roles・C-org-task-id・C-may-act、採用の C-aud・C-iss・C-sub）"
+        anchors: ["claims:C-roles", "claims:C-org-approval-id", "claims:C-iss", "claims:C-sub"]
+        content: "理由の採点で C-roles が RR2 否（assumption はあるが revisit_trigger が無い）。同じ欠けが抜き取りの外の C-azp・C-org-approval-id・C-exp・C-iat・C-jti にもある。採用の C-iss・C-sub は代償（RR3）が無い"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "rationale_rubric の採点の決まり（RR2 は前提と崩れる条件の両方、RR3 は採用でも代償を 1 つ）"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F19"
+        location: "C-act.rationale・enforced_at（invoices-api）、refs の RFC 8693 §4.1"
+        anchors: ["claims:C-act"]
+        questions: ["q-evidence-attribution"]
+        content: "RFC 8693 §4.1 は「受け手は access control の判断に、トップレベルのクレームと今の行為者だけを考え、入れ子の act の過去の行為者は情報だけで判断に使わない（MUST）」とする。設計は請求書の API で入れ子の行為者の方針を「削る照合」に使う（C4）。C4 は、STS が交換のときに scope を連鎖の全行為者の方針の積で決める（C-scope の rationale に既にある）ことで、受け手が仕様どおり最も外側と scope だけを見ても防げる。受け手側の入れ子の照合を外すか、仕様と違う使い方として根拠を書き直す"
+        severity: "Minor"
+        origin: "観点"
+        kind: "前提の誤り"
+        verdict: "保留"
+        verdict_reason: "書き手が 12. で専門家に見てほしいと書いた点。delegation-depth に回した"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+      - id: "F20"
+        location: "12. の「STS の実装」、AGENT_RT.rt_rotation、hops[H2]"
+        anchors: ["token_types:AGENT_RT", "hops:H2"]
+        questions: ["q-idp-capability-verified", "q-refresh-reevaluated"]
+        content: "STS は組織で作るもので、交換での深さ・取り消しの確認、resource が 2 つ以上の要求の拒否、取り直しでの scope の再計算、RT の再利用の検知を、どれも実測していない。C9・C10・C13・C14・C15 の防ぎ方がこれに依存する（Major 以上の判断）"
+        severity: "Major"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "保留"
+        verdict_reason: "escalation の unverified-idp-behavior に回した。拒否の試験（runtime/negative_tests）で確かめるまで保留"
+        response:
+          owner: "書き手（パイロット C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:08:54+09:00"
+    submissions:
+      - verdict: "comment"
+        summary: "claims-review/1 の記録から移行した。v1 には全体の判定が無い（行ごとの判定は viewed の migrated_from に残した）"
+        viewed:
+          "catalog_answers:I14": "2f8cb16bc466e604f68181dcd248c4c1c94e4d7b0ff6222a12f51fd7076a364e"
+          "catalog_answers:U10": "4f227902bc649073c35501e84d0a1883283c2caab4403b6cdc0960c0e3abc2d5"
+          "claims:C-acr": "d732203cc436b18e1a22242e5f810fed30840b4a75ca4a6d46b8bd8ef172eb3f"
+          "claims:C-act": "99eb255407294306b49b2506403de1d093980e2dcbd7bbe58006e4a5ea9430d4"
+          "claims:C-aud": "6165409433ff15e485098f3f910f47581665c922054b01c11da682aaf41819b2"
+          "claims:C-authorization-details": "736f75fa199de6528b775b0b98342be0e174a52edd06e67050ad110bd037719a"
+          "claims:C-azp": "fcc339285e3706a8068258b1c20a779de275707e08e2fbc50751f21e31b26d28"
+          "claims:C-client-id": "fbf2768b6b1aeb374cde94ae9b1ac16152c9a22d28f9ebe11aeb4179ce381aa1"
+          "claims:C-cnf": "6bf93cbda6538e4f79cf7abcfc97e055143f6a7d1fce17ad8b20bbabb58e0850"
+          "claims:C-email": "ae5848f9c405efe9b5f6fb6bbd96cf6cbd1c8ade830237ee6d470b06ac87d11d"
+          "claims:C-exp": "5535342776ea91ae872376bc0b12f0615293ef53cd6f0929f09d3ad4848d02bd"
+          "claims:C-iat": "3b84cf5927a9eace8456e61387af7d4c3544f4634d77efbcef2596a6a0aa6b48"
+          "claims:C-iss": "8ffe325752d19e1108a07226650d3acd247d712a5448a1c19ae39acd428766cb"
+          "claims:C-jti": "0992eed3312c0597f4e010d31013df33e4c0adedd4cc834eb2392e1f32228b35"
+          "claims:C-may-act": "1e44c36989c170e48073e8e53ad578bc6cb6d509c09d95d3056dadb4cc497d9e"
+          "claims:C-nbf": "1d1914b08d8394c42909eba6213bf40974e1e4b2d35cbc65ef9488dc7a7b719d"
+          "claims:C-org-approval-id": "ab09efd672aa018e0cceac9e1a757e4e947ea175a7495ee0ce383924df8836d6"
+          "claims:C-org-task-id": "2b2af546ebfc32e2f5649a726bcf29487c5248a4dfda32968ee205eaedf746aa"
+          "claims:C-roles": "c5ea2dd7d1ad68c76df7ddfd34993fbae45e13dad8094d9e16684fb06749aac8"
+          "claims:C-scope": "73f4595c74a93186b6d12423ad0df61bb71c7fdae73a5a67ab8c027265af6b5a"
+          "claims:C-sub": "466ec1eff55bfa51436a5f4b5031733f8ba2062e2d6e5ca8c17b341ac30bae05"
+          "claims:C-tenant": "a0d758138f4120c0b9c4d68cd5f390c484dc7cba8217ea610065fae740185fbd"
+          "claims:C-txn": "195a2cc2caa1df6a8d10aab09b8eb5ff808833490a292036a3abbcdd0b05b4dc"
+          "hops:H1": "b0eae68b2f07ed190d71ae474d3eea366a929c7bf7b40628f553474e70106015"
+          "hops:H2": "f8db20d92c905cd397ae36c65bebf4471da08f29ad6b196311717f2f9fadb600"
+          "hops:H3": "e1189b538d019fca2f10a1c4dfb2c72073ec14dcfe687ac854a1b13411030952"
+          "token_types:AGENT_AT": "856fe91a85d79c7a40340014018a9fe61a65eb0aad5f3ea510169565633f30fa"
+          "token_types:AGENT_RT": "ac109c6e9c97f8241b233a067f359dc38dc6d96bd07e6367c1d451ce430ebe41"
+          "token_types:AUTHORIZATION_CODE": "cb2f24bc9ed7997605457caa30633d45cb47dfa6187671a303904b954acc22a4"
+          "token_types:CLIENT_ASSERTION": "cf144213ba16fa1618929148f9194ff6b85750c481d446cec417643605eea63a"
+          "token_types:DPOP_PROOF": "c8a289fc1043ec91c860b785f6c139251eb08377088b99563096dbb87b779435"
+          "token_types:ID_JAG": "63e2fb53d2377b2c0ae2324f78a00170ae80a8e9850f00310c3ca229d9a4e5cd"
+          "token_types:ID_TOKEN": "1bb85f61c440143f491924718c4d63bca0a9640f080311e58a6df35f2a05ebb8"
+          "token_types:INTERNAL_TOKEN": "6c507d27be4eff868ea26536aa0886fd250de3f382c4c3ea6d9cc40d971ab895"
+          "token_types:INTROSPECTION_RESPONSE_JWT": "e8384c6e15fd33dbbda6955760faa1b22155df10f33d41af01aac83a95a4d507"
+          "token_types:JARM_RESPONSE": "2994ef7bf866049c09ea2c596bbc77c2e1d16c52c81c959a797709d36ab322c7"
+          "token_types:JAR_REQUEST_OBJECT": "031b9ea58ec32347e7b637ff49eea57263f00472c11d437254a2da410d4dc414"
+          "token_types:JWT": "b0bf798c142f0b66be492c0169cb1e3f0f52758c1f541cae5710bf6be7c593a4"
+          "token_types:LOGOUT_TOKEN": "fd97de2037a3ce6461d876e896bc7f434e0c570861a7336f7b91d804b7f6e3f8"
+          "token_types:PORTAL_AT": "271c374b38e0caf94a6434a9f061abbd5f6ac9fbfa610d980b187d40f7266b9a"
+          "token_types:SECURITY_EVENT_TOKEN": "34bf0d17e87da78bb73875470342fb6be77ec94da98450e01d098d59f6d35882"
+          "token_types:SESSION": "2afb279494c8a9c38143f6a3a8e59000ecc690fb1688fc540bda8ff09620a484"
+          "token_types:STATUS_LIST_TOKEN": "3aacf7d50c74bdf0892615f85f2061f2c9b831cbc9896c3cd61f93911895889f"
+          "token_types:TOOL_AT": "d0410c2701be280e07d724381ff4c79b3f7edce41142cce65ab92e0dae131a80"
+          "token_types:TXN_TOKEN": "fb928f649dd3e0b3bcd6b722352bd42a7f27e0c77ad135605c78b25824a77880"
+        at: "2026-11-24T07:08:54+09:00"
+        comments: ["F01", "F02", "F03", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20"]
+        migrated: true
+    sampling:
+      seed: "r1-pilot-c"
+      count: 3
+      picked: ["claims:C-may-act", "claims:C-org-task-id", "claims:C-roles"]
+      population: "875159251aed6c3ce5b91a105112de158585a391046e373433ea36f40c8e3b4f"
+      scores:
+        "claims:C-may-act":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "RFC 8693 §4.4 を開いて確かめた（may_act の定義）。代わり（STS の方針の表）と失うものがある。要求 §3 の行為者ごとの操作・C4 に辿れる"
+        "claims:C-org-task-id":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "slide は開いていない（名前と主張の対応だけを見た）。q-txn は STS の記録で答える。要求 §3 のタスクの範囲に辿れる。rejection_kind は代替ありが近い"
+        "claims:C-roles":
+          RR1: "満"
+          RR2: "否"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: false
+          note: "assumption はあるが revisit_trigger が無い（RR2 否）。理由は要求 §3 の「今の行為者の権限で判断」と C4 に辿れる。slide は開いていない"
+    escalations:
+      applies:
+        - criterion: "delegation-depth"
+          to: "委任の専門家（未定）"
+          location: "claims:C-act、token_types[AGENT_AT・TOOL_AT].max_delegation_depth（2）"
+          due: "未定"
+          conclusion: "未回答（F12・F19）"
+        - criterion: "unverified-idp-behavior"
+          to: "STS の実装の持ち主（未定）"
+          location: "12. の STS の実装、AGENT_RT.rt_rotation（unverified）、H2"
+          due: "未定"
+          conclusion: "未回答（F20）"
+      not_applicable: ["draft-spec", "custom-crypto", "cross-tenant-exchange", "baseline-unmet", "jwe-key-management", "regulated-data", "new-token-type"]
+    feedback:
+      - to: "カタログ（templates/catalog）"
+        content: "承認の記録の同時の消費・支払いの再試行（冪等）を利用のイベントの候補にする"
+        comments: ["F08"]
+      - to: "観点書（perspectives.md）"
+        content: "交換の入力（subject_token の aud が actor 自身か、actor ごとの宛先、委任の取り消しの確認）を問う問い、act の無い AT を出せるクライアントの許可リストを問う問い、入れ子の act を判断に使うと RFC 8693 §4.1 に反することを問う問い"
+        comments: ["F03", "F09", "F19"]
+      - to: "lint・render（#6）"
+        content: "hops の to（URI）と enforced_at の service（名前）が結びつかず矢印の表が空になる。カタログの回答の note と目録の束縛の食い違い（U10）は機械で拾えない"
+        comments: ["F14", "F02"]
+note: "LLM によるレビュー。人による検証ではない。 パイロット #9 シナリオ C のブラインドのレビュー（R1）"

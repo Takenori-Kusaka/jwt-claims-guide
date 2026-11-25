@@ -158,7 +158,7 @@ evidence:
 
 | 変えたもの | CI の反応 | 直し方 |
 | --- | --- | --- |
-| 承認した行の値（台帳・目録・ホップ・カタログの行） | `review_record.py check` は stale を一覧に出し、PR の画面に `::warning` を出す（失敗にはしない）。`report --check` は失敗する（9. の「今の行との対応」が変わる） | `python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md` で作り直す。差分に「再確認が要る」が出る。再レビューするなら、エディターで判定を記録し直す |
+| 確認済みにした行の値（台帳・目録・ホップ・カタログの行） | `review_record.py check` は stale を一覧に出し、PR の画面に `::warning` を出す（失敗にはしない。最後の提出の判定が承認なら「古い承認」も出す）。`report --check` は失敗する（9. の「今の行との対応」が変わる） | `python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md` で作り直す。差分に「前回の確認から変更あり」が出る。再レビューするなら、エディターで変わった行を確認済みにして、もう一度提出する |
 | 却下の行（足す・消す・ID や内容を変える） | `check` は「抜き取りの母集団が変わった」を warn にする（失敗にはしない）。`report --check` は失敗することがある | 作り直す（上と同じ）。抜き取りを引き直すなら `python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"`（前の抜き取りは `sampling.previous` に残る。新しく選ばれた行は採点し直す） |
 | 教材（`templates/review/perspectives.md`・`report_template.md` の版や問い） | `check` は、今の観点書に無い問いへの回答を warn にする。`report --check` は失敗する（1. に今の教材の版が並ぶ） | 作り直す。レポートの「使った教材の版」は review.yaml の `materials`（レビューした時の版）のままで、今の版が違うことを並べて書く |
 

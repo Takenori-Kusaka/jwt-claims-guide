@@ -1,7 +1,7 @@
 # template_version: 0.4.0
-# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。
+# review.yaml: レビューの記録。設計書のエディター（docs/claims/）が書き出した形（claims-review/2）。
 # レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。
-format: "claims-review/1"
+format: "claims-review/2"
 design: "templates/examples/scenario-b"
 independent: false
 reviews:
@@ -538,296 +538,344 @@ reviews:
       q-writer-distinguished:
         answer: "yes"
         memo: "本人が書ける custom:role・upn を却下し、管理側の値だけで認可"
-    rows:
+    viewed:
       "catalog_answers:I05":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "e46535975ee3892597be2a859a010374676ba83a1251f9f482770b7b13a54ad7"
-        comment: "管理 API のサービスアカウントの発行と矛盾（F06）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "管理 API のサービスアカウントの発行と矛盾（F06）"
       "catalog_answers:I12":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "a7e80fb9c4c7c4b1d29de11c066aae5f7f2d26508a5d377e4a85de7256692ddb"
-        comment: "マッパーの呼ばれ方が unknown（F18）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "マッパーの呼ばれ方が unknown（F18）"
       "claims:C-acr":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "2b24afb5def2c231c60ecafaa3ab5da5aa7c3b6f3cae7a5877efb2f48798e3be"
-        comment: "組織の語彙への正規化、欠落は pwd（拒否側）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "組織の語彙への正規化、欠落は pwd（拒否側）"
       "claims:C-act":
-        decision: "hold"
         reviewer_kind: "llm"
         hash: "7a61f44d9afb633a079eef5faf172a018c473cffd1cac2180146a9a41c7c79bf"
-        comment: "深さ 3 と一括失効は専門家の確認待ち（F22、delegation-depth）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "hold"
+          comment: "深さ 3 と一括失効は専門家の確認待ち（F22、delegation-depth）"
       "claims:C-approval-id":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "84464fd47e83fd846df5e5dfe9fff0365da5b2a3c3ffdae827bbbb9821767751"
-        comment: "問 5 未確認（F09）、問 19 と consumers の食い違い（F11）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 5 未確認（F09）、問 19 と consumers の食い違い（F11）"
       "claims:C-aud":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "d35d0b164c6d77cf6d3ec1777f087f073648c1444724f542617b2da5c08ff131"
-        comment: "宛先ごとに 1 つ、KC_AT の 4 つは理由と入口の絞り込みあり"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "宛先ごとに 1 つ、KC_AT の 4 つは理由と入口の絞り込みあり"
       "claims:C-auth-time":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "2838819ade6c65a84a7f738f2a5403bf0d39978e99ff0d18fc98e6cf0bb30b74"
-        comment: "ledger が max_age 900 で照合"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "ledger が max_age 900 で照合"
       "claims:C-authorization-details":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "372175d7a2d00bd40d3fea33ca3d58b719c880efa41b401535261fa4305bf77a"
-        comment: "承認の内容と本文の照合、宛先ごとに type を絞る。載るトークンの注記の食い違いは目録側（F14）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "承認の内容と本文の照合、宛先ごとに type を絞る。載るトークンの注記の食い違いは目録側（F14）"
       "claims:C-client-id":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "3db2756a26681592e86b0548ace70ec2b14bc17ce66e79df8a9c53e153d5e477"
-        comment: "sts が private_key_jwt で確かめた値、受け手ごとの照合あり"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "sts が private_key_jwt で確かめた値、受け手ごとの照合あり"
       "claims:C-cnf":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "1015b4f63af06333e5124b4aaaf5eaf42c5dddf8d5b602f356b476717708d3f1"
-        comment: "DPoP の cnf.jkt と proof の照合が両受け手にある（PR #52 の点検の後に追記：enforced_at の「jti を受け入れる期間の間覚えて」は、保留中の F15 の食い違いの片方。承認は cnf.jkt の照合の有無についてだけ）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "DPoP の cnf.jkt と proof の照合が両受け手にある（PR #52 の点検の後に追記：enforced_at の「jti を受け入れる期間の間覚えて」は、保留中の F15 の食い違いの片方。承認は cnf.jkt の照合の有無についてだけ）"
       "claims:C-department":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "f3e9e1cf39769a34ab65b46650bbaeffa8c02d660f7484f0bf2e8d9115342516"
-        comment: "volatility が 1 時間の同期を含まない（F03）、問 5（F09）、編集権限（F10）、ログの個人情報（F13）、absent_semantics（F19）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "volatility が 1 時間の同期を含まない（F03）、問 5（F09）、編集権限（F10）、ログの個人情報（F13）、absent_semantics（F19）"
       "claims:C-dpop-ath":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "b4093cbd774b8e44ea64e5bca11619950bfe76f1f455ee57344ab759428c1b01"
-        comment: "資源サーバーでの AT のハッシュの照合"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "資源サーバーでの AT のハッシュの照合"
       "claims:C-dpop-htm":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "0c82c7eed30d11fa3f0c7122b2467fd29752b185f4ee7e80d1d0cd6b3872bfa7"
-        comment: "要求のメソッドと照合"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "要求のメソッドと照合"
       "claims:C-dpop-htu":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "df5cd0e41b82f443372cd4a178e0b05d88234c7327f4a36864163367e626637c"
-        comment: "URI の比較の規則と書き換えの前提がある"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "URI の比較の規則と書き換えの前提がある"
       "claims:C-dpop-nonce":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "08a18cf737755df3f69549aaee87a177fa468699fed8348e68abd29792af2f76"
-        comment: "書き手を IDT の nonce と分けた"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "書き手を IDT の nonce と分けた"
       "claims:C-email":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "4b7c23b2ff5f2c246ff846db6ebe8e3037579b5c966f24cb1158df34b49488f8"
-        comment: "表示だけで照合に使わない"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "表示だけで照合に使わない"
       "claims:C-employee-id":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "ef15ad92c67a16ce5f0c72b683637bfd86f5bbb48e9b371a93005b5d65bc7b6d"
-        comment: "問 5 未確認（F09）、Keycloak の属性の編集権限（F10）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 5 未確認（F09）、Keycloak の属性の編集権限（F10）"
       "claims:C-events":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "955bc7dd9c7be71b104cf7feb0c479b9d5354f6b46912d097cb3ce0ca61a2a81"
-        comment: "ログアウトトークンの取り違えの防止"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "ログアウトトークンの取り違えの防止"
       "claims:C-exp":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "ff6aaa5fba514f63c1d8cd76d0205e4282a211b3645b8bc9470ea3948a706b85"
-        comment: "payment-worker が TXN を取り直す行が H12・H13 と矛盾（F04）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "payment-worker が TXN を取り直す行が H12・H13 と矛盾（F04）"
       "claims:C-iat":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "79d2090266153a703d5e65c5916bc6a5de48b578b1eea3225ede7ac6d33875b3"
-        comment: "DPoP の iat ±60 秒と jti の保持 90 秒の食い違い（F15）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "DPoP の iat ±60 秒と jti の保持 90 秒の食い違い（F15）"
       "claims:C-idp":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "38abea532304b1406f35ded449a19fdabc26dbc9a55c1dde1557eec6ddc9ae07"
-        comment: "問 9 と on_missing の食い違い、認可に使わないのに載せる理由（F11）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 9 と on_missing の食い違い、認可に使わないのに載せる理由（F11）"
       "claims:C-iss":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "f032ed2fb6a8026eed5831a0936069f79620f23da0370b8ca4567b406d2c04a1"
-        comment: "payment-worker の enforced_at がトークンを持たない設計と矛盾、consumers にも無い（F04）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "payment-worker の enforced_at がトークンを持たない設計と矛盾、consumers にも無い（F04）"
       "claims:C-jti":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "d7a7fdb04727b458a5ea0aadee6a61f5235f5bfe21cbb85b2edd131dbb974878"
-        comment: "DPoP の jti の保持期間が受け入れの窓より短い（F15）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "DPoP の jti の保持期間が受け入れの窓より短い（F15）"
       "claims:C-name":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "57e51b652b9e372eb60f649a4804bb095da8c1c3f05a41a496318c0e046753a3"
-        comment: "表示だけ、IDT は BFF に留める"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "表示だけ、IDT は BFF に留める"
       "claims:C-nonce":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "999cb25cf0be31cfb6f0b8d0543bb926cf631845aa5dcdd26d391c9b64b27dfd"
-        comment: "IDT の再送の拒否と LOGOUT の nonce の拒否"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "IDT の再送の拒否と LOGOUT の nonce の拒否"
       "claims:C-rctx":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "61d5542124b0236c8f0ec5ef97a246f86b8dac32e509823f4f7cf3dd82aaa322"
-        comment: "理由の採点で合格"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "理由の採点で合格"
       "claims:C-req-wl":
-        decision: "hold"
         reviewer_kind: "llm"
         hash: "0894fae2ef387e3b8dbd1a3537d7c26b18359d70dbbb85ab57a850e9557c1bbf"
-        comment: "草案のクレーム・未登録の名前（draft-spec に回す）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "hold"
+          comment: "草案のクレーム・未登録の名前（draft-spec に回す）"
       "claims:C-rfc-roles":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "87e5c90ac974df51bc5f0682e2249125a2f3a1352484cbfa7222a9009fc75f85"
-        comment: "revisit_trigger が無い（F20）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "revisit_trigger が無い（F20）"
       "claims:C-roles":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "71505e15b4ca56e5a180f76e11ce216ae023597c696795c94536eb23ca2e0c38"
-        comment: "鮮度の計算が KC_AT の古さを含まない（F03）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "鮮度の計算が KC_AT の古さを含まない（F03）"
       "claims:C-scope":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "85bae016c79e893e434b6a6ebd527883736520b21766e2055f2f128db65e8dda"
-        comment: "宛先・取引ごとに絞り、authorization_details との役割分担が not_meaning にある"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "宛先・取引ごとに絞り、authorization_details との役割分担が not_meaning にある"
       "claims:C-sid":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "e4135d52d20fcb35a1ddcd358ea7b04764214125fe545cf53c218593b91bc955"
-        comment: "引き直しに使うサービスアカウントの資格情報が目録・カタログに無い（F06）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "引き直しに使うサービスアカウントの資格情報が目録・カタログに無い（F06）"
       "claims:C-sub":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "2b7bb978f728603046fe0607beeed6f114180d1def2d6756beaed2b7a8cf105f"
-        comment: "持ち主の照合を user_id と二重にしている（F05）、payment-worker の行（F04）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "持ち主の照合を user_id と二重にしている（F05）、payment-worker の行（F04）"
       "claims:C-task-id":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "26eee1cca938252b63e923dcc1e4c52ab3a425a09394506148259ed3ca4ac290"
-        comment: "問 5 未確認（F09）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 5 未確認（F09）"
       "claims:C-tctx":
-        decision: "hold"
         reviewer_kind: "llm"
         hash: "d9fb268c4398bcd0e13a6f291f63ae9b1d48ce4422c7ee76c5cb7b4da77b60a7"
-        comment: "草案のクレーム（draft-spec に回す）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "hold"
+          comment: "草案のクレーム（draft-spec に回す）"
       "claims:C-tenant-id":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "069a34e32cdf661427a9b9e626c0326336c39bbe157b1afc21a1318ff3dcad28"
-        comment: "問 5 が未確認のまま共有クレームにした（F09）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 5 が未確認のまま共有クレームにした（F09）"
       "claims:C-txn":
-        decision: "hold"
         reviewer_kind: "llm"
         hash: "da218550403b8d92351f1ca452e1e3e4e932211a71a2ac3f6da22d2e5adeacd5"
-        comment: "草案のクレーム（draft-spec に回す）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "hold"
+          comment: "草案のクレーム（draft-spec に回す）"
       "claims:C-upn":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "106ea3a0a9d40f1d8e32e3b2c10dc5daa19714ecfa73085e852a1fa114e545d2"
-        comment: "理由の採点で合格（禁止の行）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "理由の採点で合格（禁止の行）"
       "claims:C-user-id":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "03ff833eb5e193251b0791e78edbd01d2b36334aefb22d7406e1406ccf3b0de3"
-        comment: "sub との二重のキー（F05）、問 5 未確認（F09）、Keycloak の属性の編集権限の裏付け（F10）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "sub との二重のキー（F05）、問 5 未確認（F09）、Keycloak の属性の編集権限の裏付け（F10）"
       "claims:C-v":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "d90a310249cec4cb354edc4f766ec4cfe2ef312cfd0dc0db0e2a6fd12aa63269"
-        comment: "問 5 未確認（F09）、absent_semantics が無い（F19）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "問 5 未確認（F09）、absent_semantics が無い（F19）"
       "hops:H11":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "b9d2bc7e23a4ce1945cc00a011646a3cf6e4a49b823afe0e7cad6fd18837c2f4"
-        comment: "RLS のすり抜け・最小権限・試験（F02）、TXN の経路の文脈（F23）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "RLS のすり抜け・最小権限・試験（F02）、TXN の経路の文脈（F23）"
       "hops:H12":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "1ecbf87d713facdf224b9a755eb996a39a5dfcaa026892adef5e3a990fb9fadc"
-        comment: "ledger が持たない approval の ID をイベントに入れる（F04）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "ledger が持たない approval の ID をイベントに入れる（F04）"
       "hops:H13":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "02b288834cebf2bf2bb7d6b35bdc64ca21eb27f815c0db0ecb45f23c3907e928"
-        comment: "台帳の payment-worker の行と矛盾（F04）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "台帳の payment-worker の行と矛盾（F04）"
       "hops:H15":
-        decision: "approve"
         reviewer_kind: "llm"
         hash: "38877ac18095f36a6ac26dda931907c7844609a54835fb20a615207bbb685446"
-        comment: "aud の置き換えの例外に理由、scope・寿命・独自クレームは上流以下（PR #52 の点検の後に追記：この交換は、保留中の Major の指摘 F22（委任の深さと一括失効）の対象。承認はホップの絞り込みについてだけ）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "approve"
+          comment: "aud の置き換えの例外に理由、scope・寿命・独自クレームは上流以下（PR #52 の点検の後に追記：この交換は、保留中の Major の指摘 F22（委任の深さと一括失効）の対象。承認はホップの絞り込みについてだけ）"
       "token_types:AGENT_AT":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "ee31c2200bc1d5bff8915c9ba2ea007fd76005c53bf65946f9d48e85c0798cb1"
-        comment: "承認の時の認証の強さ（F07）、jwe の注記（F14）、深さ（F22）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "承認の時の認証の強さ（F07）、jwe の注記（F14）、深さ（F22）"
       "token_types:DPOP":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "e7e807c55fa0900dd45ad15c55b2a26d34b821ab2325ad6e2329357b9fd1ba85"
-        comment: "jti の保持期間と iat の窓（F15）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "jti の保持期間と iat の窓（F15）"
       "token_types:EXT_AT":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "575a2fa05a669493f5ad326f5f2440b7038a3bf79d6f0b00afed9d7632edb1bd"
-        comment: "利用者単位の停止の手段が無い（F08）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "利用者単位の停止の手段が無い（F08）"
       "token_types:RT":
-        decision: "request_changes"
         reviewer_kind: "llm"
         hash: "a7cfb402d4b03e79f109cd21c7d99c53ec6aed4eadd6f464a685cac37c394f5e"
-        comment: "機密クライアントに公開クライアントの根拠（F16）"
         at: "2026-11-23"
+        migrated_from:
+          decision: "request_changes"
+          comment: "機密クライアントに公開クライアントの根拠（F16）"
       "token_types:TXN":
-        decision: "hold"
         reviewer_kind: "llm"
         hash: "94e30ff259a7fa1969fcc951548520a740d3143b3710cea36e4a126f4ee89981"
-        comment: "草案のトークン（draft-spec）。log_policy と required_claims の jti（F14）"
         at: "2026-11-23"
-    findings:
+        migrated_from:
+          decision: "hold"
+          comment: "草案のトークン（draft-spec）。log_policy と required_claims の jti（F14）"
+    comments:
       - id: "F01"
         location: "template:00_core（Full の設計書の全体）、template:modules/M_token_validation・M_authz_pdp・M_idp_keycloak・M_privacy_minimization・M_sender_constraint、template:profiles/P1_human_web・P4_ai_agent_delegation・P5_internal_propagation、template:00_core#uncertain"
         questions: ["q-shared-validator", "q-dependency-outage", "q-token-logging", "q-audit-log-protected", "q-trace-id-trust", "q-scope-elevation-logged"]
@@ -838,6 +886,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F02"
         location: "hops:H11 の validates.checks、template:modules/M_data_layer#masking-rls-bypass・#db-context-setter・#connection-lifetime、9.1 の DB の層"
         anchors: ["hops:H11"]
@@ -849,6 +898,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F03"
         location: "C-department.volatility・C-department.propagation_delay・C-department.assumption、C-roles.volatility・C-roles.on_revoke、claim_request_department.md の問 2、hops:H5〜H7 の note、9.2"
         anchors: ["claims:C-department", "claims:C-roles", "hops:H5", "hops:H6", "hops:H7"]
@@ -860,6 +910,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F04"
         location: "C-iss.enforced_at（payment-worker）・C-exp.enforced_at（payment-worker）・C-sub.enforced_at（payment-worker）、hops:H12・H13 の validates.checks、2.2 の支払いの通知の行、catalog_answers の U13"
         anchors: ["claims:C-iss", "claims:C-exp", "claims:C-sub", "hops:H12", "hops:H13", "catalog_answers:U13"]
@@ -871,6 +922,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F05"
         location: "C-sub.enforced_at（orders・invoices）、C-user-id.enforced_at（orders・invoices）、C-sub.description、6. の q-user、template:modules/M_authz_pdp#object-level"
         anchors: ["claims:C-sub", "claims:C-user-id"]
@@ -883,6 +935,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F06"
         location: "catalog_answers:I05 の assumption、C-sid.assumption、INT_AT_LEDGER.revocation（db_lookup）、C-roles.enforced_at（orders・gateway）、template:00_core#catalog-answers（outside_enumeration）"
         anchors: ["catalog_answers:I05", "claims:C-sid", "claims:C-roles", "token_types:INT_AT_LEDGER"]
@@ -894,6 +947,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F07"
         location: "token_types:AGENT_AT.required_claims、7. のシーケンス図の CIBA（G->>P・P-->>G）、catalog_answers:I13、付録 B、12. の CIBA の行"
         anchors: ["token_types:AGENT_AT", "catalog_answers:I13", "hops:H14"]
@@ -905,6 +959,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F08"
         location: "token_types:EXT_AT.revocation、9.1 の EXT_AT の行、C-roles.on_revoke、template:00_core#lifecycle"
         anchors: ["token_types:EXT_AT", "claims:C-roles"]
@@ -916,6 +971,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F09"
         location: "claim_request_tenant_id.md・user_id.md・department.md・employee_id.md・v.md・task_id.md・approval_id.md の問 5 と判定の行、各行の status"
         anchors: ["claims:C-tenant-id", "claims:C-user-id", "claims:C-department", "claims:C-employee-id", "claims:C-v", "claims:C-task-id", "claims:C-approval-id"]
@@ -927,6 +983,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F10"
         location: "C-user-id・C-department・C-employee-id の authoritative_writer（Keycloak の User Attribute マッパー）と provenance、各 claim_request の問 11、12. の名前空間のマッパーの行"
         anchors: ["claims:C-user-id", "claims:C-department", "claims:C-employee-id"]
@@ -938,6 +995,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F11"
         location: "claim_request_idp.md の問 9 と C-idp.on_missing・C-idp.absent_semantics・C-idp.enforced_at、claim_request_approval_id.md の問 19 と C-approval-id.consumers、C-idp.usage"
         anchors: ["claims:C-idp", "claims:C-approval-id"]
@@ -949,6 +1007,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F12"
         location: "claim_request_department.md・roles.md・idp.md・employee_id.md の問 16、template:modules/M_token_validation#shared-validator"
         anchors: ["claims:C-department", "claims:C-roles", "claims:C-employee-id"]
@@ -960,6 +1019,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F13"
         location: "3.2 の「ログにトークン全文と個人情報を残さない：満たす」、C-department.log_policy・C-department.pii_category、claim_request_department.md の問 20"
         anchors: ["claims:C-department"]
@@ -971,6 +1031,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F14"
         location: "INT_AT・INT_AT_LEDGER・INT_AT_DOCS・INT_AT_PAYROLL・AGENT_AT の jwe.note、catalog_answers:I06・I13 の hook_checked、6. の q-peer（エージェントの行）と C-act.enforced_at（invoice-mcp）、9.1 の DB の層の行と hops:H11、TXN.log_policy と required_claims"
         anchors: ["token_types:INT_AT", "token_types:INT_AT_DOCS", "token_types:INT_AT_PAYROLL", "token_types:AGENT_AT", "catalog_answers:I06", "catalog_answers:I13", "hops:H11", "token_types:TXN"]
@@ -982,6 +1043,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F15"
         location: "C-iat.enforced_at（invoice-mcp・invoices）、C-jti.enforced_at（invoice-mcp・invoices）、token_types:DPOP.jti_policy・revocation"
         anchors: ["claims:C-iat", "claims:C-jti", "token_types:DPOP"]
@@ -993,6 +1055,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F16"
         location: "issuance_profile:rt_strategy の rationale と refs、token_types:RT.rt_rotation"
         anchors: ["issuance_profile:rt_strategy", "token_types:RT"]
@@ -1004,6 +1067,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F17"
         location: "template:00_core#lifetime-policy（5.1）、各種別の lifetime_refs"
         anchors: ["token_types:KC_AT", "token_types:INT_AT"]
@@ -1015,6 +1079,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F18"
         location: "catalog_answers:I12・I25・I26（hook_checked なし）、1. の R3b の warn 3 件"
         anchors: ["catalog_answers:I12", "catalog_answers:I25", "catalog_answers:I26"]
@@ -1026,6 +1091,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F19"
         location: "C-v.absent_semantics（無い）、C-department.absent_semantics（absent だけ）"
         anchors: ["claims:C-v", "claims:C-department"]
@@ -1037,6 +1103,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F20"
         location: "C-rfc-roles.rationale・C-rfc-roles.revisit_trigger（無い）"
         anchors: ["claims:C-rfc-roles"]
@@ -1047,6 +1114,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F21"
         location: "template:00_core#operational-metrics（付録 A）"
         questions: ["q-operational-metrics"]
@@ -1057,6 +1125,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F22"
         location: "token_types:AGENT_AT・TASK_AT の max_delegation_depth、C-act.enforced_at（invoices）・C-act.note、template:profiles/P4_ai_agent_delegation#delegation-depth・#chain-revocation"
         anchors: ["token_types:AGENT_AT", "token_types:TASK_AT", "claims:C-act"]
@@ -1068,6 +1137,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F23"
         location: "hops:H10・H11（upstream が H5 だけ）、C-tenant-id・C-user-id の carried_in（TXN に無い）"
         anchors: ["hops:H10", "hops:H11"]
@@ -1079,6 +1149,7 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
       - id: "F24"
         location: "token_types:CLIENTASSERTION.note（RFC 10070 §4）、token_types:KC_AT.lifetime_refs（NIST IR 8587 §5.3.1.1）、registry の refs 全般"
         anchors: ["token_types:CLIENTASSERTION", "token_types:KC_AT"]
@@ -1090,6 +1161,62 @@ reviews:
         verdict: "保留"
         response:
           state: "未着手"
+        state: "unresolved"
+    submissions:
+      - verdict: "comment"
+        summary: "claims-review/1 の記録から移行した。v1 には全体の判定が無い（行ごとの判定は viewed の migrated_from に残した）"
+        viewed:
+          "catalog_answers:I05": "e46535975ee3892597be2a859a010374676ba83a1251f9f482770b7b13a54ad7"
+          "catalog_answers:I12": "a7e80fb9c4c7c4b1d29de11c066aae5f7f2d26508a5d377e4a85de7256692ddb"
+          "claims:C-acr": "2b24afb5def2c231c60ecafaa3ab5da5aa7c3b6f3cae7a5877efb2f48798e3be"
+          "claims:C-act": "7a61f44d9afb633a079eef5faf172a018c473cffd1cac2180146a9a41c7c79bf"
+          "claims:C-approval-id": "84464fd47e83fd846df5e5dfe9fff0365da5b2a3c3ffdae827bbbb9821767751"
+          "claims:C-aud": "d35d0b164c6d77cf6d3ec1777f087f073648c1444724f542617b2da5c08ff131"
+          "claims:C-auth-time": "2838819ade6c65a84a7f738f2a5403bf0d39978e99ff0d18fc98e6cf0bb30b74"
+          "claims:C-authorization-details": "372175d7a2d00bd40d3fea33ca3d58b719c880efa41b401535261fa4305bf77a"
+          "claims:C-client-id": "3db2756a26681592e86b0548ace70ec2b14bc17ce66e79df8a9c53e153d5e477"
+          "claims:C-cnf": "1015b4f63af06333e5124b4aaaf5eaf42c5dddf8d5b602f356b476717708d3f1"
+          "claims:C-department": "f3e9e1cf39769a34ab65b46650bbaeffa8c02d660f7484f0bf2e8d9115342516"
+          "claims:C-dpop-ath": "b4093cbd774b8e44ea64e5bca11619950bfe76f1f455ee57344ab759428c1b01"
+          "claims:C-dpop-htm": "0c82c7eed30d11fa3f0c7122b2467fd29752b185f4ee7e80d1d0cd6b3872bfa7"
+          "claims:C-dpop-htu": "df5cd0e41b82f443372cd4a178e0b05d88234c7327f4a36864163367e626637c"
+          "claims:C-dpop-nonce": "08a18cf737755df3f69549aaee87a177fa468699fed8348e68abd29792af2f76"
+          "claims:C-email": "4b7c23b2ff5f2c246ff846db6ebe8e3037579b5c966f24cb1158df34b49488f8"
+          "claims:C-employee-id": "ef15ad92c67a16ce5f0c72b683637bfd86f5bbb48e9b371a93005b5d65bc7b6d"
+          "claims:C-events": "955bc7dd9c7be71b104cf7feb0c479b9d5354f6b46912d097cb3ce0ca61a2a81"
+          "claims:C-exp": "ff6aaa5fba514f63c1d8cd76d0205e4282a211b3645b8bc9470ea3948a706b85"
+          "claims:C-iat": "79d2090266153a703d5e65c5916bc6a5de48b578b1eea3225ede7ac6d33875b3"
+          "claims:C-idp": "38abea532304b1406f35ded449a19fdabc26dbc9a55c1dde1557eec6ddc9ae07"
+          "claims:C-iss": "f032ed2fb6a8026eed5831a0936069f79620f23da0370b8ca4567b406d2c04a1"
+          "claims:C-jti": "d7a7fdb04727b458a5ea0aadee6a61f5235f5bfe21cbb85b2edd131dbb974878"
+          "claims:C-name": "57e51b652b9e372eb60f649a4804bb095da8c1c3f05a41a496318c0e046753a3"
+          "claims:C-nonce": "999cb25cf0be31cfb6f0b8d0543bb926cf631845aa5dcdd26d391c9b64b27dfd"
+          "claims:C-rctx": "61d5542124b0236c8f0ec5ef97a246f86b8dac32e509823f4f7cf3dd82aaa322"
+          "claims:C-req-wl": "0894fae2ef387e3b8dbd1a3537d7c26b18359d70dbbb85ab57a850e9557c1bbf"
+          "claims:C-rfc-roles": "87e5c90ac974df51bc5f0682e2249125a2f3a1352484cbfa7222a9009fc75f85"
+          "claims:C-roles": "71505e15b4ca56e5a180f76e11ce216ae023597c696795c94536eb23ca2e0c38"
+          "claims:C-scope": "85bae016c79e893e434b6a6ebd527883736520b21766e2055f2f128db65e8dda"
+          "claims:C-sid": "e4135d52d20fcb35a1ddcd358ea7b04764214125fe545cf53c218593b91bc955"
+          "claims:C-sub": "2b7bb978f728603046fe0607beeed6f114180d1def2d6756beaed2b7a8cf105f"
+          "claims:C-task-id": "26eee1cca938252b63e923dcc1e4c52ab3a425a09394506148259ed3ca4ac290"
+          "claims:C-tctx": "d9fb268c4398bcd0e13a6f291f63ae9b1d48ce4422c7ee76c5cb7b4da77b60a7"
+          "claims:C-tenant-id": "069a34e32cdf661427a9b9e626c0326336c39bbe157b1afc21a1318ff3dcad28"
+          "claims:C-txn": "da218550403b8d92351f1ca452e1e3e4e932211a71a2ac3f6da22d2e5adeacd5"
+          "claims:C-upn": "106ea3a0a9d40f1d8e32e3b2c10dc5daa19714ecfa73085e852a1fa114e545d2"
+          "claims:C-user-id": "03ff833eb5e193251b0791e78edbd01d2b36334aefb22d7406e1406ccf3b0de3"
+          "claims:C-v": "d90a310249cec4cb354edc4f766ec4cfe2ef312cfd0dc0db0e2a6fd12aa63269"
+          "hops:H11": "b9d2bc7e23a4ce1945cc00a011646a3cf6e4a49b823afe0e7cad6fd18837c2f4"
+          "hops:H12": "1ecbf87d713facdf224b9a755eb996a39a5dfcaa026892adef5e3a990fb9fadc"
+          "hops:H13": "02b288834cebf2bf2bb7d6b35bdc64ca21eb27f815c0db0ecb45f23c3907e928"
+          "hops:H15": "38877ac18095f36a6ac26dda931907c7844609a54835fb20a615207bbb685446"
+          "token_types:AGENT_AT": "ee31c2200bc1d5bff8915c9ba2ea007fd76005c53bf65946f9d48e85c0798cb1"
+          "token_types:DPOP": "e7e807c55fa0900dd45ad15c55b2a26d34b821ab2325ad6e2329357b9fd1ba85"
+          "token_types:EXT_AT": "575a2fa05a669493f5ad326f5f2440b7038a3bf79d6f0b00afed9d7632edb1bd"
+          "token_types:RT": "a7cfb402d4b03e79f109cd21c7d99c53ec6aed4eadd6f464a685cac37c394f5e"
+          "token_types:TXN": "94e30ff259a7fa1969fcc951548520a740d3143b3710cea36e4a126f4ee89981"
+        at: "2026-11-23"
+        comments: ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24"]
+        migrated: true
     sampling:
       seed: "20261123-b"
       count: 3
@@ -1144,25 +1271,25 @@ reviews:
     feedback:
       - to: "観点書"
         content: "volatility に、値の出どころの同期の間隔（人事→IdP）と、上流のトークンから写した値の古さ（KC_AT→INT_AT の連鎖）を含めたかを問う文言を q-freshness-mitigation・pa-02 に足す"
-        findings: ["F03"]
+        comments: ["F03"]
       - to: "観点書"
         content: "受け手が鮮度のために IdP の管理 API・ディレクトリを引くとき、その資格情報（サービスアカウント）の権限と寿命を問う問いを q-outside-catalog の例か新しい問いに足す"
-        findings: ["F06"]
+        comments: ["F06"]
       - to: "観点書"
         content: "CIBA などの人の承認で高リスクの操作を許すとき、承認の時の認証の強さ・新しさと、承認の結果を返す経路の完全性を問う文言を q-step-up-path-coverage か q-approval-from-as に足す"
-        findings: ["F07"]
+        comments: ["F07"]
       - to: "カタログ"
         content: "「受け手が IdP の管理 API・外部のディレクトリを引くためのサービスアカウントのトークンの発行」と「CIBA の承認の結果の受け渡し」を発行・利用のイベントの候補にする"
-        findings: ["F06", "F07"]
+        comments: ["F06", "F07"]
       - to: "lint"
         content: "enforced_at の service が consumers に無い行（C-iss の payment-worker）、jti_policy.max_age_seconds が受け手の iat の受け入れの窓より短い行、absent_semantics の無い独自クレーム（C-v）を機械で拾う"
-        findings: ["F04", "F15", "F19"]
+        comments: ["F04", "F15", "F19"]
       - to: "lint"
         content: "claim_request の問 5 の「確かめていない」と判定「共有クレームにする」・status active の組み合わせ、問 9 と on_missing の食い違いを L72 の拡張で拾う"
-        findings: ["F09", "F11"]
+        comments: ["F09", "F11"]
       - to: "lint"
         content: "Full で使うと宣言したプロファイル・モジュールの欄が設計書に無いことを、冒頭の「使うプロファイル」と節の有無で拾う"
-        findings: ["F01"]
+        comments: ["F01"]
       - to: "対応表"
         content: "slide:p06-step-up-approval の要件が、委任の承認（CIBA）の経路の認証の強さまで要件にしているかを確かめる（要件になっていなければ対応表に足す。要確認）"
-        findings: ["F07"]
+        comments: ["F07"]

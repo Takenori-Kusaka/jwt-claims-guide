@@ -12,13 +12,13 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = '26b0f1c1176e';
+  const BUILD_ID = 'fa0c6f5a20a2';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };
   // the URL of a file loaded after the start, with its content hash (data/build.js)
   function asset(path) { const v = BUILD_INFO.files && BUILD_INFO.files[path]; return v ? path + '?v=' + v : path; }
-  const LOADED_BEFORE = ['data/build.js', 'data/meta.js', 'data/schemas.js', 'data/trace.js', 'preview.js', 'app.css'];
+  const LOADED_BEFORE = ['data/build.js', 'data/meta.js', 'data/schemas.js', 'data/trace.js', 'review-format.js', 'preview.js', 'app.css'];
   function cssBuild() {
     try { return getComputedStyle(document.documentElement).getPropertyValue('--build-id').trim().replace(/^"|"$/g, ''); } catch (e) { return ''; }
   }
@@ -57,7 +57,7 @@
   // ------------------------------------------------------------ constants
   const REGISTRY = ['claims', 'token_types', 'hops', 'catalog_answers'];
   const FILE_ORDER = ['claims.yaml', 'token_types.yaml', 'hops.yaml', 'catalog_answers.yaml'];
-  const FILE_LABEL = { 'claims.yaml': '台帳', 'token_types.yaml': 'トークン目録・発行方式', 'hops.yaml': 'ホップ',
+  const FILE_LABEL = { 'claims.yaml': 'クレーム一覧', 'token_types.yaml': 'トークン目録・発行方式', 'hops.yaml': '経路',
     'catalog_answers.yaml': 'カタログへの回答', 'design.md': '設計書の本文' };
   const NAME_RE = /^(claims|token_types|hops|catalog_answers)\.yaml$|^claim_request_[A-Za-z0-9_-]+\.md$|^design\.md$/;
   const ROWS = { claims: ['claims.yaml', 'claims', 'id'], token_types: ['token_types.yaml', 'token_types', 'id'],
@@ -254,6 +254,8 @@
     $('#start').hidden = true;
     $('#split').hidden = false;
     $('#ws-bar').hidden = false;
+    $('#problems').hidden = false;
+    $('#ws-menu').open = false;
     document.body.classList.add('ws-open');
     $('#ws-name').textContent = ws.label;
     $('#ws-name').title = `${ws.designRel}（${entries.length} ファイル）`;
@@ -263,7 +265,7 @@
     renderTabs();
     layoutDefaults();
     // the first screen follows what was opened (#53): one file -> its screen, several -> the dashboard
-    if (opts.route) history.replaceState(null, '', opts.route);  // 設計書をレビューする: the review stepper
+    if (opts.route) history.replaceState(null, '', opts.route);  // 設計書をレビューする: the rows to review
     else if (!/^#\/[a-z]/.test(location.hash)) history.replaceState(null, '', firstRoute(entries, opts.extras || []));
     setMode(/^#\/review/.test(location.hash) ? 'review' : 'edit');
     runChecks(true);
@@ -271,7 +273,7 @@
     if (lint.state === 'fresh' || lint.state === 'stale' || lint.state === 'running') scheduleLint(0);
     foreign.notes.clear(); renderForeign();
     // review.yaml found next to the design (a folder, files, a sample) goes to the review mode (#50)
-    companions.forEach((c) => { if (c.onOpen) c.onOpen({ designRel: ws.designRel, origin: ws.origin, extras: opts.extras || [] }); });
+    companions.forEach((c) => { if (c.onOpen) c.onOpen({ designRel: ws.designRel, origin: ws.origin, extras: opts.extras || [], startReview: !!opts.startReview }); });
     return true;
   }
   // what other parts (the review mode of #50) keep with the design: [{unsaved() -> bool, label, autosave() -> bool,
@@ -355,6 +357,8 @@
     if (!silent) {
       $('#split').hidden = true;
       $('#ws-bar').hidden = true;
+      $('#problems').hidden = true;
+      problems.open = false;
       document.body.classList.remove('ws-open');
       setMode('edit');
       modes.last = { edit: '#/dashboard', review: '#/review' };
@@ -391,6 +395,7 @@
       .then((list) => openList(list, origin, route));
   }
   function openList(list, origin, route) {
+    const startReview = /^#\/review/.test(route || '');
     const { out, skipped, dir, extras } = entriesFromFiles(list);
     // review.yaml alone (#53): the review records of a design whose files are added afterwards
     const review = extras.find((e) => /^review\.ya?ml$/.test(e.name));
@@ -398,7 +403,7 @@
       let design = '';
       try { const v = parseYaml(review.text); design = v && typeof v.design === 'string' ? v.design : ''; } catch (e) { /* the review mode says what is wrong */ }
       const nm = design ? design.split('/').pop() : uniqueName('review');
-      return openWorkspace({ name: nm, label: `レビューの記録（${review.name}${design ? '、' + design : ''}、${stamp().label}）`, designRel: design || undefined, origin, extras, route }, [], skipped);
+      return openWorkspace({ name: nm, label: `レビューの記録（${review.name}${design ? '、' + design : ''}、${stamp().label}）`, designRel: design || undefined, origin, extras, route, startReview }, [], skipped);
     }
     if (!out.length) { status('開けるファイルがありません（claims.yaml・token_types.yaml・hops.yaml・catalog_answers.yaml・claim_request_*.md・design.md、または中身で見分けられる YAML）。'); return false; }
     const how = origin === 'folder' ? 'フォルダ' : origin === 'drop' ? 'ドロップ' : 'ファイル';
@@ -409,7 +414,7 @@
     if (!dir && review) {
       try { const v = parseYaml(review.text); if (v && typeof v.design === 'string' && v.design) { designRel = v.design; name = v.design.split('/').pop(); } } catch (e) { /* the review mode says what is wrong */ }
     }
-    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル（' + out.map((e) => e.from).join('・') + '）') + `（${how}、${stamp().label}）`, designRel, origin, extras, route }, out, skipped);
+    return openWorkspace({ name, label: (dir ? dir.split('/').pop() : '開いたファイル（' + out.map((e) => e.from).join('・') + '）') + `（${how}、${stamp().label}）`, designRel, origin, extras, route, startReview }, out, skipped);
   }
   function stamp() {
     const d = new Date();
@@ -510,7 +515,7 @@
       h('p', null, h('label', null, 'ファイルの種類：', pasteKind), ' ', h('button', { type: 'button', class: 'primary', id: 'paste-open', onclick: () => openPaste(pasteArea.value, pasteKind.value) }, '開く')));
     const card = (id, title, desc, onclick, extra) => h('li', null, h('button', { type: 'button', class: 'entry', id, onclick }, h('strong', null, title), h('span', null, desc)), extra || null);
     const saved = slots();
-    // 設計書をレビューする: files or a folder (review.yaml with the design files), then straight to the review stepper
+    // 設計書をレビューする: files or a folder (review.yaml with the design files), then the dialog of 「レビューを開始」
     const rvFiles = h('input', { type: 'file', id: 'in-review-files', multiple: true, accept: '.yaml,.yml,.md,text/yaml,text/markdown', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
     const rvFolder = h('input', { type: 'file', id: 'in-review-folder', webkitdirectory: true, directory: true, multiple: true, class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
     rvFiles.addEventListener('change', () => readFileList(rvFiles.files, 'files', '#/review'));
@@ -532,7 +537,7 @@
         card('btn-open-folder', 'フォルダを開く', '設計書のディレクトリを選ぶ（claims.yaml のあるフォルダを読む）', () => folder.click(), folder),
         h('li', null, h('div', { class: 'entry static', id: 'drop-hint' }, h('strong', null, 'ドラッグ＆ドロップ'), h('span', null, 'ファイルかフォルダを、このページのどこかにドロップする'))),
         h('li', null, h('button', { type: 'button', class: 'entry review', id: 'btn-review', onclick: () => rvFiles.click() }, h('strong', null, '設計書をレビューする'),
-          h('span', null, '設計書のファイルと review.yaml（あれば）を選び、レビューの手順へ進む')), rvFiles,
+          h('span', null, '設計書のファイルと、前のレビューの記録（あれば）を選ぶ。開くと「レビューを開始」に進む')), rvFiles,
           h('button', { type: 'button', class: 'link small', id: 'btn-review-folder', onclick: () => rvFolder.click() }, 'フォルダで選ぶ'), rvFolder),
         card('btn-paste', '貼り付け', 'YAML を貼り付けて開く', () => { paste.hidden = false; pasteArea.focus(); }),
         card('btn-skeleton', '空の雛形から始める', 'tools/new_design.py と同じ骨組み（記入例の理由は写さない）', () => startFrom(openSkeleton())),
@@ -542,10 +547,10 @@
       h('div', { class: 'note', id: 'start-note' }, h('p', null, h('strong', null, '開いたファイルはどこにも送りません。'), '読み込みも検査（JSON Schema と claim_lint）もブラウザの中で行います。'),
         h('details', { id: 'start-more' }, h('summary', null, '詳しく'),
           h('ul', null,
-            h('li', null, '1 つのファイルを開くとその画面、いくつか開くとダッシュボード（件数・検査の結果・要対応）が出ます。左のエディターで直すと、右の画面と検査の結果がすぐ変わります。'),
-            h('li', null, 'レビューは、上のバーの「レビュー」に切り替えて始めます（review.yaml があれば一緒に開く）。'),
+            h('li', null, '1 つのファイルを開くとその画面、いくつか開くとダッシュボード（件数・問題・次にやること）が出ます。左のエディターで直すと、右の画面と、下の「問題」がすぐ変わります。'),
+            h('li', null, 'レビューは、上の「レビューを開始」で始めます。行を見て「確認済み」にし、コメントをためて、最後に 1 回だけ「レビューを提出」します（前の記録のファイルがあれば一緒に開く）。'),
             h('li', null, 'claim_lint は Pyodide で動く Python です。初めて使うときに、このサイトから約 13 MB を読み込みます。CSP で、このサイト以外への接続を禁じています。自動保存は、上のバーで有効にしたときだけ、このブラウザの localStorage に保存します。'),
-            h('li', null, 'キーボード：', h('kbd', null, 'Tab'), ' で移動、', h('kbd', null, 'Enter'), ' で押す。エディターの中の ', h('kbd', null, 'Tab'), ' はエディターから次へ移る（Tab ではインデントしない。インデントは空白で入れるか、行を選んで ', h('kbd', null, 'Ctrl'), '+', h('kbd', null, ']'), '・', h('kbd', null, 'Ctrl'), '+', h('kbd', null, '['), '）。', h('kbd', null, 'Ctrl'), '+', h('kbd', null, 'Shift'), '+', h('kbd', null, 'M'), ' で指摘の一覧、', h('kbd', null, 'F8'), ' で次の指摘。'))))));
+            h('li', null, 'キーボード：', h('kbd', null, 'Tab'), ' で移動、', h('kbd', null, 'Enter'), ' で押す。エディターの中の ', h('kbd', null, 'Tab'), ' はエディターから次へ移る（Tab ではインデントしない。インデントは空白で入れるか、行を選んで ', h('kbd', null, 'Ctrl'), '+', h('kbd', null, ']'), '・', h('kbd', null, 'Ctrl'), '+', h('kbd', null, '['), '）。', h('kbd', null, 'Ctrl'), '+', h('kbd', null, 'Shift'), '+', h('kbd', null, 'M'), ' でエディターの中の問題の一覧、', h('kbd', null, 'F8'), ' で次の問題。'))))));
     if (focus) st.querySelector('h1').focus();
   }
 
@@ -650,13 +655,18 @@
       bar.append(b);
     });
     if (ws.active) $('#editor').setAttribute('aria-labelledby', 'tab-' + ws.active); else $('#editor').removeAttribute('aria-labelledby');
+    // one row that scrolls sideways (14 files do not wrap into rows, #67): the selected tab is brought into view
+    const sel = bar.querySelector('[aria-selected="true"]');
+    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    bar.dataset.count = String(names.length);
     // outside the tablist: the button that adds files (its file input is out of the tab order)
     const tools = $('#tab-tools');
     tools.textContent = '';
     const addIn = h('input', { type: 'file', multiple: true, accept: '.yaml,.yml,.md', class: 'vh', id: 'in-add', tabindex: '-1', 'aria-hidden': 'true' });
     addIn.addEventListener('change', () => addFiles(addIn.files));
     tools.append(h('button', { type: 'button', class: 'addfile', id: 'btn-add-file', title: 'ファイルを足す（同じ名前なら置き換える）', onclick: () => addIn.click() }, '＋ ファイルを足す'), addIn);
-    if (!names.length) tools.append(' ', h('span', { class: 'muted small', id: 'tabs-empty' }, '設計書のファイルがまだありません。'));
+    $('#tabs-empty') && $('#tabs-empty').remove();
+    if (!names.length) bar.append(h('span', { class: 'muted small', id: 'tabs-empty' }, '設計書のファイルがまだありません（上の「ファイル」から足す）。'));
   }
   // a name that is free: claim_request_x.md -> claim_request_x_2.md (still a design file); claims.yaml -> claims.2.yaml
   // (kept and editable, but not one of the design's files: the checks and claim_lint read claims.yaml only)
@@ -794,7 +804,7 @@
       const loc = locate(f, path);
       const anchor = anchorOfPath(kind, path);
       f.schemaDiags.push({ source: 'schema', severity: 'error', rule: 'SCHEMA', file: f.name, line: loc, path,
-        target: `${kind}:${path.join('/') || '(root)'}`, anchorKind: anchor && anchor[0], anchorId: anchor && anchor[1],
+        target: `${kind}:${path.join('/') || '(root)'}`, anchorKind: anchor && anchor[0], anchorId: anchor && anchor[1], column: columnOfPath(kind, path),
         message: `${msg}（${path.join('/') || '(root)'}；${e.keyword}）` });
     });
   }
@@ -823,6 +833,11 @@
     const f = r && ws.files.get(r[0]);
     const v = f && f.value;
     return v && typeof v === 'object' && Array.isArray(v[r[1]]) ? v[r[1]] : [];
+  }
+  // the column of a row that a YAML path points into (claims/3/usage/... -> usage), for the jump to the field
+  function columnOfPath(kind, path) {
+    const r = ROWS[kind];
+    return r && path[0] === r[1] && path.length > 2 ? String(path[2]) : null;
   }
   function anchorOfPath(kind, path) {
     const r = ROWS[kind];
@@ -872,9 +887,17 @@
       const lm = /^(?:.*\/)?([^/:]+\.md):(\d+)/.exec(String(x.message));  // a slide reference in design.md: file:line
       if (lm && ws.files.has(lm[1])) { line = Number(lm[2]); r.file = lm[1]; }
       out.push({ source: 'claim_lint', severity: x.severity, rule: x.rule, message: x.message, target: x.target, file: r.file, line,
-        anchorKind: r.anchor && r.anchor[0], anchorId: r.anchor && r.anchor[1] });
+        anchorKind: r.anchor && r.anchor[0], anchorId: r.anchor && r.anchor[1],
+        column: (r.anchor && columnOfPath(r.anchor[0], r.path)) || columnInMessage(r.anchor, x.message) });
     });
     return out;
+  }
+  // a claim_lint finding names the row; the column is the first registry column of that kind written in the message
+  function columnInMessage(anchor, message) {
+    if (!anchor || !META.columns[anchor[0]]) return null;
+    const keys = new Set(META.columns[anchor[0]].map((c) => c.key));
+    const m = String(message || '').match(/[a-z][a-z0-9_]{2,}/g) || [];
+    return m.find((w) => keys.has(w) && w !== 'id') || null;
   }
   function diagsOf(f) {
     const fresh = lint.state === 'fresh';
@@ -920,6 +943,8 @@
     P.setData({ registry: ws.registry, sections: b ? b.sections : [], design: ws.designRel, label: ws.label, stale: !!b && lint.state !== 'fresh',
       payload_schemas: b ? b.payload_schemas : null, files: sortedNames() }, ws.diag, { keepScroll: !first });
     status();
+    renderProblems();
+    companions.forEach((c) => { if (c.onPublish) c.onPublish(); });
   }
 
   // ------------------------------------------------------------ claim_lint in Pyodide (lazy)
@@ -992,12 +1017,107 @@
     const c = { error: 0, warn: 0, info: 0 };
     all.forEach((d) => { c[d.severity]++; });
     const ls = { off: '設計の規則の検査：まだ動かしていない', loading: '設計の規則の検査：読み込み中…', running: '設計の規則の検査：検査中…',
-      fresh: `設計の規則の検査：最新（${lint.ms} ms、${ws.profile === 'lite' ? '縮小 Lite' : 'Full'} の規則）`, stale: '設計の規則の検査：編集の後、まだ検査していない', error: '設計の規則の検査：動かなかった（' + (lint.error || '') + '）', unavailable: '設計の規則の検査：ファイルとして直接開いたときは動かない' }[lint.state];
+      fresh: `設計の規則の検査：最新（${lint.ms} ms、${ws.profile === 'lite' ? 'Lite' : 'Full'} の規則）`, stale: '設計の規則の検査：編集の後、まだ検査していない', error: '設計の規則の検査：動かなかった（' + (lint.error || '') + '）', unavailable: '設計の規則の検査：ファイルとして直接開いたときは動かない' }[lint.state];
     if (msg) status.note = msg;
-    add(el, [h('span', { 'data-counts': `${c.error}/${c.warn}/${c.info}` }, `指摘 error ${c.error}・warn ${c.warn}・info ${c.info}`), ' ｜ ',
-      h('span', { id: 'lint-state', 'data-state': lint.state }, ls),
+    const tg = $('#problems-toggle');
+    if (tg) {
+      tg.textContent = '';
+      const n = c.error + c.warn + c.info;
+      add(tg, [h('span', { 'aria-hidden': 'true' }, problems.open ? '▼ ' : '▲ '), h('span', { id: 'problems-count', 'data-counts': `${c.error}/${c.warn}/${c.info}` },
+        n ? `問題：エラー ${c.error}・警告 ${c.warn}・情報 ${c.info}` : '問題はありません'), h('span', { class: 'vh' }, problems.open ? '（一覧を閉じる）' : '（一覧を開く）')]);
+      tg.dataset.errors = String(c.error);
+    }
+    add(el, [h('span', { id: 'lint-state', 'data-state': lint.state }, ls),
       lint.state === 'off' || lint.state === 'error' ? [' ', h('button', { type: 'button', class: 'link', id: 'btn-load-lint', onclick: loadLint, title: 'claim_lint を Python でブラウザの中で動かす（初めては約 13 MB を読み込み、数秒かかる）' }, '動かす')] : null,
       status.note ? [' ｜ ', h('span', { class: 'msg' }, status.note)] : null]);
+  }
+
+  // ------------------------------------------------------------ 「レビューを開始」 and the problems panel (#67)
+  // The top bar always has 「レビューを開始」. With a design open it opens the dialog of review.js; with nothing open it
+  // points at the entry that opens the files to review (a review needs a design).
+  function startReview() {
+    if (ws.open) { if (window.ClaimsEditor.onStartReview) window.ClaimsEditor.onStartReview(); return; }
+    const m = $('#start-msg'); const b = $('#btn-review');
+    if (m) m.textContent = 'レビューする設計書を、先に開いてください。「設計書をレビューする」でファイルを選ぶか、サンプルを開いてから、もう一度「レビューを開始」を押します。';
+    if (b) { b.scrollIntoView({ block: 'center' }); b.focus(); }
+  }
+  // The problems panel: every result of the checks (YAML, schema, the design rules) in one place, at the bottom of the
+  // window, like the Problems panel of an editor. One line is severity, message, place, file and line, rule; pressing it
+  // goes to the line in the editor and to the field in the screen of the design. The reviewers' comments are not here.
+  const problems = { open: false, cur: -1, sev: { error: true, warn: true, info: true } };
+  const SEV_JA = { error: ['ng', '✖', 'エラー'], warn: ['warn', '▲', '警告'], info: ['info', 'ℹ', '情報'] };
+  const KIND_JA = { claims: 'クレーム', token_types: 'トークン', hops: '経路', catalog_answers: 'カタログへの回答', issuance_profile: '発行方式' };
+  function problemList() {
+    const rank = { error: 0, warn: 1, info: 2 };
+    return (ws.diag.list || []).map((d, i) => [d, i]).sort((a, b) => rank[a[0].severity] - rank[b[0].severity] || a[1] - b[1]).map((x) => x[0]);
+  }
+  function problemPlace(d) {
+    if (!d.anchorKind) return d.target ? String(d.target) : '—';
+    const col = d.column ? (META.columns[d.anchorKind] || []).find((c) => c.key === d.column) : null;
+    return `${KIND_JA[d.anchorKind] || d.anchorKind} ${d.anchorId}` + (d.column ? ` › ${col ? col.label : d.column}` : '');
+  }
+  function gotoProblem(d) {
+    if (!d) return;
+    if (d.file && d.line && ws.files.has(d.file)) switchTo(d.file, d.line);
+    const detail = { claims: 'claim', token_types: 'token', hops: 'hop' }[d.anchorKind];
+    if (detail && P.focusColumn) P.focusColumn(d.anchorKind, d.anchorId, d.column || null);
+    else if (detail) location.hash = P.route(detail, d.anchorId);
+    else if (d.anchorKind === 'catalog_answers') location.hash = P.route('catalog');
+    else if (d.anchorKind === 'issuance_profile') location.hash = P.route('profile');
+  }
+  function shownProblems() { return problemList().filter((d) => problems.sev[d.severity]); }
+  function stepProblem(dir) {
+    const list = shownProblems();
+    if (!list.length) return;
+    problems.cur = (problems.cur + dir + list.length) % list.length;
+    if (!problems.open) toggleProblems(true); else renderProblems();
+    gotoProblem(list[problems.cur]);
+    const row = $(`#problems-panel tr[data-problem="${problems.cur}"]`);
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+  }
+  function toggleProblems(force) {
+    problems.open = force === undefined ? !problems.open : !!force;
+    status();
+    renderProblems();
+    if (problems.open) { const first = $('#problems-panel .pb-msg'); if (first) first.focus(); } else $('#problems-toggle').focus();
+  }
+  function renderProblems() {
+    const panel = $('#problems-panel');
+    if (!panel) return;
+    panel.hidden = !problems.open;
+    $('#problems-toggle').setAttribute('aria-expanded', problems.open ? 'true' : 'false');
+    document.body.classList.toggle('problems-open', problems.open);
+    const old = panel.querySelector('.pb-scroll');
+    const y = old ? old.scrollTop : 0;
+    panel.textContent = '';
+    if (!problems.open) return;
+    const all = problemList();
+    const list = all.filter((d) => problems.sev[d.severity]);
+    if (problems.cur >= list.length) problems.cur = -1;
+    panel.append(h('div', { class: 'pb-tools' },
+      Object.keys(SEV_JA).map((k) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', 'data-pb-sev': k, checked: problems.sev[k] ? true : null,
+        onchange: (e) => { problems.sev[k] = e.target.checked; problems.cur = -1; renderProblems(); } }), ' ', SEV_JA[k][2], ` ${all.filter((d) => d.severity === k).length}`)),
+      h('span', { class: 'muted small' }, '行を押すと、エディターのその行と、設計書の画面のその欄に移ります。自動の検査で見つかったものだけを出します（人のコメントは、レビューの画面）。'),
+      h('button', { type: 'button', class: 'link', id: 'problems-close', onclick: () => toggleProblems(false) }, '閉じる')));
+    if (all.some((d) => d.rule === 'YAML' && d.severity === 'error')) {
+      panel.append(h('p', { class: 'pb-broken', role: 'alert' }, 'YAML として読めないファイルがあります。読めるようになるまで、そのファイルのほかの検査は動きません。'));
+    }
+    if (!list.length) { panel.append(h('p', { class: 'muted', id: 'problems-empty' }, all.length ? '選んだ重大度の問題はありません。' : '問題はありません。')); return; }
+    const tbody = h('tbody');
+    list.forEach((d, i) => {
+      const sv = SEV_JA[d.severity] || ['neutral', '•', d.severity];
+      tbody.append(h('tr', { 'data-problem': String(i), 'data-rule': d.rule, 'data-sev': d.severity, 'data-anchor': d.anchorKind ? d.anchorKind + ':' + d.anchorId : null,
+        'data-column': d.column || null, 'aria-current': i === problems.cur ? 'true' : null },
+      h('td', null, h('span', { class: 'badge ' + sv[0] }, h('span', { 'aria-hidden': 'true' }, sv[1]), sv[2])),
+      h('td', null, h('button', { type: 'button', class: 'link pb-msg', onclick: () => { problems.cur = i; renderProblems(); gotoProblem(d); } }, String(d.message))),
+      h('td', { class: 'pb-place' }, problemPlace(d)),
+      h('td', { class: 'pb-file' }, d.file ? (d.line ? `${d.file}:${d.line}` : d.file) : '—'),
+      h('td', null, code(d.rule))));
+    });
+    const wrap = h('div', { class: 'pb-scroll', tabindex: '0', role: 'group', 'aria-label': `問題 ${list.length} 件` },
+      h('table', { 'data-table': 'problems' }, h('thead', null, h('tr', null, ['重大度', '文面', '場所', 'ファイルと行', '規則'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
+    panel.append(wrap);
+    wrap.scrollTop = y;
   }
 
   // ------------------------------------------------------------ export, autosave
@@ -1348,8 +1468,17 @@
       addFile: () => { const i = $('#in-add'); if (i) i.click(); },
       mode: () => modes.cur,
     });
-    $('#mode-edit').addEventListener('click', () => switchMode('edit'));
-    $('#mode-review').addEventListener('click', () => switchMode('review'));
+    $('#btn-start-review').addEventListener('click', startReview);
+    $('#problems-toggle').addEventListener('click', () => toggleProblems());
+    // the menu 「ファイル」 closes on Escape and on a press outside it
+    const menu = $('#ws-menu');
+    addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menu.open && !$('#confirm')) { menu.open = false; $('#ws-menu-btn').focus(); }
+      if (e.key === 'F8' && ws.open && !(e.target && e.target.closest && e.target.closest('#editor'))) { e.preventDefault(); stepProblem(e.shiftKey ? -1 : 1); }
+    });
+    addEventListener('click', (e) => { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+    // an action of the menu closes it (the checkbox of the autosave does not)
+    $('#ws-menu-items').addEventListener('click', (e) => { if (e.target.closest && e.target.closest('button')) menu.open = false; });
     $('#btn-toggle-editor').addEventListener('click', () => { setPane('editor', !panes.editor); if (panes.editor && view) view.requestMeasure(); });
     $('#btn-toggle-nav').addEventListener('click', () => { panes.navChosen = true; setPane('nav', !panes.nav); });
     addEventListener('hashchange', onRoute);
@@ -1401,7 +1530,14 @@
     asset,
     buildBanner,
     mode: () => modes.cur,
-    // for the review mode (#50) and the tests
+    setMode,
+    // 「レビューを開始」 of the top bar: review.js opens its dialog (onStartReview); with nothing open, files are chosen first
+    onStartReview: null,
+    startReview,
+    problems: { open: () => problems.open, toggle: toggleProblems, list: problemList, go: gotoProblem },
+    cursorLine: () => (view ? view.state.doc.lineAt(view.state.selection.main.head).number : null),
+    rowJcs: (anchor) => { const r = rowOf(anchor); if (!r) return null; try { return canonicalJson(r.row); } catch (e) { return null; } },
+    // for the review flow (#50, #67) and the tests
     state: () => ({ open: ws.open, name: ws.name, designRel: ws.designRel, origin: ws.origin, profile: ws.profile, active: ws.active,
       files: sortedNames(), lint: lint.state, rev: ws.rev }),
     fileText: (n) => (ws.files.get(n) ? exportText(ws.files.get(n)) : null),

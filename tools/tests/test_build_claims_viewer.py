@@ -185,10 +185,10 @@ class Build(unittest.TestCase):
         self.assertEqual(r['report']['severities'], ['Blocker', 'Major', 'Minor'])
         with open(os.path.join(ROOT, 'templates', 'review', 'review.schema.json'), encoding='utf-8') as f:
             schema = json.load(f)
-        self.assertEqual(schema['$defs']['finding']['properties']['origin']['enum'], r['report']['origins'])
-        self.assertEqual(schema['$defs']['finding']['properties']['kind']['enum'], r['report']['kinds'])
-        self.assertEqual(schema['$defs']['finding']['properties']['verdict']['enum'], r['report']['verdicts'])
-        self.assertEqual(schema['$defs']['finding']['properties']['response']['properties']['state']['enum'], r['report']['states'])
+        self.assertEqual(schema['$defs']['comment']['properties']['origin']['enum'], r['report']['origins'])
+        self.assertEqual(schema['$defs']['comment']['properties']['kind']['enum'], r['report']['kinds'])
+        self.assertEqual(schema['$defs']['comment']['properties']['verdict']['enum'], r['report']['verdicts'])
+        self.assertEqual(schema['$defs']['comment']['properties']['response']['properties']['state']['enum'], r['report']['states'])
         self.assertEqual(data_of(expected()['data/schemas.js'])['review'], schema)
 
     def test_a_question_changed_without_a_rebuild_fails_the_check(self):
@@ -345,14 +345,14 @@ class StaticFiles(unittest.TestCase):
         html = self.read('index.html')
         for src in re.findall(r'<(?:script|link)[^>]+(?:src|href)="([^"]+)"', html):
             self.assertFalse(re.match(r'(?i)(https?:)?//', src), src)
-        for name in ('editor.js', 'preview.js', 'lint-worker.js', 'review.js'):
+        for name in ('editor.js', 'preview.js', 'lint-worker.js', 'review-format.js', 'review.js'):
             js = self.read(name)
             for api in ('XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon', 'innerHTML', 'outerHTML', 'insertAdjacentHTML',
                         'eval(', 'new Function', 'document.write', "method: 'POST'", 'method: "POST"'):
                 self.assertNotIn(api, js, (name, api))
         # the only fetch is the worker's GET of data/claim_lint.zip (with its content hash, #53) from the page's own directory
         self.assertEqual(re.findall(r'fetch\(([^,]+\)),', self.read('lint-worker.js')), ["base + asset('data/claim_lint.zip')"])
-        self.assertNotIn('fetch(', self.read('editor.js') + self.read('preview.js') + self.read('review.js'))
+        self.assertNotIn('fetch(', self.read('editor.js') + self.read('preview.js') + self.read('review-format.js') + self.read('review.js'))
         self.assertNotRegex(self.read('app.css'), r'url\(|@import')
 
     def test_editor_opens_empty(self):

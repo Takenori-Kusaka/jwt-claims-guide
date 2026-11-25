@@ -42,6 +42,24 @@ try:
 except ImportError:  # pragma: no cover
     sync_playwright = None
 
+def menu_open(pg):
+    """Open the menu 「ファイル」 of the top bar (#67: export, autosave, close and add-file live there)."""
+    if not pg.evaluate('() => document.querySelector("#ws-menu").open'):
+        pg.click('#ws-menu-btn')
+
+
+def menu_click(pg, sel):
+    menu_open(pg)
+    pg.click(sel)
+
+
+def menu_check(pg, on):
+    menu_open(pg)
+    (pg.check if on else pg.uncheck)('#chk-autosave')
+    if pg.evaluate('() => document.querySelector("#ws-menu").open && !document.querySelector("#confirm")'):
+        pg.keyboard.press('Escape')
+
+
 
 def load_yaml(rel):
     with open(os.path.join(ROOT, rel), encoding='utf-8') as f:
@@ -236,7 +254,7 @@ class ClaimsEditor(unittest.TestCase):
         for letter in ('a', 'b'):
             d, names = self.sample_files(letter)
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
             st = pg.evaluate('() => ClaimsEditor.state()')
@@ -321,7 +339,7 @@ class ClaimsEditor(unittest.TestCase):
         self.sample(pg2, 'a')
         pg2.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
         with pg2.expect_download():
-            pg2.click('#btn-export-zip')
+            menu_click(pg2, '#btn-export-zip')
         self.assertFalse(pg2.evaluate('() => ClaimsEditor.unsaved()'))
         self.assertFalse(pg2.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
 
@@ -397,7 +415,7 @@ class ClaimsEditor(unittest.TestCase):
         report = []
         for letter in ('a', 'b'):
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
             self.go(pg, '#/lint', '検査の結果')
@@ -424,7 +442,7 @@ class ClaimsEditor(unittest.TestCase):
         self.sample(pg, 'b')
         d, names = self.sample_files('b')
         with pg.expect_download() as dl:
-            pg.click('#btn-export-zip')
+            menu_click(pg, '#btn-export-zip')
         data = pathlib.Path(dl.value.path()).read_bytes()
         self.assertEqual(dl.value.suggested_filename, 'scenario-b.zip')
         names = names + ['review.yaml']  # the review records of the example (#50) go into the zip with the design
@@ -434,7 +452,7 @@ class ClaimsEditor(unittest.TestCase):
                 self.assertEqual(z.read('scenario-b/' + n), read_lf(os.path.join(d, n)), n)
         pg.click('#tab-token_types\\.yaml')
         with pg.expect_download() as dl:
-            pg.click('#btn-export-one')
+            menu_click(pg, '#btn-export-one')
         self.assertEqual(dl.value.suggested_filename, 'token_types.yaml')
         self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), read_lf(os.path.join(d, 'token_types.yaml')))
         # a file with a BOM and CRLF comes back as it was; an edit is in the exported file
@@ -443,15 +461,15 @@ class ClaimsEditor(unittest.TestCase):
             raw = b'\xef\xbb\xbf' + read_lf(os.path.join(d, 'hops.yaml')).replace(b'\n', b'\r\n')
             with open(p, 'wb') as f:
                 f.write(raw)
-            pg.click('#btn-close')
+            menu_click(pg, '#btn-close')
             pg.set_input_files('#in-files', [p])
             self.poll(pg, '() => ClaimsEditor.state().open')
             with pg.expect_download() as dl:
-                pg.click('#btn-export-one')
+                menu_click(pg, '#btn-export-one')
             self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), raw)
             pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # edited")')
             with pg.expect_download() as dl:
-                pg.click('#btn-export-one')
+                menu_click(pg, '#btn-export-one')
             self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), raw.replace(b'hops:', b'hops:  # edited', 1))
         self.assertEqual(pg.problems, [])
 
@@ -461,7 +479,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # mine")')
         pg.wait_for_timeout(1500)
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage)'), [])  # nothing is stored unless enabled
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "# mine", "# mine2")')
         key = 'claims-editor:autosave:v2:templates/examples/scenario-a'
         self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("mine2")', arg=key, timeout=5)
@@ -472,14 +490,14 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertIn('# mine2', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         # turning autosave off asks what to do with the saved copies (R3): cancel keeps it on, delete removes them
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('1 件', pg.inner_text('dialog#confirm'))
         pg.click('dialog#confirm [data-choice="cancel"]')
         self.poll(pg, '() => !document.querySelector("dialog#confirm")')
         self.assertTrue(pg.is_checked('#chk-autosave'))
         self.assertEqual(len(pg.evaluate('() => Object.keys(localStorage)')), 2)
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.click('dialog#confirm [data-choice="delete"]')
         self.poll(pg, '() => Object.keys(localStorage).length === 0', timeout=5)
         self.assertEqual(pg.problems, [])
@@ -491,26 +509,26 @@ class ClaimsEditor(unittest.TestCase):
         pg.fill('#paste-text', 'hops:\n  - id: MY-WORK\n')
         pg.click('#paste-open')
         self.poll(pg, '() => ClaimsEditor.state().open')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))'), [])  # opening saves nothing
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "MY-WORK", "MY-WORK-2")')
         rel = pg.evaluate('() => ClaimsEditor.state().designRel')
         self.assertRegex(rel, r'^work/pasted-\d{8}-\d{6}-[0-9a-f]{6}$')  # a slot of its own (R4)
         mine = 'claims-editor:autosave:v2:' + rel
         self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("MY-WORK-2")', arg=mine, timeout=5)
-        pg.click('#btn-close')  # autosave holds the edit: no question
+        menu_click(pg, '#btn-close')  # autosave holds the edit: no question
         self.poll(pg, '() => !ClaimsEditor.state().open')
         self.sample(pg, 'a')
         pg.wait_for_timeout(1500)
         self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))  # still there
         self.assertIsNone(pg.evaluate('() => localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a")'))
         # without autosave (turned off, the saved copies kept): an edit not written out is not replaced without asking
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.click('dialog#confirm [data-choice="keep"]')
         self.poll(pg, '() => !document.querySelector("dialog#confirm")')
         self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('書き出していない変更', pg.inner_text('dialog#confirm'))
         self.assertTrue(pg.evaluate('() => document.activeElement.closest("dialog") !== null'))  # focus is in the dialog
@@ -519,7 +537,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
         self.assertIn('# unsaved', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         with pg.expect_download() as dl:
-            pg.click('#btn-close')
+            menu_click(pg, '#btn-close')
             pg.click('dialog#confirm [data-choice="export"]')
         self.assertEqual(dl.value.suggested_filename, 'scenario-a.zip')
         with zipfile.ZipFile(dl.value.path()) as z:
@@ -527,10 +545,10 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => !ClaimsEditor.state().open')
         # an autosaved version of the design being opened is offered first
         self.sample(pg, 'a')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # saved-a")')
         self.poll(pg, '() => (localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a") || "").includes("saved-a")', timeout=5)
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         self.poll(pg, '() => !ClaimsEditor.state().open')
         pg.click('#btn-sample-a')
         pg.wait_for_selector('dialog#confirm[open]')
@@ -547,7 +565,7 @@ class ClaimsEditor(unittest.TestCase):
         # R1: localStorage refuses the save (quota): the edits stay unsaved, a warning stays, closing and leaving still ask
         pg = self.open()
         self.sample(pg, 'b')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('''() => { Storage.prototype.setItem = function () { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); }; }''')
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # not saved")')
         pg.wait_for_selector('#save-warn:not([hidden])', timeout=5000)
@@ -556,7 +574,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertEqual(pg.get_attribute('#save-warn', 'role'), 'alert')
         self.assertTrue(pg.evaluate('() => ClaimsEditor.unsaved()'))
         self.assertTrue(pg.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('保存できていません', pg.inner_text('dialog#confirm'))
         pg.click('dialog#confirm [data-choice="cancel"]')
@@ -761,7 +779,7 @@ class ClaimsEditor(unittest.TestCase):
         report = []
         for letter in ('a', 'b'):
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
             got = dict(pg.evaluate('() => ClaimsEditor.anchors().map(a => [a.anchor, ClaimsEditor.rowHash(a.anchor)])'))
@@ -815,9 +833,9 @@ class ClaimsEditor(unittest.TestCase):
         pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "claims:", "claims:  # edited")')
         self.poll(pg, '() => ClaimsEditor.state().lint !== "fresh"', timeout=5)
         self.lint_fresh(pg); steps.append('edit claims.yaml; claim_lint ran again')
-        pg.check('#chk-autosave'); steps.append('enable autosave')
+        menu_check(pg, True); steps.append('enable autosave')
         with pg.expect_download():
-            pg.click('#btn-export-zip')
+            menu_click(pg, '#btn-export-zip')
         steps.append('export as zip')
         for h in ('#/claims', '#/ledger', '#/profile', '#/lifecycle', '#/catalog'):
             self.go(pg, h)
