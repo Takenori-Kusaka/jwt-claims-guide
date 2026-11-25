@@ -13,7 +13,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>設計書のエディター ― JWT クレーム設計ガイド</title>
 <meta name="description" content="YAML の設計書（クレームの台帳・トークン目録・発行方式・ホップ・カタログへの回答）を書きながら、ブラウザの中で JSON Schema と claim_lint で検査するエディター。外部に送信しない">
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="app.css?v=6acfd0782387">
 </head>
 <body>
 <a class="skip" href="#main">本文へ移動</a>
@@ -23,6 +23,12 @@
     <span class="sub">JWT クレーム設計ガイド（<a href="../" target="_blank" rel="noopener noreferrer">スライドの Web 版</a>）</span>
   </div>
   <div class="ws" id="ws-bar" hidden>
+    <div class="modes" role="group" aria-label="モード">
+      <button type="button" id="mode-edit" aria-pressed="true" title="設計書を直す：エディターと、設計書の画面">編集</button>
+      <button type="button" id="mode-review" aria-pressed="false" title="設計書をレビューする：観点のチェックリスト・行ごとの判定・指摘・レポート">レビュー</button>
+    </div>
+    <button type="button" id="btn-toggle-editor" class="toggle" aria-controls="pane-left" aria-expanded="true">◀ エディター</button>
+    <button type="button" id="btn-toggle-nav" class="toggle" aria-controls="side-nav" aria-expanded="true">◀ メニュー</button>
     <span id="ws-name"></span>
     <span id="tab-tools"></span>
     <button type="button" id="btn-export-one">このファイルを書き出す</button>
@@ -30,12 +36,12 @@
     <label class="chk"><input type="checkbox" id="chk-autosave"> このブラウザに自動保存する</label>
     <button type="button" id="btn-close">閉じる</button>
   </div>
-  <p class="net" id="net-note"><span aria-hidden="true">⛔</span> データを外部に送信しません（CSP の <code>connect-src 'self'</code>。読み込むのはこのサイトのファイルだけ）</p>
+  <p class="net" id="net-note" title="CSP の connect-src 'self'。読み込むのはこのサイトのファイルだけ"><span aria-hidden="true">⛔</span> データを外部に送信しません</p>
 </header>
 <p id="save-warn" class="savewarn" role="alert" hidden></p>
 <div id="start" class="start" hidden></div>
 <div id="split" class="split" hidden>
-  <section class="pane left" aria-label="YAML のエディター">
+  <section class="pane left" id="pane-left" aria-label="YAML のエディター">
     <div class="tabbar"><div class="tabs" role="tablist" id="tabs" aria-label="ファイル"></div></div>
     <div id="editor" class="editor" role="tabpanel"></div>
     <div class="status" id="status" aria-live="polite"></div>
@@ -43,22 +49,23 @@
   <div class="gutter-split" role="separator" aria-orientation="vertical" aria-label="左右の幅" tabindex="0" id="splitter"></div>
   <section class="pane right" aria-label="プレビュー">
     <div class="layout">
-      <nav class="side" aria-label="画面"><ul id="nav"></ul></nav>
+      <nav class="side" id="side-nav" aria-label="画面"><ul id="nav"></ul></nav>
       <main id="main" tabindex="-1"></main>
     </div>
   </section>
 </div>
 <div id="drop-overlay" class="drop-overlay" hidden><p>ここにドロップして開く（ファイルでもフォルダでもよい）</p></div>
 <footer class="foot">
-  <p>正本は YAML です。このエディターはブラウザの中だけで動き、開いたファイルをどこにも送りません。書き出したファイルを、自分のリポジトリにコミットしてください（#49）。</p>
+  <p>正本は YAML です。このエディターはブラウザの中だけで動き、開いたファイルをどこにも送りません。書き出したファイルを、自分のリポジトリにコミットしてください。</p>
   <p>コードは MIT（<a href="https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a>）。同梱のライブラリ：CodeMirror 6・yaml・@cfworker/json-schema・fflate（<a href="vendor/editor-libs.LICENSES.txt" target="_blank" rel="noopener noreferrer">ライセンス</a>）、Pyodide 314.0.8（MPL-2.0、<a href="vendor/pyodide/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a>）と PyYAML・jsonschema ほか。版と sha256 は <a href="vendor/MANIFEST.json" target="_blank" rel="noopener noreferrer">vendor/MANIFEST.json</a>。作成方法：本エディターは生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施です。</p>
 </footer>
-<script src="vendor/editor-libs.js"></script>
-<script src="data/meta.js"></script>
-<script src="data/schemas.js"></script>
-<script src="data/trace.js"></script>
-<script src="preview.js"></script>
-<script src="editor.js"></script>
-<script src="review.js"></script>
+<script src="vendor/editor-libs.js?v=c89073c02058"></script>
+<script src="data/build.js?v=40c00e5d9ceb"></script>
+<script src="data/meta.js?v=104f1956cfcc"></script>
+<script src="data/schemas.js?v=5b4f837f2192"></script>
+<script src="data/trace.js?v=9d6d71243132"></script>
+<script src="preview.js?v=1bdf344dd6b8"></script>
+<script src="editor.js?v=780904b01f3b"></script>
+<script src="review.js?v=ee8a5d95f12d"></script>
 </body>
 </html>

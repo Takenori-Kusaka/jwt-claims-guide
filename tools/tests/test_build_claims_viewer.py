@@ -94,6 +94,50 @@ class Build(unittest.TestCase):
             bcv.VIEWER_DIR = old_viewer
             shutil.rmtree(d)
 
+    def test_check_reports_missing_and_stale_content_hashes_and_build_ids(self):
+        # #53: every URL carries ?v=<sha256 prefix>; a missing or stale one, a stale build id and a load that skips
+        # asset() fail the check
+        want = expected()
+        d = tempfile.mkdtemp()
+        old, old_viewer = bcv.OUT_DIR, bcv.VIEWER_DIR
+        try:
+            bcv.OUT_DIR, bcv.VIEWER_DIR = os.path.join(d, 'data'), d
+            os.makedirs(os.path.join(d, 'data'))
+            os.makedirs(os.path.join(d, 'vendor'))
+
+            def write(rel, body):
+                with open(os.path.join(d, *rel.split('/')), 'wb') as f:
+                    f.write(body if isinstance(body, bytes) else body.encode('utf-8'))
+            for n, t in want.items():
+                write(n, t)
+            self.assertEqual(bcv.check(want), [])
+            html = want['index.html']
+            self.assertRegex(html, r'<script src="editor\.js\?v=[0-9a-f]{12}">')
+            write('index.html', re.sub(r'editor\.js\?v=[0-9a-f]+', 'editor.js', html))
+            probs = bcv.check(want)
+            self.assertTrue(any('editor.js has no content hash' in p for p in probs), probs)
+            write('index.html', re.sub(r'review\.js\?v=[0-9a-f]+', 'review.js?v=000000000000', html))
+            probs = bcv.check(want)
+            self.assertTrue(any('review.js?v=000000000000 is stale' in p for p in probs), probs)
+            write('index.html', html)
+            write('preview.js', bcv.MARK_JS.sub(lambda m: m.group(1) + 'abcdefabcdef' + m.group(3), want['preview.js']))
+            probs = bcv.check(want)
+            self.assertTrue(any('preview.js: the build id abcdefabcdef is stale' in p for p in probs), probs)
+            write('preview.js', want['preview.js'])
+            write('review.js', want['review.js'].replace("CE.asset('data/review.js')", "'data/review.js'"))
+            probs = bcv.check(want)
+            self.assertTrue(any('data/review.js is loaded without its content hash' in p for p in probs), probs)
+            # the hashes and the build id follow the content: a changed module changes them all
+            files = {n: t for n, t in want.items() if n != 'data/build.js'}
+            files['editor.js'] = files['editor.js'] + '// changed\n'
+            parts = {rel: bcv._read_viewer(rel, VIEWER) for rel in bcv.VENDOR_PARTS}
+            again = bcv.stamp(files, parts)
+            self.assertNotEqual(bcv.MARK_JS.search(again['editor.js']).group(2), bcv.MARK_JS.search(want['editor.js']).group(2))
+            self.assertEqual(bcv.stamp({n: t for n, t in want.items() if n != 'data/build.js'}, parts), want)  # stable
+        finally:
+            bcv.OUT_DIR, bcv.VIEWER_DIR = old, old_viewer
+            shutil.rmtree(d)
+
     def test_samples_are_the_files_of_the_worked_examples(self):
         for i, rel, _, prof in bcv.DATASETS:
             s = data_of(expected()[f'data/sample-{i[-1]}.js'])
@@ -306,8 +350,8 @@ class StaticFiles(unittest.TestCase):
             for api in ('XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon', 'innerHTML', 'outerHTML', 'insertAdjacentHTML',
                         'eval(', 'new Function', 'document.write', "method: 'POST'", 'method: "POST"'):
                 self.assertNotIn(api, js, (name, api))
-        # the only fetch is the worker's GET of data/claim_lint.zip from the page's own directory
-        self.assertEqual(re.findall(r'fetch\(([^,)]+)', self.read('lint-worker.js')), ["base + 'data/claim_lint.zip'"])
+        # the only fetch is the worker's GET of data/claim_lint.zip (with its content hash, #53) from the page's own directory
+        self.assertEqual(re.findall(r'fetch\(([^,]+\)),', self.read('lint-worker.js')), ["base + asset('data/claim_lint.zip')"])
         self.assertNotIn('fetch(', self.read('editor.js') + self.read('preview.js') + self.read('review.js'))
         self.assertNotRegex(self.read('app.css'), r'url\(|@import')
 

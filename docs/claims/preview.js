@@ -8,6 +8,25 @@
 // detail screen. The row content hash is ClaimsEditor.rowHash(anchor) (editor.js).
 'use strict';
 (function () {
+  // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
+  // page has read every script, in case editor.js is the one of another build (it would not check anything)
+  const BUILD_ID = '26b0f1c1176e';
+  (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
+  addEventListener('DOMContentLoaded', () => {
+    const ce = window.ClaimsEditor;
+    if (ce && ce.BUILD_ID === BUILD_ID) return;
+    // the banner of editor.js, made here because editor.js may be too old to make it
+    if (document.getElementById('build-banner')) return;
+    const el = document.createElement('div');
+    el.id = 'build-banner'; el.className = 'buildwarn'; el.setAttribute('role', 'alert');
+    const p = document.createElement('p');
+    const b = document.createElement('button');
+    b.type = 'button'; b.id = 'build-reload'; b.className = 'primary'; b.textContent = '再読み込みする';
+    b.addEventListener('click', () => location.reload());
+    p.append('新しい版が公開されました。再読み込みしてください。 ', b, ' （版のそろわないファイル：editor.js・preview.js）');
+    el.append(p);
+    document.body.prepend(el);
+  });
   const DATA = (window.CLAIMS_VIEWER_DATA = window.CLAIMS_VIEWER_DATA || {});
   const META = DATA.meta;
   const CASESTUDY = 'https://github.com/Takenori-Kusaka/jwt-claims-casestudy/tree/';
@@ -139,6 +158,24 @@
     return out;
   }
   function paras(list) { return (list || []).map((t) => h('p', { class: 'muted' }, inline(t))); }
+  // text of this guide's own materials (the review questions, the trace table): `#5` is an issue of this repository and
+  // becomes a link that says so (never a bare number on the screen)
+  function issueLink(n) { return h('a', { href: REPO + '/issues/' + n, class: 'gh-issue', title: `GitHub の issue ${n}（このガイドのリポジトリ）` }, `GitHub の issue ${n}`); }
+  function inlineRepo(text) {
+    const out = [];
+    inline(text).forEach((x) => {
+      if (typeof x !== 'string') { out.push(x); return; }
+      let last = 0; let m;
+      const re = /(?:追跡 )?#(\d+)/g;
+      while ((m = re.exec(x))) {
+        if (m.index > last) out.push(x.slice(last, m.index));
+        out.push(issueLink(m[1]));
+        last = re.lastIndex;
+      }
+      if (last < x.length) out.push(x.slice(last));
+    });
+    return out;
+  }
 
   // ------------------------------------------------------------ data access
   function B() { return state.bundle || { registry: {}, sections: [] }; }
@@ -381,58 +418,123 @@
   }
   // ------------------------------------------------------------ views
   const VIEWS = [
-    ['overview', '概要'], ['claims', 'クレームの一覧'], ['ledger', '台帳（折り畳み）'], ['tokens', 'トークン目録'], ['profile', '発行方式と要件'],
-    ['hops', 'ホップの表'], ['lifecycle', '寿命の 4 つの層'], ['catalog', 'カタログへの回答'], ['lint', '検査の結果（lint）'],
-    ['tables', 'そのほかの生成した表'],
+    ['dashboard', 'ダッシュボード'], ['claims', 'クレームの一覧'], ['ledger', '台帳を行ごとに開く'], ['tokens', 'トークン目録'], ['profile', '発行方式と、導かれる要件'],
+    ['hops', 'ホップの表'], ['lifecycle', '寿命の 4 つの層'], ['catalog', 'カタログへの回答'], ['lint', '検査の結果'],
+    ['tables', '判断の行・データ源・問いと仕組み'],
   ];
+  // the file each screen is made from (#53): without it the menu shows the screen dimmed and the screen offers to add it
+  const VIEW_FILE = { claims: 'claims.yaml', ledger: 'claims.yaml', tables: 'claims.yaml', tokens: 'token_types.yaml', profile: 'token_types.yaml',
+    lifecycle: 'token_types.yaml', hops: 'hops.yaml', catalog: 'catalog_answers.yaml' };
+  const FILE_WHAT = { 'claims.yaml': '台帳', 'token_types.yaml': 'トークン目録と発行方式の選択', 'hops.yaml': 'ホップの表', 'catalog_answers.yaml': 'カタログへの回答' };
+  const DETAIL = { claim: 'claims', token: 'tokens', hop: 'hops' };
+  function hasFile(name) { const f = B().files; return !name || !f || f.includes(name); }
+  const PY_TITLE = 'Python で計算する画面（claim_lint をブラウザの中で動かす。初めて開くと読み込みに数秒）';
   function nav(cur) {
     const ul = $('#nav'); ul.textContent = '';
-    ul.append(h('li', { class: 'sep' }, 'プレビュー'));
+    const mode = state.hooks.mode ? state.hooks.mode() : 'edit';
     const all = state.diag.list || [];
-    VIEWS.forEach(([v, label]) => ul.append(h('li', null, h('a', { href: route(v), 'aria-current': cur === v ? 'page' : null, 'data-view': v }, label,
-      PYTHON_VIEWS[v] ? h('span', { class: 'py', title: 'claim_lint（Pyodide）が作る画面' }, ' Py') : null,
-      v === 'lint' && all.length ? h('span', { class: 'cnt' }, ' ', String(all.length)) : null))));
-    Object.keys(state.views).forEach((name) => {
+    const cur2 = parseHash().parts;
+    const design = () => {
+      ul.append(h('li', { class: 'sep' }, mode === 'review' ? '設計書の画面（行の判定はここで）' : '設計書の画面'));
+      VIEWS.forEach(([v, label]) => {
+        const missing = !hasFile(VIEW_FILE[v]);
+        ul.append(h('li', null, h('a', { href: route(v), 'aria-current': cur === v ? 'page' : null, 'data-view': v, class: missing ? 'nofile' : null,
+          'data-nofile': missing ? VIEW_FILE[v] : null, title: missing ? `${FILE_WHAT[VIEW_FILE[v]]}のファイル（${VIEW_FILE[v]}）をまだ開いていません` : null }, label,
+        missing ? h('span', { class: 'vh' }, '（ファイルをまだ開いていない）') : null,
+        PYTHON_VIEWS[v] ? h('span', { class: 'py', title: PY_TITLE }, h('span', { 'aria-hidden': 'true' }, 'Py'), h('span', { class: 'vh' }, '（Python で計算。初めては数秒）')) : null,
+        v === 'lint' && all.length ? h('span', { class: 'cnt' }, ' ', String(all.length)) : null)));
+      });
+    };
+    const extras = () => Object.keys(state.views).forEach((name) => {
       const v = state.views[name];
       ul.append(h('li', { class: 'sep' }, v.group));
-      const cur2 = parseHash().parts;
       v.nav().forEach((it) => ul.append(h('li', null, h('a', { href: route(name, it.sub || null), 'data-view': name + (it.sub ? '/' + it.sub : ''),
         'aria-current': cur === name && (cur2[1] || '') === (it.sub || '') ? 'page' : null }, it.label, it.count ? h('span', { class: 'cnt' }, ' ', it.count) : null))));
     });
+    // 編集: the screens of the design; レビュー: the review screens first, then the screens of the design (the rows are
+    // decided on them). In 編集 the review is one entry (the top bar switches the mode)
+    if (mode === 'review') { extras(); design(); } else {
+      design();
+      Object.keys(state.views).forEach((name) => {
+        const v = state.views[name];
+        ul.append(h('li', { class: 'sep' }, v.group));
+        ul.append(h('li', null, h('a', { href: route(name), 'data-view': name }, v.entry || v.group)));
+      });
+    }
     ul.append(h('li', { class: 'sep' }, 'ガイド全体'));
-    ul.append(h('li', null, h('a', { href: '#/trace', 'aria-current': cur === 'trace' ? 'page' : null }, '対応表の進み具合')));
+    ul.append(h('li', null, h('a', { href: '#/trace', 'aria-current': cur === 'trace' ? 'page' : null }, 'スライドと成果物の対応')));
+    ul.append(h('li', { class: 'legend', id: 'nav-legend' }, h('span', { class: 'py', 'aria-hidden': 'true' }, 'Py'), '：Python で計算する画面（初めて開くと読み込みに数秒）。',
+      h('br'), h('span', { 'aria-hidden': 'true' }, '○'), '：ファイルをまだ開いていない画面'));
+  }
+  function viewNoFile(v) {
+    const file = VIEW_FILE[v];
+    const label = (VIEWS.find((x) => x[0] === v) || [v, v])[1];
+    return [h('h1', { tabindex: '-1' }, label),
+      h('div', { class: 'note nofile-box', 'data-nofile': file },
+        h('p', null, h('strong', null, `${FILE_WHAT[file]}のファイルは、まだ開いていません。`)),
+        h('p', null, 'この画面は、', FILE_WHAT[file], 'のファイル ', code(file), ' から作ります。足すと、ここに表示します（名前が違っても、中身で見分けます）。'),
+        h('p', { class: 'buttons' }, h('button', { type: 'button', class: 'primary', 'data-action': 'add-file', id: 'btn-nofile-add', onclick: () => state.hooks.addFile && state.hooks.addFile() }, 'ファイルを足す'),
+          h('a', { href: route('dashboard') }, 'ダッシュボードへ')))];
   }
 
-  function viewOverview() {
+  // the dashboard (#53): what is open, the checks, the review, and what needs doing, each linked to its screen
+  function viewDashboard() {
     const b = B();
+    const files = b.files || [];
     const cs = claims();
     const dec = Object.create(null);
     cs.forEach((c) => { dec[c.decision] = (dec[c.decision] || 0) + 1; });
-    const ci = section('ci-result');
     const cat = section('catalog-summary');
-    const label = b.label || '開いた設計書';
     const diag = state.diag.list || [];
     const dc = { error: 0, warn: 0, info: 0 };
     diag.forEach((f) => { dc[f.severity] = (dc[f.severity] || 0) + 1; });
-    return [h('h1', { tabindex: '-1' }, label),
-      h('p', { class: 'lead' }, '設計書のディレクトリ：', code(b.design || '（ローカル）')),
-      h('div', { class: 'cards' },
-        card('台帳の行', cs.length, Object.keys(dec).map((k) => `${k} ${dec[k]}`).join('・')),
-        card('トークン種別', tokenTypes().length),
-        card('ホップ', hops().length),
-        card('カタログへの回答', answers().length, cat && cat.counts ? `対象外 ${cat.counts.out_of_scope}（${cat.counts.out_of_scope_pct}%）` : null),
-        card('検査の指摘', `${dc.error} / ${dc.warn} / ${dc.info}`, 'error / warn / info（Schema と lint）'),
-        ci && ci.counts ? card('claim_lint', `${ci.counts.error} / ${ci.counts.warn} / ${ci.counts.info}`, `error / warn / info（profile ${lintProfile(ci) || '不明'}）`) : null),
-      h('div', { class: 'note' }, h('p', null, h('strong', null, 'データを外部に送信しません（リンクを押したときの移動は除く）。'), 'このページは、同じサイトのスクリプトとデータだけを読みます。CSP（',
-        code("connect-src 'self'"), '）で、スクリプトからほかのサイトへの通信を禁じています。開いたファイルはブラウザの中だけで読み、検査（JSON Schema と claim_lint）もブラウザの中で行います。')),
-      h('h2', null, '読み方'),
+    const st = state.hooks.lintState ? state.hooks.lintState() : 'off';
+    const counts = [
+      ['claims.yaml', '台帳の行', cs.length, Object.keys(dec).map((k) => `${k} ${dec[k]}`).join('・'), 'claims'],
+      ['token_types.yaml', 'トークンの種類', tokenTypes().length, null, 'tokens'],
+      ['hops.yaml', 'ホップ', hops().length, null, 'hops'],
+      ['catalog_answers.yaml', 'カタログへの回答', answers().length, cat && cat.counts ? `対象外 ${cat.counts.out_of_scope}（${cat.counts.out_of_scope_pct}%）` : null, 'catalog'],
+    ];
+    const open = counts.filter((x) => files.includes(x[0]));
+    const closed = counts.filter((x) => !files.includes(x[0]));
+    const out = [h('h1', { tabindex: '-1' }, 'ダッシュボード', ' ', h('span', { class: 'muted small' }, b.label || '')),
+      h('p', { class: 'lead' }, '開いた設計書の件数・検査の結果・レビューの進み具合と、要対応の項目です。どれも押すと、その画面に移ります。', h('span', { class: 'muted small' }, ' 保存先：', code(b.design || '（ローカル）'))),
+      open.length ? h('div', { class: 'cards', id: 'dash-counts' }, open.map(([file, k, v, sub, view]) =>
+        h('a', { class: 'card', href: route(view), 'data-dash': view, title: file }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v)), sub ? h('div', { class: 'muted' }, sub) : null))) : null,
+      closed.length ? h('p', { class: 'muted', id: 'dash-closed' }, 'まだ開いていないファイル：', closed.map(([file, k], i) => [i ? '・' : '', k, ' ', h('span', { class: 'small' }, '(' + file + ')')]), ' ',
+        h('button', { type: 'button', id: 'btn-dash-add', onclick: () => state.hooks.addFile && state.hooks.addFile() }, 'ファイルを足す')) : null];
+    // what needs doing: errors, the rows to look at again, the questions not answered
+    const todos = [];
+    diag.filter((f) => f.severity === 'error').slice(0, 8).forEach((f) => {
+      const where = f.anchorKind === 'claims' ? claimLink(f.anchorId) : f.anchorKind === 'token_types' ? tokenLink(f.anchorId) : f.anchorKind === 'hops' ? hopLink(f.anchorId)
+        : f.line ? h('button', { type: 'button', class: 'link', 'data-goto': f.file + ':' + f.line, onclick: () => state.hooks.goto && state.hooks.goto(f.file, f.line) }, `${f.file} の ${f.line} 行`) : null;
+      todos.push(h('li', { 'data-todo-kind': 'error' }, sevBadge('error'), where, h('span', null, inline(String(f.message).slice(0, 140)))));
+    });
+    if (dc.error > 8) todos.push(h('li', { 'data-todo-kind': 'error' }, h('a', { href: route('lint', null, { sev: 'error' }) }, `error をすべて見る（${dc.error} 件）`)));
+    const sums = Object.keys(state.views).map((name) => { try { return state.views[name].summary ? state.views[name].summary() : null; } catch (e) { return null; } }).filter(Boolean);
+    sums.forEach((x) => (x.todos || []).forEach((t) => todos.push(h('li', { 'data-todo-kind': t.kind }, h('strong', null, t.label), h('a', { href: t.href, 'data-todo-link': t.kind }, t.text)))));
+    if (cat && cat.counts && (cat.counts.missing || []).length) {
+      todos.push(h('li', { 'data-todo-kind': 'catalog' }, h('strong', null, 'カタログの未回答'), h('a', { href: route('catalog') }, `${cat.counts.missing.length} 件のイベントに、該当か対象外かを答えていない`)));
+    }
+    out.push(h('h2', null, '要対応'), todos.length ? h('ul', { class: 'todo', id: 'dash-todo' }, todos) : h('p', { class: 'muted', id: 'dash-todo' }, '要対応の項目はありません。'));
+    // the checks and the review
+    const rules = Object.create(null);
+    diag.forEach((f) => { rules[f.rule] = (rules[f.rule] || 0) + 1; });
+    const top = Object.keys(rules).sort((x, y) => rules[y] - rules[x]).slice(0, 5);
+    const lintSec = h('section', { id: 'dash-lint', 'aria-labelledby': 'dash-lint-h' }, h('h2', { id: 'dash-lint-h' }, h('a', { href: route('lint') }, '検査の結果')),
+      h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${dc[k] || 0}`), ' '])),
+      top.length ? h('ul', null, top.map((r) => h('li', null, code(r), ` ${rules[r]} 件`))) : h('p', { class: 'muted' }, '指摘はありません。'),
+      h('p', { class: 'muted small' }, '書式の検査（JSON Schema）は入力のたびに行います。設計の規則の検査（claim_lint）：',
+        { off: 'まだ動かしていません', loading: '読み込み中', running: '検査中', fresh: '最新の内容で検査済み', stale: '編集の後、まだ検査していません', error: '動きませんでした', unavailable: 'ファイルを直接開いたときは動きません' }[st] || st),
+      st === 'off' || st === 'error' ? h('p', null, h('button', { type: 'button', 'data-action': 'load-lint', onclick: () => state.hooks.loadLint && state.hooks.loadLint() }, '設計の規則も検査する（初めては数秒）')) : null);
+    const secs = [lintSec].concat(sums.map((x) => h('section', { 'data-dash-summary': x.id || '' }, h('h2', null, h('a', { href: x.href }, x.title)), h('ul', null, (x.lines || []).map((l) => h('li', null, l))))));
+    out.push(h('div', { class: 'dash' }, secs));
+    out.push(h('details', { class: 'note' }, h('summary', null, '詳しく（画面の読み方・送信しないこと）'),
       h('ul', null, h('li', null, '根拠の ', code('slide:<id>'), ' は、スライドの Web 版の該当スライドに移動します。RFC・ASVS などは原典に移動します。'),
         h('li', null, '状態は色だけでなく、記号と文字（✓ 満たす・✖ 満たさない・? 判定できない、error・warn・info）で示します。'),
-        h('li', null, 'キーボード：', h('span', { class: 'kbd' }, 'Tab'), ' で移動し、', h('span', { class: 'kbd' }, 'Enter'), ' で開きます。一覧で ',
-          h('span', { class: 'kbd' }, '/'), ' を押すと検索欄に移ります。')),
-      b.sources ? [h('h2', null, '入力のファイル（sha256、改行を LF にそろえて計算）'),
-        h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'ファイル'), h('th', { scope: 'col' }, 'sha256'))),
-          h('tbody', null, Object.keys(b.sources).map((k) => h('tr', null, h('th', { scope: 'row' }, code(k)), h('td', null, code(b.sources[k])))))))] : null];
+        h('li', null, 'キーボード：', h('span', { class: 'kbd' }, 'Tab'), ' で移動し、', h('span', { class: 'kbd' }, 'Enter'), ' で開きます。一覧で ', h('span', { class: 'kbd' }, '/'), ' を押すと検索欄に移ります。'),
+        h('li', null, '入力した内容は、このページの外に送りません（リンクを押したときの移動は除く）。技術的には、ページの CSP（', code("connect-src 'self'"), '）で、このサイト以外への通信を禁じています。'))));
+    return out;
   }
   function card(k, v, sub) { return h('div', { class: 'card' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v)), sub ? h('div', { class: 'muted' }, sub) : null); }
 
@@ -560,14 +662,15 @@
     const out = [h('h1', { tabindex: '-1' }, '発行方式の選択と、導かれる要件')];
     if (!s) {
       out.push(needBundle('導かれる要件（issuance_effects.yaml）'));
-      if (p) out.push(h('h2', null, '発行方式の選択（YAML のまま）'), record('issuance_profile', p, { noExtra: true }));
+      if (p) out.push(h('h2', null, '発行方式の選択（書いたままの値）'), record('issuance_profile', p, { noExtra: true }));
       return out;
     }
     out.push(paras(s.notes), s.tables.map((t) => table(t, { lint: false })), paras(s.after));
     const holds = (s.effects || []).filter((e) => e.holds);
     const rest = (s.effects || []).filter((e) => !e.holds);
-    out.push(h('h2', null, '選択から導かれる要件（templates/registry/issuance_effects.yaml）'),
-      h('div', { class: 'note warn' }, h('p', null, h('strong', null, 'これは検査ではありません。'), 'render による簡易な読み取りで、検査の正は claim_lint の L62〜L64 です（tools/claim_lint/RENDER.md の 5.）。')));
+    out.push(h('h2', null, '選択から導かれる要件'),
+      h('p', { class: 'muted small' }, '要件の出典：templates/registry/issuance_effects.yaml'),
+      h('div', { class: 'note warn' }, h('p', null, h('strong', null, 'これは検査ではありません。'), '表を作るときの簡易な読み取りです。正しい判定は、検査の結果の規則 L62〜L64 を見てください。', h('span', { class: 'muted small' }, '（tools/claim_lint/RENDER.md の 5.）'))));
     const tally = Object.assign(Object.create(null), { satisfied: 0, unsatisfied: 0, unknown: 0 });
     holds.forEach((e) => (e.requires || []).forEach((r) => { tally[r.status] = (tally[r.status] || 0) + 1; }));
     out.push(h('p', null, `成り立つ条件 ${holds.length} 件、要件 `, Object.keys(STATUS).map((k) => [badge(STATUS[k][0], STATUS[k][1], `${STATUS[k][2]} ${tally[k] || 0}`), ' '])));
@@ -585,7 +688,7 @@
     });
     if (rest.length) out.push(h('details', null, h('summary', null, `この選択では成り立たない条件 ${rest.length} 件`),
       h('ul', null, rest.map((e) => h('li', null, code(e.id), ' ', (e.when || []).map((w) => code(w.field + ' = ' + JSON.stringify(w.equals !== undefined ? w.equals : w))))))));
-    if (p) out.push(h('details', null, h('summary', null, '発行方式の選択の全列（YAML のまま）'), record('issuance_profile', p, { noExtra: true })));
+    if (p) out.push(h('details', null, h('summary', null, '発行方式の選択の全項目（書いたままの値）'), record('issuance_profile', p, { noExtra: true })));
     return out;
   }
 
@@ -651,12 +754,14 @@
   }
   // every diagnostic of the design (JSON Schema in the browser, YAML syntax, claim_lint in Pyodide), with the line in the
   // editor; the claim_lint section of render (profile, counts, R8 sizes) below
-  function viewLint() {
+  function viewLint(query) {
+    const q0 = new URLSearchParams(query || '');
     const s = section('ci-result');
     const all = state.diag.list || [];
     const st = state.hooks.lintState ? state.hooks.lintState() : 'off';
     const prof = state.hooks.profile ? state.hooks.profile() : null;
-    const out = [h('h1', { tabindex: '-1' }, '検査の結果（JSON Schema・claim_lint）')];
+    const out = [h('h1', { tabindex: '-1' }, '検査の結果'),
+      h('p', { class: 'lead' }, '書式の検査（JSON Schema）と、設計の規則の検査（claim_lint、Python でブラウザの中で動かす）の指摘です。行の番号を押すと、エディターのその行に移ります。')];
     const by = { error: 0, warn: 0, info: 0 };
     all.forEach((f) => { by[f.severity] = (by[f.severity] || 0) + 1; });
     out.push(h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k] || 0}`), ' ']),
@@ -685,16 +790,17 @@
           h('td', null, inline(f.message))));
       });
     };
+    fsel.value = q0.get('src') || ''; ssel.value = q0.get('sev') || '';
     fsel.addEventListener('change', apply); ssel.addEventListener('change', apply);
     apply();
     out.push(h('form', { class: 'filters', onsubmit: (e) => e.preventDefault() }, h('label', null, '出どころ', fsel), h('label', null, '重大度', ssel)),
       h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'diagnostics' }, h('thead', null, h('tr', null, ['規則', '重大度', '出どころ', '対象', '行', '内容'].map((x) => h('th', { scope: 'col' }, x)))), tbody)));
-    if (s) out.push(h('h2', null, 'claim_lint の要約（render の「CI の結果」）'), paras(s.notes), paras(s.after));
+    if (s) out.push(h('h2', null, '設計の規則の検査の要約'), h('p', { class: 'muted small' }, '設計書（design.md）の「CI の結果」の節と同じ内容'), paras(s.notes), paras(s.after));
     return out;
   }
   function viewTables() {
     const ids = ['decision-rows', 'data-sources', 'question-mechanism'];
-    const out = [h('h1', { tabindex: '-1' }, 'そのほかの生成した表'), h('p', { class: 'lead' }, '設計書（design.md）の生成の区間と同じ表です（tools/claim_lint/RENDER.md の 1.）。')];
+    const out = [h('h1', { tabindex: '-1' }, '判断の行・データ源・問いと仕組み'), h('p', { class: 'lead' }, '設計書（design.md）の生成の区間と同じ表です（tools/claim_lint/RENDER.md の 1.）。')];
     const ss = ids.map((i) => section(i)).filter(Boolean);
     if (!ss.length) return out.concat(needBundle('判断の行・データ源・問い × 仕組み'));
     out.push(h('nav', { class: 'toc', 'aria-label': '表' }, ss.map((s) => h('a', { href: '#t-' + s.id, onclick: jump }, s.title))));
@@ -705,8 +811,8 @@
   function viewTrace() {
     const t = DATA.trace;
     if (!t) return [h('h1', { tabindex: '-1' }, '対応表の進み具合'), h('p', { class: 'err' }, 'data/trace.js を読めません。')];
-    const out = [h('h1', { tabindex: '-1' }, 'スライドと成果物の対応表の進み具合（#22）'),
-      h('p', { class: 'lead' }, `${t.source} の要件 ${t.total} 件を、tier（core・full）と状態で数えたもの。設計書ごとではなく、ガイド全体の値です。`)];
+    const out = [h('h1', { tabindex: '-1' }, 'スライドと成果物の対応表の進み具合'),
+      h('p', { class: 'lead' }, `ガイドのスライドが求める要件 ${t.total} 件を、段階（core・full）と状態で数えたもの。設計書ごとではなく、ガイド全体の値です（出典：${t.source}）。`)];
     const head = (first) => h('thead', null, h('tr', null, h('th', { scope: 'col' }, first), t.statuses.map((s) => h('th', { scope: 'col', class: 'num' }, s)), h('th', { scope: 'col', class: 'num' }, '計'), h('th', { scope: 'col' }, '実装済みの割合')));
     const row = (label, ts) => {
       const total = t.statuses.reduce((a, s) => a + (ts[s] || 0), 0);
@@ -715,12 +821,12 @@
       return h('tr', null, h('th', { scope: 'row' }, label), t.statuses.map((s) => h('td', { class: 'num' }, String(ts[s] || 0))), h('td', { class: 'num' }, String(total)),
         h('td', null, h('span', { class: 'bar', 'aria-hidden': 'true' }, barFill(pct)), `${pct}%（${done} / ${total}）`));
     };
-    out.push(h('h2', null, 'tier × 状態'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-tier' }, head('tier'),
+    out.push(h('h2', null, '段階（core・full）× 状態'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-tier' }, head('段階'),
       h('tbody', null, t.tiers.map((x) => row(x, t.tier_status[x])), row('計', sumBy(t.tiers.map((x) => t.tier_status[x])))))));
-    out.push(h('h2', null, 'Part ごと（tier × 状態）'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-parts' }, head('Part・tier'),
+    out.push(h('h2', null, 'スライドの Part ごと（段階 × 状態）'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-parts' }, head('Part・段階'),
       h('tbody', null, t.parts.map((p) => t.tiers.map((x) => row(`${p.part} ${x}`, p.tier_status[x])))))));
-    out.push(h('h2', null, '担当の issue ごと'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-owners' }, head('issue'),
-      h('tbody', null, t.owners.map((o) => row(o.owner, o.status))))));
+    out.push(h('h2', null, '担当ごと（GitHub の issue）'), h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'trace-owners' }, head('担当'),
+      h('tbody', null, t.owners.map((o) => row(/^#\d+$/.test(o.owner) ? issueLink(o.owner.slice(1)) : o.owner, o.status))))));
     return out;
   }
   function barFill(pct) { const s = h('span'); s.style.width = pct + '%'; return s; }
@@ -744,7 +850,7 @@
             record('claims', c, { foldPrefix: ['claim', c.id] })], { closed: true, cls: 'row' });
         })));
     });
-    return [h('h1', { tabindex: '-1' }, '台帳（折り畳み）'),
+    return [h('h1', { tabindex: '-1' }, '台帳を行ごとに開く'),
       h('p', { class: 'lead' }, '台帳の行を採否ごとの節にまとめ、行と列のまとまり（templates/registry/README.md の 3.1 の見出し）ごとに開閉できます。開閉の状態は URL に残ります（そのまま共有できます）。'),
       foldButtons(() => body), cs.length ? body : h('p', { class: 'muted' }, '台帳の行がありません。')];
   }
@@ -752,11 +858,11 @@
   // ------------------------------------------------------------ screens that need claim_lint (Pyodide)
   function needBundle(what) {
     const st = state.hooks.lintState ? state.hooks.lintState() : 'off';
-    const msg = { off: 'claim_lint（Pyodide）をまだ読み込んでいません。', loading: 'claim_lint（Pyodide）を読み込んでいます…', running: '検査しています…',
-      error: 'claim_lint を読み込めませんでした。', unavailable: 'このページを file:// で開いているので claim_lint は動きません（HTTP で開いてください）。' }[st] || '';
-    return h('div', { class: 'note warn', 'data-need-lint': what }, h('p', null, `${what}は、claim_lint の render（Python）がブラウザの中で作る表です。`, msg),
+    const msg = { off: 'まだ動かしていません。', loading: '読み込んでいます…', running: '検査しています…',
+      error: '読み込めませんでした。', unavailable: 'このページをファイルとして直接開いているので動きません（Web サーバーから開いてください）。' }[st] || '';
+    return h('div', { class: 'note warn', 'data-need-lint': what }, h('p', null, `${what}は、設計の規則の検査（claim_lint、Python で書いた検査をブラウザの中で動かす）が作る表です。`, msg),
       st === 'off' || st === 'error' ? h('p', null, h('button', { type: 'button', class: 'primary', 'data-action': 'load-lint', onclick: () => state.hooks.loadLint && state.hooks.loadLint() },
-        'claim_lint を読み込んで検査する'), h('span', { class: 'muted' }, '（約 13 MB をこのサイトから読み込みます。外部には送信しません）')) : null);
+        '設計の規則も検査する'), h('span', { class: 'muted' }, '（claim_lint。初めては約 13 MB をこのサイトから読み込みます。外部には送信しません）')) : null);
   }
   function staleNote() {
     return B().stale ? h('div', { class: 'note warn', 'data-stale': '1' }, h('p', null, badge('warn', '…', '古い'), ' 編集の後、まだ claim_lint を実行し終えていません。この画面の生成した表は、前の検査の時点のものです。')) : null;
@@ -779,11 +885,13 @@
     const q = new URLSearchParams(query);
     state.folds = new Set((q.get('fold') || '').split(',').filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch (e) { return x; } }));
     if (!state.bundle) return;
-    const view = parts[0] || 'overview';
+    const view = parts[0] === 'overview' ? 'dashboard' : parts[0] || 'dashboard';
     const id = parts[1];
     if (view === 'lint' && state.hooks.onLintView) state.hooks.onLintView();
-    const fn = lookup({ overview: viewOverview, claims: () => viewClaims(query), claim: () => viewClaim(id), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
-      profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: viewLint, tables: viewTables,
+    const base = lookup(DETAIL, view) || view;
+    const noFile = own(VIEW_FILE, base) && !hasFile(VIEW_FILE[base]) ? () => viewNoFile(base) : null;
+    const fn = noFile || lookup({ dashboard: viewDashboard, claims: () => viewClaims(query), claim: () => viewClaim(id), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
+      profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: () => viewLint(query), tables: viewTables,
       trace: viewTrace }, view);
     const navView = lookup({ claim: 'claims', token: 'tokens', hop: 'hops' }, view) || view;
     const extra = !fn && own(state.views, view) ? () => state.views[view].render(parts.slice(1), query) : null;
@@ -830,7 +938,7 @@
     registerView(name, view) { state.views[name] = view; },
     // the renderers of the preview, for the screens of #50 (text only)
     helpers: { value: (v, col) => value(v, col), columnValue: (coll, key, v) => columnValue(coll, key, v, (META.columns[coll] || []).find((c) => c.key === key)),
-      inline, badge, lintBadges, foldable, foldKey, slideLink, revealLink, claimLink, tokenLink, hopLink, columns: (coll) => META.columns[coll] || [],
+      inline, inlineRepo, badge, lintBadges, foldable, foldKey, slideLink, revealLink, claimLink, tokenLink, hopLink, columns: (coll) => META.columns[coll] || [],
       registry: () => reg(), keepScroll: () => { render.keepScroll = true; render.focus = false; } },
     anchorOf,
     route,

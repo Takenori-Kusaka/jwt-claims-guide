@@ -20,7 +20,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
 | [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR7。各観点に合格と不合格の例。採点の範囲と迷いやすい点の決まり） |
 | [report_template.md](report_template.md) | レビューレポートの様式（出どころ 5 種・種別 5 種） |
-| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50。設計書のエディターのレビューモードが書き出す。レビュアーの名前は自己申告） |
+| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50。設計書のエディターのレビューが書き出す。レビュアーの名前は自己申告） |
 | [escaped_defects.md](escaped_defects.md) | レビュー後に見つかった欠陥の記録 |
 | [metrics.md](metrics.md) | レビューの指標（目標にしない観察の記録） |
 
@@ -37,11 +37,11 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [contrasts/carry-vs-query.md](contrasts/carry-vs-query.md) | クレームに載せることと、問い合わせること |
 | [contrasts/name-vs-identifier.md](contrasts/name-vs-identifier.md) | 名前（表示・語彙）と識別子（照合のキー）、名前空間 |
 
-記入例：[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md)（シナリオ B のレビューと、過去の指摘との較正）。エディターのレビューモードで記録した例：[../examples/scenario-b/review.yaml](../examples/scenario-b/review.yaml) と、そこから生成した [../examples/scenario-b/review-report-2026-11-23.md](../examples/scenario-b/review-report-2026-11-23.md)（今の版を LLM のセッション 1 つが全 168 問でレビューしたもの。人による点検は未実施）。
+記入例：[../examples/scenario-b/review-report.md](../examples/scenario-b/review-report.md)（シナリオ B のレビューと、過去の指摘との較正）。エディターのレビューで記録した例：[../examples/scenario-b/review.yaml](../examples/scenario-b/review.yaml) と、そこから生成した [../examples/scenario-b/review-report-2026-11-23.md](../examples/scenario-b/review-report-2026-11-23.md)（今の版を LLM のセッション 1 つが全 168 問でレビューしたもの。人による点検は未実施）。
 
-## エディターのレビューモード（#50）
+## エディターでレビューする（#50）
 
-設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）の「レビュー」の画面で、この教材を使ってレビューを記録できます。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします（Git の履歴が監査の記録になる）。
+設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）で、上のバーを「レビュー」に切り替えると、この教材を使ってレビューを記録できます（最初の画面の「設計書をレビューする」からも始められる）。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします（Git の履歴が監査の記録になる）。
 
 - 観点のチェックリスト：観点書の 168 問（`python tools/build_claims_viewer.py` が観点書から作る。CI の `--check` が食い違いを見る）を、6 段と役割（7. の索引）で絞り込み、問いごとに Yes／No／該当なし とメモを記録する。「見る欄」から、その欄（台帳の列・設計書の節・25 問の回答）に移る
 - 行ごとの判定：承認／修正を求める／保留 を、レビュアー・日時・コメントとともに記録する。判定は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると「再確認が要る」になる

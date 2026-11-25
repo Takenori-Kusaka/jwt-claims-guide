@@ -7,8 +7,27 @@
 // The reviewer's name is self-declared (there is no login); the approval that counts is the GitHub pull request review.
 'use strict';
 (function () {
+  // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
+  // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
+  const BUILD_ID = '26b0f1c1176e';
+  (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
+  if (CE && CE.BUILD_ID !== BUILD_ID) {
+    if (CE.buildBanner) { CE.buildBanner(['review.js']); return; }
+    if (document.getElementById('build-banner')) return;
+    const el = document.createElement('div');
+    el.id = 'build-banner'; el.className = 'buildwarn'; el.setAttribute('role', 'alert');
+    const pp = document.createElement('p');
+    const b = document.createElement('button');
+    b.type = 'button'; b.id = 'build-reload'; b.className = 'primary'; b.textContent = '再読み込みする';
+    b.addEventListener('click', () => location.reload());
+    pp.append('新しい版が公開されました。再読み込みしてください。 ', b, ' （版のそろわないファイル：editor.js・review.js）');
+    el.append(pp);
+    document.body.prepend(el);
+    return;
+  }
+  if (CE && CE.started === false) return;  // the editor did not start (files of two builds): it has said so
   // data/review.js (the questions, built from perspectives.md) is loaded when a design is opened, not with the page
   // (the first screen stays light, #49); until then R is empty
   let R = (window.CLAIMS_VIEWER_DATA || {}).review || null;
@@ -19,8 +38,11 @@
     if (!loading) {
       loading = new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = 'data/review.js';
-        s.onload = () => { R = (window.CLAIMS_VIEWER_DATA || {}).review || null; if (R) { index(); resolve(R); } else reject(new Error('no data in data/review.js')); };
+        s.src = CE.asset('data/review.js');
+        s.onload = () => {
+          if ((window.CLAIMS_BUILD || {})['data/review.js'] !== BUILD_ID) { CE.buildBanner(['data/review.js']); loading = null; reject(new Error('stale')); return; }
+          R = (window.CLAIMS_VIEWER_DATA || {}).review || null; if (R) { index(); resolve(R); } else reject(new Error('no data in data/review.js'));
+        };
         s.onerror = () => { loading = null; reject(new Error('data/review.js を読めません')); };
         document.head.append(s);
       });
@@ -138,7 +160,7 @@
 
   // ------------------------------------------------------------ state
   // file: the records (review.yaml); me: the name of the reviewer who records in this tab (self-declared)
-  const st = { file: emptyFile(''), savedText: '', me: null, base: null, designRel: '', open: false, timer: null, focus: null, editFinding: null };
+  const st = { file: emptyFile(''), savedText: '', me: null, base: null, designRel: '', open: false, timer: null, focus: null, editFinding: null, wizard: 1 };
   function emptyFile(design) { return { format: FORMAT, design, independent: false, reviews: [] }; }
   function now() { return (RV.clock ? RV.clock() : new Date()).toISOString().slice(0, 19) + 'Z'; }
   function mine() { return st.me ? st.file.reviews.find((r) => r.reviewer.name === st.me) || null : null; }
@@ -267,12 +289,12 @@
     const cur = m && m.rows[anchor];
     const deps = dependents(anchor);
     const box = h('section', { class: 'rv-panel', 'aria-labelledby': 'rvp-h', 'data-review-panel': anchor },
-      h('h2', { id: 'rvp-h' }, 'レビュー（#50）'),
-      h('p', { class: 'muted small' }, '判定は、この行の内容のハッシュ（', code(hash ? hash.slice(0, 16) + '…' : 'なし'), '）に結びつけます。行を変えると「再確認が要る」になります。名前は自己申告で、本当の承認は GitHub の PR のレビューです。'),
+      h('h2', { id: 'rvp-h' }, 'この行のレビュー'),
+      h('p', { class: 'muted small' }, '判定は、記録した時のこの行の中身に結びつきます。行を変えると「再確認が要る」になります。', h('span', { title: '行の中身のハッシュ（RFC 8785 で正規化した JSON の SHA-256）' }, '（照合に使う値：', code(hash ? hash.slice(0, 16) + '…' : 'なし'), '）')),
       deps.length ? h('details', { class: 'small', 'data-dependents': anchor }, h('summary', null, `依存する行 ${deps.length} 件（変えても、この判定は「再確認が要る」にならない）`),
         h('ul', null, deps.map(([a, why]) => h('li', null, /^claim_request_/.test(a) ? code(a) : rowLink(a), `：${why}`)))) : null);
     if (!hash) box.append(h('p', { class: 'note warn' }, 'この行にはハッシュが無い（ID が 2 行以上にある、またはハッシュにできない値がある）ので、判定を記録できません。'));
-    else if (!m) box.append(h('p', null, '判定を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前（自己申告）を決めてください。'));
+    else if (!m) box.append(h('p', null, '判定を記録するには、', h('a', { href: P.route('review') }, 'レビューを始める'), 'でレビュアーの名前を決めてください。'));
     else {
       const fid = 'rvp-' + anchor.replace(/[^A-Za-z0-9_-]/g, '_');
       const comment = h('textarea', { id: fid + '-c', rows: '2', class: 'rv-comment', 'aria-label': 'コメント' }, cur && cur.comment ? cur.comment : '');
@@ -367,7 +389,7 @@
   }
   function companionOpen(info) {
     st.opening = true;
-    loadData().then(() => companionOpen2(info), (e) => CE.ask('レビューモードを使えません', String(e.message || e), [['ok', '閉じる']]));
+    loadData().then(() => companionOpen2(info), (e) => { st.opening = false; if (e.message !== 'stale') CE.ask('レビューを使えません', String(e.message || e), [['ok', '閉じる']]); });
   }
   function companionOpen2(info) {
     st.open = true;
@@ -394,7 +416,7 @@
       if (sv && typeof sv.text !== 'string') sv = { savedAt: sv.savedAt || '不明', text: '\u0000' };
       if (sv && sv.text !== dump(st.file)) return askSlot(sv);
       return null;
-    }).then(() => { st.opening = false; CE.publish(); });
+    }).then(() => { st.opening = false; st.wizard = mine() ? null : 1; CE.publish(); });
   }
   // merge review files into the open records; a reviewer who is in both with different records is asked about
   function mergeIn(datas) {
@@ -433,6 +455,8 @@
           if (wasClean && use.length === 1 && use[0][1].design === st.designRel) st.savedText = use[0][0].text.replace(/\r\n/g, '\n');
           st.file.design = st.designRel;
           if (errs.length) CE.ask('読めなかった review.yaml', errs.join('\n'), [['ok', '閉じる']]);
+          if (st.afterImport && use.length) { st.wizard = st.afterImport; }
+          st.afterImport = null;
           changed(true);
           return { loaded: use.length, errors: errs };
         });
@@ -544,10 +568,10 @@
   }
 
   // ------------------------------------------------------------ screens
-  function needOpen() { return [h('h1', { tabindex: '-1' }, 'レビューモード'), h('p', null, '設計書を開いてから使います。')]; }
+  function needOpen() { return [h('h1', { tabindex: '-1' }, 'レビュー'), h('p', null, st.opening ? 'レビューの記録を読み込んでいます…' : '設計書を開いてから使います。')]; }
   function selfDeclared() {
     return h('div', { class: 'note warn', id: 'rv-self-declared' }, h('p', null, h('strong', null, 'レビュアーの名前は自己申告です。'),
-      'このエディターにはログインが無く、名前は誰でも書けます。本当の承認は GitHub の PR のレビュー（Approve）で行います。ここでの記録は、その PR に review.yaml としてコミットし、Git の履歴を監査の記録にします。'));
+      '本当の承認は GitHub の pull request のレビューで行います。', h('details', null, h('summary', null, '詳しく'), h('p', null, 'このエディターにはログインが無く、名前は誰でも書けます。ここでの記録（review.yaml）は、その pull request にコミットし、Git の履歴を監査の記録にします。'))));
   }
   // switching the reviewer of this tab: to another name of the records, a deliberate act (a dialog), and while the
   // current reviewer's independent review is not submitted, leaving it (recorded)
@@ -558,6 +582,68 @@
       : CE.ask('既にあるレビュアーの記録で続ける', `「${name}」の記録（${target && target.submitted ? '提出済み' : '未提出'}）に切り替えます。名前は自己申告なので、この操作で、ほかの人の記録を自分のものとして直せてしまいます。${typed ? '同じ名前を打ちました。' : ''}本人のときだけ続けてください。`,
         [['go', '続ける'], ['cancel', 'やめる']]).then((c) => c === 'go');
     return p.then((ok) => { if (ok) st.me = name; changed(true); });
+  }
+  // a new reviewer: in the overview, and as step 1 of the stepper
+  function newForm(m, name, kind, model, onDone) {
+    return h('form', { class: 'filters', id: 'rv-new', onsubmit: (e) => {
+        e.preventDefault();
+        const n = name.value.trim();
+        if (!n) { name.focus(); return; }
+        if (st.file.reviews.some((r) => r.reviewer.name === n)) { switchTo(n, true).then(() => { if (st.wizard === 1 && st.me === n) { st.wizard = 2; changed(true); } }); return; }
+        const go = () => {
+          const rv = { reviewer: { name: n, kind: kind.value }, self_declared: true, started: now(), submitted: null,
+            materials: { perspectives: R.template_version, report_template: (R.versions || {})['templates/review/report_template.md'] || R.template_version, questions: R.questions.length },
+            answers: {}, rows: {}, findings: [] };
+          if (model.value.trim()) rv.reviewer.model = model.value.trim();
+          if (st.file.independent) rv.independence = { mode: 'kept' };
+          st.file.reviews.push(rv);
+          st.me = n;
+          if (st.wizard === 1) st.wizard = 2;
+          changed(true);
+          if (onDone) onDone();
+        };
+        // a new reviewer while I have not submitted: the new name would see nothing of mine, but I leave my review
+        if (locked()) breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => { if (ok) go(); else P.render(); }); else go();
+      } }, h('label', null, '名前（自己申告）', name), h('label', null, '種類', kind), h('label', null, 'モデル（LLM のとき）', model),
+      h('div', null, h('button', { type: 'submit', class: 'primary', id: 'rv-new-go' }, m ? '新しいレビュアーを足す' : '始める')));
+  }
+  // レビューを始める (#53): one step at a time. 1. the reviewer, 2. records to read or a new start, 3. independent or not,
+  // 4. on to the checklist. Recording is possible from the end of step 1 (the name is enough); the rest has defaults.
+  const STEPS = ['レビュアー', '記録のファイル', '独立レビュー', 'チェックリストへ'];
+  function stepper(m, f) {
+    const n = st.wizard;
+    const go = (k) => { st.wizard = k; st.focus = 'rv-step-h'; changed(true); };
+    const back = n > 1 ? h('button', { type: 'button', class: 'link', id: 'rv-step-back', onclick: () => go(n - 1) }, '← 戻る') : null;
+    const skip = h('button', { type: 'button', class: 'link small', id: 'rv-step-close', onclick: () => go(null) }, '手順を閉じる');
+    let body;
+    if (n === 1) {
+      body = [h('p', null, '名前と、人か LLM かを入れて「始める」を押します。名前は自己申告です。'),
+        newForm(m, f.name, f.kind, f.model),
+        st.file.reviews.length ? h('p', null, h('label', { for: 'rv-pick' }, 'または、記録にあるレビュアーで続ける：'), f.pick, ' ',
+          h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(f.pick.value || null).then(() => { if (st.me && st.wizard === 1) go(2); }) }, 'このレビュアーで続ける')) : null];
+    } else if (n === 2) {
+      const others = st.file.reviews.filter((r) => r !== m).length;
+      body = [h('p', null, others ? `いま開いている記録には、ほかのレビュアー ${others} 人の記録があります。` : '前のレビューの記録（review.yaml）があれば読み込みます。無ければ、このまま新しく始めます。'),
+        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-step-import', onclick: () => { st.afterImport = 3; $('#rv-import').click(); } }, 'review.yaml を読み込む'),
+          h('button', { type: 'button', class: 'primary', id: 'rv-step-new', onclick: () => go(3) }, others ? 'このまま進む' : '新しく始める'))];
+    } else if (n === 3) {
+      body = [h('p', null, '独立レビューにすると、提出するまで、ほかのレビュアーの記録を画面に出しません。'),
+        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-step-ind-on', 'aria-pressed': st.file.independent ? 'true' : 'false', onclick: () => {
+          st.file.independent = true; const me = mine(); if (me && !me.submitted && !me.independence) me.independence = { mode: 'kept' }; go(4);
+        } }, '独立レビューにする'),
+        h('button', { type: 'button', class: 'primary', id: 'rv-step-ind-off', onclick: () => {
+          if (!st.file.independent) { go(4); return; }
+          breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) st.file.independent = false; go(ok ? 4 : 3); });
+        } }, st.file.independent ? '独立レビューをやめる' : 'しない（ふつうのレビュー）')),
+        h('details', null, h('summary', null, '詳しく'), h('p', null, '独立レビューは、ほかの人の答えに引きずられないための決まりです（templates/review/procedure.md）。画面で隠すだけなので、review.yaml を開けば誰でも読めます。隠すのをやめる操作は確かめ、外れたことと日時・理由を記録します。'))];
+    } else {
+      body = [h('p', null, '準備ができました。観点の問いに答えるか、設計書の画面で行ごとに判定します。'),
+        h('p', { class: 'buttons' }, h('a', { class: 'btn primary', id: 'rv-step-go', href: P.route('review', 'checklist'), onclick: () => { st.wizard = null; } }, '観点のチェックリストへ'),
+          h('a', { class: 'btn', id: 'rv-step-rows', href: P.route('claims'), onclick: () => { st.wizard = null; } }, '台帳の行を判定する（クレームの一覧へ）'))];
+    }
+    return h('section', { class: 'stepper', id: 'rv-stepper', 'data-step': String(n), 'aria-labelledby': 'rv-step-h' },
+      h('ol', { class: 'steps' }, STEPS.map((t, i) => h('li', { 'aria-current': i + 1 === n ? 'step' : null, class: i + 1 < n ? 'done' : null }, `${i + 1}. ${t}`))),
+      h('h2', { id: 'rv-step-h', tabindex: '-1' }, `${n}. ${STEPS[n - 1]}`), body, h('p', { class: 'small' }, back, ' ', skip));
   }
   function viewOverview() {
     const m = mine();
@@ -575,31 +661,15 @@
       const s = rowState(rv.rows[a], a, set);
       if (s === 'missing') lost.push([rv, a]); else if (s === 'stale') stale.push([rv, a]);
     }));
-    return [h('h1', { tabindex: '-1' }, 'レビューモード（#50）'),
-      h('p', { class: 'lead' }, '観点書（templates/review/perspectives.md、', R.questions.length, ' 問）の問いに答え、台帳の行ごとに判定を記録し、指摘を report_template.md の欄で記録します。記録は review.yaml（設計書と同じディレクトリ）に書き出し、PR で台帳と一緒に管理します。外部には送信しません。'),
+    const wiz = st.wizard ? stepper(m, { name, kind, model, pick }) : null;
+    return [h('h1', { tabindex: '-1' }, 'レビュー', ' ', h('span', { class: 'muted small' }, wiz ? 'はじめる' : '記録の概要')),
+      wiz,
+      h('p', { class: 'lead' }, '観点の問い（', R.questions.length, ' 問）に答え、台帳の行ごとに判定し、指摘を記録します。記録はファイル（review.yaml）に書き出して、設計書と一緒に管理します。', h('span', { class: 'muted small' }, ' 問いの出典：templates/review/perspectives.md')),
       selfDeclared(),
       h('h2', null, '記録するレビュアー'),
       h('p', { 'data-me': st.me || '' }, m ? ['いま記録しているのは ', h('strong', null, m.reviewer.name), `（${m.reviewer.kind === 'llm' ? 'LLM' : '人'}、自己申告）`, m.submitted ? `。${m.submitted} に提出済み` : '。未提出'] : 'レビュアーが決まっていません（回答・判定・指摘の記録には、名前が要ります）。'),
-      st.file.reviews.length ? h('p', null, h('label', { for: 'rv-pick' }, '記録にあるレビュアーから選ぶ：'), pick, ' ', h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(pick.value || null) }, 'このレビュアーで記録する')) : null,
-      h('form', { class: 'filters', id: 'rv-new', onsubmit: (e) => {
-        e.preventDefault();
-        const n = name.value.trim();
-        if (!n) { name.focus(); return; }
-        if (st.file.reviews.some((r) => r.reviewer.name === n)) { switchTo(n, true); return; }
-        const go = () => {
-          const rv = { reviewer: { name: n, kind: kind.value }, self_declared: true, started: now(), submitted: null,
-            materials: { perspectives: R.template_version, report_template: (R.versions || {})['templates/review/report_template.md'] || R.template_version, questions: R.questions.length },
-            answers: {}, rows: {}, findings: [] };
-          if (model.value.trim()) rv.reviewer.model = model.value.trim();
-          if (st.file.independent) rv.independence = { mode: 'kept' };
-          st.file.reviews.push(rv);
-          st.me = n;
-          changed(true);
-        };
-        // a new reviewer while I have not submitted: the new name would see nothing of mine, but I leave my review
-        if (locked()) breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => { if (ok) go(); else P.render(); }); else go();
-      } }, h('label', null, '名前（自己申告）', name), h('label', null, '種類', kind), h('label', null, 'モデル（LLM のとき）', model),
-      h('div', null, h('button', { type: 'submit', class: 'primary', id: 'rv-new-go' }, '新しいレビュアーとして始める'))),
+      st.file.reviews.length && !(wiz && !m) ? h('p', null, h('label', { for: 'rv-pick' }, '記録にあるレビュアーから選ぶ：'), pick, ' ', h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(pick.value || null) }, 'このレビュアーで記録する')) : null,
+      wiz && !m ? null : newForm(m, name, kind, model),
       h('h2', null, '独立レビュー'),
       h('p', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'rv-independent', checked: st.file.independent ? true : null, onchange: (e) => {
         const on = e.target.checked;
@@ -607,8 +677,8 @@
         e.target.checked = true;
         breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) { st.file.independent = false; } changed(true); });
       } }),
-        ' 提出するまで、ほかのレビュアーの記録（回答・判定・指摘）を隠す'), h('span', { class: 'muted' }, '（templates/review/procedure.md の独立したレビュー。合わせて読み込んだ記録も、提出の後に見えます）')),
-      h('p', { class: 'note warn', id: 'rv-independence-limits' }, h('strong', null, '独立レビューは画面で隠すだけです。'),
+        ' 提出するまで、ほかのレビュアーの記録（回答・判定・指摘）を隠す'), h('span', { class: 'muted small' }, '（合わせて読み込んだ記録も、提出の後に見えます。手順：templates/review/procedure.md）')),
+      h(st.file.independent ? 'p' : 'details', { class: 'note warn', id: 'rv-independence-limits' }, st.file.independent ? null : h('summary', null, '独立レビューでできないこと'), h('strong', null, '独立レビューは画面で隠すだけです。'),
         'review.yaml を開けば、ほかのレビュアーの記録は誰でも読めます。このエディターにできるのは、提出の前に隠すのをやめる操作（ほかのレビュアーへの切り替え・設定を外す・全員の記録の書き出し）を確かめ、外れたことと日時・理由を review.yaml に記録すること、ほかの記録を初めて見た日時と、その後に直した記録に印を付けることだけです。守ったかどうかは、名前と同じく自己申告で、手順（procedure.md）で守ります。'),
       m && m.independence ? h('p', { id: 'rv-independence', 'data-mode': m.independence.mode }, '自分の独立レビュー：', m.independence.mode === 'broken' ? `提出の前に外れた（${m.independence.broken_at}、${m.independence.reason || ''}）` : '続けている',
         m.independence.viewed_others_at ? `。ほかの記録を初めて見た日時 ${m.independence.viewed_others_at}（その後に直した記録には印が付く）` : '') : null,
@@ -619,7 +689,8 @@
         h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-slot-ask', onclick: () => askSlot(st.slotHold).then(() => changed(true)) }, '自動保存した記録をどうするか選ぶ'), ' ',
           h('button', { type: 'button', id: 'rv-slot-forget', onclick: () => CE.ask('自動保存した記録を消す', 'このブラウザに自動保存したレビューの記録を消して、いま開いている記録を使います。', [['delete', '消す'], ['cancel', 'やめる']])
             .then((c) => { if (c === 'delete') { try { localStorage.removeItem(slotKey()); } catch (e) { /* ignore */ } st.slotHold = null; CE.saveWarning(null, 'review'); changed(true); } }) }, '自動保存した記録を消す'))) : null,
-      h('h2', null, 'review.yaml'),
+      h('h2', null, 'レビューの記録を読み込む・書き出す'),
+      h('p', { class: 'muted small' }, '記録のファイル：review.yaml（設計書と同じディレクトリに置く）'),
       h('p', { id: 'rv-file-state', 'data-unsaved': unsaved() ? '1' : '0' }, unsaved() ? '書き出していない記録があります。' : '書き出していない記録はありません。', ` レビュアー ${st.file.reviews.length} 人。`),
       h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む（複数を選ぶと合わせる）'), imp, ' ',
         h('button', { type: 'button', class: 'primary', id: 'rv-export', onclick: () => exportAll() }, 'review.yaml を書き出す（全員の記録）'), ' ',
@@ -634,7 +705,7 @@
             h('td', { class: 'num' }, `${Object.keys(rv.answers).length} / ${R.questions.length}`), h('td', { class: 'num' }, c.approve), h('td', { class: 'num' }, c.request_changes), h('td', { class: 'num' }, c.hold),
             h('td', { class: 'num' }, sN), h('td', { class: 'num' }, rv.findings.length), h('td', null, rv.submitted || '未提出'));
         })))) : h('p', { class: 'muted' }, '表示できる記録はありません。'),
-      h('h2', null, '再確認が要る行・台帳に無い行の記録'),
+      h('h2', null, '見直しが要る記録'),
       stale.length || lost.length ? h('ul', { id: 'rv-attention' }, stale.map(([rv, a]) => h('li', { 'data-stale': a }, stateBadge(rv.rows[a], a, rv, set), ' ', rowLink(a))),
         lost.map(([rv, a]) => h('li', { 'data-missing': a }, stateBadge(rv.rows[a], a, rv, set), ' ', code(a), ` ― 記録にある行が、今の台帳に無い（行が消えたか、ID が変わった）。記録は消さずに残しています。`))) : h('p', { class: 'muted', id: 'rv-attention' }, 'ありません。')];
   }
@@ -659,18 +730,27 @@
     const roleNote = h('p', { class: 'note warn', id: 'rv-role-note', role: 'status', hidden: true });
     const ansSel = h('select', { id: 'rv-f-ans' }, h('option', { value: '' }, 'すべて'), h('option', { value: 'open' }, '未回答'), Object.keys(ANS).map((k) => h('option', { value: k }, ANS[k][2])));
     const text = h('input', { type: 'search', id: 'rv-f-q', placeholder: '問い ID・問いの文・見る欄で探す' });
+    // the triage of each question (data/review.js): the default filter comes from the data, so that a shorter list shown
+    // first is a change of perspectives.md, not of this screen
+    const tri = Array.from(new Set(R.questions.map((x) => x.triage || 'all')));
+    const tl = (R.checklist && R.checklist.triage_labels) || {};
+    const triSel = h('select', { id: 'rv-f-triage' }, h('option', { value: '' }, 'すべての問い'), tri.filter((t) => t !== 'all').map((t) => h('option', { value: t }, tl[t] || t)));
+    const def = (R.checklist && R.checklist.default) || {};
+    const anyQuery = Array.from(q.keys()).length > 0;
+    triSel.value = q.get('triage') || (!anyQuery && Array.isArray(def.triage) && def.triage.length === 1 ? def.triage[0] : '');
     stageSel.value = q.get('stage') || ''; roleSel.value = q.get('role') || ''; ansSel.value = q.get('ans') || ''; text.value = q.get('q') || '';
     const count = h('p', { class: 'count', id: 'rv-count', 'aria-live': 'polite' });
     const list = h('div', { id: 'rv-questions' });
     const items = [];
     R.stages.forEach((s) => {
       const qs = R.questions.filter((x) => x.stage === s.id);
-      const sec = h('section', { class: 'rv-stage', 'data-stage': s.id }, h('h2', null, s.title), h('p', { class: 'muted small' }, h('strong', null, '誰が確かめるか：'), H.inline(s.who)));
+      const sec = h('section', { class: 'rv-stage', 'data-stage': s.id }, h('h2', null, s.title), h('p', { class: 'muted small' }, h('strong', null, '誰が確かめるか：'), H.inlineRepo(s.who)));
       qs.forEach((x) => { const el = questionItem(x, m); items.push([x, el]); sec.append(el); });
       list.append(sec);
     });
     function apply() {
       const params = {};
+      if (triSel.value) params.triage = triSel.value;
       if (stageSel.value) params.stage = stageSel.value;
       if (roleSel.value) params.role = roleSel.value;
       if (ansSel.value) params.ans = ansSel.value;
@@ -679,7 +759,7 @@
       let n = 0;
       items.forEach(([x, el]) => {
         const a = answerOf(mine(), x.id);
-        const ok = (!stageSel.value || x.stage === stageSel.value) &&
+        const ok = (!triSel.value || (x.triage || 'all') === triSel.value) && (!stageSel.value || x.stage === stageSel.value) &&
           (!roleSel.value || (roleSel.value === 'none' ? !x.roles.length : x.roles.includes(roleSel.value))) &&
           (!ansSel.value || (ansSel.value === 'open' ? !a : a === ansSel.value)) &&
           (!t || (x.id + ' ' + x.text + ' ' + x.see).toLowerCase().includes(t));
@@ -695,7 +775,7 @@
       if (location.hash !== hash) history.replaceState(null, '', hash);
     }
     const form = h('form', { class: 'filters', role: 'search', onsubmit: (e) => e.preventDefault(), oninput: apply, onchange: apply },
-      h('label', null, '段（スライド 148 の 6 段）', stageSel), h('label', null, '役割（観点書の 7. の索引）', roleSel), h('label', null, '自分の回答', ansSel), h('label', { class: 'wide' }, '検索', text));
+      tri.length > 1 ? h('label', null, '表示する問い', triSel) : null, h('label', null, '段（スライド 148 の 6 段）', stageSel), h('label', null, '役割（観点書の 7. の索引）', roleSel), h('label', null, '自分の回答', ansSel), h('label', { class: 'wide' }, '検索', text));
     setTimeout(apply, 0);
     return [h('h1', { tabindex: '-1' }, '観点のチェックリスト'),
       h('p', { class: 'lead' }, '問いはどれも Yes が「満たす」の向きです。見る欄が空で判定できないときは No にして、指摘にします（templates/review/procedure.md の段 3）。「見る欄」を押すと、その欄（台帳の列・設計書の節・25 問の回答）に移動します。'),
@@ -723,11 +803,11 @@
     const name = 'rv-a-' + x.id;
     const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
     const el = h('article', { class: 'rv-q', id: 'q-' + x.id, 'data-q': x.id, 'data-answer': a },
-      h('h3', null, code(x.id), ' ', H.inline(x.text)),
+      h('h3', null, code(x.id), ' ', H.inlineRepo(x.text)),
       x.roles.length ? h('p', { class: 'codes small' }, x.roles.map((r) => h('span', { class: 'chip' }, ROLE.get(r).name))) : null,
       h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る欄：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
-      h('details', null, h('summary', null, 'No なら・つながり・根拠'), h('dl', { class: 'obj' }, h('dt', null, 'No なら'), h('dd', null, H.inline(x.no)), h('dt', null, 'つながり'), h('dd', null, H.inline(x.links)),
-        h('dt', null, '根拠'), h('dd', null, H.inline(x.evidence)), h('dt', null, '原文'), h('dd', null, h('a', { href: x.url }, 'perspectives.md の ' + x.id)))),
+      h('details', null, h('summary', null, 'No なら・つながり・根拠'), h('dl', { class: 'obj' }, h('dt', null, 'No なら'), h('dd', null, H.inlineRepo(x.no)), h('dt', null, 'つながり'), h('dd', null, H.inlineRepo(x.links)),
+        h('dt', null, '根拠'), h('dd', null, H.inlineRepo(x.evidence)), h('dt', null, '原文'), h('dd', null, h('a', { href: x.url }, 'perspectives.md の ' + x.id)))),
       h('fieldset', { class: 'rv-ans', disabled: m ? null : true }, h('legend', null, m ? `${x.id} の回答（${m.reviewer.name}）` : `${x.id} の回答`),
         [['', '未回答']].concat(Object.keys(ANS).map((k) => [k, ANS[k][2]])).map(([v, label]) => h('label', null,
           h('input', { type: 'radio', name, value: v, checked: a === v ? true : null, 'data-answer-for': x.id, onchange: () => setAns(v) }), ' ', v ? ANS[v][1] + ' ' : '', label)),
@@ -748,9 +828,10 @@
     const rows = reg[coll] && Array.isArray(reg[coll][key]) ? reg[coll][key].filter(isObj) : [];
     const qs = R.questions.filter((x) => x.see_refs.some((r) => r.kind === 'registry' && r.path === coll && r.anchor === col));
     const out = [h('p', null, h('a', { href: P.route('review', 'checklist') }, '← 観点のチェックリスト')),
-      h('h1', { tabindex: '-1', 'data-column': coll + '.' + col }, `欄：${c ? c.label : col}`, ' ', code(`registry:${coll}#${col}`)),
+      h('h1', { tabindex: '-1', 'data-column': coll + '.' + col }, `欄：${c ? c.label : col}`),
+      h('p', { class: 'muted small' }, '項目の名前：', code(`registry:${coll}#${col}`)),
       c && c.meaning ? h('p', { class: 'lead' }, H.inline(c.meaning)) : null,
-      qs.length ? h('details', { open: true }, h('summary', null, `この欄を見る問い ${qs.length} 件`), h('ul', null, qs.map((x) => h('li', null, h('a', { href: P.route('review', 'checklist', { q: x.id }) }, x.id), ' ', H.inline(x.text))))) : null];
+      qs.length ? h('details', { open: true }, h('summary', null, `この欄を見る問い ${qs.length} 件`), h('ul', null, qs.map((x) => h('li', null, h('a', { href: P.route('review', 'checklist', { q: x.id }) }, x.id), ' ', H.inlineRepo(x.text))))) : null];
     if (isProfile) {
       const p = reg.token_types && reg.token_types.issuance_profile;
       out.push(h('p', null, '発行方式の選択（token_types.yaml の issuance_profile）の項目です：'), h('div', { class: 'cols' }, h('div', { class: 'col' }, h('div', { class: 'ch' }, code(col)), h('div', { class: 'cv' }, p && own(p, col) ? H.value(p[col]) : '（未記入）'))));
@@ -941,7 +1022,7 @@
     const e = m.escalations || {};
     const applies = e.applies || []; const na = e.not_applicable || [];
     const save = () => { m.escalations = { applies: applies.slice(), not_applicable: na.slice() }; if (!applies.length && !na.length) delete m.escalations; changed(true); };
-    return [h('h2', null, '専門家に回した項目（escalation.md）'),
+    return [h('h2', null, '専門家に回した項目'),
       h('p', { class: 'muted' }, '基準の表を上から見て、当てはまる行を回します。当てはまらない基準も、確かめたことを記録します（procedure.md の段 6）。'),
       h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'escalation' }, h('thead', null, h('tr', null, ['基準', '当てはまる条件', '確かめた結果', '行・欄／回した先／結論'].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, R.escalation.criteria.map((c) => {
@@ -958,7 +1039,7 @@
           });
           const fld = (k, label) => h('input', { type: 'text', 'aria-label': `${c.id} の${label}`, placeholder: label, value: ap ? ap[k] || '' : '', 'data-escalation-field': c.id + '.' + k,
             onchange: (ev) => { if (ap) { if (ev.target.value.trim()) ap[k] = ev.target.value.trim(); else if (k !== 'location') delete ap[k]; save(); } } });
-          return h('tr', null, h('th', { scope: 'row' }, h('a', { href: gh(R.escalation.file, c.id) }, c.id)), h('td', null, H.inline(c.when)), h('td', null, s),
+          return h('tr', null, h('th', { scope: 'row' }, h('a', { href: gh(R.escalation.file, c.id) }, c.id)), h('td', null, H.inlineRepo(c.when)), h('td', null, s),
             h('td', null, ap ? [fld('location', '行・欄'), ' ', fld('to', '回した先'), ' ', fld('due', '期限'), ' ', fld('conclusion', '結論')] : '—'));
         }))))];
   }
@@ -1138,7 +1219,7 @@
       h('nav', { class: 'toc', 'aria-label': '分析の節' }, [['rv-a-cov', '観点の網羅'], ['rv-a-ov', 'lint と指摘の重ね合わせ'], ['rv-a-diff', '前の版との差分'], ['rv-a-links', '対比表と判断の木'], ['rv-a-pa', '25 問の回答'], ['rv-a-sample', '却下の理由の抜き取り']]
         .map(([id, t]) => h('a', { href: '#' + id, onclick: (e) => { e.preventDefault(); const el = document.getElementById(id); if (el) { el.scrollIntoView(); el.focus(); } } }, t))),
       h('h2', { id: 'rv-a-cov', tabindex: '-1' }, '観点の網羅'), h('p', null, h('label', { for: 'rv-cov-who' }, '誰の回答：'), whoSel), box,
-      h('h2', { id: 'rv-a-ov', tabindex: '-1' }, 'lint と指摘の重ね合わせ'), overlay(),
+      h('h2', { id: 'rv-a-ov', tabindex: '-1' }, '検査の指摘とレビューの指摘の重ね合わせ'), overlay(),
       h('h2', { id: 'rv-a-diff', tabindex: '-1' }, '前の版との差分'), diffBlock(),
       h('h2', { id: 'rv-a-links', tabindex: '-1' }, '対比表と判断の木'), linksBlock(),
       h('h2', { id: 'rv-a-pa', tabindex: '-1' }, '25 問の回答'),
@@ -1168,7 +1249,7 @@
       h('p', { class: 'lead' }, 'claim_request_*.md（共有クレームごとの 25 問）の回答を、問いごとに並べます。回答が妥当かを観点書の 1.2（pa-01〜pa-25）で確かめます。'),
       h('p', null, h('label', { for: 'rv-pa-q' }, '問い：'), sel)];
     if (!files.length) out.push(h('p', { class: 'muted' }, 'claim_request_*.md が開かれていません。'));
-    if (n && pq) out.push(h('div', { class: 'note' }, h('p', null, h('a', { href: P.route('review', 'checklist', { q: pq.id }) }, pq.id), ' ', H.inline(pq.text))));
+    if (n && pq) out.push(h('div', { class: 'note' }, h('p', null, h('a', { href: P.route('review', 'checklist', { q: pq.id }) }, pq.id), ' ', H.inlineRepo(pq.text))));
     if (n) {
       out.push(h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'pa' }, h('caption', null, `問 ${n}：${qtext(n)}`),
         h('thead', null, h('tr', null, ['クレーム', '回答', '出どころ', ''].map((x) => h('th', { scope: 'col' }, x)))),
@@ -1335,7 +1416,7 @@
     if (rv === m) out.push(contextForm(m));
     const text = reportText(st.file, rv, undefined, st.version);
     out.push(h('p', { class: 'buttons' }, h('button', { type: 'button', class: 'primary', id: 'rv-report-download', onclick: () => CE.download(`review-report-${date(rv.started) || 'draft'}.md`, new Blob([text], { type: 'text/markdown' })) }, 'レポートを書き出す（.md）')),
-      h('pre', { id: 'rv-report', class: 'rv-report', tabindex: '0', 'aria-label': '生成したレポート' }, text));
+      h('pre', { id: 'rv-report', class: 'rv-report', tabindex: '0', 'aria-label': '生成したレポート', 'data-file-preview': 'review-report.md' }, text));
     return out;
   }
   function contextForm(m) {
@@ -1375,7 +1456,7 @@
     h('div', { class: 'wide' }, h('button', { type: 'submit', class: 'primary', id: 'rv-ctx-save' }, '基本情報を記録する'), ' ',
       h('button', { type: 'button', id: 'rv-ctx-lint', disabled: lc ? null : true, title: lc ? '' : 'claim_lint が最新の内容で動いた後に使える', onclick: () => {
         $('#rv-ctx-ci-error').value = lc.error; $('#rv-ctx-ci-warn').value = lc.warn; $('#rv-ctx-ci-info').value = lc.info; $('#rv-ctx-ci-profile').value = lc.profile;
-      } }, 'claim_lint の結果を写す')));
+      } }, '検査の結果を写す')));
   }
 
   // ------------------------------------------------------------ the screens in the navigation
@@ -1386,14 +1467,35 @@
     const s = $('#rv-file-state');
     if (s) { s.dataset.unsaved = unsaved() ? '1' : '0'; }
   }
+  function rowHref(anchor) {
+    const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
+    if (KIND_VIEW[kind]) return P.route(KIND_VIEW[kind], id);
+    return P.route('review', 'rows', { state: 'stale' });
+  }
   P.registerView('review', {
-    group: 'レビュー（#50）',
+    group: 'レビュー',
+    entry: 'レビューを始める・続ける',
+    // the review on the dashboard (#53): progress, and the rows to look at again and the questions not answered
+    summary: () => {
+      if (!st.open || !R) return null;
+      const m = mine(); const vis = visible(); const set = anchorSet();
+      const stale = [];
+      vis.forEach((rv) => Object.keys(rv.rows).forEach((a) => { if (rowState(rv.rows[a], a, set) === 'stale') stale.push([rv, a]); }));
+      const todos = stale.slice(0, 8).map(([rv, a]) => ({ kind: 'stale', label: '再確認が要る', text: `${a}（${rv.reviewer.name} の「${DEC[rv.rows[a].decision][2]}」の後に行が変わった）`, href: rowHref(a) }));
+      if (stale.length > 8) todos.push({ kind: 'stale', label: '再確認が要る', text: `すべて見る（${stale.length} 行）`, href: P.route('review', 'rows', { state: 'stale' }) });
+      if (m) { const open = R.questions.length - Object.keys(m.answers).length; if (open) todos.push({ kind: 'question', label: '未回答の問い', text: `${open} 問（${m.reviewer.name}）`, href: P.route('review', 'checklist', { ans: 'open' }) }); }
+      else todos.push({ kind: 'start', label: 'レビュー', text: 'レビュアーを決めると、回答と判定を記録できます', href: P.route('review') });
+      const lines = [`レビュアー ${vis.length} 人` + (hiddenCount() ? `（ほか ${hiddenCount()} 人は独立レビューで隠している）` : '')];
+      if (m) lines.push(`${m.reviewer.name}：回答 ${Object.keys(m.answers).length} / ${R.questions.length} 問・判定 ${Object.keys(m.rows).length} 行・指摘 ${m.findings.length} 件` + (m.submitted ? '・提出済み' : ''));
+      lines.push(`再確認が要る判定 ${stale.length} 行`, unsaved() ? '書き出していない記録があります' : '書き出していない記録はありません');
+      return { id: 'review', title: 'レビュー', href: P.route('review'), lines, todos };
+    },
     nav: () => {
-      if (!R) return [{ sub: '', label: 'レビューの概要' }];
+      if (!R) return [{ sub: '', label: 'はじめる・概要' }];
       const m = mine();
       let stale = 0;
       if (st.open) { const set = anchorSet(); visible().forEach((rv) => Object.keys(rv.rows).forEach((x) => { if (rowState(rv.rows[x], x, set) !== 'current') stale++; })); }
-      return [{ sub: '', label: 'レビューの概要' }, { sub: 'checklist', label: '観点のチェックリスト', count: (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length },
+      return [{ sub: '', label: st.wizard ? 'はじめる' : '記録の概要' }, { sub: 'checklist', label: '観点のチェックリスト', count: (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length },
         { sub: 'rows', label: '行ごとの判定', count: stale ? '⟳' + stale : null }, { sub: 'findings', label: '指摘', count: String(visible().reduce((n, rv) => n + rv.findings.length, 0)) },
         { sub: 'analysis', label: '分析' }, { sub: 'pa', label: '25 問の回答' }, { sub: 'report', label: 'レポート' }];
     },
