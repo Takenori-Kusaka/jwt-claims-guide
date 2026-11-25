@@ -6,6 +6,12 @@
 // it reads from data/claim_lint.zip. Nothing is sent: the only requests are GETs of these files (connect-src 'self').
 'use strict';
 /* global loadPyodide */
+// the build id (tools/build_claims_viewer.py, #53): the page compares it with its own, so that a worker of another
+// build (a newer file from the server than the page in the cache) is not used
+const BUILD_ID = '26b0f1c1176e';
+let ASSETS = {};
+// the URL of a file with its content hash (?v=, data/build.js), given by the page
+function asset(path) { return ASSETS[path] ? path + '?v=' + ASSETS[path] : path; }
 let py = null;
 let lintFn = null;
 
@@ -42,24 +48,25 @@ def lint_design(files_json, design_rel, profile):
     return json.dumps(out, ensure_ascii=False)
 `;
 
-async function init(base) {
+async function init(base, assets) {
   const t0 = Date.now();
-  importScripts(base + 'vendor/pyodide/pyodide.js');
+  ASSETS = assets || {};
+  importScripts(base + asset('vendor/pyodide/pyodide.js'));
   py = await loadPyodide({ indexURL: base + 'vendor/pyodide/', stdout: () => {}, stderr: () => {} });
   await py.loadPackage(['pyyaml', 'jsonschema'], { messageCallback: () => {}, errorCallback: (m) => { throw new Error(m); } });
-  const res = await fetch(base + 'data/claim_lint.zip', { credentials: 'omit', cache: 'no-cache' });
+  const res = await fetch(base + asset('data/claim_lint.zip'), { credentials: 'omit', cache: 'no-cache' });
   if (!res.ok) throw new Error('data/claim_lint.zip: HTTP ' + res.status);
   py.unpackArchive(await res.arrayBuffer(), 'zip', { extractDir: '/repo' });
   py.runPython(DRIVER);
   lintFn = py.globals.get('lint_design');
-  return { ms: Date.now() - t0, python: py.runPython('import sys; sys.version.split()[0]'), pyodide: py.version };
+  return { build: BUILD_ID, ms: Date.now() - t0, python: py.runPython('import sys; sys.version.split()[0]'), pyodide: py.version };
 }
 
 self.onmessage = async (e) => {
   const m = e.data || {};
   try {
     if (m.type === 'init') {
-      const info = await init(m.base);
+      const info = await init(m.base, m.assets);
       self.postMessage({ type: 'ready', id: m.id, info });
     } else if (m.type === 'lint') {
       if (!lintFn) throw new Error('not initialised');
