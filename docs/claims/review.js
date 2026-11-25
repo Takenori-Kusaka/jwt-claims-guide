@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '7eb4b171d5ee';
+  const BUILD_ID = '34f1924be1d0';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -772,7 +772,7 @@
       else if ((C.optional_priorities || []).includes(x.priority) && hit) more.add(x.id);   // "if time remains"
     });
     // the open prompts that fit the design first: a condition other than always, then prefer_when, then the order of the data
-    const rank = (p) => (p.show_when.some((c) => c !== 'always' && traits.has(c)) ? 0 : (p.prefer_when || []).some((c) => traits.has(c)) ? 1 : 2);
+    const rank = (p) => (p.show_when.some((c) => c !== 'always' && traits.has(c)) ? 0 : (p.prefer_when || []).some((c) => states[c] === 'on') ? 1 : 2);   // prefer_when: traits that hold, not the ones that cannot be read
     const all = (R.checklist.open_prompts || []).filter((p) => p.show_when.some((c) => traits.has(c))).map((p, i) => [rank(p), i, p]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
     const max = C.max_prompts || all.length;
     return { traits, states, why, more, prompts: all.slice(0, max), morePrompts: all.slice(max) };

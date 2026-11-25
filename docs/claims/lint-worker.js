@@ -8,7 +8,7 @@
 /* global loadPyodide */
 // the build id (tools/build_claims_viewer.py, #53): the page compares it with its own, so that a worker of another
 // build (a newer file from the server than the page in the cache) is not used
-const BUILD_ID = '7eb4b171d5ee';
+const BUILD_ID = '34f1924be1d0';
 let ASSETS = {};
 // the URL of a file with its content hash (?v=, data/build.js), given by the page
 function asset(path) { return ASSETS[path] ? path + '?v=' + ASSETS[path] : path; }

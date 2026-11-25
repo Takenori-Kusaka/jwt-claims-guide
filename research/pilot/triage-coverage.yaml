@@ -59,5 +59,5 @@ totals:
   by_kind: {direct: 12, returned: 5, fitted: 12, machine: 3, pending: 1, author: 1, expert: 3}
   human_judgement: {total: 24, direct: 12, fitted: 12}
   prompted_by_short_list_and_prompts: 29   # direct 12 + returned 5 + fitted 12。「時間があれば」の開いた問いを含む
-  prompted_by_default_list: 27             # 既定で出す分（優先 1 の問いと、設計ごとの開いた問い 3 つ）だけで数えた
-  only_if_time_remains: [B-R1 T4, B-R1 T5]   # 当たる開いた問い（op-requirement-words・op-key-custody）が、パイロット B では既定の 3 つに入らない
+  prompted_by_default_list: 28             # 既定で出す分（優先 1 の問いと、設計ごとの開いた問い 3 つ）だけで数えた
+  only_if_time_remains: [B-R1 T4]   # 当たる開いた問い（op-requirement-words）が、パイロット B では既定の 3 つに入らない

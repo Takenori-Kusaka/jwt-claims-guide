@@ -208,31 +208,58 @@ def optional(tri, have):
     return selected(tri, have, priorities=(tri.get('budget') or {}).get('optional_priorities') or [2])
 
 
-def prompts(tri, have):
+def prompts(tri, have, on=None):
     """The open prompts of a design, the ones that fit it first: a condition other than `always` holds, then a trait of
     prefer_when holds, then the rest; within each, the order of triage.yaml. The first budget.default_prompts are shown
-    by default (default_prompts()), the others under "more"."""
+    by default (default_prompts()), the others under "more".
+
+    have: the traits that hold or cannot be read (a prompt is shown for both). on: the traits that hold; prefer_when
+    counts these only (a design whose delegation cannot be read is not ranked as a delegation design). on=None: have."""
     have = set(have)
+    on = have if on is None else set(on)
     ps = [p for p in tri.get('open_prompts') or [] if set(p.get('show_when') or []) & have]
 
     def rank(p):
         if set(p['show_when']) - {'always'} & have:
             return 0
-        return 1 if set(p.get('prefer_when') or []) & have else 2
+        return 1 if set(p.get('prefer_when') or []) & on else 2
     return sorted(ps, key=rank)
 
 
-def default_prompts(tri, have):
-    return prompts(tri, have)[:(tri.get('budget') or {}).get('default_prompts') or 3]
+def default_prompts(tri, have, on=None):
+    return prompts(tri, have, on)[:(tri.get('budget') or {}).get('default_prompts') or 3]
+
+
+def on_traits(reg):
+    """The conditions that hold (not the ones that cannot be read)."""
+    return {c for c, v in read_traits(reg).items() if v['state'] == 'on'}
+
+
+def default_seed(reg):
+    """The seed of the row sample when the reviewer gives none: the hash of the registry rows and today's date, so
+    that the author cannot know the rows in advance and two reviews of one day draw the same rows. It is printed on
+    the sheet; the reviewer writes it in the report."""
+    import datetime
+    import hashlib
+    import json
+    h = hashlib.sha256(json.dumps((reg.get('claims') or {}).get('claims'), ensure_ascii=False, sort_keys=True, default=str).encode('utf-8')).hexdigest()
+    return f'{h[:8]}-{datetime.date.today().isoformat()}'
 
 
 def row_sample(tri, reg, seed):
     """The rows a "per row" question is answered for: budget.row_sample adopted claims used for authorization or as an
-    identifier, ranked by sha256(seed + ':' + id) (the same kind of draw as tools/review_record.py sample)."""
+    identifier, ranked by sha256(seed + ':' + id) (the same kind of draw as tools/review_record.py sample). One row of
+    the organisation's own authorization claims (a namespace and usage authz: roles, groups and the like) is always in
+    the sample when there is one, drawn by the seed among them: the questions about who writes a value and how fresh it
+    is matter most there, and a plain draw mostly returns iss, aud and other fixed rows. -> (rows, population, own row)"""
     import hashlib
-    rows = [str(c.get('id')) for c in _adopted(((reg.get('claims') or {}).get('claims'))) if c.get('usage') in ('authz', 'identifier')]
-    ranked = sorted(rows, key=lambda i: hashlib.sha256(f'{seed}:{i}'.encode('utf-8')).hexdigest())
-    return ranked[:(tri.get('budget') or {}).get('row_sample') or 3], len(rows)
+    claims = [c for c in _adopted(((reg.get('claims') or {}).get('claims'))) if c.get('usage') in ('authz', 'identifier')]
+    n = (tri.get('budget') or {}).get('row_sample') or 3
+
+    def ranked(rows):
+        return sorted((str(c.get('id')) for c in rows), key=lambda i: hashlib.sha256(f'{seed}:{i}'.encode('utf-8')).hexdigest())
+    own = ranked([c for c in claims if c.get('namespace') and c.get('usage') == 'authz'])[:1]
+    return (own + [i for i in ranked(claims) if i not in own])[:n], len(claims), (own[0] if own else None)
 
 
 def sentences(text):
@@ -240,10 +267,10 @@ def sentences(text):
     return len([x for x in re.split(r'[。？]', text or '') if x.strip()])
 
 
-def load_of(tri, have):
+def load_of(tri, have, on=None):
     """The size of the default list of a design (priority 1 questions and the default open prompts): items, and the
     sentences and characters to read (the questions only, and with the hints); and the number "if time remains"."""
-    qs, ps = selected(tri, have), default_prompts(tri, have)
+    qs, ps = selected(tri, have), default_prompts(tri, have, on)
     items = qs + ps
     ask = [x['ask'] for x in items]
     hint = [x.get('hint') or '' for x in items]
@@ -389,7 +416,8 @@ def short_list_text(tri, root=ROOT):
         L += ['', f'<a id="unit-{unit}"></a>', '', f'### {tri["units"][unit]}', '']
         if unit == 'row':
             L += [f'**全部の行には答えません。** 認可・識別子に使う行（`usage` が authz・identifier）から {b["row_sample"]} 行を抜き取り、その行について答えます。'
-                  '抜き取る行は `--design <ディレクトリ> --seed <種>` が決めます（同じ種なら同じ行。種をレポートに書く）。問いが名指す行（ロール・グループの行など）が抜き取りに無ければ、その行を足します。抜き取った行で答えが No なら、残りの行も見ます。', '']
+                  '抜き取る行は `--design <ディレクトリ> --seed <種>` が決めます（同じ種なら同じ行）。**種はレビュアーが決めます**（PR の番号など。書き手が先に行を知れないように）。付けなければ、台帳の内容と日付から作った種を 1 枚に書きます。種はレポートに書きます。'
+                  '組織独自の認可の行（名前空間つきで `usage` が authz。ロール・グループなど）があれば、**必ず 1 行入れ**、残りを種で引きます（値を書ける人・鮮度の問いは、この行でこそ効くため）。問いが名指す行が抜き取りに無ければ、その行を足します。抜き取った行で答えが No なら、残りの行も見ます。', '']
         L += table(rows)
     L += ['',
           '<a id="optional"></a>',
@@ -418,7 +446,7 @@ def short_list_text(tri, root=ROOT):
           '## 4. 開いた問い（要求と運用から辿る）',
           '',
           '設計書の決まった欄を開くだけでは答えられない問いです。要求の文と運用の場面から自分で辿り、辿った範囲と気づいたことを書きます（指摘の出どころは「テンプレート外」）。',
-          f'**設計ごとに {b["default_prompts"]} つまで**を出します。性質に合うもの（「先に出す設計」に当たるもの）を先に選び、残りは下の表の順です。選ばれなかったものは「さらに」として、時間があれば辿ります。1 つにつき 2〜4 分が目安です（未計測）。',
+          f'**設計ごとに {b["default_prompts"]} つまで**を出します。性質に合うもの（「先に出す設計」に当たるもの。「読めない」性質では数えない）を先に選び、残りは下の表の順です。選ばれなかったものは「さらに」として、時間があれば辿ります。1 つにつき 2〜4 分が目安です（未計測）。',
           '',
           '| ID | 辿ること | 出す条件 | 先に出す設計 |',
           '| --- | --- | --- | --- |']
@@ -617,7 +645,7 @@ def generated(tri, root=ROOT):
             README: readme_text(tri, _read(os.path.join(root, README)))}
 
 
-def design_sheet(tri, design_dir, root=ROOT, seed='review'):
+def design_sheet(tri, design_dir, root=ROOT, seed=None):
     """The sheet handed to the reviewer of one design. It starts with the 12 traits (what was read) and the questions
     of this design (priority 1; one sentence each, the hint and the fields under it), then three open prompts, then the
     questions "if time remains"; how to answer and what is not asked come last."""
@@ -626,11 +654,14 @@ def design_sheet(tri, design_dir, root=ROOT, seed='review'):
     have = {c for c, v in tr.items() if v['state'] != 'off'}
     unknown = {c for c, v in tr.items() if v['state'] == 'unknown'}
     see_of = {q['id']: q['fields'].get('見る欄', '') for q in _parsed(root)}
-    qs, opt, ps = selected(tri, have), optional(tri, have), prompts(tri, have)
+    on = {c for c, v in tr.items() if v['state'] == 'on'}
+    qs, opt, ps = selected(tri, have), optional(tri, have), prompts(tri, have, on)
+    given = seed is not None
+    seed = seed if given else default_seed(reg)
     b = tri['budget']
     nd = b['default_prompts']
     listed = [q for q in tri['questions'] if q['class'] == 'C' and q['priority'] in b['default_priorities'] + b['optional_priorities']]
-    rows, n_rows = row_sample(tri, reg, seed)
+    rows, n_rows, own = row_sample(tri, reg, seed)
     out = [f'# このレビューで答える問い：{design_dir}',
            '',
            f'問い {len(qs)}・開いた問い {min(nd, len(ps))}（時間があれば：問い {len(opt)}・開いた問い {max(0, len(ps) - nd)}）。答え方と目安は末尾。',
@@ -662,7 +693,10 @@ def design_sheet(tri, design_dir, root=ROOT, seed='review'):
         out += ['', f'## {n}. {tri["units"][unit]}', '']
         n += 1
         if unit == 'row':
-            out += [f'答える行（認可・識別子に使う {n_rows} 行から {len(rows)} 行。種 {seed}）：{"・".join(rows)}。問いが名指す行（ロール・グループなど）が無ければ足す。答えが No なら、残りの行も見る。', '']
+            out += [f'答える行（認可・識別子に使う {n_rows} 行から {len(rows)} 行。種 {seed}'
+                    + ('' if given else '：--seed が無いので、台帳の内容と日付から作った。レポートに書く') + f'）：{"・".join(rows)}。'
+                    + (f'{own} は、組織独自の認可の行として必ず入れた 1 行。' if own else '組織独自の認可の行（名前空間つき）は無い。')
+                    + '問いが名指す行が無ければ足す。答えが No なら、残りの行も見る。', '']
         for q in part:
             out += item(q)
     out += ['', f'## {n}. 開いた問い（決まった欄では答えられない。要求と運用から辿り、辿った範囲と気づきを書く）', '']
@@ -680,6 +714,7 @@ def design_sheet(tri, design_dir, root=ROOT, seed='review'):
             f'- この 1 枚の問いは、全 {len(tri["questions"])} 問のうち、人が判断する {counts(tri, root)["C"]} 問から選んだもの',
             '- 機械（lint）が確かめること：設計書の 1. の結果で、error が 0 かと、warn に理由があるかだけを見る',
             '- 書き手の自己点検（PR の本文）：印の無い行を読み、25 問の回答の行と、【No なら Blocker】の行から 2 件を抜き取って欄を開く',
+            f'- 受け付け（手順の段 0）で、あわせて確かめること：{by_id(tri)["q-lint-workaround"]["ask"]}（{by_id(tri)["q-lint-workaround"]["hint"]}）',
             '- 暗号の方式・IdP や製品の実際の挙動・委任が 2 段以上になる場合：答えずに、専門家に回す（templates/review/escalation.md）']
     return '\n'.join(out), tr
 
@@ -859,7 +894,8 @@ def main(argv=None):
     ap.add_argument('--write', action='store_true')
     ap.add_argument('--counts', action='store_true')
     ap.add_argument('--design', metavar='DIR', help='print the sheet for a design: its traits and the questions to answer')
-    ap.add_argument('--seed', default='review', help='with --design: the seed of the rows the per-row questions are answered for')
+    ap.add_argument('--seed', help='with --design: the seed of the rows the per-row questions are answered for (the PR number, for '
+                    'example); without it, a seed made from the registry and the date is used and printed')
     ap.add_argument('--load', metavar='DIR', nargs='+', help='print the size of the short list of each design')
     a = ap.parse_args(argv)
     tri = load(a.root)
@@ -884,7 +920,8 @@ def main(argv=None):
         if a.load:
             out.append('design\tquestions\tprompts\titems\task_sentences\task_chars\tall_sentences\tall_chars\toptional_questions\tmore_prompts')
             for d in a.load:
-                v = load_of(tri, traits(load_design(d)))
+                reg = load_design(d)
+                v = load_of(tri, traits(reg), on_traits(reg))
                 out.append('\t'.join([d] + [str(v[k]) for k in ('questions', 'prompts', 'items', 'ask_sentences', 'ask_chars', 'all_sentences', 'all_chars', 'optional_questions', 'more_prompts')]))
     except DesignError as e:
         sys.stderr.buffer.write(f'review_triage: {e}\n'.encode('utf-8'))

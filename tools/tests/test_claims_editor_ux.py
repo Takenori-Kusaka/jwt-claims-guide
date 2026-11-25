@@ -467,6 +467,7 @@ class EditorUX(unittest.TestCase):
                 reg['hops'] = None
             states = {c: v['state'] for c, v in rt.read_traits(reg).items()}
             have = rt.traits(reg)
+            on = {c for c, v in states.items() if v == 'on'}
             pg = self.open()
             if files:
                 self.open_files(pg, [os.path.join(ROOT, d, f) for f in files])
@@ -482,10 +483,10 @@ class EditorUX(unittest.TestCase):
             got = set(pg.evaluate('() => Array.from(document.querySelectorAll(".rv-q:not([hidden])")).map(e => e.dataset.q)'))
             self.assertTrue(want <= got and got - want <= optional, (key, got ^ want))
             self.assertEqual(pg.evaluate('() => Array.from(document.querySelectorAll("#rv-open-prompts [data-prompt]:not([hidden])")).map(e => e.dataset.prompt)'),
-                             [p['id'] for p in rt.default_prompts(tri, have)])
+                             [p['id'] for p in rt.default_prompts(tri, have, on)])
             sl = pg.evaluate('() => ClaimsReview.shortList()')
             self.assertEqual(set(sl['optional']), {q['id'] for q in rt.optional(tri, have)}, key)
-            self.assertEqual(sl['prompts'] + sl['morePrompts'], [p['id'] for p in rt.prompts(tri, have)], key)
+            self.assertEqual(sl['prompts'] + sl['morePrompts'], [p['id'] for p in rt.prompts(tri, have, on)], key)
             self.assertIn(f'全 168 問のうち、あなたが答える {len(got)} 問', pg.inner_text('#rv-short-note'))
             self.assertIn('lint が確かめる 81 問', pg.inner_text('#rv-short-rest'))
             if 'unknown' in states.values():

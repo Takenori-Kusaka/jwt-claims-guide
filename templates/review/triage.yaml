@@ -17,12 +17,14 @@ classes:
 
 # 1 回のレビューの量の目安（筆者の提案。追跡 #56、人による確かめは #20）
 budget:
-  questions: [10, 17]
+  questions: [10, 18]
   minutes: [30, 60]
   default_priorities: [1]      # 既定で出すのは、条件に当たる優先 1 の問いだけ（再点検：優先 2 まで出すと、問いだけで 75〜110 分の見積もりになる）
   optional_priorities: [2]     # 「時間があれば」。別に数える。優先 3 は「詳しく見る」
   default_prompts: 3           # 開いた問いは、設計ごとに 3 つまでを既定で出す（性質に合うものを先に）。残りは「さらに」
-  row_sample: 3                # 「行ごと」の問いは、認可・識別子に使う行から 3 行を抜き取って答える（種つき。全部の行ではない）
+  row_sample: 3                # 「行ごと」の問いは、認可・識別子に使う行から 3 行を抜き取って答える（全部の行ではない）。
+                               # 組織独自の認可の行（名前空間つきで usage が authz）があれば必ず 1 行入れ、残りを種で引く。
+                               # 種は --seed で渡す。渡さなければ、台帳の内容のハッシュと日付から作り、1 枚に書く（固定の種にしない）
   note: "優先 1 を答え終えて時間が残れば、優先 2（時間があれば）を上から答える。答えなかった問いはレポートに書く"
   whole_procedure_minutes: [70, 110]   # 手順の段 0〜6 の目安の合計（10＋10＋5〜10＋20〜40＋10〜15＋10〜20＋5）。LLM の見積もりで、人では測っていない
 
@@ -91,6 +93,8 @@ proposed_rules:
 # 要求と運用から辿って、気づいたことを指摘にする。出どころは「テンプレート外」。
 # 並びが既定の順（パイロットの Major が多かった順）。設計ごとに、条件が性質に当たるもの（show_when が always 以外）→ prefer_when が当たるもの → 残り、
 # の順に budget.default_prompts 個までを既定で出し、残りは「さらに」に置く。
+# prefer_when は「当たる」性質だけで数える（「読めない」性質では先に出さない。問いそのものは、読めない性質でも出す）。
+# op-requirement-words には prefer_when を付けていない（どの設計にも同じだけ当たる）。3 つの枠が埋まる設計では、既定に出ない。
 open_prompts:
   - id: op-source-change
     show_when: [always]
@@ -226,7 +230,7 @@ questions:
   - {id: ap-2-5, class: A, lint: [L8, L67], why: "同名のヘッダーの除去と、入口だけが書けるという宣言で決まる"}
   - {id: q-unverified-claim-extraction, class: A, lint: [], proposed: [L46], interim: B, why: "ホップの validates の宣言で決まる"}
   - {id: q-gateway-bypass-path, class: C, priority: 3, unit: hop, show_when: [always], merged_into: q-outside-catalog, ask: "入口を通らずにサービスへ届く経路でも、同じ検証をしているか", hint: "q-outside-catalog にまとめた。範囲の図と hops の validates を見る", why: "図に無い経路を想像する。機械は図を読めない"}
-  - {id: q-step-up-path-coverage, class: C, priority: 2, unit: hop, show_when: [auth_context], ask: "追加の認証が要る操作は、どの経路から呼ばれても同じ条件で確かめられるか", hint: "設計書の追加認証の節と hops の validates・custom_claims を見る。直接・代理・交換の後・非同期の経路", why: "経路ごとの抜けを辿る判断"}
+  - {id: q-step-up-path-coverage, class: C, priority: 1, unit: hop, show_when: [auth_context], ask: "追加の認証が要る操作は、どの経路から呼ばれても同じ条件で確かめられるか", hint: "設計書の追加認証の節と hops の validates・custom_claims を見る。直接・代理・交換の後・非同期の経路", why: "経路ごとの抜けを辿る判断。認証の強さで判断する設計で、ほかに受ける優先 1 の問いが無いので優先 1（PR #74 の点検）"}
   - {id: q-txn-scope-fixed, class: A, lint: [L11, L16], why: "tctx の照合の規則の有無は L11、scope が上流以下かは L16"}
   - {id: q-txn-required-claims, class: A, lint: [L7], proposed: [N8], interim: B, why: "required_claims と carried_in の突き合わせ。草案の必須の一覧は案 N8"}
   - {id: q-claim-earliest-hop, class: A, lint: [L16], why: "上流に無い独自クレームは L16 が error にする"}
@@ -309,6 +313,6 @@ questions:
   - {id: q-scope-elevation-logged, class: C, priority: 3, unit: hop, show_when: [delegation], ask: "代理の主体の範囲は最小限から始まり、広げたことが記録に残るか", hint: "ホップの scope と log_policy を見る", why: "最小限が何かは要求の判断。機械の規則（L57）は未実装"}
   - {id: q-operational-metrics, class: B, why: "誰がどの周期で測るかが書いてあるか（パイロットで B）"}
   # ---- 6.4 検査と記述の整合
-  - {id: q-lint-workaround, class: C, priority: 2, unit: design, show_when: [always], ask: "検査（lint）を通すために、設計の宣言の側を曲げた跡はないか", hint: "設計書の 1.（CI の結果）と 3.（既定から外した点）、hops の upstream を見る。上流を外す・行にしない・名前を変える・数値を上限に合わせる", why: "曲げたのか、規則の側の誤りかの判断"}
+  - {id: q-lint-workaround, class: C, priority: 3, unit: design, show_when: [always], step: 0, ask: "検査（lint）を通すために、設計の宣言の側を曲げた跡はないか", hint: "設計書の 1.（CI の結果）と 3.（既定から外した点）、hops の upstream を見る。上流を外す・行にしない・名前を変える・数値を上限に合わせる", why: "曲げたのか、規則の側の誤りかの判断。81 問を lint に任せた後で、これを見るのはこの問いだけなので、問いの一覧でなく、手順の段 0（受け付け）の作業にした（PR #74 の点検）"}
   - {id: q-evidence-attribution, class: C, priority: 3, unit: design, show_when: [always], step: 4, ask: "数値・製品の挙動に付けた根拠は、引いた先が本当にそう述べているか", hint: "手順の段 4（理由の抜き取り）で、根拠つきの行から 3 件を選んで読む。別の種類のクライアント・別の製品の根拠を引いていないか", why: "引用が判断を支えるかは読んで確かめる。1 問で 10 分以上かかるので、短い一覧から段 4 に移した（独立点検の指摘）。パイロットの B-R1 F06・F11、C-R1 F19"}
   - {id: q-limit-consistency, class: B, why: "同じ事実を書いた 2 か所以上の欄が合うかを、書き手が見比べる（パイロットで B。Major 1 件）"}

@@ -856,7 +856,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（ある経路だけ追加認証を素通りする）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／実行 `test:negative_tests#insufficient-acr`（未実装）
 - 根拠：slide:p06-step-up-approval、RFC 9470 §3
-- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：認証の強さ・新しさで判断する）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：認証の強さ・新しさで判断する）
 
 <a id="q-txn-scope-fixed"></a>
 
@@ -1632,7 +1632,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Major（目的と仕組みの不一致。規則の側のこともある）。規則そのものを試す（一時コピーで規則に当てる）のはこの教材の範囲の外で、#6 の点検に渡す。較正で追加（B05・B06・B13。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
 - 根拠：templates/CONTRIBUTING.md の 2.、tools/claim_lint/RULES.md
-- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-evidence-attribution"></a>
 
