@@ -529,4 +529,6 @@ Major の 37 件を、区分と出どころで分けると次のとおりです�
 
 8. の「P4 を使う Lite の設計は、定義上ありえません」は、**委任・交換がある場合に限って**正しい文です（#61 の作業で確かめた）。P4 の「使う場面」は「利用者の代理で、または自分の権限で」で、エージェントが自分の権限だけで呼び、交換もしない設計は、5 問がすべて No になりえます（[`p4-lite-options.md`](p4-lite-options.md) の 1.）。8. の文は、書いた時点の記録として変えていません。
 
+後からの注（2026-11-26）：作成者が、**P4 は Full だけ（案 0）**と決めました（[`p4-lite-options.md`](p4-lite-options.md) の 0.）。PR #69 で入れていた案 1（委任も交換も無い設計だけ、P4 を Lite で使える）は、案 0 に置き換えています。信頼の境界を越えず、委任も交換も無いエージェントの設計は、P4 を使わず P5 で書きます。11. の 5（P4 の Lite を残すか）の答えは「残さない」です。
+
 `python tools/claim_lint render research/pilot/scenario-b --check` と `scenario-c --check` は通ります（CI の `claims.yml`、`tools/tests/test_claim_lint_render.py`）。
