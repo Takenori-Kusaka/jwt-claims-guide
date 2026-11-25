@@ -24,7 +24,7 @@ python tools/new_design.py designs/my-service --profile lite   # Lite と決ま�
 - **ホップを書かない設計は、`hops.yaml` を置きません**。Full の骨組みで始めて、手順 2 で Lite と決まり、ホップを書かないなら、`hops.yaml` を消します。`hops: []` のままでは、スキーマが 1 行以上を求めるので error（TODO）が残ります。ファイルが無いことは claim_lint が info（LOAD）で知らせるだけで、error にはなりません。ホップを書くなら 1 行以上を書きます（列は `registry/README.md` の 3.4）
 - 組織の名前空間を使わない設計は、`claims.yaml` に `namespaces` のキーを書きません（骨組みにも入っていません。使うときの書き方は、`claims.yaml` の先頭のコメントにあります）
 - yaml-language-server の modeline（`$schema`）は、置き場所からの相対パスで書かれます。OS を問わず同じコマンドで動きます（シェルの展開を使わない）
-- 作った直後に `python tools/claim_lint designs/my-service --profile lite` を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です。作った直後の骨組みに、スキーマの違反（SCHEMA）は 1 件もありません。スキーマが求める欄がまだ空（null・空の文字列・空の配列）のときは、SCHEMA ではなく **TODO（まだ書いていない欄）** として 1 欄に 1 件出ます（重大度は error のまま）。SCHEMA が出たら、書いた値の形が違います
+- 作った直後に `python tools/claim_lint designs/my-service`（Lite の骨組みなら `--profile lite` を付ける。まだ判定していないなら付けない）を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です。作った直後の骨組みに、スキーマの違反（SCHEMA）は 1 件もありません。スキーマが求める欄がまだ空（null・空の文字列・空の配列）のときは、SCHEMA ではなく **TODO（まだ書いていない欄）** として 1 欄に 1 件出ます（重大度は error のまま）。SCHEMA が出たら、書いた値の形が違います
 - 記入例（`templates/examples/`）は、書き方に迷ったときに読む資料として使います
 
 根拠：templates/CONTRIBUTING.md の 4.、research/template-design/report.md の Q6、筆者の提案：空の骨組みから始めて lint の指摘を作業の一覧にする（追跡 #4）

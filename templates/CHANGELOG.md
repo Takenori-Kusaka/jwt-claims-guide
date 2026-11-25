@@ -15,6 +15,7 @@
   - `00_core.md`（0.6.0）：付録 D「プロファイルとモジュールの記入欄」（`template:00_core#profile-fill-ins`）を足した。`python tools/new_design.py <設計書> --profile lite|full --use P1,P4,M_token_validation` が、選んだプロファイル・モジュールの記入欄の表を付録 D に足す（すでにある項目は書き換えない。Lite は見出しが〔Lite・Full：記入〕で始まる項目だけ）。冒頭に「使わない記入欄は消さずに『無い』と理由を書く」を足した
   - `README.md`（0.6.0）：5 問のそれぞれに Yes と No の例を 2 つ以上書いた。問い 1 は組織の境界ではなく信頼の境界で読む（組織の中の信頼しない部品も Yes）、問い 4 は発行者が既存か分からなければ Yes。判定が Full なのに Lite の欄で書いた設計書の扱いを 1 つにした（L73 の warn で知らせ、レビューの段 0 で Full に書き直すよう返す。測定の記録だけが例外）。L73 の重大度は変えていない
   - `GETTING_STARTED.md`（0.6.0）：手順 1 に `--profile lite` とホップを書かない設計の書き方、手順 3 に記入欄の置き場所と `--use` を足した
+  - 別の LLM のセッションが、シナリオ C の要求で判定から記入欄の置き場所までを辿った記録を `research/template-design/issue-61-walkthrough.md` に書いた（1 回の試行。人による確かめは #20）。その記録を受けて直したこと：付録 D に足す項目の見出しに〔〕の区分を残す、付録 D の見出しを〔Lite・Full：手で書く…〕にする、最初の列が決まった見出しの表での「無い」の書き方、「当てはまらない欄は『無い』、当てはまるが書かない Full の節は 12.」の使い分け、判定の前の lint は `--profile` を付けない
   - 列を減らす規則（既定どおりで `consumers: []` の行など）が縮小 Lite だけのものであることを、`registry/README.md` の 2. と `tools/claim_lint/RULES.md` と `README.md` に同じ文で書いた（`registry/README.md` は文言の追加だけで、#58 と重ならないよう版の行は変えていない）
   - P4 の Lite の扱いは、3 つの案を `research/template-design/p4-lite-options.md` に書いた（作成者の決定待ち）
   - `profiles/P4_ai_agent_delegation.md`（0.6.0）と `README.md` のプロファイルの表：案 1 を入れた。委任・交換がある設計は Full で、P4 を Lite で使えるのは委任も交換も無い設計（エージェントが自分の権限だけで呼ぶ）だけ。そのとき書くのは MCP の必須チェック表だけ。`max_delegation_depth` は「Full のみ」のまま（委任があれば Full なので、Lite で書く場面が無い）。5 問・スキーマ・lint の規則は変えていない。**この行の変更だけを 1 つのコミットにしてあり、そのコミットを戻せば案 1 だけが外れる**

@@ -193,13 +193,10 @@ def fill_in_sections(name, profile='full'):
             j += 1
         if len(table) == 2:  # a header and its separator only: add one empty row to write in
             table.append('|' + '  |' * (table[0].count('|') - 1))
-        title = re.sub(r'〔[^〕]*〕\s*$', '', line_text(heading))
-        out.append((item, title, [line, ''] + table))
+        # the heading keeps its 〔…〕 mark, so that a copied section still says how it is filled in
+        # (〔Full：記入／Lite：参照〕, 〔Lite：生成／Full：生成と確かめ〕, ...)
+        out.append((item, heading.lstrip('#').strip(), [line, ''] + table))
     return out
-
-
-def line_text(heading):
-    return heading.lstrip('#').strip()
 
 
 def add_fill_ins(text, profile='full', use=()):

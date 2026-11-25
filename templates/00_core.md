@@ -9,7 +9,7 @@
   - 〔Lite：生成〕：`python tools/claim_lint render <設計書のディレクトリ> --write` が台帳から書く節。手で書かない
   - 〔Full だけ〕：Lite では書かない節
 - プロファイルとモジュールの記入欄：選んだプロファイル（`profiles/`）・モジュール（`modules/`）の「記入欄」の表は、この設計書の付録 D（`template:00_core#profile-fill-ins`）に書きます。`python tools/new_design.py <設計書のディレクトリ> --profile lite|full --use <プロファイルとモジュール>` が、表を付録 D に足します。プロファイル・モジュールのファイルそのものには書き込みません（問いと候補を読む資料です）
-- 使わない記入欄：自分の設計に当てはまらない記入欄（例：トークンで DB・ブローカーに接続しない設計の「DB・ブローカーの接続の層」）は、節と表を消さずに、表の最初の列に「無い」と書き、同じ行にそう言える理由を 1 つ書きます。節ごと消すと、レビューする人が「書き忘れ」と「当てはまらない」を見分けられないためです。見出しの〔Full だけ〕の節を Lite で書かないのは、この決まりの対象ではありません（書かないままでよい）
+- 使わない記入欄：自分の設計に当てはまらない記入欄（例：トークンで DB・ブローカーに接続しない設計の「DB・ブローカーの接続の層」）は、節と表を消さずに、表の最初の列に「無い」と書き、同じ行にそう言える理由を 1 つ書きます。最初の列が決まった見出し（`#`・観点・決めること）の表で、ある行だけが当てはまらないときは、見出しを残し、その行の最初の記入の列に「無い：理由」と書きます。節ごと消すと、レビューする人が「書き忘れ」と「当てはまらない」を見分けられないためです。見出しの〔Full だけ〕の節を Lite で書かないのは、この決まりの対象ではありません（書かないままでよい）。**当てはまらない**欄は「無い」、**当てはまるが書かない** Full の節は 12.（書き手が自信のない点）に理由を書く、と使い分けます
 - 生成の区間：`<!-- render:<節>:begin -->` と `<!-- render:<節>:end -->` の間は render が書き直します（`tools/claim_lint/RENDER.md`）。区間の中を手で直すと CI（`render --check`）が失敗します。台帳を直してから生成し直してください
 - 項目 ID：各節の `項目 ID：` の値（`template:00_core#<アンカー>`）は、レビュー教材（#5）と対応表（#22）が参照する固定の ID です。設計書に写すときも、見出しの直前のアンカーを消さないでください
 - 記入例：Lite は [examples/scenario-a/design.md](examples/scenario-a/design.md)、Full は `examples/scenario-b/design.md`（#4 の 2 つ目の PR）
@@ -595,7 +595,7 @@ sequenceDiagram
 根拠：slide:p06-return-results、slide:p06-flow-partner-events、RFC 9421 §2
 
 <a id="profile-fill-ins"></a>
-### D. プロファイルとモジュールの記入欄〔Lite：手で書く（Lite でも記入とされた項目だけ）〕
+### D. プロファイルとモジュールの記入欄〔Lite・Full：手で書く（Lite は、Lite でも記入とされた項目だけ）〕
 
 項目 ID：`template:00_core#profile-fill-ins`
 
@@ -609,7 +609,7 @@ python tools/new_design.py designs/my-service --profile full --use P1,P4,M_token
 | --- | --- | --- |
 | Lite | 見出しが〔Lite・Full：記入〕で始まる項目だけ（`--profile lite`）。ほかの項目は問いを読み、答えは 3.（既定から外れた点）と台帳に書く | templates/README.md の「Lite で書くもの（縮小 Lite）」 |
 | Full | 記入欄のあるすべての項目（`--profile full`） | templates/README.md の「プロファイルとモジュールの組み合わせ方」 |
-| 当てはまらない項目 | 表を消さずに、最初の列に「無い」と理由を書く（冒頭の「使わない記入欄」） | research/template-design/pilot.md の 7. |
+| 当てはまらない項目 | 表を消さずに、「無い」と理由を書く（冒頭の「使わない記入欄」）。足された見出しの〔〕は、もとの項目の扱い（〔Full：記入／Lite：参照〕、〔Lite：生成／Full：生成と確かめ〕 など）で、生成とされた項目は、生成の結果を確かめた旨を書く | research/template-design/pilot.md の 7. |
 
 <!-- fill-ins:begin -->
 <!-- fill-ins:end -->

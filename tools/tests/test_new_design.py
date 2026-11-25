@@ -159,7 +159,7 @@ def test_use_copies_the_fill_in_tables_of_the_chosen_profiles(tmp_path):
     assert len(p4) == 9 and len(tv) == 12
     for item, title, block in p4 + tv:
         assert f'`{item}`' in body and title in body and '\n'.join(block) in body
-        assert '〔' not in title
+        assert title.endswith('〕')  # the mark of the section (how it is filled in) is kept
     assert 'template:profiles/P1_human_web#' not in body
     # (the copied tables are the template's own, which template_check T4 keeps blank)
     # the document outside the region is the template
@@ -184,6 +184,7 @@ def test_lite_copies_only_the_sections_a_lite_design_fills_in(tmp_path):
                 expected.append(item.split('`')[1])
     assert items == expected and items
     assert all('Full：記入／Lite：参照' not in l for l in body.split('\n'))
+    assert all(new_design.LITE_MARK in l for l in body.split('\n') if l.startswith('#### '))
 
 
 def test_use_on_an_existing_design_adds_only_what_is_missing(tmp_path):

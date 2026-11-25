@@ -50,9 +50,13 @@
 | 判定が Full なのに Lite の欄で書いた設計書の扱いを 1 つに | `templates/README.md`、`tools/claim_lint/RULES.md`、L73 のメッセージ | 依らない |
 | 列を減らす規則は Lite だけ、の同じ文 | `templates/registry/README.md` の 2.、`tools/claim_lint/RULES.md`、`templates/README.md` | 依らない |
 | 使わない記入欄は消さずに「無い」と書く | `templates/00_core.md` の冒頭と 9.1 | 依らない |
-| **案 1**：P4 の冒頭の「Lite での扱い」、1. の見出しの下の注、7. の注、README のプロファイルの表の P4 の行 | `templates/profiles/P4_ai_agent_delegation.md`、`templates/README.md` | **案 1 だけ** |
+| **案 1**：P4 の冒頭の「Lite での扱い」、1. の記入欄の行の注、7. の注、README のプロファイルの表の P4 の行、CHANGELOG の 1 行 | `templates/profiles/P4_ai_agent_delegation.md`、`templates/README.md`、`templates/CHANGELOG.md` | **案 1 だけ** |
 
-案 1 の変更は、コミット「Apply option 1 for P4 Lite: delegation means Full (#61)」の 1 つにまとめました。**このコミットを `git revert` すれば、案 1 だけが外れ、ほかの直しは残ります。** 戻した後は、`python tools/build_claims_viewer.py` でエディターのデータを作り直します（テンプレートの本文がデータに入っているため）。スキーマと lint の規則は、案 1 では変えていません。
+案 1 の変更は、コミット「Apply option 1 for P4 Lite: delegation means Full (#61)」（`2af0afa`）の 1 つにまとめました。**このコミットを戻せば、案 1 だけが外れ、ほかの直しは残ります。** スキーマと lint の規則は、案 1 では変えていません。
+
+戻す手順は `git revert 2af0afa` だけです。この PR のブランチの先頭で試しました（`git revert --no-commit 2af0afa` の後、競合は無く、変わるのは `profiles/P4_ai_agent_delegation.md`・`README.md`・`CHANGELOG.md` の 3 つ。その状態で `build_claims_viewer.py --check`・`template_check.py`・`review_check.py`・`trace_check.py`・`tools/tests/test_new_design.py` が通ることを確かめてから、取り消した）。エディターのデータ（`docs/claims/`）は、この 3 つのファイルの本文を含まないので、作り直しは要りません。
+
+別のセッションが、案 1 を入れたテンプレートでシナリオ C の要求を辿った記録は [`issue-61-walkthrough.md`](issue-61-walkthrough.md) にあります。
 
 ## 5. 判定が Full なのに、Lite の欄で書いた設計書の扱い
 
