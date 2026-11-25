@@ -6,6 +6,9 @@
 
 ### 追加
 
+- `review/triage.yaml`・`review/short_list.md`（#56）：観点書の 168 問を、A 機械（86）・B 書き手の自己点検（35）・C 人の判断（43）・D 専門家（4）に振り分け、問いごとに根拠を付けた。レビュアーが答えるのは区分 C の問いだけで、優先（1〜3）と出す条件（設計の性質 12 種。台帳から機械で読む）を付け、当たるものだけを並べた短い一覧（`short_list.md`。行・経路・設計の全体の順）にした。一覧の外を辿る「開いた問い」8 つを足した（パイロット #9 で、問いの一覧の外から出た Major の指摘を元にした）。1 回の量の目安は 15〜25 問・30〜60 分（筆者の提案。人による確かめは #20）。`python tools/review_triage.py --check｜--write｜--design <ディレクトリ>`。`short_list.md`・観点書の「区分」の行・書き手の自己点検・README の区分の表は triage.yaml から作り、`tools/review_check.py` が V14 として食い違いを見る。根拠と測定は `research/template-design/triage-evidence.md`
+- 書き手の提出前の自己点検（#56）：リポジトリの `.github/PULL_REQUEST_TEMPLATE/design_doc.md`（区分 B の 35 問と、lint の規則がまだ無い・足りない区分 A の 35 問）。`GETTING_STARTED.md` に手順 6 を足した。規則の案の一覧は #68
+
 - `glossary.md` の 5.（#53）：設計書のエディターの画面の用語（編集／レビュー・ダッシュボード・書式の検査・設計の規則の検査・レビューの記録・判定・再確認が要る・独立レビュー・段階）。画面・README・テンプレートで同じ名前を使う
 - `review/review.schema.json`（#50）：レビューの記録 `review.yaml`（設計書と同じディレクトリ）の JSON Schema。レビュアーごとに、観点書の問いへの回答（Yes／No／該当なし とメモ）、行ごとの判定（承認・修正を求める・保留。行の内容のハッシュ `tools/row_hash.py` に結びつける）、`report_template.md` の欄の指摘、却下の理由の抜き取り（乱数の種）、専門家に回した項目、戻す事項を持つ。名前は自己申告で、本当の承認は GitHub の PR のレビュー。設計書のエディターのレビューモードが書き出し・読み込み、`tools/review_record.py` が CI で確かめる（古くなった承認の一覧、レポートの生成）。`review/README.md` に案内を足した
 - `CONTRIBUTING.md`（#50、PR #52 の点検）：「レビューの記録がある設計書を変えるとき」（承認した行・却下の行・教材を変えたときの CI の反応と直し方）を足した。`review/review.schema.json` に、レビューした時の教材の版（`materials`）、独立レビューの経過（`independence`、`edited_after_viewing_others`）、判定したレビュアーの種類（`reviewer_kind`）、抜き取りの母集団（`population`）と引き直し（`reason`・`previous`）を足した
@@ -57,6 +60,11 @@
 - `catalog/issue_events.yaml` の I04・I06・I08 と `modules/M_idp_keycloak.md` の既定の列：Keycloak 26.8.0 の実測（#30。#4 の点検の材料の K2・K10）を書き足した。I04 はソースの要約の「REST で項目を省くと ON」が実測と食い違った
 
 ### 変更
+
+- `review/perspectives.md`（#56）：各問いに「区分」の行を足した。区分 A で既存の規則が答えを決める問いは「lint の L? が確かめる（レビュアーは答えない）」と書いた。冒頭を「全問の参照用」に改め、「lint が通っていても問いを省かない」を、区分ごとの分担に書き換えた。問いの文・ID・数（168）は変えていない
+- `review/procedure.md`（#56）：短い一覧を前提に書き直した。段 0 に書き手の自己点検の確認を、段 1 に設計の性質を読むことを足し、段 3 を「短い一覧の問いに答える」、段 5 を「開いた問いで一覧の外を辿る」にした。段ごとの時間の目安を足した（筆者の提案）。段 4 の抜き取りを、道具（`review_record.py sample`）が引く却下の行 3 件に合わせた（これまでの「採用・却下からそれぞれ 5 件」は道具と食い違っていた。採用の行の採点の記録は #62）。段の番号とアンカーは変えていない
+- `review/report_template.md`（#56）：基本情報の「実施した手順の段」「抜き取りの結果」「問いの回答」の書き方と、8. の注記を、短い一覧に合わせた。開いた問いで辿ったことを書く、様式の後ろに足す節を示した。節の見出し・1. の項目・表の見出し・語彙は変えていない（既存のレポートと道具はそのまま通る）
+- 設計書のエディターの「観点のチェックリスト」（#56）：既定で、開いている設計書の性質に当たる短い一覧と開いた問いを出す。全問と区分ごとの問いは「表示する問い」で開ける。画面の作り直しは #67
 
 - claim_lint の目的と仕組みの規則（#18）：L11〜L14（宣言の整合の検査）を足した。`examples/scenario-a/catalog_answers.yaml` に `questions`（問いが要るか）を、`claims.yaml` の C-iss・C-sub に saas-web の `enforced_at` を足した（`design.md` の 13.）
 - claim_lint の意味の規則（#6）：L1a・L1b・L2〜L9・L15〜L18・L21〜L23・L25・L27・L31・L37・L43・L62〜L73 と `claim_lint diff`（L10）を足した。新しい規則は warn から入れ、シナリオ A で機会が 1 以上・誤検知 0 のものだけを error にした（`tools/claim_lint/RULES.md`）。R8 の info から、ID トークンと AT の両方の仕様が定める登録名を外した

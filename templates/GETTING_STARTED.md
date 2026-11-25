@@ -90,3 +90,26 @@ python tools/claim_lint render designs/my-service --write    # design.md の生�
 次に進むときは、[README.md](README.md) の「記入の順序」の 5. 以降（問い × 仕組み、台帳、ホップ、ライフサイクル表、カタログへの回答）を書きます。
 
 根拠：tools/claim_lint/RULES.md、tools/claim_lint/RENDER.md の 2.、templates/CONTRIBUTING.md の 2.
+
+<a id="step-6-self-check"></a>
+## 手順 6（レビューに出す前）：提出前の自己点検をする
+
+項目 ID：`template:GETTING_STARTED#step-6-self-check`
+
+設計書を書き終えて、レビューに出す前に行います。レビューの問い（`review/perspectives.md` の 168 問）は、誰が確かめるかで 4 つに分けてあります（`review/triage.yaml`）。
+
+| 区分 | 誰が確かめるか | 書き手がすること |
+| --- | --- | --- |
+| A 機械 | claim_lint | 手順 5 で error を 0 にする。warn には、行ごとに理由を書く |
+| B 書き手の自己点検 | **書き手** | 下のチェックリストで確かめる |
+| C 人の判断 | レビュアー（`review/short_list.md`） | 12.（自信のない点）に、見てほしい点を書く |
+| D 専門家 | 専門家（`review/escalation.md`） | 当たりそうな行を 12. に書く |
+
+- **チェックリストは、PR のテンプレートにあります**（リポジトリの `.github/PULL_REQUEST_TEMPLATE/design_doc.md`。PR を作る URL に `?template=design_doc.md` を付けると、本文に入ります）。区分 B の問いと、機械で確かめる規則がまだ無い・足りない区分 A の問いが並んでいます
+- 満たす問いに印を付けます。満たさない・当てはまらない問いは、印を付けずに、行の末尾に理由を書きます。レビュアーは、印の無い行だけを読みます
+- 問いごとの見る欄は、`review/perspectives.md` の同じ ID の問いにあります
+- `python tools/review_triage.py --design designs/my-service` で、レビュアーに出る問い（この設計の性質に当たる、人の判断が要る問い）を先に見られます。答えにくい問いがあれば、設計書に書き足すか、12. に書きます
+
+チェックリストの量（いまは 70 問）と分け方は筆者の提案です（追跡 #56）。lint の規則ができるたびに減ります（#68）。
+
+根拠：templates/review/triage.yaml、筆者の提案：書き手の提出前の自己点検（追跡 #56）

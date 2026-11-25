@@ -1,0 +1,293 @@
+# template_version: 0.4.0
+# 観点書（perspectives.md）の 168 問の振り分け（#56）。
+# 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。
+# 区分・優先順・出す条件・1 回の量の目安は、どれも筆者の提案（追跡 #56。人による確かめは #20）。
+# このファイルが正。次の 4 つは `python tools/review_triage.py --write` がここから作る（CI は --check で食い違いを見る）：
+#   templates/review/perspectives.md の各問いの「- 区分：」の行
+#   templates/review/short_list.md（人に渡す短い一覧）
+#   .github/PULL_REQUEST_TEMPLATE/design_doc.md（書き手の提出前の自己点検）
+#   docs/claims/data/review.js の triage・checklist（python tools/build_claims_viewer.py）
+version: 1
+
+classes:
+  A: {name: 機械, means: "欄の有無・値の範囲・欄どうしの整合だけで Yes／No が決まる", goes_to: "claim_lint の規則。規則がまだ無い問い・規則が一部しか見ない問いは、規則ができるまで書き手の自己点検にも置く（interim: B）"}
+  B: {name: 書き手の自己点検, means: "書き手なら機械的に埋められるが、機械には読めない（設計書の本文・モジュールの欄に書いてあるか）", goes_to: "提出前のチェックリスト（PR のテンプレート）"}
+  C: {name: 人の判断, means: "要求・組織の事情・脅威の想定・取り引きの妥当さを判断する", goes_to: "レビュアーに渡す短い一覧（short_list.md）"}
+  D: {name: 専門家, means: "暗号・IdP の実際の挙動・委任の深さなど、レビュアーに求められない", goes_to: "escalation.md の基準で専門家に回す"}
+
+# 1 回のレビューの量の目安（筆者の提案。追跡 #56、人による確かめは #20）
+budget:
+  questions: [15, 25]
+  minutes: [30, 60]
+  default_priorities: [1, 2]   # 既定で出すのは、条件に当たる優先 1・2 の問い。優先 3 は「詳しく見る」
+  note: "条件に当たる問いが 25 を超えたら、優先 1 を先に答え、優先 2 は時間の中で上から答える。答えなかった問いはレポートに書く"
+
+priorities:
+  1: "No なら偽造・なりすまし・他人のデータに届く、またはパイロット（#9）で Major の指摘が出た問い"
+  2: "No なら権限の誤り・剥奪の遅れになり、理由や取り引きの妥当さを読む問い"
+  3: "当たる設計が限られる、または優先 1・2 の問いを答える中で見える問い（既定では出さない）"
+
+# 問いを読む単位。短い一覧の章になる
+units:
+  row: クレームの行を読みながら（台帳の 1 行ごと）
+  hop: 経路を読みながら（ホップの 1 行ごと・範囲の図）
+  design: 設計の全体を読んでから
+
+# 出す条件（show_when）。台帳・目録・ホップ・カタログへの回答から読める性質だけを使う。
+# 読み方の実装は tools/review_triage.py の traits() と docs/claims/review.js の designTraits()（同じ結果になることをテストで確かめる）。
+# show_when に 2 つ以上あるときは、どれか 1 つに当たれば出す。
+conditions:
+  always: {label: どの設計でも, read: "条件なし"}
+  org_claims: {label: 組織独自のクレームがある, read: "採用の行に、名前空間つきの行、または登録名でない（registered_ref が無い）認可・識別子の行がある"}
+  pii: {label: 個人情報を載せる, read: "採用の行の pii_category に「該当なし」以外がある"}
+  multi_idp: {label: 発行者（IdP）が複数ある, read: "採用の種別の issuers の iss が 2 種類以上、または upstream_issuer のある採用の行がある"}
+  exchange: {label: トークンの交換・作り直しがある, read: "ホップに kind が exchange・reissue の行がある"}
+  delegation: {label: 委任がある（代理で動く主体がいる）, read: "採用の行に act・may_act がある、または採用の種別に max_delegation_depth がある"}
+  approval: {label: 操作ごとの承認がある, read: "採用の行かホップに authorization_details がある"}
+  multitenant: {label: マルチテナント, read: "catalog_answers の lite_criteria.multitenant が Yes。この回答が無いときだけ、採用の種別の tenant_binding の有無で読む"}
+  data_layer: {label: トークンの値を DB の層まで運ぶ, read: "ホップに kind が db_connection の行がある"}
+  auth_context: {label: 認証の強さ・新しさで判断する, read: "採用の行に acr・amr・auth_time がある"}
+  sender_constrained: {label: 送信者制約を選んだ, read: "採用の種別に sender_constraint が dpop・mtls の行がある"}
+  sender_declined: {label: 送信者制約を見送った, read: "採用のアクセストークン・内部トークンに、sender_constraint が none か未記入の行がある"}
+  long_running: {label: 長時間・非同期の処理がある, read: "採用の種別に long_running がある、またはホップに kind が broker_connection の行がある"}
+
+# lint の規則の案（A に分けたが、答えを決める規則がまだ無い問いのため）。
+# L<番号> は templates/trace/planned_items.yaml にある未実装の規則、N<番号> はこの振り分けとパイロット（#9）から出た新しい案。
+# 実装はしない（#56 の範囲の外）。一覧は issue #68 にある。
+proposed_rules_issue: "#68"
+proposed_rules:
+  N1: {rule: "R1 の必須の列に、組織独自のクレームの prior_art_search、認可・識別子の文字列のクレームの value_normalization、受け手ごとの consumer_access_path を足す", pilot: [B-R1 F07, B-R2 R2-14]}
+  N2: {rule: "ホップの validates・行の upstream_issuer に出る IdP のクレームの名前に、台帳の行（identifier_properties・on_missing）を求める（L7 の逆向きの拡張）", pilot: [B-R1 F01, B-R2 R2-03]}
+  N3: {rule: "種別の required_claims が、その種別を運ぶホップの custom_claims に含まれる（25 問の問 14 と目録の必須の食い違い）", pilot: [B-R1 F03, B-R2 R2-15]}
+  N4: {rule: "個人情報の行で、carried_in の種別の holder・visible_to に、consumers に無い相手がいれば warn（L6・L65 の拡張）", pilot: [C-R1 F10]}
+  N5: {rule: "認可に使うオブジェクト型のクレームに、内側の型（受け手のスキーマの properties）と比べ方を求める", pilot: [C-R1 F17, C-R2 F10]}
+  N6: {rule: "on_missing が拒否なのに、carried_in の種別の一部の required_claims に無い行（無いのが正規のトークンがある）", pilot: [C-R2 F13]}
+  N7: {rule: "台帳の consumers・enforced_at.service と、ホップの to の名前が結びつく（生成の矢印の表が空になる）", pilot: [C-R1 F14, C-R2 F22]}
+  N8: {rule: "採用の Txn-Token の required_claims に、草案の必須（iat・aud・exp・txn・sub・scope・req_wl）がそろう", pilot: []}
+  N9: {rule: "logout_token の種別に、nonce の拒否と、sub か sid の必須を求める", pilot: [B-R1 T10]}
+  N10: {rule: "組織の外に届く種別（lite_criteria.crosses_boundary が Yes のときの外向きの aud）に subject_type を求める", pilot: []}
+  N11: {rule: "25 問の回答（claim_request_*.md）が、ほかのクレームの回答と同じ文なら warn", pilot: []}
+  N12: {rule: "render が作る表のクレームの名前（flat_prefix のつなぎ方）が、required_claims・生成のスキーマの名前と一致する（問いには当たらない。パイロットの指摘から）", pilot: [B-R1 T7, B-R2 R2-16]}
+  N13: {rule: "assumption を書いた行に revisit_trigger を求める（問いには当たらない。理由の採点 RR2・RR3 から）", pilot: [C-R1 F18, C-R2 F26]}
+
+# 開いた問い：問いの一覧の内側では見つからなかった Major の指摘（パイロット #9 のテンプレート外・カタログ外・カタログ）から作った。
+# Yes／No では答えず、要求と運用から辿って、気づいたことを指摘にする。出どころは「テンプレート外」か「カタログ外の質問」。
+open_prompts:
+  - id: op-requirement-words
+    show_when: [always]
+    ask: "要求の言葉を 1 つずつ取り出し（例：「社員」「管理者」「承認」）、その言葉に入る人・場合を全部挙げる（例：正社員・契約社員・派遣・休職中・退職の手続き中）。それぞれについて、設計のどの値が、その人を通す・止めるを決めているかを辿る。要求にあるのに設計に無い区分、設計にあるのに要求に無い操作はないか"
+    from: [B-R1 T4, B-R2 R2-19]
+  - id: op-source-change
+    show_when: [always]
+    ask: "権限の元になるデータ（人事の台帳・グループ・ロールの割り当て）が変わる出来事を 1 つ選ぶ（例：異動でロールが外れる・退職）。元のデータを書き換えるのは誰で、どの経路か。変わってから、トークンの値と受け手の判断が変わるまでを、IdP の手前から順に辿る。途中に、図に無い書き込みの経路や、誰も時間を約束していない区間はないか"
+    from: [B-R2 R2-06, B-R1 T2, B-R2 R2-08]
+  - id: op-clock
+    show_when: [always]
+    ask: "時刻を比べている箇所を全部挙げる（期限・発行時刻とログアウトや失効の時刻・台帳の更新時刻）。比べる 2 つの時刻は、同じ時計が書いたものか。別の発行者・別のサーバーの時計なら、ずれたときにどちらへ倒れるか（通すのか、止めるのか）"
+    from: [B-R1 T1]
+  - id: op-key-custody
+    show_when: [always]
+    ask: "トークンに署名する鍵ごとに、誰が持ち、どこに置き、誰が触れるかを言えるか。その鍵が漏れたと分かったとき、誰が・何分で・何をするか（鍵の差し替え・出したトークンの扱い）。新しく置いた発行者（入口・STS）の鍵も数えたか"
+    from: [B-R1 T5, B-R2 R2-18, C-R2 F25]
+  - id: op-one-time
+    show_when: [always]
+    ask: "1 回だけ使えるはずの値（承認・認可コード・jti・ワンタイムの番号）ごとに、「確かめる」と「使用済みにする」の間に同じ値がもう 1 回届いたらどうなるかを辿る。並行の 2 件・通信が切れた後の再送・記録先の障害のそれぞれで、2 回通ることも、正しい 1 回が失われることもないか"
+    from: [C-R1 F08, C-R2 F03, B-R1 T6, B-R2 R2-10]
+  - id: op-consent-binding
+    show_when: [delegation, approval]
+    ask: "本人が承認・同意した内容（誰に・何を・どの相手に向けて）と、その結果のトークンで実際にできることを並べる。承認していない相手（信頼していないサーバー・別のツール）に向けて、同じ承認でトークンを出させたり使わせたりできないか。入力に紛れた指示（プロンプトインジェクション）で宛先を変えられたらどうなるか"
+    from: [C-R2 F04]
+  - id: op-proof-holder
+    show_when: [sender_constrained]
+    ask: "「鍵の持ち主であることを確かめる」（cnf・DPoP・mTLS）と書いた箇所ごとに、そのトークンを実際に持つのは誰で、鍵を持つのは誰かを辿る。確かめる側が見ている鍵は、トークンを持つ者の鍵か。証明書・鍵を更新したとき、束縛したトークンはどうなるか"
+    from: [C-R1 F02, C-R2 F02, C-R2 F24]
+  - id: op-old-and-test-paths
+    show_when: [always]
+    ask: "図に無い入口を探す。移行期間の旧経路（古い入口・古いトークンの形）、テスト用の口・時計・鍵・利用者、管理用の口、障害時の手作業の経路。それぞれ、本番で開いているか、開いているなら同じ守りが掛かるか、いつ誰が閉じるか"
+    from: [B-R1 T3, B-R2 R2-07, C-R2 F06, C-R2 F27]
+
+questions:
+  # ---- 1. 定義：1.1 設計のチェックリスト
+  - {id: dc-01, class: A, lint: [L5], why: "usage と volatility と寿命の比較は、台帳と目録の値の計算で決まる"}
+  - {id: dc-02, class: A, lint: [L1a], proposed: [N1], interim: B, why: "探した記録の列があるかは欄の有無。登録名の側は L1a が見る。独自クレームの prior_art_search の必須は案"}
+  - {id: dc-03, class: A, lint: [L1b], proposed: [L34], interim: B, why: "名前空間の宣言と所属は L1b が見る。予約名との照合は未実装の L34"}
+  - {id: dc-04, class: A, lint: [], proposed: [N1], interim: B, why: "受け手ごとの consumer_access_path があるかは欄の有無。実際に参照できるかは実行テスト"}
+  - {id: dc-05, class: A, lint: [], proposed: [L24, N5], interim: B, why: "型が 1 つか、ID・金額が文字列かは type の値で決まる"}
+  - {id: dc-06, class: A, lint: [], proposed: [L36], interim: B, why: "shape の値（space_delimited でないか）で決まる"}
+  - {id: dc-07, class: A, lint: [L37, L7], proposed: [N6], interim: B, why: "absent_semantics と on_missing の有無と整合で決まる"}
+  - {id: dc-08, class: A, lint: [], proposed: [N1], interim: B, why: "value_normalization の欄の有無。受け手が完全一致で比べるかは実行テスト"}
+  - {id: dc-09, class: A, lint: [L3], why: "変わりうる名前・identifier_properties・paired_id の値で決まる"}
+  - {id: dc-10, class: A, lint: [L31, L4], why: "provenance と書き手の欄の値で決まる。書ける人の範囲が妥当かは ap-1-7 で人が見る"}
+  - {id: dc-11, class: A, lint: [R8, R1], why: "max_bytes・max_items・overflow_strategy の有無と値で決まる"}
+  - {id: dc-12, class: A, lint: [L7, L4], why: "on_missing と required_claims、段階ごとの書き手の数で決まる"}
+  - {id: dc-gate, class: A, lint: [R1], why: "必須の列が空の採用の行は R1 が error にする"}
+  # ---- 1.2 追加前の 25 問
+  - {id: pa-01, class: C, priority: 2, unit: row, show_when: [org_claims], ask: "このクレームを読んで、どの受け手が何を決めるのか（許す・断る・絞る）を、受け手の名前つきで言えるか。使い道の無い値や、表示用の値で認可していないか", why: "使い道が実在するか、usage と合うかは、回答の文を読んで判断する"}
+  - {id: pa-02, class: A, lint: [L5], why: "dc-01 と同じ計算。対策の欄の有無まで L5 が見る。対策が足りるかは q-freshness-mitigation で人が見る"}
+  - {id: pa-03, class: B, why: "探した順と、既存のクレームで表せない理由が、25 問の回答に書いてあるか（自由記述の有無）"}
+  - {id: pa-04, class: A, lint: [L1b], proposed: [L34], interim: B, why: "dc-03 と同じ"}
+  - {id: pa-05, class: B, why: "確かめた記録が 25 問の回答にあるか（自由記述の有無）"}
+  - {id: pa-06, class: B, why: "25 問の回答の文と、台帳の namespace・shape が合うか（書き手が見比べる）"}
+  - {id: pa-07, class: A, lint: [], proposed: [L36], interim: B, why: "dc-06 と同じ"}
+  - {id: pa-08, class: A, lint: [], proposed: [L24, N5], interim: B, why: "dc-05 と同じ。オブジェクトの内側の型は案 N5"}
+  - {id: pa-09, class: A, lint: [L37, L7], proposed: [N6], interim: B, why: "dc-07 と同じ"}
+  - {id: pa-10, class: B, why: "比べ方が 25 問の回答に書いてあるか（自由記述の有無）。欄の必須は dc-08 の案"}
+  - {id: pa-11, class: A, lint: [L31], why: "書き手と configurable_by、照合の宣言（enforced_at）の値で決まる。書ける人の範囲が妥当かは ap-1-7"}
+  - {id: pa-12, class: A, lint: [L3], why: "dc-09 と同じ"}
+  - {id: pa-13, class: A, lint: [R8], why: "dc-11 と同じ"}
+  - {id: pa-14, class: A, lint: [L16], proposed: [N3], interim: B, why: "載せる種別・ホップごとの絞り込みは宣言の整合。目録の必須との食い違いは案 N3。載せる必要があるかは q-derived-value で人が見る"}
+  - {id: pa-15, class: A, lint: [L4], why: "段階ごとの書き手の数で決まる"}
+  - {id: pa-16, class: B, why: "共通の検証部品で提供すると書いてあるか（自由記述の有無）"}
+  - {id: pa-17, class: A, lint: [L8], why: "forwarded_headers の strip_inbound の宣言で決まる"}
+  - {id: pa-18, class: B, why: "未検証の値を流すモードが無いと書いてあるか（自由記述の有無）"}
+  - {id: pa-19, class: C, priority: 3, unit: row, show_when: [org_claims], ask: "このクレームを知らない受け手が無視しても安全か。制限を表す値なら、読まない受け手で制限が効かなくならないか", why: "値の意味（許可か制限か）と受け手の事情の判断。機械の規則（L60）は未実装"}
+  - {id: pa-20, class: A, lint: [L70, L6], why: "log_policy・pii_category・data_category の値の整合で決まる"}
+  - {id: pa-21, class: B, when: [delegation], why: "act・承認 ID との関係が 25 問の回答に書いてあるか（自由記述の有無）"}
+  - {id: pa-22, class: A, lint: [R1], proposed: [N7], interim: B, why: "consumers の有無は R1。設計書に出る受け手との一致は案 N7"}
+  - {id: pa-23, class: B, why: "移行計画が書いてあるか（自由記述の有無）"}
+  - {id: pa-24, class: B, why: "互換期間と並行発行の期間が書いてあるか（自由記述の有無）"}
+  - {id: pa-25, class: B, why: "発行前の確認手段と受け手のテストが書いてあるか（自由記述の有無）"}
+  - {id: pa-gate, class: A, lint: [L72], proposed: [N11], interim: B, why: "回答の有無は L72。ほかのクレームの写しかどうかは案 N11"}
+  - {id: pa-trace, class: A, lint: [L72], why: "回答の「対象：」が台帳の ID を指すかは L72 が見る"}
+  # ---- 1.3 既存のクレームと意味
+  - {id: q-registered-synonym, class: C, priority: 3, unit: row, show_when: [org_claims], ask: "同じ意味の値が、別の名前で 2 行に分かれていないか（登録名・既存の行と意味が重なる独自クレーム）", why: "意味が同じかどうかは、説明の文を読んで判断する"}
+  - {id: q-reuse-standard-structure, class: C, priority: 3, unit: row, show_when: [org_claims], ask: "この独自クレームの用途は、既にある構造（cnf・txn・verified_claims など。判断の木の対応表）で表せないか", why: "用途と既存の構造の対応は、判断の木を使った判断"}
+  - {id: q-auth-context-semantics, class: C, priority: 2, unit: row, show_when: [auth_context], ask: "認証の新しさを auth_time、強さを acr で判断しているか。iat・amr・sid を、その代わりに使っていないか", why: "何を何の代わりに使っているかは、not_meaning と使い方を読んで判断する"}
+  - {id: q-scope-semantics, class: C, priority: 3, unit: row, show_when: [always], ask: "scope を「クライアントに委ねた範囲」として扱い、利用者の全権限と読んでいないか", why: "scope の読み方の妥当さの判断"}
+  - {id: q-value-vocabulary, class: C, priority: 1, unit: row, show_when: [multi_idp], ask: "ロール・グループの値は、どの発行者（IdP）の誰が付けた値か。別の IdP の同じ文字列（admin など）を、同じ意味として通していないか。照合に使う値は、変わる名前でなく変わらない ID か", why: "値の語彙と、IdP をまたぐ写し方が要求に合うかの判断。パイロットの Major（B-R2 R2-04・R2-05）"}
+  - {id: q-role-explosion, class: C, priority: 3, unit: row, show_when: [always], show_on_lint: [L69], ask: "ロールの名前に、テナント・対象・操作の組み合わせを詰めていないか", why: "ロールの粒度の設計の判断。L69 の warn が出たら見る"}
+  # ---- 1.4 識別子
+  - {id: q-identifier-choice, class: A, lint: [L3], proposed: [L28, N2], interim: B, why: "キーにした値の性質は L3。IdP 固有のクレームに行が無い場合は案 N2（パイロットの Major 2 件）"}
+  - {id: ap-1-6, class: A, lint: [L3], why: "email・upn などを識別子に使う行は L3 が error にする"}
+  - {id: q-pairwise-external, class: A, lint: [], proposed: [N10], interim: B, why: "subject_type の欄の有無で決まる"}
+  - {id: q-pairwise-unguessable, class: D, escalation: custom-crypto, why: "識別子の生成の方式が推測できないかは、暗号の方式の評価"}
+  # ---- 1.5 載せる値の選び方と個人情報
+  - {id: ap-2-1, class: A, lint: [R8, L69], why: "件数の上限・超過時の扱いは R8、権限の詰め込みは L69"}
+  - {id: ap-2-2, class: A, lint: [L5], why: "変わりやすい値の対策の有無は L5"}
+  - {id: ap-2-3, class: A, lint: [L1a], proposed: [L24], interim: B, why: "型と形の固定は台帳の値。受け手のスキーマは render --check が台帳から作って比べる"}
+  - {id: ap-2-4, class: A, lint: [L1b], why: "名前空間なしの未登録名は L1b が error にする"}
+  - {id: q-payload-readable, class: A, lint: [L65, L6], why: "confidential_from と visible_to・stored_at の突き合わせで決まる"}
+  - {id: q-confidential-reaches-reader, class: A, lint: [L65, L66], why: "q-payload-readable と同じ突き合わせ。JWE の宣言は L66"}
+  - {id: q-no-secret-or-raw-pii, class: A, lint: [L70, L71], proposed: [L51], interim: B, why: "名前からの推測と data_category の食い違いは L70、秘密らしい文字列は L71"}
+  - {id: q-derived-value, class: C, priority: 2, unit: row, show_when: [pii], ask: "この個人情報は、受け手が値そのものを要るのか。判定の結果（18 歳以上か）や参照の ID で足りないか。読まない受け手にも届くトークンに載っていないか", why: "受け手に何が要るかは要求の判断。パイロットの C-R1 F10・C-R2 F15"}
+  - {id: q-baseline-kept, class: B, why: "共通の基準の表に、書き手が満たす・満たさないを付ける"}
+  # ---- 2. 発行
+  - {id: q-single-issuer, class: A, lint: [L4], why: "段階ごとの書き手の数で決まる"}
+  - {id: q-hook-failure, class: A, lint: [R3b, L7], why: "フックが呼ばれない発行と、必須のクレームの拒否の宣言で決まる"}
+  - {id: q-size-limit, class: A, lint: [R8], why: "R8 が最悪のサイズを計算する"}
+  - {id: ap-1-7, class: C, priority: 1, unit: row, show_when: [always], ask: "権限・識別子の値ごとに、その値を書ける人を全部挙げる（IdP の管理者・テナントの管理者・本人・呼び出し側・外部の IdP の管理者）。その全員が、その権限を与えてよい人か", why: "書ける人の範囲が要求に合うかは判断。provenance の値の検査（L31）は通っていても起きる。パイロットの Major（B-R2 R2-04）"}
+  - {id: q-hook-adds-raw-pii, class: A, lint: [L70], why: "フックが書く行の pii_category・data_category の値で決まる"}
+  - {id: q-minimal-per-recipient, class: A, lint: [L16], proposed: [N4], interim: B, why: "consumers と carried_in の突き合わせ。読まない受け手に個人情報が届く場合は案 N4（パイロットの Major C-R1 F10）"}
+  - {id: q-rar-per-audience, class: C, priority: 3, unit: hop, show_when: [approval], ask: "承認の内容（authorization_details）を、宛先ごとに、その宛先に要る分だけに絞っているか", why: "宛先に何が要るかの判断"}
+  - {id: q-agent-own-identity, class: B, when: [delegation], why: "エージェントを独立した主体として登録したと書いてあるか（プロファイルの欄）"}
+  - {id: q-agent-delegation-claims, class: A, lint: [L12], why: "sub と act の取り違えは L12 が見る"}
+  - {id: q-idp-capability-verified, class: D, escalation: unverified-idp-behavior, why: "IdP・製品の挙動が出どころどおりかは、実測か製品の知識が要る。パイロットの D の Major 3 件"}
+  - {id: q-variant-comparison, class: C, priority: 2, unit: design, show_when: [sender_declined], ask: "既定から外した選択（送信者制約を見送る・寿命を延ばすなど）の理由は、それで開く攻撃と、代わりの守りを比べているか。比べた候補は足りているか", why: "取り引きの妥当さの判断。パイロットの B-R2 R2-02"}
+  - {id: q-outside-catalog, class: C, priority: 1, unit: design, show_when: [always], ask: "図と経路から思いつく発行・利用の場面（管理画面からの発行・障害時の再送・テストの経路・移行期間の旧経路）は、設計書のどこかで答えられているか", why: "一覧の外を問う。パイロットの Major 3 件（4 回のうち 3 回で出た）"}
+  # ---- 3. 伝搬：3.1 流れの規則
+  - {id: cf-01, class: A, lint: [L4, L5], why: "段階ごとの書き手と、フックに入れる値の volatility で決まる"}
+  - {id: cf-02, class: A, lint: [L7], why: "必須のクレームの on_missing で決まる"}
+  - {id: cf-03, class: A, lint: [], proposed: [L41], interim: B, why: "入口のホップの exchanger・token_type の値で決まる"}
+  - {id: cf-04, class: A, lint: [], proposed: [L41], interim: B, why: "ホップごとの token_type・aud の変化で決まる"}
+  - {id: cf-05, class: A, lint: [L16], why: "上流との aud・scope・寿命の比較は L16"}
+  - {id: cf-06, class: A, lint: [L43], why: "Txn-Token の transport の値で決まる"}
+  - {id: cf-07, class: A, lint: [], proposed: [L46], interim: B, why: "すべてのホップの validates に中身があるかで決まる"}
+  - {id: cf-08, class: A, lint: [L8], why: "strip_inbound の宣言で決まる"}
+  - {id: cf-09, class: B, why: "PEP が要求ごとに評価すると、モジュールの欄に書いてあるか"}
+  - {id: cf-10, class: A, lint: [], proposed: [L45], interim: B, why: "log_policy の値で決まる"}
+  # ---- 3.2 下流ほど絞る
+  - {id: q-hop-narrowing, class: A, lint: [L16], why: "上流との比較と narrowing_exception の有無は L16。交換の規則の中身は q-no-passthrough で人が見る"}
+  - {id: q-hop-lifetime, class: A, lint: [L16], why: "上流との寿命の比較は L16"}
+  - {id: q-single-aud-resource, class: A, lint: [], proposed: [L56], interim: B, why: "aud の数で決まる（パイロットの Major B-R1 F02）"}
+  # ---- 3.3 渡し方
+  - {id: ap-2-6, class: A, lint: [], proposed: [L41], interim: B, why: "cf-04 と同じ"}
+  - {id: q-no-passthrough, class: C, priority: 1, unit: hop, show_when: [exchange, delegation], ask: "交換・作り直しごとに、誰が交換を頼めるか・どの宛先とどの範囲を割り当てるかの規則があるか。その規則で、頼んではいけない相手や、広すぎる範囲が通らないか", why: "交換の規則が要求に合うかの判断。パイロットの Major 2 件（C-R1 F03・C-R2 F05）"}
+  - {id: ap-2-5, class: A, lint: [L8, L67], why: "同名のヘッダーの除去と、入口だけが書けるという宣言で決まる"}
+  - {id: q-unverified-claim-extraction, class: A, lint: [], proposed: [L46], interim: B, why: "ホップの validates の宣言で決まる"}
+  - {id: q-gateway-bypass-path, class: C, priority: 1, unit: hop, show_when: [always], ask: "入口を通らずにサービスへ届く経路（サービス間の直接の呼び出し・管理用の口・メッセージ）を、図から挙げられるか。その経路でも、同じ検証をしているか", why: "図に無い経路を想像する。機械は図を読めない"}
+  - {id: q-step-up-path-coverage, class: C, priority: 2, unit: hop, show_when: [auth_context], ask: "追加の認証が要る操作は、どの経路から呼ばれても（直接・代理・交換の後・非同期）、同じ条件で確かめられるか", why: "経路ごとの抜けを辿る判断"}
+  - {id: q-txn-scope-fixed, class: A, lint: [L11], why: "tctx の照合の規則の有無は L11"}
+  - {id: q-txn-required-claims, class: A, lint: [L7], proposed: [N8], interim: B, why: "required_claims と carried_in の突き合わせ。草案の必須の一覧は案 N8"}
+  - {id: q-claim-earliest-hop, class: A, lint: [L16], why: "上流に無い独自クレームは L16 が error にする"}
+  - {id: ap-2-9, class: A, lint: [L17, L9, R1], why: "内部のトークンの署名・テナント・失効・ログの列の有無で決まる"}
+  - {id: q-internal-delegation-token, class: A, lint: [L9, L17, R1], why: "ap-2-9 と同じ"}
+  - {id: ap-2-7, class: C, priority: 1, unit: hop, show_when: [delegation], ask: "代理で動く主体（エージェントなど）が、本人のトークンをそのまま使える経路はないか。代理であることを示さない（act の無い）トークンを出してよい相手は限られているか", why: "代理が本人として通る経路を辿る判断。パイロットの Major（C-R1 F09）"}
+  - {id: q-delegation-depth-and-revocation, class: D, escalation: delegation-depth, why: "委任の深さの数え方と一括の失効は、深さが 2 以上なら専門家に回す基準"}
+  - {id: q-idp-diff-absorbed, class: C, priority: 2, unit: hop, show_when: [multi_idp], ask: "IdP ごとの差（利用者のキー・ロールの位置・宛先）は、入口で吸収しているか。内側のサービスが、特定の IdP の独自の値を直接読んでいないか", why: "どこで差を吸収するかの設計の判断"}
+  - {id: q-token-not-in-url, class: A, lint: [], proposed: [L54], interim: B, why: "transport の値で決まる"}
+  # ---- 4. 検証
+  - {id: q-shared-validator, class: B, why: "共通の検証部品を使うと、モジュールの欄に書いてあるか"}
+  - {id: ap-1-1, class: A, lint: [L17], why: "alg_allowlist の値で決まる"}
+  - {id: ap-1-2, class: A, lint: [], proposed: [L46], interim: B, why: "ホップの validates の宣言で決まる。実際の検証は実行テスト"}
+  - {id: q-validate-before-read, class: B, why: "検証の順序が、モジュールの欄に書いてあるか"}
+  - {id: ap-1-3, class: A, lint: [L27], why: "required_claims に aud があるかで決まる"}
+  - {id: ap-1-4, class: A, lint: [L9], why: "issuers と tenant_binding の宣言で決まる"}
+  - {id: ap-1-5, class: A, lint: [L25], why: "key_source の宣言で決まる"}
+  - {id: ap-1-8, class: A, lint: [L27], why: "exp の必須と max_clock_skew の値で決まる"}
+  - {id: q-typ-distinguishes, class: A, lint: [L27, R1], proposed: [N9], interim: B, why: "typ・aud の宣言で決まる。ログアウトトークンの検証の欠けは案 N9"}
+  - {id: q-required-rejected, class: A, lint: [L7], proposed: [N6], interim: B, why: "required_claims と on_missing の整合で決まる"}
+  - {id: q-no-unverified-passthrough-mode, class: B, why: "無効化・デバッグのモードを持たないと、モジュールの欄に書いてあるか"}
+  - {id: q-consumer-expression, class: A, lint: [L7, L37, L11], why: "enforced_at・on_missing・absent_semantics の宣言で決まる。実際の式は実行テスト"}
+  - {id: q-nested-jwt-both-layers, class: A, lint: [L66], why: "jwe の宣言で決まる"}
+  - {id: q-unwrapped-value-authz, class: A, lint: [L67], why: "integrity_until と、入口だけが書けるという宣言で決まる"}
+  # ---- 5. 認可
+  - {id: q-object-level-authz, class: C, priority: 1, unit: design, show_when: [always], ask: "利用者が ID を指定してデータを取る処理を 1 つ選ぶ。他人の ID を指定したとき、どこで・何と何を比べて止めるか。入口やトークンの値だけに任せていないか", why: "他人のデータに届く（BOLA）。データの側の照合は、宣言だけでは分からない"}
+  - {id: q-tenant-data-match, class: C, priority: 1, unit: hop, show_when: [multitenant], ask: "トークンのテナントを、保存されたデータのテナントと、どこで比べているか。比べない経路はないか", why: "他テナントのデータに届く。データの側の照合は、宣言だけでは分からない"}
+  - {id: q-writer-distinguished, class: A, lint: [L31], why: "provenance と書き手の欄の値で決まる"}
+  - {id: q-validity-not-authz, class: C, priority: 3, unit: design, show_when: [always], ask: "「トークンが有効」というだけで通している操作はないか。操作・対象・その場の状況も見ているか", why: "判断に何を使うべきかは要求による"}
+  - {id: q-original-principal, class: C, priority: 2, unit: hop, show_when: [exchange, delegation], ask: "内部の呼び出しでも、元の利用者の権限で判断しているか。間に入るサービスの広い権限で、下流に頼んでいないか", why: "代理の混乱を、経路を辿って判断する"}
+  - {id: q-authorize-service-and-user, class: C, priority: 1, unit: hop, show_when: [exchange, delegation], ask: "呼び出してきた直接の相手（サービス）が誰かを、通信の層（mTLS など）で確かめているか。利用者の権限とは別に、その相手を通してよいかを決めているか", why: "直接の相手を確かめない取り引きが妥当かの判断。パイロットの Major（B-R2 R2-02）"}
+  - {id: q-scope-and-role, class: C, priority: 3, unit: design, show_when: [always], ask: "受け手は、クライアントに委ねた範囲（scope）と、利用者に許した範囲（role）の両方を確かめているか", why: "認可の作りの判断"}
+  - {id: q-access-context-from-pep, class: C, priority: 3, unit: design, show_when: [always], show_on_lint: [L68], ask: "「いまどこから来たか」（IP・端末）の判断に、トークンの値や偽装できるヘッダーを使っていないか", why: "L68 の warn が出たら見る。判断に使う値の出どころの妥当さ"}
+  - {id: q-step-up-by-rs, class: C, priority: 2, unit: design, show_when: [auth_context], ask: "追加の認証を求めるかどうかを、操作を受ける側が決めているか（クライアントやトークンの値に任せていないか）", why: "誰が判断するかの設計の判断"}
+  - {id: q-approval-from-as, class: C, priority: 2, unit: design, show_when: [approval, delegation], ask: "機微な操作の承認があったかどうかを、頼む側（エージェント・クライアント）の申告でなく、本人に確かめた記録と照合しているか。承認は、その操作・その相手に結びついているか", why: "承認の置き場所と結び付けの妥当さの判断。パイロットの C-R1 F07"}
+  - {id: q-cross-tenant-identity, class: C, priority: 2, unit: design, show_when: [multitenant], ask: "テナントをまたいで、同じ人だと暗黙に決めていないか（メールアドレスでの突き合わせなど）", why: "名寄せの妥当さの判断"}
+  - {id: q-operator-act, class: C, priority: 1, unit: design, show_when: [always], ask: "運用者・管理者が利用者の代わりに操作するとき、どのトークンで動くか。後から、運用者の操作と利用者の操作を見分けられるか", why: "運用の実際を問う。パイロットの Major（C-R2 F09）"}
+  - {id: q-break-glass, class: C, priority: 3, unit: design, show_when: [always], ask: "緊急時の特権に、承認と短い期限があるか", why: "運用の取り引きの判断"}
+  # ---- 5.1 データ層の規則
+  - {id: cd-01, class: B, when: [data_layer], why: "DB の文脈を設定する者が、モジュールの欄に書いてあるか"}
+  - {id: cd-02, class: B, when: [data_layer], why: "設定の方法（SET LOCAL）が、モジュールの欄に書いてあるか"}
+  - {id: cd-03, class: B, when: [data_layer], why: "SQL Server の設定が、モジュールの欄に書いてあるか"}
+  - {id: cd-04, class: A, lint: [L31], why: "provenance の値で決まる"}
+  - {id: cd-05, class: A, lint: [], proposed: [L48], interim: B, when: [data_layer], why: "DB のロールを選ぶクレームの issuers・data_category の値で決まる"}
+  - {id: cd-06, class: B, when: [data_layer], why: "RLS をすり抜ける主体の扱いが、モジュールの欄に書いてあるか"}
+  - {id: cd-07, class: B, when: [data_layer], why: "DB のユーザーの対応付けが、モジュールの欄に書いてあるか"}
+  - {id: cd-08, class: A, lint: [], proposed: [L49], interim: B, when: [data_layer], why: "connection_max_lifetime の欄の有無で決まる"}
+  - {id: cd-09, class: B, when: [data_layer], why: "利用者の ID を DB まで伝えるかが、モジュールの欄に書いてあるか"}
+  - {id: cd-10, class: B, when: [data_layer], why: "文脈が欠けたときの扱いが、モジュールの欄に書いてあるか"}
+  - {id: cd-11, class: B, when: [data_layer], why: "データ層の設定と試験の計画が、設計書に書いてあるか"}
+  - {id: q-db-context-writers, class: C, priority: 1, unit: hop, show_when: [data_layer], ask: "DB の「いまの利用者・テナント」を書き換えられるのは誰か。注入する部品のほかに、同じ接続で任意の SQL を流せる経路や、文脈を戻せる経路はないか", why: "他人のデータに届く。経路を想像する判断"}
+  - {id: q-sql-tenant-predicate, class: B, when: [data_layer], why: "規約と検査が、モジュールの欄に書いてあるか（パイロットで B）"}
+  - {id: q-db-context-parameterized, class: B, when: [data_layer], why: "パラメータで渡すと、モジュールの欄に書いてあるか"}
+  - {id: q-ddm-rls-only, class: B, when: [data_layer], why: "最小権限と監査の併用が、モジュールの欄に書いてあるか"}
+  # ---- 6. 運用：6.1 寿命
+  - {id: q-four-lifetimes-written, class: B, why: "4 つの層が別々の欄に書いてあるか"}
+  - {id: q-lifetime-rationale, class: C, priority: 2, unit: design, show_when: [always], ask: "トークンの寿命の数字は、「権限を外してから何分で効かせたいか」から導かれているか。短くする代償（リフレッシュの負荷・IdP が止まったときの影響）と比べているか", why: "理由が要求に合うかの判断。上限との比較は L23"}
+  - {id: q-session-rt-bounds, class: A, lint: [L23, L15], why: "idle_timeout と上限の有無と値で決まる"}
+  - {id: q-rt-policy-by-client, class: A, lint: [L15, L62], why: "クライアントの種類と RT の方式の整合は L15・L62。引いた根拠が合うかは q-evidence-attribution で人が見る"}
+  - {id: q-freshness-mitigation, class: C, priority: 1, unit: row, show_when: [always], ask: "トークンの寿命の間に変わりうる値（ロール・所属・状態）ごとに、古い値のまま通ると何が起きるか。書いてある対策で、要求が許す遅れに収まるか。その対策を実際に行うのは誰か", why: "対策が足りるかは要求による。対策の欄の有無（L5）は通っていても起きる"}
+  - {id: q-refresh-reevaluated, class: D, escalation: unverified-idp-behavior, why: "リフレッシュで値が再計算されるかは IdP の実際の挙動。パイロットの D の Major（B-R1 F05）"}
+  - {id: q-revocation-delivery, class: C, priority: 1, unit: design, show_when: [always], ask: "権限を外す・退職させる・端末を失くす、のそれぞれで、止めたい操作が実際に止まるまで最悪で何分か。すぐ止めたい操作は、その場で問い合わせて決めているか。却下した手段の代わりはあるか", why: "止まるまでの時間が要求に合うかの判断。パイロットの Major 2 件（B-R1 F04・C-R2 F07）"}
+  - {id: q-external-user-deprovision, class: C, priority: 1, unit: design, show_when: [multi_idp], ask: "外部の IdP・取引先の側で利用者を止めたとき、こちらが出したトークンとセッションは、どの経路で・何分で止まるか", why: "組織をまたぐ運用の判断"}
+  - {id: q-relies-on-at-expiry, class: B, why: "キャッシュの寿命・剥奪を AT の期限に頼っていないかを、書き手が自分の記述で確かめる（パイロットで B）"}
+  - {id: q-long-running, class: C, priority: 2, unit: design, show_when: [long_running], ask: "長い処理・後で動く処理は、利用者のトークンを持ち続けていないか。途中で権限が外れたら、その処理は止まるか", why: "非同期の経路を辿る判断"}
+  - {id: q-system-actor-no-fake-sub, class: C, priority: 3, unit: design, show_when: [always], ask: "サービス自身の権限で動かす処理は、利用者の文脈が要らない処理だけか", why: "どの処理に利用者の文脈が要るかの判断"}
+  - {id: q-agent-short-lived-no-rt, class: A, lint: [], proposed: [L58], interim: B, when: [delegation], why: "エージェントの種別の refresh・max_lifetime の値で決まる（パイロットの Major C-R1 F05）"}
+  - {id: q-copies-outlive, class: C, priority: 2, unit: design, show_when: [always], ask: "トークンの値の写し（開いたままの接続・判断や結果のキャッシュ・分析用の複製）を挙げられるか。それぞれ、元のトークンが切れた後にいつまで残り、どう止めるか", why: "写しを想像する判断。パイロットの C-R1 F15"}
+  - {id: q-deprecated-deadline, class: A, lint: [L18], why: "status・sunset_on と読む受け手の有無で決まる"}
+  - {id: q-change-order, class: B, why: "変更の手順が、設計書に書いてあるか"}
+  # ---- 6.2 鍵と障害
+  - {id: q-key-rotation, class: A, lint: [L17], why: "unknown_kid・jwks_cache_ttl の有無は L17。鍵の保管と漏えい時の手順は、開いた問い op-key-custody で人が見る"}
+  - {id: q-dependency-outage, class: C, priority: 1, unit: design, show_when: [always], ask: "IdP・発行のサービス・鍵の取得先・その場で引く台帳（承認の記録など）が止まったとき、通すのか止めるのか。その倒し方は、業務の要求（止まってよい時間）と合うか", why: "閉じる・開けるの取り引きは要求による。パイロットの Major（C-R2 F08）"}
+  # ---- 6.3 ログと監査
+  - {id: ap-2-8, class: A, lint: [], proposed: [L45], interim: B, why: "log_policy の値で決まる"}
+  - {id: q-token-logging, class: B, why: "ヘッダーの許可リストと HAR の手順が書いてあるか（パイロットで B）"}
+  - {id: q-audit-log-protected, class: B, why: "監査ログの保護の方針が、モジュールの欄に書いてあるか"}
+  - {id: q-audit-correlation, class: C, priority: 2, unit: hop, show_when: [delegation], ask: "1 つの操作について、「誰の権限で・誰が代理で・どの承認で」を、ログから後で 1 本につなげられるか", why: "監査で辿れるかを、経路を通して判断する"}
+  - {id: q-trace-id-trust, class: B, why: "監査に使う ID の出どころが書いてあるか"}
+  - {id: q-scope-elevation-logged, class: C, priority: 3, unit: hop, show_when: [delegation], ask: "代理の主体の範囲は最小限から始まり、広げたことが記録に残るか", why: "最小限が何かは要求の判断。機械の規則（L57）は未実装"}
+  - {id: q-operational-metrics, class: B, why: "誰がどの周期で測るかが書いてあるか（パイロットで B）"}
+  # ---- 6.4 検査と記述の整合
+  - {id: q-lint-workaround, class: C, priority: 2, unit: design, show_when: [always], ask: "検査（lint）を通すために、設計の宣言の側を曲げた跡はないか（上流を外す・行にしない・名前を変える）", why: "曲げたのか、規則の側の誤りかの判断"}
+  - {id: q-evidence-attribution, class: C, priority: 2, unit: design, show_when: [always], ask: "数値・製品の挙動に根拠を付けた行から 3 件を選び、引いた先が本当にそう述べているか。別の種類のクライアント・別の製品の根拠を引いていないか", why: "引用が判断を支えるかは読んで確かめる。パイロットの B-R1 F06・F11、C-R1 F19"}
+  - {id: q-limit-consistency, class: B, why: "同じ事実を書いた 2 か所以上の欄が合うかを、書き手が見比べる（パイロットで B。Major 1 件）"}

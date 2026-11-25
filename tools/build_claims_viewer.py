@@ -48,6 +48,7 @@ if TOOLS not in sys.path:
 import yaml  # noqa: E402
 from claim_lint import render  # noqa: E402
 import review_check  # noqa: E402
+import review_triage  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, 'docs', 'claims', 'data')
 VENDOR_DIR = os.path.join(ROOT, 'docs', 'claims', 'vendor')
@@ -223,19 +224,30 @@ def review_bundle():
         if os.path.isfile(os.path.join(ROOT, rel)):
             h = _md_heads(rel).get(r['anchor']) if r['anchor'] else {'level': 1, 'number': '', 'title': ''}
             heads[r['ref']] = dict(h or {'level': 0, 'number': '', 'title': ''}, file=rel)
+    # #56: the class of every question (templates/review/triage.yaml) and, for the questions a reviewer answers
+    # (class C), the priority, the unit of reading, the conditions and the wording of the short list
+    tri = review_triage.load(ROOT)
+    tri_of = review_triage.by_id(tri)
+
+    def triage_of(qid):
+        t = tri_of[qid]
+        out = {'triage': t['class'], 'triage_note': review_triage.class_line(tri, t)[len('- 区分：'):]}
+        if t['class'] == 'C':
+            out.update(priority=t['priority'], unit=t['unit'], show_when=t['show_when'], show_on_lint=t.get('show_on_lint') or [], ask=t['ask'])
+        return out
     qs = []
     for q in questions:
         see = [_ref(m) for m in REF_TICK.findall(q['fields'].get('見る欄', ''))]
         links = [_ref(m) for m in REF_TICK.findall(q['fields'].get('つながり', ''))]
         for r in see:
             head_of(r)
-        qs.append({'id': q['id'], 'stage': q['stage'], 'text': q['text'], 'roles': role_of.get(q['id'], []),
-                   'see': q['fields'].get('見る欄', ''), 'no': q['fields'].get('No なら', ''),
-                   'links': q['fields'].get('つながり', ''), 'evidence': q['fields'].get('根拠', ''),
-                   'see_refs': see, 'link_refs': links,
-                   # how the question is shown by default (#53, for #56): a field 「トリアージ」 of the question, else all
-                   'triage': q['fields'].get('トリアージ', '').strip() or 'all',
-                   'url': REPO_BLOB + persp_rel + (f"#{q['anchor']}" if q['anchor'] else f"?plain=1#L{q['line']}")})
+        qs.append(dict({'id': q['id'], 'stage': q['stage'], 'text': q['text'], 'roles': role_of.get(q['id'], []),
+                        'see': q['fields'].get('見る欄', ''), 'no': q['fields'].get('No なら', ''),
+                        'links': q['fields'].get('つながり', ''), 'evidence': q['fields'].get('根拠', ''),
+                        'see_refs': see, 'link_refs': links,
+                        'url': REPO_BLOB + persp_rel + (f"#{q['anchor']}" if q['anchor'] else f"?plain=1#L{q['line']}")},
+                       # how the question is shown by default (#53, #56): its class of triage.yaml
+                       **triage_of(q['id'])))
     contrasts = []
     for path in review_check.review_files(ROOT):
         rel = review_check.rel_of(ROOT, path)
@@ -255,8 +267,19 @@ def review_bundle():
             'source': persp_rel, 'template_version': version, 'repo_blob': REPO_BLOB,
             'stages': stages, 'roles': roles, 'questions': qs,
             # the filter the checklist starts with when the URL names none: {'triage': [values]} (empty: every question).
-            # Showing a shorter list first is a change of the data (the field トリアージ and this), not of the screen
-            'checklist': {'default': {}, 'triage_labels': {'all': 'すべての問い'}}, 'template_heads': dict(sorted(heads.items())),
+            # Showing a shorter list first is a change of the data (triage.yaml and this), not of the screen. `short` is
+            # the short list of #56: the class C questions of the default priorities whose conditions hold for the open
+            # design (review.js designTraits(), the same reading as tools/review_triage.py traits()), plus the open prompts
+            'checklist': {'default': {'triage': ['short']},
+                          'triage_labels': {'short': 'この設計の短い一覧（人の判断が要る問いのうち、設計の性質に当たるもの）',
+                                            'A': 'A 機械（lint が確かめる。レビュアーは答えない）', 'B': 'B 書き手の自己点検（レビュアーは答えない）',
+                                            'C': 'C 人の判断（条件に当たらないもの・優先 3 を含む全部）', 'D': 'D 専門家（基準に当たる行を回す）'},
+                          'short': {'priorities': tri['budget']['default_priorities'], 'budget': tri['budget'],
+                                    'source': 'templates/review/triage.yaml', 'doc': 'templates/review/short_list.md'},
+                          'conditions': [{'id': k, 'label': v['label'], 'read': v['read']} for k, v in tri['conditions'].items()],
+                          'units': tri['units'], 'priorities': {str(k): v for k, v in tri['priorities'].items()},
+                          'open_prompts': [{'id': p['id'], 'ask': p['ask'], 'show_when': p['show_when']} for p in tri['open_prompts']]},
+            'template_heads': dict(sorted(heads.items())),
             'contrasts': contrasts,
             'decision_tree': {'file': dt_rel, 'sections': [{'id': a, 'title': h['title'], 'number': h['number']}
                                                             for a, h in _md_heads(dt_rel).items()]},

@@ -191,7 +191,7 @@ class EditorUX(unittest.TestCase):
         pg.fill('#rv-name', name)
         pg.click('#rv-new-go')
         self.poll(pg, 'n => ClaimsReview.me() === n', arg=name)
-        self.go(pg, '#/review/checklist', '観点のチェックリスト')
+        self.go(pg, '#/review/checklist?triage=all', '観点のチェックリスト')
         pg.check('#q-dc-01 input[value="yes"]')
         self.poll(pg, '() => ClaimsReview.data().reviews.some(r => r.answers["dc-01"])')
         self.assertTrue(pg.locator('#nav a[data-view="review/checklist"]').count())
@@ -437,10 +437,10 @@ class EditorUX(unittest.TestCase):
         pg.click('#btn-sample-a')
         self.poll(pg, '() => ClaimsEditor.state().open && ClaimsReview.ready()')
         self.go(pg, '#/review/checklist', '観点のチェックリスト')
-        self.assertFalse(pg.locator('#rv-f-triage').count())  # every question has the same triage today
-        n = pg.evaluate('''() => { const R = window.CLAIMS_VIEWER_DATA.review;
+        n = pg.evaluate("""() => { const R = window.CLAIMS_VIEWER_DATA.review;
+          R.questions.forEach((q) => { q.triage = 'all'; });
           R.questions.slice(0, 5).forEach((q) => { q.triage = 'human'; });
-          R.checklist = { default: { triage: ['human'] }, triage_labels: { human: '人の判断が要る問い' } }; return R.questions.length; }''')
+          R.checklist = { default: { triage: ['human'] }, triage_labels: { human: '人の判断が要る問い' } }; return R.questions.length; }""")
         self.go(pg, '#/review')
         self.go(pg, '#/review/checklist', '観点のチェックリスト')
         self.poll(pg, '() => document.querySelectorAll(".rv-q:not([hidden])").length === 5')
@@ -448,6 +448,41 @@ class EditorUX(unittest.TestCase):
         pg.select_option('#rv-f-triage', '')
         self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length === n', arg=n)
         self.assertEqual(pg.problems, [])
+
+    def test_the_checklist_shows_the_short_list_of_the_open_design_by_default(self):
+        # #56: by default only the questions a reviewer answers (class C of templates/review/triage.yaml, priority 1-2,
+        # a condition that holds for the open design) and the open prompts; scenarios A and B get different lists, the
+        # same as python tools/review_triage.py --design gives
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import review_triage as rt
+        tri = rt.load(ROOT)
+        counts = {}
+        for key, d in (('a', 'templates/examples/scenario-a'), ('b', 'templates/examples/scenario-b')):
+            have = rt.traits(rt.load_design(os.path.join(ROOT, d)))
+            pg = self.open()
+            pg.click(f'#btn-sample-{key}')
+            self.poll(pg, '() => ClaimsEditor.state().open && ClaimsReview.ready()')
+            self.go(pg, '#/review/checklist', '観点のチェックリスト')
+            self.assertEqual(pg.input_value('#rv-f-triage'), 'short')
+            want = {q['id'] for q in rt.selected(tri, have)}
+            optional = {q['id'] for q in tri['questions'] if q.get('show_on_lint')}   # shown when their lint rule warned
+            self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length >= n', arg=len(want))
+            got = set(pg.evaluate('() => Array.from(document.querySelectorAll(".rv-q:not([hidden])")).map(e => e.dataset.q)'))
+            self.assertTrue(want <= got and got - want <= optional, (key, got ^ want))
+            self.assertEqual(pg.evaluate('() => Array.from(document.querySelectorAll("#rv-open-prompts [data-prompt]")).map(e => e.dataset.prompt)'),
+                             [p['id'] for p in rt.prompts(tri, have)])
+            self.assertIn(f'全 168 問のうち、あなたが答える {len(got)} 問', pg.inner_text('#rv-short-note'))
+            self.assertIn('lint が確かめる 86 問', pg.inner_text('#rv-short-rest'))
+            # the questions a machine or the author answers are one choice away, and say who answers them
+            pg.select_option('#rv-f-triage', '')
+            self.poll(pg, '() => document.querySelectorAll(".rv-q:not([hidden])").length === 168')
+            self.assertTrue(pg.locator('#rv-open-prompts').is_hidden())
+            self.assertIn('lint の lint:L5 が確かめる', pg.inner_text('#q-dc-01 .rv-triage'))
+            self.assertIn('triage=all', pg.evaluate('() => location.hash'))
+            counts[key] = len(want)
+            self.assertEqual(pg.problems, [])
+            pg.close()
+        self.assertNotEqual(counts['a'], counts['b'])
 
     def test_the_start_screen_card_opens_files_for_a_review(self):
         pg = self.open()
