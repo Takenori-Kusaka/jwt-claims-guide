@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '441f32911598';
+  const BUILD_ID = '523463319fd2';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -450,15 +450,22 @@
     if (types.some((x) => has(x.long_running)) || kinds.has('broker_connection')) t.add('long_running');
     return t;
   }
+  const TRAIT_FILES = { org_claims: ['claims.yaml'], pii: ['claims.yaml'], multi_idp: ['claims.yaml', 'token_types.yaml'], exchange: ['hops.yaml'], delegation: ['claims.yaml', 'token_types.yaml'],
+    approval: ['claims.yaml', 'hops.yaml'], multitenant: ['catalog_answers.yaml'], data_layer: ['hops.yaml'], auth_context: ['claims.yaml'], sender_constrained: ['token_types.yaml'],
+    sender_declined: ['token_types.yaml'], long_running: ['token_types.yaml', 'hops.yaml'] };
   function conditions() { return (R.checklist && R.checklist.conditions) || []; }
   // {id: true | false | null}: read from the design, or (a condition with `ask`) answered by the reviewer; null = not known yet
   function traits() {
     const read = designTraits();
     const m = mine();
     const out = { always: true };
+    // a property that does not hold while a file it is read from is not open cannot be read (null): its questions stay,
+    // with a note (when the data name the files of a condition: needs; else the table below)
+    const open = new Set(CE.state().files);
     conditions().forEach((c) => {
-      if (c.ask) out[c.id] = m && m.traits && own(m.traits, c.id) ? m.traits[c.id] : null;
-      else out[c.id] = read.has(c.id);
+      if (c.ask) { out[c.id] = m && m.traits && own(m.traits, c.id) ? m.traits[c.id] : null; return; }
+      const needs = c.needs || TRAIT_FILES[c.id] || [];
+      out[c.id] = read.has(c.id) ? true : needs.some((n) => !open.has(n)) ? null : false;
     });
     return out;
   }
@@ -478,7 +485,7 @@
     const hit = when.filter((id) => tr[id] === true);
     if (hit.length) return { show: true, why: hit.includes('always') ? 'どの設計書でも確かめる' : hit.map(label).join('・') + '（設計書から読んだ性質）' };
     const unknown = when.filter((id) => tr[id] === null || tr[id] === undefined);
-    if (unknown.length) return { show: true, why: unknown.map(label).join('・') + ' かどうかが、まだ分からないため' };
+    if (unknown.length) return { show: true, why: unknown.map(label).join('・') + ' かどうかを、まだ読めない（分からない）ため' };
     return { show: false, why: 'この設計書に当てはまらない（' + when.map(label).join('・') + ' に当たらない）' };
   }
   function triageAll() {
@@ -553,7 +560,7 @@
     const conds = conditions().filter((c) => c.id !== 'always');
     const auto = conds.filter((c) => !c.ask);
     const asked = conds.filter((c) => c.ask);
-    const mark = (v) => (v === true ? badge(['info', '●', 'あり']) : v === false ? badge(['neutral', '○', 'なし']) : badge(['warn', '?', 'まだ分からない']));
+    const mark = (v) => (v === true ? badge(['info', '●', '当たる']) : v === false ? badge(['neutral', '○', '当たらない']) : badge(['warn', '?', '読めない'], null, 'この性質を読むファイルを、まだ開いていない（または、まだ答えていない）。関係する問いは、出したままにします'));
     const prompts = ((R.checklist && R.checklist.open_prompts) || []).filter((p) => (p.show_when || ['always']).some((c) => tr[c] === true));
     return [h('h1', { tabindex: '-1' }, '確認事項'),
       h('p', { class: 'lead' }, 'この設計書に当てはまり、人が判断しないと決まらない問いだけを出します。問いは、どれも「はい」なら問題なしの向きです。自動の検査で確かめられることは、画面の下の「問題」に出ます。'),
@@ -601,6 +608,7 @@
     const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
     const el = h('article', { class: 'rv-q', id: p + 'q-' + x.id, 'data-q': x.id, 'data-answer': a, 'data-shown': t ? (t.show ? '1' : '0') : null },
       h('h3', null, H.inlineRepo(ui(x.ask || x.text)), ' ', h('span', { class: 'muted small' }, x.id), x.priority ? h('span', { class: 'chip', title: ((R.checklist.priorities || {})[String(x.priority)]) || '' }, '優先 ' + x.priority) : null),
+      x.hint ? h('details', { class: 'rv-hint small' }, h('summary', null, '補足'), h('p', { class: 'muted' }, H.inlineRepo(ui(x.hint)))) : null,
       t ? h('p', { class: 'rv-why small', 'data-why': '1' }, h('span', { class: 'muted' }, t.show ? 'なぜ出たか：' : '出していない理由：'), t.why) : null,
       h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る場所：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
       h('details', null, h('summary', null, '「いいえ」のとき・関連する資料・根拠'), h('dl', { class: 'obj' }, x.ask ? [h('dt', null, '元の問い'), h('dd', null, H.inlineRepo(ui(x.text)))] : null, h('dt', null, '「いいえ」なら'), h('dd', null, H.inlineRepo(ui(x.no))), h('dt', null, '関連'), h('dd', null, H.inlineRepo(ui(x.links))),

@@ -533,7 +533,7 @@ class ReviewFlow(unittest.TestCase):
         n0, _ = self.shown(pg)
         self.assertEqual(pg.get_attribute('#rv-asked', 'data-asked'), '1')
         self.assertEqual(pg.locator(f'.rv-q[data-q="{qid}"]').count(), 1)  # not known yet: shown
-        self.assertIn('まだ分からない', pg.inner_text(f'.rv-q[data-q="{qid}"] [data-why]'))
+        self.assertIn('読めない', pg.inner_text(f'.rv-q[data-q="{qid}"] [data-why]'))
         pg.check('input[name="rv-trait-audited"][value="false"]')
         self.poll(pg, 'q => !document.querySelector(`.rv-q[data-q="${q}"]`)', arg=qid)
         self.assertEqual(self.shown(pg)[0], n0 - 1)
@@ -557,6 +557,46 @@ class ReviewFlow(unittest.TestCase):
         self.go(pg, '#/review', 'レビューする行')
         pg.click('.rv-row[data-anchor="claims:C-tenant-id"] .rv-row-title')
         self.assertGreater(int(pg.get_attribute('.rv-row.open [data-related-questions]', 'data-related-questions')), 0)
+        self.assertEqual(pg.problems, [])
+
+    def test_a_property_whose_file_is_not_open_is_unreadable_and_a_hint_is_folded(self):
+        pg = self.page()
+        self.open_files(pg, [os.path.join(ROOT, 'templates', 'examples', 'scenario-a', 'claims.yaml')])
+        # the data may give a question a one-sentence wording (ask) and an explanation (hint, #56): the hint is folded
+        pg.evaluate('''() => { const q = CLAIMS_VIEWER_DATA.review.questions[0]; q.triage = 'C'; q.priority = 1; q.show_when = ['exchange'];
+          q.ask = '一文の問い'; q.hint = '補足の説明'; }''')
+        qid = pg.evaluate('() => CLAIMS_VIEWER_DATA.review.questions[0].id')
+        self.go(pg, '#/review/checklist', '確認事項')
+        traits = {el.get_attribute('data-trait'): el.get_attribute('data-trait-value') for el in pg.locator('#rv-traits [data-trait]').all()}
+        self.assertEqual(traits['exchange'], 'null')  # read from hops.yaml, which is not open
+        self.assertIn('読めない', pg.inner_text('#rv-traits [data-trait="exchange"]'))
+        self.assertIn(traits['pii'], ('true', 'false'))  # read from claims.yaml, which is open
+        item = pg.locator(f'.rv-q[data-q="{qid}"]')
+        self.assertEqual(item.count(), 1)  # a question of a property that cannot be read stays, with a note
+        self.assertIn('読めない', item.locator('[data-why]').inner_text())
+        self.assertIn('一文の問い', item.locator('h3').inner_text())
+        self.assertFalse(item.locator('.rv-hint p').is_visible())
+        item.locator('.rv-hint summary').click()
+        self.assertIn('補足の説明', item.locator('.rv-hint p').inner_text())
+        self.assertEqual(pg.problems, [])
+
+    def test_empty_required_fields_are_one_folded_group_of_the_problems(self):
+        # the rule TODO of claim_lint (#60: required fields left empty): its findings follow the text like SCHEMA, and the
+        # panel lists them last, folded. The rule is not in this build of claim_lint yet, so its findings are put in by hand
+        pg = self.page()
+        self.sample(pg, 'a')
+        pg.evaluate('''() => { const orig = ClaimsEditor.problems.list; const fake = [1, 2, 3].map((i) => ({ source: 'claim_lint', severity: 'warn', rule: 'TODO',
+          message: '必須の欄が空 ' + i, file: 'claims.yaml', line: 30 + i, anchorKind: 'claims', anchorId: 'C-iss', column: 'owner' }));
+          ClaimsEditor.problems.inject(fake); }''')
+        pg.click('#problems-toggle')
+        pg.wait_for_selector('#problems-todo')
+        self.assertIn('未記入 3 件', pg.inner_text('#problems-todo summary'))
+        self.assertFalse(pg.locator('#problems-todo tr[data-problem]').first.is_visible())
+        pg.click('#problems-todo summary')
+        self.assertEqual(pg.locator('#problems-todo tr[data-rule="TODO"]').count(), 3)
+        pg.locator('#problems-todo .pb-msg').first.click()
+        self.poll(pg, '() => ClaimsEditor.cursorLine() === 31')
+        self.assertTrue(pg.locator('#problems-todo tr[data-problem]').first.is_visible())  # stays open after the jump
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ the layout left over from #53

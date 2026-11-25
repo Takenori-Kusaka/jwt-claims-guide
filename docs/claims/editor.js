@@ -12,7 +12,7 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = '441f32911598';
+  const BUILD_ID = '523463319fd2';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };
@@ -899,11 +899,14 @@
     const m = String(message || '').match(/[a-z][a-z0-9_]{2,}/g) || [];
     return m.find((w) => keys.has(w) && w !== 'id') || null;
   }
+  // the claim_lint rules that follow the text as it is typed (SCHEMA: the schemas; TODO: required fields left empty, #60):
+  // their findings of an older text are not shown once the text has changed (they would be listed twice or be wrong)
+  const BY_TEXT = new Set(['SCHEMA', 'TODO']);
   function diagsOf(f) {
     const fresh = lint.state === 'fresh';
     // the JSON Schema check in the browser is shown until claim_lint has checked the same text (claim_lint checks the
     // same schemas with jsonschema: its SCHEMA findings are then the ones shown, as the CLI prints them)
-    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !(d.rule === 'SCHEMA' && !fresh)), f.anchorDiags);
+    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !(BY_TEXT.has(d.rule) && !fresh)), f.anchorDiags);
   }
   function applyDiagnostics(f) {
     const doc = f.state.doc;
@@ -935,7 +938,7 @@
   function publish(first) {
     const list = [];
     ws.files.forEach((f) => list.push(...diagsOf(f)));
-    list.push(...(ws.lintLoose || []).filter((d) => lint.state === 'fresh' || d.rule !== 'SCHEMA'));
+    list.push(...(ws.lintLoose || []).filter((d) => lint.state === 'fresh' || !BY_TEXT.has(d.rule)));
     const byTarget = new Map();
     list.forEach((d) => { const k = d.anchorId || d.target; if (!k) return; if (!byTarget.has(k)) byTarget.set(k, []); byTarget.get(k).push(d); });
     ws.diag = { byTarget, list };
@@ -1049,7 +1052,7 @@
   const KIND_JA = { claims: 'クレーム', token_types: 'トークン', hops: '経路', catalog_answers: 'カタログへの回答', issuance_profile: '発行方式' };
   function problemList() {
     const rank = { error: 0, warn: 1, info: 2 };
-    return (ws.diag.list || []).map((d, i) => [d, i]).sort((a, b) => rank[a[0].severity] - rank[b[0].severity] || a[1] - b[1]).map((x) => x[0]);
+    return (ws.diag.list || []).concat(problems.extra || []).map((d, i) => [d, i]).sort((a, b) => rank[a[0].severity] - rank[b[0].severity] || a[1] - b[1]).map((x) => x[0]);
   }
   function problemPlace(d) {
     if (!d.anchorKind) return d.target ? String(d.target) : '—';
@@ -1065,7 +1068,8 @@
     else if (d.anchorKind === 'catalog_answers') location.hash = P.route('catalog');
     else if (d.anchorKind === 'issuance_profile') location.hash = P.route('profile');
   }
-  function shownProblems() { return problemList().filter((d) => problems.sev[d.severity]); }
+  // the fields left empty (rule TODO, #60) come last, as one folded group: there can be many of them in a design being written
+  function shownProblems() { const l = problemList().filter((d) => problems.sev[d.severity]); return l.filter((d) => d.rule !== 'TODO').concat(l.filter((d) => d.rule === 'TODO')); }
   function stepProblem(dir) {
     const list = shownProblems();
     if (!list.length) return;
@@ -1092,7 +1096,7 @@
     panel.textContent = '';
     if (!problems.open) return;
     const all = problemList();
-    const list = all.filter((d) => problems.sev[d.severity]);
+    const list = shownProblems();
     if (problems.cur >= list.length) problems.cur = -1;
     panel.append(h('div', { class: 'pb-tools' },
       Object.keys(SEV_JA).map((k) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', 'data-pb-sev': k, checked: problems.sev[k] ? true : null,
@@ -1103,10 +1107,11 @@
       panel.append(h('p', { class: 'pb-broken', role: 'alert' }, 'YAML として読めないファイルがあります。読めるようになるまで、そのファイルのほかの検査は動きません。'));
     }
     if (!list.length) { panel.append(h('p', { class: 'muted', id: 'problems-empty' }, all.length ? '選んだ重大度の問題はありません。' : '問題はありません。')); return; }
-    const tbody = h('tbody');
+    const tbody = h('tbody'); const todoBody = h('tbody');
     list.forEach((d, i) => {
+      const into = d.rule === 'TODO' ? todoBody : tbody;
       const sv = SEV_JA[d.severity] || ['neutral', '•', d.severity];
-      tbody.append(h('tr', { 'data-problem': String(i), 'data-rule': d.rule, 'data-sev': d.severity, 'data-anchor': d.anchorKind ? d.anchorKind + ':' + d.anchorId : null,
+      into.append(h('tr', { 'data-problem': String(i), 'data-rule': d.rule, 'data-sev': d.severity, 'data-anchor': d.anchorKind ? d.anchorKind + ':' + d.anchorId : null,
         'data-column': d.column || null, 'aria-current': i === problems.cur ? 'true' : null },
       h('td', null, h('span', { class: 'badge ' + sv[0] }, h('span', { 'aria-hidden': 'true' }, sv[1]), sv[2])),
       h('td', null, h('button', { type: 'button', class: 'link pb-msg', onclick: () => { problems.cur = i; renderProblems(); gotoProblem(d); } }, String(d.message))),
@@ -1114,8 +1119,13 @@
       h('td', { class: 'pb-file' }, d.file ? (d.line ? `${d.file}:${d.line}` : d.file) : '—'),
       h('td', null, code(d.rule))));
     });
+    const head = () => h('thead', null, h('tr', null, ['重大度', '文面', '場所', 'ファイルと行', '規則'].map((x) => h('th', { scope: 'col' }, x))));
+    const nTodo = todoBody.children.length;
+    const todoOpen = problems.todoOpen || (problems.cur >= 0 && list[problems.cur] && list[problems.cur].rule === 'TODO');
+    const todo = nTodo ? h('details', { class: 'pb-todo', id: 'problems-todo', open: todoOpen ? true : null, ontoggle: (e) => { problems.todoOpen = e.target.open; } },
+      h('summary', null, `未記入 ${nTodo} 件（必須の欄が空）`), h('table', { 'data-table': 'problems-todo' }, head(), todoBody)) : null;
     const wrap = h('div', { class: 'pb-scroll', tabindex: '0', role: 'group', 'aria-label': `問題 ${list.length} 件` },
-      h('table', { 'data-table': 'problems' }, h('thead', null, h('tr', null, ['重大度', '文面', '場所', 'ファイルと行', '規則'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
+      tbody.children.length ? h('table', { 'data-table': 'problems' }, head(), tbody) : null, todo);
     panel.append(wrap);
     wrap.scrollTop = y;
   }
@@ -1535,7 +1545,8 @@
     // 「レビューを開始」 of the top bar: review.js opens its dialog (onStartReview); with nothing open, files are chosen first
     onStartReview: null,
     startReview,
-    problems: { open: () => problems.open, toggle: toggleProblems, list: problemList, go: gotoProblem },
+    // inject: findings added to the list by a test (a rule that this build of claim_lint does not have yet)
+    problems: { open: () => problems.open, toggle: toggleProblems, list: problemList, go: gotoProblem, inject: (list) => { problems.extra = list; renderProblems(); } },
     cursorLine: () => (view ? view.state.doc.lineAt(view.state.selection.main.head).number : null),
     rowJcs: (anchor) => { const r = rowOf(anchor); if (!r) return null; try { return canonicalJson(r.row); } catch (e) { return null; } },
     // for the review flow (#50, #67) and the tests
