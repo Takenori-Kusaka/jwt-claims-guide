@@ -1,6 +1,6 @@
 /* Design editor (#49; the screens of the viewer of #36). No external fonts or images. */
 /* the build id (tools/build_claims_viewer.py): editor.js compares it with its own, so that a stylesheet of another build is told (#53) */
-:root { --build-id: "b4a545f19d64"; }
+:root { --build-id: "c7978da4056d"; }
 :root {
   --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1f24; --muted: #5b616e; --line: #d9dbe0; --soft: #eef0f3;
   --accent: #1f5fbf; --accent-ink: #ffffff; --focus: #b35c00;

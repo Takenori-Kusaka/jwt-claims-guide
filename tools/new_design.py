@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Create an empty design directory to start a design doc from (#4, #60, #61; templates/GETTING_STARTED.md).
 
-  python tools/new_design.py DIR [--profile lite|full] [--use P4,M_token_validation,...] [--force]
+  python tools/new_design.py DIR [--profile lite|full] [--use P4,M_token_validation,...] [--with-hops] [--force]
 
 Writes DIR/design.md (a copy of templates/00_core.md), and the registry files with the required keys and EMPTY values:
 claims.yaml (no rows), token_types.yaml (one row per kind of templates/catalog/token_kinds.yaml, decision 却下 with an empty
@@ -71,7 +71,14 @@ def _dump(doc):
     return yaml.dump(doc, Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=1000)
 
 
-def build(dirpath, profile='full', use=()):
+def hops_text(dirpath):
+    return header(dirpath, 'hops.schema.json', [
+        'ホップごとの宣言（templates/registry/README.md の 3.4）。行は 1 つ以上書く',
+        'ホップを書かない Lite の設計は、このファイルを置かない（消す）。`hops: []` のままでは TODO の error が残る（templates/GETTING_STARTED.md の手順 1）'
+    ]) + _dump({'hops': []})
+
+
+def build(dirpath, profile='full', use=(), with_hops=False):
     kinds = load('templates/catalog/token_kinds.yaml')['kinds']
     events = load('templates/catalog/issue_events.yaml')['events'] + load('templates/catalog/use_events.yaml')['events']
     files = {}
@@ -99,13 +106,11 @@ def build(dirpath, profile='full', use=()):
         '使う種類は decision を 採用 にして列を書く（R1 が要る列を示す）。使わない種類は 却下 のまま、rationale に何ができなくなるかを書く',
         'ID は大文字の仮の名前。採用する行は、ホップ・台帳の carried_in・カタログへの回答から参照する ID に直してよい']) + _dump(
         {'issuance_profile': issuance, 'token_types': rows})
-    if profile != 'lite':
-        # #60: a design without hops has no hops.yaml (claim_lint reports its absence as info). The Lite skeleton has none:
-        # exchange and reissue hops make a design Full (templates/README.md, the 5 questions)
-        files['hops.yaml'] = header(dirpath, 'hops.schema.json', [
-            'ホップごとの宣言（templates/registry/README.md の 3.4）。行は 1 つ以上書く',
-            'ホップを書かない設計は、このファイルを置かない（消す）。`hops: []` のままでは TODO の error が残る（templates/GETTING_STARTED.md の手順 1）'
-        ]) + _dump({'hops': []})
+    if profile != 'lite' or with_hops:
+        # #60: a Lite design without hops has no hops.yaml (claim_lint reports its absence as info in Lite, as a warning
+        # in Full). The Lite skeleton has none unless --with-hops asks for it (a Lite design may still write a hop, e.g.
+        # a DB connection: M_data_layer 5. points at hops[].connection_max_lifetime)
+        files['hops.yaml'] = hops_text(dirpath)
     questions = [q['id'] for q in load('templates/registry/questions.yaml')['questions']]
     states = sorted(k for k in catalog_check.seed_items(load('templates/catalog/seeds.yaml'))[0]
                     if k.startswith(catalog_check.STATES + '/'))
@@ -140,6 +145,9 @@ def build(dirpath, profile='full', use=()):
 FILL_BEGIN, FILL_END = '<!-- fill-ins:begin -->', '<!-- fill-ins:end -->'
 LITE_MARK = '〔Lite・Full：記入'  # the sections a Lite design fills in too (e.g. 〔Lite・Full：記入（00_core に書く）〕)
 ITEM_RE = re.compile(r'^項目 ID：`(template:[A-Za-z0-9_/]+#[a-z0-9-]+)`')
+# a section whose mark says that its answer is written elsewhere: 〔Lite・Full：記入（00_core に書く）〕,
+# 〔Lite・Full：記入（台帳の既定どおりの行）〕
+ELSEWHERE_RE = re.compile(r'〔[^〕]*記入（((?:00_core|台帳)[^）]*)）〕\s*$')
 
 
 def template_parts():
@@ -195,7 +203,15 @@ def fill_in_sections(name, profile='full'):
             table.append('|' + '  |' * (table[0].count('|') - 1))
         # the heading keeps its 〔…〕 mark, so that a copied section still says how it is filled in
         # (〔Full：記入／Lite：参照〕, 〔Lite：生成／Full：生成と確かめ〕, ...)
-        out.append((item, heading.lstrip('#').strip(), [line, ''] + table))
+        title = heading.lstrip('#').strip()
+        m = ELSEWHERE_RE.search(title)
+        if m:
+            # the answer of this section is written in one place only, the one its mark names (00_core, the registry):
+            # appendix D gets a pointer instead of a second table to fill in
+            out.append((item, title, [f'記入欄：ここには書かない。この項目の答えは、見出しの〔〕が示す場所（{m.group(1)}）に 1 回だけ書く。'
+                                      '問いと、答えを書く欄は、テンプレートのこの項目にある']))
+            continue
+        out.append((item, title, [line, ''] + table))
     return out
 
 
@@ -228,6 +244,9 @@ def main(argv=None):
                     help='lite: no hops.yaml, and only the fill-in sections that a Lite design writes (default: full)')
     ap.add_argument('--use', default='', help='profiles and modules whose fill-in tables go to appendix D of design.md, '
                                               'comma separated (e.g. P1,P4,M_token_validation)')
+    ap.add_argument('--with-hops', action='store_true',
+                    help='write hops.yaml with --profile lite too (a Lite design that writes a hop, e.g. a DB connection); '
+                         'on an existing design, add hops.yaml when it is missing')
     ap.add_argument('--force', action='store_true', help='overwrite existing files')
     a = ap.parse_args(argv)
     use = [x.strip() for x in a.use.split(',') if x.strip()]
@@ -237,6 +256,17 @@ def main(argv=None):
         sys.stderr.write(f'{e}\n')
         return 2
     design = os.path.join(a.dir, 'design.md')
+    if a.with_hops and os.path.exists(design) and not a.force:
+        # the design exists: add hops.yaml when it is missing, never overwrite it
+        hops = os.path.join(a.dir, 'hops.yaml')
+        if os.path.exists(hops):
+            print('unchanged', hops)
+        else:
+            with open(hops, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(hops_text(os.path.abspath(a.dir)))
+            print('wrote', hops)
+        if not use:
+            return 0
     if use and os.path.exists(design) and not a.force:
         # the design exists: add only the fill-in sections that are missing, and touch nothing else
         with open(design, encoding='utf-8', newline='') as f:
@@ -256,7 +286,7 @@ def main(argv=None):
         print('added fill-in sections to', design)
         return 0
     os.makedirs(a.dir, exist_ok=True)
-    files = build(os.path.abspath(a.dir), a.profile, use)
+    files = build(os.path.abspath(a.dir), a.profile, use, a.with_hops)
     for name, text in files.items():
         p = os.path.join(a.dir, name)
         if os.path.exists(p) and not a.force:

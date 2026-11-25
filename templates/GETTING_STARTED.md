@@ -21,10 +21,11 @@ python tools/new_design.py designs/my-service --profile lite   # Lite と決ま�
 ```
 
 - 作られるもの：`design.md`（`templates/00_core.md` の写し）、`claims.yaml`（行なし）、`token_types.yaml`（カタログの 17 種類ごとに `decision: 却下`・`rationale` が空の行。使う種類は `採用` に変え、使わない種類は却下の理由を書く）、`hops.yaml`（行なし。`--profile lite` では作らない）、`catalog_answers.yaml`（全イベントの回答が空の行、Lite の 5 問、網羅の節 `idp`・`questions`・`subject_states`・`pairwise`・`outside_enumeration`。問いの ID、主体の状態、層の名前は鍵として入っていて、値だけが空）
-- **ホップを書かない設計は、`hops.yaml` を置きません**。Full の骨組みで始めて、手順 2 で Lite と決まり、ホップを書かないなら、`hops.yaml` を消します。`hops: []` のままでは、スキーマが 1 行以上を求めるので error（TODO）が残ります。ファイルが無いことは claim_lint が info（LOAD）で知らせるだけで、error にはなりません。ホップを書くなら 1 行以上を書きます（列は `registry/README.md` の 3.4）
+- **ホップを書かない Lite の設計は、`hops.yaml` を置きません**。Full の骨組みで始めて、手順 2 で Lite と決まり、ホップを書かないなら、`hops.yaml` を消します。`hops: []` のままでは、スキーマが 1 行以上を求めるので error（TODO）が残ります。Lite では、ファイルが無いこと（中身が空のことも同じ）を claim_lint が info（LOAD）で知らせるだけで、error にはなりません。**Full では経路のホップを書きます**。Full で `hops.yaml` が無い・空のときは、LOAD が warn で知らせます（ホップを読む規則が何も見なくなるため）
+- Lite でもホップを書く設計があります（例：DB・ブローカーにトークンで接続する設計。`M_data_layer` の 5. は `hops[].connection_max_lifetime` に書く）。そのときは `--with-hops` を付けて作るか、後から `python tools/new_design.py designs/my-service --with-hops` を実行します（`hops.yaml` が無いときだけ、空の `hops.yaml` を足す。ほかのファイルには触れない）。書くなら 1 行以上を書きます（列は `registry/README.md` の 3.4）
 - 組織の名前空間を使わない設計は、`claims.yaml` に `namespaces` のキーを書きません（骨組みにも入っていません。使うときの書き方は、`claims.yaml` の先頭のコメントにあります）
 - yaml-language-server の modeline（`$schema`）は、置き場所からの相対パスで書かれます。OS を問わず同じコマンドで動きます（シェルの展開を使わない）
-- 作った直後に `python tools/claim_lint designs/my-service`（Lite の骨組みなら `--profile lite` を付ける。まだ判定していないなら付けない）を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です。作った直後の骨組みに、スキーマの違反（SCHEMA）は 1 件もありません。スキーマが求める欄がまだ空（null・空の文字列・空の配列）のときは、SCHEMA ではなく **TODO（まだ書いていない欄）** として 1 欄に 1 件出ます（重大度は error のまま）。SCHEMA が出たら、書いた値の形が違います
+- 作った直後に `python tools/claim_lint designs/my-service`（Lite の骨組みなら `--profile lite` を付ける。まだ判定していないなら付けない）を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。Lite の 5 問の空欄は、`--profile lite` のときだけ warn で出ます（L73。Full では 5 問を見ません）。その一覧が、これから書くことの一覧です。作った直後の骨組みに、スキーマの違反（SCHEMA）は 1 件もありません。スキーマが求める欄がまだ空（null・空の文字列・空の配列）のときは、SCHEMA ではなく **TODO（まだ書いていない欄）** として 1 欄に 1 件出ます（重大度は error のまま）。SCHEMA が出たら、書いた値の形が違います
 - 記入例（`templates/examples/`）は、書き方に迷ったときに読む資料として使います
 
 根拠：templates/CONTRIBUTING.md の 4.、research/template-design/report.md の Q6、筆者の提案：空の骨組みから始めて lint の指摘を作業の一覧にする（追跡 #4）
@@ -61,7 +62,8 @@ python tools/new_design.py designs/my-service --profile lite --use P1,M_token_va
 ```
 
 - Full：記入欄のあるすべての項目が足されます
-- Lite：見出しが〔Lite・Full：記入〕で始まる項目だけが足されます（例：`M_privacy_minimization` の個人情報保護法の判断表、`M_idp_keycloak` の外せないクレーム）。ほかの項目は問いを読み、答えは 00_core の 3. と台帳に書きます
+- Lite：見出しが〔Lite・Full：記入〕で始まる項目だけが足されます（例：`M_privacy_minimization` の個人情報保護法の判断表）。ほかの項目は問いを読み、答えは 00_core の 3. と台帳に書きます
+- 見出しの〔〕に書く場所がある項目（`M_data_layer` の 5.〔…記入（00_core に書く）〕、`M_idp_keycloak` の 5.〔…記入（台帳の既定どおりの行）〕）は、付録 D には表を足さず、「その場所に 1 回だけ書く」という 1 行だけを足します。同じ答えを 2 か所に書かないためです
 - 当てはまらない記入欄は消さずに、最初の列に「無い」と理由を書きます（00_core の冒頭の「使わない記入欄」）
 
 | 境界 | プロファイル |

@@ -241,3 +241,69 @@ def test_each_lite_criterion_has_two_yes_and_two_no_examples():
         assert '①' in yes and '②' in yes and '①' in no and '②' in no, row
     joined = '\n'.join(rows)
     assert '組織の中でも、信頼しない部品' in joined and '既存か新設かを確かめられない' in joined
+
+
+# ------------------------------------------------------------------ PR #69 check: hops, one place to write
+def _load_hops(res):
+    return [(f['severity'], f['message']) for f in res['findings'] if f['rule'] == 'LOAD' and f['target'] == 'hops']
+
+
+def test_full_without_hops_is_a_warning_not_silence(tmp_path):
+    """Scenario A is written with hops. Without hops.yaml the hop rules see nothing: Full says so as a warning."""
+    dst = tmp_path / 'scenario-a'
+    shutil.copytree(EXAMPLE_A, dst)
+    assert _load_hops(core.run(str(dst))) == []
+    os.remove(dst / 'hops.yaml')
+    full, lite = core.run(str(dst)), core.run(str(dst), profile='lite')
+    assert [s for s, _ in _load_hops(full)] == ['warn'] and 'Full では経路のホップを書く' in _load_hops(full)[0][1]
+    assert [s for s, _ in _load_hops(lite)] == ['info']
+    assert full['counts']['error'] == 0 and lite['counts']['error'] == 0
+
+
+@pytest.mark.parametrize('text', ['# template_version: 0.2.0\n# no rows yet\n', '# template_version: 0.2.0\n{}\n'])
+def test_an_empty_hops_file_is_reported_like_a_missing_one(tmp_path, text):
+    dst = tmp_path / 'scenario-a'
+    shutil.copytree(EXAMPLE_A, dst)
+    (dst / 'hops.yaml').write_text(text, encoding='utf-8')
+    full, lite = core.run(str(dst)), core.run(str(dst), profile='lite')
+    assert [s for s, _ in _load_hops(full)] == ['warn'] and '空' in _load_hops(full)[0][1]
+    assert [s for s, _ in _load_hops(lite)] == ['info'] and '空' in _load_hops(lite)[0][1]
+
+
+def test_with_hops_gives_a_lite_design_its_hops_file(tmp_path):
+    """A Lite design may still write a hop (a DB connection, M_data_layer 5.): --with-hops at the start or later."""
+    a, b = tmp_path / 'a', tmp_path / 'b'
+    assert new_design.main([str(a), '--profile', 'lite', '--with-hops']) == 0
+    assert _yaml(a / 'hops.yaml') == {'hops': []}
+    assert new_design.main([str(b), '--profile', 'lite']) == 0
+    assert not (b / 'hops.yaml').exists()
+    (b / 'claims.yaml').write_text('# mine\n', encoding='utf-8')
+    assert new_design.main([str(b), '--with-hops']) == 0  # later: adds hops.yaml only
+    assert (b / 'hops.yaml').read_text(encoding='utf-8') == (a / 'hops.yaml').read_text(encoding='utf-8')
+    assert (b / 'claims.yaml').read_text(encoding='utf-8') == '# mine\n'
+    (b / 'hops.yaml').write_text('# written\nhops:\n- {id: H1}\n', encoding='utf-8')
+    assert new_design.main([str(b), '--with-hops', '--use', 'P1', '--profile', 'lite']) == 0  # never overwrites
+    assert (b / 'hops.yaml').read_text(encoding='utf-8').startswith('# written')
+
+
+@pytest.mark.parametrize('profile', ['lite', 'full'])
+def test_a_section_written_elsewhere_gets_a_pointer_not_a_second_table(tmp_path, profile):
+    """M_data_layer 5. is written in 00_core 9.1 and M_idp_keycloak 5. in the registry: one place to write, not two."""
+    d = tmp_path / 'design'
+    assert new_design.main([str(d), '--profile', profile, '--use', 'M_data_layer,M_idp_keycloak']) == 0
+    body = _appendix(d / 'design.md')
+    for item, place in (('template:modules/M_data_layer#connection-lifetime', '00_core に書く'),
+                        ('template:modules/M_idp_keycloak#immutable-claims', '台帳の既定どおりの行')):
+        block = body.split(f'項目：`{item}`', 1)[1].split('#### ', 1)[0]
+        assert f'ここには書かない。この項目の答えは、見出しの〔〕が示す場所（{place}）に 1 回だけ書く' in block
+        assert '|' not in block  # no table to fill in a second time
+    # a section without such a mark keeps its table
+    block = body.split('項目：`template:modules/M_idp_keycloak#catalog-defaults`', 1)[1].split('#### ', 1)[0]
+    assert '| 決めること |' in block
+
+
+def test_p4_says_where_its_fill_ins_go_whatever_the_p4_lite_option():
+    """The place (appendix D) does not depend on the P4 Lite decision (research/template-design/p4-lite-options.md)."""
+    text = open(os.path.join(ROOT, 'templates', 'profiles', 'P4_ai_agent_delegation.md'), encoding='utf-8').read()
+    assert '- 記入欄を書く場所：Lite でも Full でも、設計書（`design.md`）の付録 D' in text
+    assert '記入欄（MCP を使う設計では Lite でも書く。書く場所は `design.md` の付録 D）：' in text

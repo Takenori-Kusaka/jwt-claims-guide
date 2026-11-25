@@ -323,7 +323,7 @@ sequenceDiagram
 項目 ID：`template:00_core#hop-table`
 <!-- req:p12-review-viewpoints.R7 -->
 
-ホップを 1 つも書かない設計は、`hops.yaml` を置きません（`hops: []` はスキーマに反します。claim_lint は、ファイルが無いことを info で知らせます）。交換・作り直しのホップがある設計は、README の 5 問の 3 が Yes なので Full です。
+Lite でホップを 1 つも書かない設計は、`hops.yaml` を置きません（`hops: []` はスキーマに反します。claim_lint は、Lite ではファイルが無いことを info で知らせます）。Full では経路のホップを書きます。Full で `hops.yaml` が無い・空のときは、claim_lint が warn（LOAD）で知らせます。交換・作り直しのホップがある設計は、README の 5 問の 3 が Yes なので Full です。Lite でも、DB・ブローカーの接続などのホップを書くときは `hops.yaml` を置きます（`python tools/new_design.py <設計書> --with-hops`）。
 
 決めること：経路のホップごとに、運ぶトークン・`aud`・`scope`・寿命・運ぶ独自クレーム・交換を担うサービス・受け手の検証。**規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。** 超える場合（Txn-Token は仕様上、元より長くてよい）は `narrowing_exception` に理由を書きます。値は `hops.yaml` に書き、この節は render が生成します。交換・作り直しのホップの `aud`・`scope`・`max_lifetime`・`custom_claims`・`exchanger` は Lite でも手で書きます。
 

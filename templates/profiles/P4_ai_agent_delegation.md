@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.6.0 -->
 # P4 AI エージェントの委任（profiles/P4_ai_agent_delegation）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
@@ -6,6 +6,7 @@
 - 使う場面：AI エージェントが利用者の代理で、または自分の権限で、ツール（MCP サーバーなど）や API を呼ぶ境界。`00_core.md` の「範囲と信頼の境界」で、エージェントの実行基盤・ツールサーバー・上流の API の境界に P4 を書く
 - 組み合わせ：利用者のログインは P1、組織の内側の伝搬（Txn-Token・サービス間）は P5。送信者制約は `template:modules/M_sender_constraint`、承認の内容の照合は `template:modules/M_authz_pdp`
 - Lite での扱い：委任・トークン交換がある設計は、#4 の判定（5 問）で Full になります。MCP の必須チェック表（1.）だけは〔Lite・Full：記入〕で、MCP を使うなら必ず確かめます。ほかは〔Full：記入／Lite：参照〕
+- 記入欄を書く場所：Lite でも Full でも、設計書（`design.md`）の付録 D（`template:00_core#profile-fill-ins`）です。`python tools/new_design.py <設計書のディレクトリ> --profile lite|full --use P4` が、記入欄の表を付録 D に足します
 - 問いの区別：「誰の権限で」（`sub`）、「誰が代理して実行しているか」（`act`）、「どの取引か」（Txn-Token の `txn`）、「直接の通信相手は誰か」（mTLS・ワークロードの ID）は別々の問いです。`00_core.md` の「問い × 仕組み」で別々の行に書きます（`templates/registry/questions.yaml` の q-sub・q-actor・q-txn・q-peer）
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。
 
@@ -29,7 +30,7 @@
 | 8 | AT はすべての要求の Authorization ヘッダーで送り、URI のクエリに入れない | MCP クライアント | MUST・MUST NOT | MCP Authorization（2026-07-28）「Token Requirements」 |
 | 9 | MCP サーバーは Protected Resource Metadata（RFC 9728）を公開する | MCP サーバー | MUST | MCP Authorization（2026-07-28）「Overview」、RFC 9728 §3 |
 
-記入欄（MCP を使う設計では Lite でも書く）：
+記入欄（MCP を使う設計では Lite でも書く。書く場所は `design.md` の付録 D）：
 
 | # | 確かめ方（書き手が書く） | 確かめた結果（書き手が書く） | 台帳・目録・試験の ID |
 | --- | --- | --- | --- |
