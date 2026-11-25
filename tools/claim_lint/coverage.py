@@ -6,6 +6,8 @@ Rules and severities are described in tools/claim_lint/RULES.md.
 
 catalog_answers.yaml, sections read here (all top-level keys; `answers` is read by R2 in core.py too):
   idp                     {name, version, enumerable?, enumerable_source?, trigger_list?, trigger_list_source?}  R3, R3b, R2
+                          or, for a design with several IdPs (#58), a list of such entries, each with token_types (the
+                          token types of the inventory that this IdP issues) and optionally kind: self_built
   answers[].inherit       `idp-default` with `setting_checked` (Lite only)                         R2
   answers[].hook_checked  how the author confirmed the hook runs for this issuance                  R3b
   subject_states          {unused_layers: {layer: reason}, states: {state: {layer: {result, basis}}}}  R4
@@ -104,13 +106,50 @@ def parse_date(v):
         return None
 
 
-def idp_name(answers_doc):
-    idp = (answers_doc or {}).get('idp')
-    if isinstance(idp, dict):
-        return str(idp.get('name') or '').strip().lower() or None
-    if isinstance(idp, str):
-        return idp.strip().lower() or None
+SELF_BUILT = 'self_built'  # idp[].kind: an issuer the organization builds itself (not a product; #58)
+
+
+def idp_entries(answers_doc):
+    """The IdPs of the design (#58): `idp` is one mapping (or, in old designs, a name) or a list of mappings.
+    Returns (entries, problems, is_list). An entry is {name, block, token_types (set, or None = every token type), kind,
+    target}; target is `idp` for the single form (as before #58) and `idp[<name>]` for the list form."""
+    raw = (answers_doc or {}).get('idp')
+    is_list = isinstance(raw, list)
+    items = raw if is_list else ([raw] if raw is not None else [])
+    entries, problems, seen = [], [], set()
+    for i, it in enumerate(items):
+        block = it if isinstance(it, dict) else {}
+        name = str((block.get('name') if isinstance(it, dict) else it) or '').strip().lower() or None
+        if not name:
+            if is_list:
+                problems.append((f'idp[{i}]', 'idp の要素に name がない'))
+            continue
+        if name in seen:
+            problems.append((f'idp[{name}]', f'idp に {name} が 2 回ある（IdP ごとに 1 つの要素にまとめる）'))
+            continue
+        seen.add(name)
+        tts = block.get('token_types')
+        if tts is not None and (not isinstance(tts, list) or not all(isinstance(t, str) for t in tts)):
+            problems.append((f'idp[{name}]', 'token_types はトークン目録の ID の配列で書く'))
+            tts = None
+        entries.append({'name': name, 'block': block, 'token_types': set(tts) if tts else None,
+                        'kind': block.get('kind'), 'target': f'idp[{name}]' if is_list else 'idp'})
+    return entries, problems, is_list
+
+
+def idp_token_types(answers_doc, name):
+    """Token types that the IdP `name` issues, or None when the design does not say (one IdP for every token type, or the
+    IdP is not declared)."""
+    for e in idp_entries(answers_doc)[0]:
+        if e['name'] == name:
+            return e['token_types']
     return None
+
+
+def idp_name(answers_doc):
+    """The design's IdP; with several IdPs (#58), the first one."""
+    entries = idp_entries(answers_doc)[0]
+    return entries[0]['name'] if entries else None
 
 
 def _events(catalog):
@@ -127,7 +166,7 @@ def _setting_words(setting):
     return {w.lower() for w in re.findall(r'[A-Za-z][A-Za-z0-9-]{5,}', str(setting or ''))}
 
 
-def r2_inherit(a, event, idp, profile, sev):
+def r2_inherit(a, event, idp, profile, sev, idp_count=1):
     """An answer `inherit: idp-default`. Lite only, and only for an event that the catalogue marks with
     `idp.<IdP>.lite_inherit: true` (#4 revised Lite, gate1.md section 10: Keycloak I03 I04 I05 I07), with a
     「設定を確かめた」 field (setting_checked) that names the stop_setting."""
@@ -137,6 +176,9 @@ def r2_inherit(a, event, idp, profile, sev):
         return [F('R2', sev, eid, '既定の回答の引き継ぎ（inherit）は Lite だけ。Full では assumption と breaks_when を書く')]
     if a.get('answer') != '対象外':
         return [F('R2', sev, eid, '引き継げるのは「対象外」の回答だけ')]
+    if idp_count > 1:
+        return [F('R2', sev, eid, f'IdP が {idp_count} つある設計では、既定の回答を引き継げない（止める設定が IdP ごとに違う。#58）。'
+                                  'assumption と breaks_when を書く')]
     block = ((event or {}).get('idp') or {}).get(idp or '') if idp in CATALOGUE_IDPS else None
     ss = (block or {}).get('stop_setting') or {}
     if not idp:
@@ -162,61 +204,32 @@ def _idp_searched(doc, idp):
     return [x for x in (r9.get('searched') or []) if idp in str(x).lower() and concrete(x)]
 
 
-def rule_r3(answers_doc, catalog_dir):
-    out = []
+KNOWN_KINDS = (None, 'product', SELF_BUILT)
+
+
+def rule_r3(answers_doc, catalog_dir, token_types=None):
+    """R3 for every IdP of the design (#58: `idp` may be a list). token_types (the inventory) is given by core.run so that
+    the token types an IdP entry names can be checked."""
     doc = answers_doc or {}
-    idp = idp_name(doc)
-    block = doc.get('idp') if isinstance(doc.get('idp'), dict) else {}
-    if not idp:
-        return [F('R3', ERROR, 'idp', 'catalog_answers.yaml に idp（設計書の IdP の name と version）がない')]
-    kind = ENUMERABLE.get(idp)
-    if kind is None:
-        e = block.get('enumerable')
-        if e is True:
-            kind = 'list'
-        elif e is False:
-            kind = 'none'
-            src = block.get('enumerable_source')
-            if weak(src) or not concrete(src):
-                out.append(F('R3', ERROR, 'idp', f'IdP {idp} を「一覧が存在しない」とするなら、確かめた出どころ（idp.enumerable_source：'
-                                                 '文書の URL か名前）を書く'))
-        else:
-            return [F('R3', ERROR, 'idp', f'IdP {idp} の契機の一覧の有無が分からない。idp.enumerable（true／false）を宣言する')]
-    if kind in ('unverified', 'none'):
-        # R9 is required in any case (R9 checks it); here the search must have covered the IdP's own documentation
-        if not _idp_searched(doc, idp):
-            why = ('契機の一覧があるかを文書で確かめていない（文書で未確認。sources.md）' if kind == 'unverified'
-                   else '契機の一覧を持たない（一覧が存在しない）')
-            out.append(F('R3', ERROR, 'idp', f'IdP {idp} は{why}。outside_enumeration（R9）の searched に、{idp} の文書（フック・発行の契機）'
-                                             'を探したことを、文書の URL か名前で書く'))
-        else:
-            out.append(F('R3', INFO, 'idp', f"IdP {idp} は{'文書で未確認' if kind == 'unverified' else '一覧が存在しない'}。"
-                                            '列挙の外の契機は R9 の回答で探した'))
-        return out
-    if kind == 'list' and idp not in CATALOGUE_IDPS and idp not in ENUMERABLE and _empty(block.get('trigger_list')):
-        return out + [F('R3', ERROR, 'idp', f'IdP {idp} は一覧を持つと宣言したが、idp.trigger_list がない')]
-    if idp in CATALOGUE_IDPS:
-        cc = _cc()
-        docs, load_err = cc.load(catalog_dir)
-        lists = [sl['id'] for sl in (docs.get('seeds') or {}).get('seed_lists', []) or [] if sl.get('idp') == idp]
-        if not lists:
-            return [F('R3', ERROR, 'idp', f'カタログの seeds.yaml に IdP {idp} の一覧（idp: {idp}）がない')]
-        findings, _ = cc.closure(docs)
-        mine = [f for f in findings if any(str(f['target']).startswith(f'{lid}/') or str(f['target']) == f'seeds.yaml:{lid}'
-                                           for lid in lists)]
-        for f in mine:
-            out.append(F('R3', ERROR, f['target'], f"IdP {idp} の一覧とカタログの差集合：{f['message']}"))
-        if not mine:
-            out.append(F('R3', INFO, 'idp', f"IdP {idp} の一覧（{'・'.join(lists)}）とカタログの差集合は 0 件"))
-        return out
-    # an IdP with a list that the catalogue does not carry (e.g. Cognito, #21): the design maps the list itself
-    tl = block.get('trigger_list')
-    if _empty(tl):
-        return [F('R3', ERROR, 'idp', f'IdP {idp} は契機の一覧を持つが、カタログにない（#21）。idp.trigger_list に一覧の全項目と、'
-                                      'ひもづくイベント（events）か対象外（assumption・breaks_when）を書く')]
-    src = block.get('trigger_list_source') or {}
-    if not isinstance(src, dict) or _empty(src.get('url')) or not DATE_RE.match(str(src.get('verified_on') or '')):
-        out.append(F('R3', ERROR, 'idp', 'idp.trigger_list_source に一覧の出どころ（url）と確かめた日（verified_on）がない'))
+    entries, problems, is_list = idp_entries(doc)
+    out = [F('R3', ERROR, t, m) for t, m in problems]
+    if not entries:
+        return out + [F('R3', ERROR, 'idp', 'catalog_answers.yaml に idp（設計書の IdP の name と version）がない')]
+    known = {t.get('id') for t in token_types or []}
+    for e in entries:
+        if token_types is not None:
+            for t in sorted((e['token_types'] or set()) - known):
+                out.append(F('R3', ERROR, e['target'], f"IdP {e['name']} の token_types の {t} がトークン目録（token_types.yaml）にない"))
+        if e['kind'] not in KNOWN_KINDS:
+            out.append(F('R3', ERROR, e['target'], f"IdP {e['name']} の kind は product（製品。既定）か {SELF_BUILT}（組織が自分で作る発行者）"))
+            continue
+        out += (_r3_self_built if e['kind'] == SELF_BUILT else _r3_one)(doc, e, catalog_dir)
+    return out
+
+
+def _r3_trigger_list(tl, catalog_dir):
+    """Every item of a trigger list maps to catalogue events or is out of scope with a premise and a breaking condition."""
+    out = []
     known = set(_load_event_ids(catalog_dir))
     for t in tl:
         tid = (t or {}).get('trigger', '?')
@@ -236,6 +249,88 @@ def rule_r3(answers_doc, catalog_dir):
     return out
 
 
+def _r3_self_built(doc, entry, catalog_dir):
+    """An issuer the organization builds itself (an STS, a gateway that mints internal tokens; #58, pilot C): there is no
+    product documentation to cite. The design enumerates the occasions on which its issuer mints tokens (trigger_list) and
+    names the document that defines them (trigger_list_source.document: a path or a title; a url only if one exists)."""
+    idp, block, target = entry['name'], entry['block'], entry['target']
+    if idp in ENUMERABLE:
+        return [F('R3', ERROR, target, f'{idp} は製品の IdP の名前。kind: {SELF_BUILT} は組織が自分で作る発行者にだけ書く')]
+    tl = block.get('trigger_list')
+    if _empty(tl):
+        return [F('R3', ERROR, target, f'発行者 {idp} は組織が自分で作る（kind: {SELF_BUILT}）。発行の契機の一覧を決めるのは設計書なので、'
+                                       'idp の trigger_list に、発行者が受ける grant・要求の全項目と、ひもづくイベント（events）か対象外'
+                                       '（assumption・breaks_when）を書く')]
+    out = []
+    src = block.get('trigger_list_source')
+    src = src if isinstance(src, dict) else {}
+    ok_doc = not weak(src.get('document')) and concrete(src.get('document'))
+    ok_url = not _empty(src.get('url'))
+    if not (ok_doc or ok_url) or not DATE_RE.match(str(src.get('verified_on') or '')):
+        out.append(F('R3', ERROR, target, f'発行者 {idp}（kind: {SELF_BUILT}）の trigger_list_source に、一覧を定める文書（document：設計書の'
+                                          '節・仕様書のパスか名前。公開の URL があれば url）と、一覧を決めた・確かめた日（verified_on）がない'))
+    out += _r3_trigger_list(tl, catalog_dir)
+    if not out:
+        planned = '。まだ存在しない発行者（planned: true）なので、作った後に一覧を実装と突き合わせる' if src.get('planned') is True else ''
+        out.append(F('R3', INFO, target, f'発行者 {idp} は組織が自分で作る（kind: {SELF_BUILT}）。契機の一覧 {len(tl)} 項目は設計書が決め、'
+                                         f'すべてカタログのイベントか対象外にひもづく{planned}'))
+    return out
+
+
+def _r3_one(doc, entry, catalog_dir):
+    out = []
+    idp, block, target = entry['name'], entry['block'], entry['target']
+    kind = ENUMERABLE.get(idp)
+    if kind is None:
+        e = block.get('enumerable')
+        if e is True:
+            kind = 'list'
+        elif e is False:
+            kind = 'none'
+            src = block.get('enumerable_source')
+            if weak(src) or not concrete(src):
+                out.append(F('R3', ERROR, target, f'IdP {idp} を「一覧が存在しない」とするなら、確かめた出どころ（idp.enumerable_source：'
+                                                  '文書の URL か名前）を書く'))
+        else:
+            return [F('R3', ERROR, target, f'IdP {idp} の契機の一覧の有無が分からない。idp.enumerable（true／false）を宣言する')]
+    if kind in ('unverified', 'none'):
+        # R9 is required in any case (R9 checks it); here the search must have covered the IdP's own documentation
+        if not _idp_searched(doc, idp):
+            why = ('契機の一覧があるかを文書で確かめていない（文書で未確認。sources.md）' if kind == 'unverified'
+                   else '契機の一覧を持たない（一覧が存在しない）')
+            out.append(F('R3', ERROR, target, f'IdP {idp} は{why}。outside_enumeration（R9）の searched に、{idp} の文書（フック・発行の契機）'
+                                              'を探したことを、文書の URL か名前で書く'))
+        else:
+            out.append(F('R3', INFO, target, f"IdP {idp} は{'文書で未確認' if kind == 'unverified' else '一覧が存在しない'}。"
+                                             '列挙の外の契機は R9 の回答で探した'))
+        return out
+    if kind == 'list' and idp not in CATALOGUE_IDPS and idp not in ENUMERABLE and _empty(block.get('trigger_list')):
+        return out + [F('R3', ERROR, target, f'IdP {idp} は一覧を持つと宣言したが、idp.trigger_list がない')]
+    if idp in CATALOGUE_IDPS:
+        cc = _cc()
+        docs, load_err = cc.load(catalog_dir)
+        lists = [sl['id'] for sl in (docs.get('seeds') or {}).get('seed_lists', []) or [] if sl.get('idp') == idp]
+        if not lists:
+            return [F('R3', ERROR, target, f'カタログの seeds.yaml に IdP {idp} の一覧（idp: {idp}）がない')]
+        findings, _ = cc.closure(docs)
+        mine = [f for f in findings if any(str(f['target']).startswith(f'{lid}/') or str(f['target']) == f'seeds.yaml:{lid}'
+                                           for lid in lists)]
+        for f in mine:
+            out.append(F('R3', ERROR, f['target'], f"IdP {idp} の一覧とカタログの差集合：{f['message']}"))
+        if not mine:
+            out.append(F('R3', INFO, target, f"IdP {idp} の一覧（{'・'.join(lists)}）とカタログの差集合は 0 件"))
+        return out
+    # an IdP with a list that the catalogue does not carry (e.g. Cognito, #21): the design maps the list itself
+    tl = block.get('trigger_list')
+    if _empty(tl):
+        return [F('R3', ERROR, target, f'IdP {idp} は契機の一覧を持つが、カタログにない（#21）。idp.trigger_list に一覧の全項目と、'
+                                       'ひもづくイベント（events）か対象外（assumption・breaks_when）を書く')]
+    src = block.get('trigger_list_source') or {}
+    if not isinstance(src, dict) or _empty(src.get('url')) or not DATE_RE.match(str(src.get('verified_on') or '')):
+        out.append(F('R3', ERROR, target, 'idp.trigger_list_source に一覧の出どころ（url）と確かめた日（verified_on）がない'))
+    return out + _r3_trigger_list(tl, catalog_dir)
+
+
 def _load_event_ids(catalog_dir):
     from .core import load_yaml
     ids = []
@@ -252,8 +347,10 @@ def custom_claims(claims, catalog_dir):
     from .core import load_yaml
     seeds = load_yaml(os.path.join(catalog_dir, 'seeds.yaml')) or {}
     iana = {it['id'] for sl in seeds.get('seed_lists', []) if sl.get('id') == 'iana-jwt-claims' for it in sl.get('items', [])}
+    # #58: a top-level name that the IdP product defines (idp_defined; L1b checks the conditions) is written by the IdP
+    # itself. A namespaced claim is the organization's whatever the row says, so idp_defined does not take it out of R3b
     return [c for c in claims if c.get('decision') in ('採用', '既定どおり')
-            and (c.get('namespace') or (c.get('name') not in iana and c.get('usage') != 'protocol'))]
+            and (c.get('namespace') or (c.get('name') not in iana and c.get('usage') != 'protocol' and not c.get('idp_defined')))]
 
 
 def _issued(a, event, token_types):
@@ -272,14 +369,30 @@ def rule_r3b(claims, answers_doc, catalog, catalog_dir, token_types=()):
         e = events0.get(eid)
         if e and str(eid).startswith('I') and a.get('answer') == '該当' and e.get('tokens_issued') and _empty(a.get('token_types')):
             out.append(F('R3b', ERROR, eid, '発行イベントの「該当」に token_types（出るトークン種別の ID）がない。R3b の照合に使う'))
-    idp = idp_name(answers_doc)
     events = _events(catalog)
     answers = _answers(answers_doc)
     customs = custom_claims(claims, catalog_dir)
     if not customs:
         return out
+    entries = idp_entries(answers_doc)[0] or [{'name': None, 'block': {}, 'token_types': None, 'kind': None, 'target': 'idp'}]
+    for ent in entries:
+        out += _r3b_one(ent, customs, events, answers, token_types)
+    return out
+
+
+def _r3b_one(ent, customs, events, answers, token_types):
+    """R3b for one IdP. With several IdPs (#58) the entry names its token types: only the claims carried in them and the
+    issuances that issue them are compared with this IdP's hook_invoked."""
+    out = []
+    idp, scope = ent['name'], ent['token_types']
+    if ent['kind'] == SELF_BUILT:
+        return out  # the organization's own issuer writes the claims itself: there is no hook whose invocation could be skipped
+    if scope is not None:
+        customs = [c for c in customs if scope & set(c.get('carried_in') or [])]
+        if not customs:
+            return out
     if idp not in CATALOGUE_IDPS:
-        return out + [F('R3b', WARN, 'idp', f"IdP {idp or '(未宣言)'} はカタログの IdP でないので、hook_invoked を照合できない。"
+        return [F('R3b', WARN, ent['target'], f"IdP {idp or '(未宣言)'} はカタログの IdP でないので、hook_invoked を照合できない。"
                                       '独自クレームを載せる発行ごとに、フックが呼ばれることを確かめて hook_checked に書く')]
     for eid, a in answers.items():
         e = events.get(eid)
@@ -289,20 +402,33 @@ def rule_r3b(claims, answers_doc, catalog, catalog_dir, token_types=()):
         if b.get('occurs') == 'no':
             continue
         issued = _issued(a, e, token_types)
-        hit = [c['id'] for c in customs if eid in (c.get('issue_events') or []) or issued & set(c.get('carried_in') or [])]
+        if scope is not None:
+            issued &= scope
+            if not issued:
+                continue  # this issuance does not produce a token of this IdP
+        hit = [c['id'] for c in customs if (scope is None and eid in (c.get('issue_events') or []))
+               or issued & set(c.get('carried_in') or [])]
         if not hit:
             continue
         hk = b.get('hook_invoked')
         names = '・'.join(hit)
+        # #58: with several IdPs, what the author confirmed must be about this IdP: a mapping {IdP: text}, or a text that
+        # names the IdP (a statement about Keycloak says nothing about Auth0)
+        hc, multi = a.get('hook_checked'), ent['target'] != 'idp'
+        if isinstance(hc, dict):
+            hc = hc.get(idp)
+        elif multi and idp not in str(hc or '').lower():
+            hc = None
         if hk == 'no':
             out.append(F('R3b', ERROR, eid, f"{idp} ではこの発行で {b.get('hook_name')} が呼ばれない（hook_invoked: no）のに、"
                                             f"独自クレーム {names} を運ぶトークンが出る。クレームが欠けたまま出る"))
         elif hk in ('unknown', 'conditional'):
-            if weak(a.get('hook_checked'), (eid,)):
+            if weak(hc, (eid,)):
                 out.append(F('R3b', WARN, eid, f"{idp} のこの発行で {b.get('hook_name')} が呼ばれるかは {hk}（カタログ）。"
-                                               f"独自クレーム {names} が載ることを確かめて hook_checked に書く"))
+                                               f"独自クレーム {names} が載ることを確かめて hook_checked に書く"
+                                               + (f'（IdP が複数なので、{idp} の名前を含む文か、IdP ごとの対応 {{{idp}: …}} で書く）' if multi else '')))
             else:
-                out.append(F('R3b', INFO, eid, f"hook_invoked {hk}：書き手が確かめた（{a.get('hook_checked')}）"))
+                out.append(F('R3b', INFO, eid, f"hook_invoked {hk}：書き手が確かめた（{hc}）"))
     return out
 
 

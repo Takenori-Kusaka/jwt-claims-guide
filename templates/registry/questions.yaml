@@ -1,4 +1,4 @@
-# template_version: 0.2.0
+# template_version: 0.3.0
 # 問いの一覧（#3）。設計書の「問い × 仕組み」の表（#4）の行と、台帳の answers・does_not_answer（claims.schema.json）が参照する。
 #
 # 決まり

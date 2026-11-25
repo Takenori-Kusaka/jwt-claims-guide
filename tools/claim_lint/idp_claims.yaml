@@ -1,0 +1,59 @@
+# Claim names that an IdP product defines for its own tokens and IANA has not registered (#58; L1b, L27 and L74 of
+# claim_lint). One block per IdP; the key is the `name` of an `idp` entry of catalog_answers.yaml.
+#
+# A top-level unregistered name is an error in L1b. A row that declares `idp_defined: {idp: <IdP>}` passes only for a name
+# listed here for that IdP (the name belongs to the product, so it cannot move into the organization's namespace), and
+# only while the row stays in that IdP's token types (tools/claim_lint/RULES.md, L1b). A name that is not here stays an
+# error: read the IdP's documentation, add the name with the URL and the date, and send the change as a PR.
+#   claims          unregistered top-level names that the source describes for the IdP's access token or ID token
+#   audience_claim  the claim the IdP's access token carries in place of aud (L27 with token_types[].audience_claim)
+#   header_typ      what the source says about the header typ of the access token (not read by a rule; for the IdP notes)
+# Only facts read in the source are here. An IdP without a block has no list: its names cannot use idp_defined
+# (Auth0: 未確認 - no list was read; its custom claims carry a namespace and need none).
+idps:
+  entra:
+    source:
+      title: "Microsoft identity platform, Access token claims reference"
+      url: "https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference"
+      verified_on: "2026-11-25"
+      review_by: "2027-02-23"
+    # (_claim_names and _claim_sources of the groups overage are registered names: OpenID Connect Core 1.0 §5.6.2)
+    claims: [tid, oid, scp, ver, idp, wids, hasgroups, uti, appid, appidacr, azpacr, acrs, xms_cc, aio, rh, unique_name]
+    header_typ: "typ is always JWT (Header claims table), for access tokens and ID tokens alike"
+  okta:
+    source:
+      title: "Okta Developer, OpenID Connect & OAuth 2.0 API overview, Access token (reserved claims in the payload)"
+      url: "https://developer.okta.com/docs/api/openapi/okta-oauth/guides/overview/"
+      verified_on: "2026-11-25"
+      review_by: "2027-02-23"
+    claims: [cid, uid, scp, ver]
+    header_typ: "未確認: the source lists alg and kid as the header's reserved claims and does not mention typ"
+  cognito:
+    source:
+      title: "Amazon Cognito Developer Guide, Understanding the access token"
+      url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html"
+      verified_on: "2026-11-25"
+      review_by: "2027-02-23"
+    claims: [token_use, "cognito:groups", username, device_key, version, origin_jti, event_id]
+    # "The aud claim in an ID token and the client_id claim in an access token must match the app client ID"
+    # (Verifying JSON web tokens, Verify the claims). The access token has aud only when the request asked for a
+    # resource binding ("Present only if your application requested a resource binding")
+    audience_claim:
+      access_token: client_id
+      source:
+        title: "Amazon Cognito Developer Guide, Verifying JSON web tokens"
+        url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html"
+        verified_on: "2026-11-25"
+    header_typ: "the access token header contains kid and alg only (Access token header); no typ"
+  keycloak:
+    source:
+      # not a documentation page: the built-in mappers of a fresh 26.8.0 realm (claim.name realm_access.roles and
+      # resource_access.${client_id}.roles) and the tokens measured for tools/claim_lint/keycloak_implicit.yaml (typ)
+      title: "Keycloak 26.8.0, measured: tools/tests/fixtures/claim_lint/keycloak/fresh-realm.export.json and keycloak_implicit.yaml"
+      url: "https://github.com/keycloak/keycloak/blob/26.4.0/core/src/main/java/org/keycloak/util/TokenUtil.java"
+      verified_on: "2026-11-25"
+      review_by: "2027-02-23"
+    claims: [realm_access, resource_access, typ]
+    # payload typ: TOKEN_TYPE_BEARER = "Bearer", TOKEN_TYPE_ID = "ID" (TokenUtil.java, read at the 26.4.0 tag; the values
+    # on 26.8 are 未確認 against a 26.8 tag)
+    header_typ: "JWT for access tokens and ID tokens by default; the payload claim typ tells them apart (Bearer / ID)"

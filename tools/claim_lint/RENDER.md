@@ -27,10 +27,10 @@ python tools/claim_lint render templates/examples/scenario-a --validate tools/te
 | 節の ID | 表 | 元の列 | 設計書（00_core、#4）の節 |
 | --- | --- | --- | --- |
 | `ci-result` | CI の結果：claim_lint の件数と、全部の指摘（規則・重大度・対象・内容）、R8 の計算 | claim_lint の JSON（`--lint-json` で渡すか、render がその場で実行する。`--also-scan design.md` つき） | 1. CI の結果 |
-| `issuance-profile` | 発行方式の選択（項目・選択・理由・根拠）と、選択から導かれる要件（`templates/registry/issuance_effects.yaml`）と、それを満たしている台帳の行 | `issuance_profile` | 発行方式の選択（既定から外れた点の理由は手で書く節に書く） |
+| `issuance-profile` | 発行方式の選択（項目・選択・理由・根拠。IdP ごとの例外 `exceptions` があれば、選択と理由の欄に IdP の名前つきで足す。#58）と、選択から導かれる要件（`templates/registry/issuance_effects.yaml`。例外の値でも条件を評価する）と、それを満たしている台帳の行 | `issuance_profile` | 発行方式の選択（既定から外れた点の理由は手で書く節に書く） |
 | `token-inventory` <a id="token-inventory"></a> | トークン目録：ID・種類・採否・発行 → 宛先（`aud`）・持ち手（`holder`）・形式（typ・alg）・寿命（idle と最大）・保存場所・運び方・読める相手（`visible_to`）・JWE・理由 | `token_types`。種類の名前は `templates/catalog/token_kinds.yaml` | トークン目録 |
 | `question-mechanism` <a id="question-mechanism"></a> | 問い × 仕組み：問いの一覧の仕組み、答える台帳の行（`answers`）、答えに使わない行（`does_not_answer`）、照合する場所 | `templates/registry/questions.yaml`、台帳 | 問い × 仕組み（縮小 Lite では手で書く節。生成の表は確かめ用） |
-| `hop-table` | ホップごとの表：種類・運ぶトークン・aud・scope・寿命・独自クレーム・交換するサービス・検証 | `hops.yaml` | ホップごとの表 |
+| `hop-table` | ホップごとの表：種類・運ぶトークン・aud・scope・寿命・独自クレーム（作り直しで足すもの `added_claims` には「（足す：出どころ）」を付ける。#58）・交換するサービス・検証 | `hops.yaml` | ホップごとの表 |
 | `arrow-table` <a id="arrow-table"></a> | 矢印ごとの表：ホップ × 載るトークン × 受け手が確かめるクレーム × 書き手 × 確かめること × aud × 寿命。トークンのないホップ（DB の接続など）では、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す（トークンの書き手は出さない） | `hops.yaml`、台帳の `carried_in`・`enforced_at`・`authoritative_writer` | シーケンス図の矢印の読み物 |
 | `lifecycle` | 寿命の 4 つの層（slide:p08-four-lifetimes）：トークンの寿命、クレームの値の鮮度（`volatility` は反映までに許す秒数で、0 は即時の反映が要る。`never` はトークンの寿命の間に値が変わらないので比べない。載るトークンの受け入れの最大がこれを超える行に「超える」と出し、遅れが許容以内の目録の失効の手段を候補として並べる。手段がそのクレームに効くかは `on_revoke` で人が確かめる。検査の正は L5（#6））、セッションと RT、クレームの定義の寿命 | `token_types`・`hops.yaml`・台帳（`templates/registry/README.md` の 6.） | ライフサイクル表（縮小 Lite では手で書く節。生成の表は確かめ用） |
 | `decision-rows` <a id="decision-rows"></a> | 判断の行：ID・候補・採否（却下の種類）・代わりの行（`alt`）・理由・前提・根拠 ID・裏付け・見直しの条件 | 台帳の `decision`・`rejection_kind`・`rationale`・`assumption`・`refs`・`evidence`・`revisit_trigger` | 判断の行 |

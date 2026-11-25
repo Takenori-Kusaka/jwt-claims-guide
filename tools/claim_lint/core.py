@@ -160,6 +160,7 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     out = []
     sev = WARN if profile == 'lite' else ERROR
     idp = coverage.idp_name(answers_doc)
+    idp_count = len(coverage.idp_entries(answers_doc)[0])
     answers = {}
     for a in (answers_doc or {}).get('answers', []) or []:
         eid = a.get('event')
@@ -178,7 +179,7 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
             if a.get('inherit') != coverage.INHERIT:
                 out.append(Finding('R2', sev, eid, f"inherit に書けるのは {coverage.INHERIT} だけ（あるのは {a.get('inherit')!r}）"))
             else:
-                out += coverage.r2_inherit(a, known[eid], idp, profile, sev)
+                out += coverage.r2_inherit(a, known[eid], idp, profile, sev, idp_count)
             continue
         if tt_ids is not None:
             for t in a.get('token_types') or []:
@@ -203,6 +204,23 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
 
 
 # ------------------------------------------------------------------ REF (#3)
+upstreams = semantic.upstreams  # `upstream` is one hop ID or a list of IDs (#58)
+
+
+def _upstream_cycle(hop, by_id):
+    """The first path from the hop back to a hop already on the path (itself included), or None."""
+    def walk(cur, seen):
+        for u in upstreams(by_id.get(cur)):
+            if u in seen:
+                return seen + [u]
+            if u in by_id:
+                found = walk(u, seen + [u])
+                if found:
+                    return found
+        return None
+    return walk(hop.get('id'), [hop.get('id')])
+
+
 def load_questions(path):
     doc = load_yaml(path) or {}
     return {q['id'] for q in doc.get('questions') or []}, {q['id'] for q in doc.get('pending') or []}
@@ -250,15 +268,18 @@ def rule_ref(claims_doc, token_types, hops_doc, questions):
         if hids.count(h.get('id')) > 1:
             out.append(Finding('REF', ERROR, hid, 'ホップの id が重複している'))
         need(hid, 'token_type', h.get('token_type'), tids, 'トークン目録（token_types.yaml）')
-        need(hid, 'upstream', h.get('upstream'), set(hids), ' hops.yaml')
-        seen, cur = [h.get('id')], h.get('upstream')
+        for u in upstreams(h):
+            need(hid, 'upstream', u, set(hids), ' hops.yaml')
         by_id = {x.get('id'): x for x in hops}
-        while cur is not None and cur in by_id:
-            if cur in seen:
-                out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(seen + [cur])}）"))
-                break
-            seen.append(cur)
-            cur = by_id[cur].get('upstream')
+        cyc = _upstream_cycle(h, by_id)
+        if cyc:
+            out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(cyc)}）"))
+        for a in h.get('added_claims') or []:
+            need(hid, 'added_claims.claim', a.get('claim'), cids, '台帳')
+            for x in a.get('from') or []:
+                need(hid, 'added_claims.from', x, cids, '台帳')
+        for m in h.get('aud_mapping') or []:
+            need(hid, 'aud_mapping.upstream', m.get('upstream'), set(hids), ' hops.yaml')
         for x in h.get('custom_claims') or []:
             need(hid, 'custom_claims', x, cids, '台帳')
         for fh in h.get('forwarded_headers') or []:
@@ -428,7 +449,7 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     findings += rule_r1(claims, tts, profile)
     findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
-    findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)
+    findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir, tts)
     findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir, tts)
     findings += coverage.rule_r4(docs['catalog_answers'], tts, catalog_dir, profile)
     findings += coverage.rule_r6(docs['catalog_answers'], catalog)
