@@ -10,7 +10,7 @@
 | --- | --- |
 | 日時 | 2026-11-25 21:41:59〜21:44:08（JST。セッションが `date -Iseconds` で取った値。約 2 分。LLM の壁時計で、人の時間の代わりにならない） |
 | 辿った人 | LLM（Claude）の新しいセッション 1 つ。この PR を作ったセッションとは別で、PR の中身・issue・パイロットの結果を渡していない |
-| 対象 | この PR のブランチの、案 1 を入れたコミット（`2af0afa`）のテンプレート |
+| 対象 | この PR のブランチの、案 1 を入れたコミット（`2af0afa`）のテンプレート。その後、案 1 は `1e32b33` で入れ直した（案 1 の中身は同じ。記入欄を書く場所の 2 行を、案に依らないコミットに移しただけ）。辿った後に足したもの（Full で `hops.yaml` が無いときの warn、`--with-hops`、書く場所が見出しにある項目の扱い、`README.md` の P4 の行の「または自分の権限で」）は、この試行には入っていない |
 | 読んでよいとしたもの | `research/pilot/brief-C.md`、`templates/`（`GETTING_STARTED.md` から案内されるもの）、`tools/new_design.py`、`tools/claim_lint/RULES.md` |
 | 読んではいけないとしたもの | `templates/examples/**`、`templates/casestudy-*`、`templates/CHANGELOG.md`、`research/**`（brief-C を除く）、`docs/**`、`tools/tests/**`、issue・PR、git の履歴。**開いたものは無い、と申告した** |
 | 辿った範囲 | 空の設計書を作る → lint → 5 問の判定 → プロファイルとモジュールの選択 → 記入欄の用意（`new_design.py --use`）→ MCP の表・委任の深さ・P4 の 2.〜9.・ホップ・当てはまらない欄の置き場所を決める → lint。設計書は書き切っていない |

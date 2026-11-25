@@ -75,9 +75,9 @@ P4 の MCP の必須チェック表の〔Lite・Full：記入〕をやめ、P4 �
 
 経緯：最初に案 1 を入れたコミット `2af0afa` には、案に依らない「記入欄を書く場所は付録 D」の 2 行も入っていて、戻すとその 2 行も外れました（PR #69 の独立点検の指摘 2）。force-push はしない決まりなので、`2af0afa` を `1b1cd67`（「Revert "Apply option 1 …"」のコミット）で戻し、置き場所の 2 行を案に依らないコミットに入れ直し、その後で案 1 だけを入れ直しました。`2af0afa` は履歴に残りますが、戻す対象ではありません。
 
-**戻し方**：案 1 を入れ直したコミット（上の題のもの）を `git revert` します。戻しても、記入欄を書く場所の 2 行は P4 に残ります（`tools/tests/test_new_design.py` の `test_p4_says_where_its_fill_ins_go_whatever_the_p4_lite_option` が確かめる）。
+**戻し方**：`git revert 1e32b33` だけです（案 1 を入れ直したコミット）。このブランチで試しました：`git revert --no-commit 1e32b33` は競合なしで当たり、変わるのは `profiles/P4_ai_agent_delegation.md`・`README.md`・`CHANGELOG.md` の 3 つだけです。戻した状態で、P4 の中の「付録 D」の 2 行は残り（`tools/tests/test_new_design.py` の `test_p4_says_where_its_fill_ins_go_whatever_the_p4_lite_option` が確かめる）、`build_claims_viewer.py --check`・`template_check.py`・`review_check.py`・`trace_check.py`・`tools/tests/test_new_design.py`・`test_template_check.py` が通ることを確かめてから、取り消しました。エディターのデータ（`docs/claims/`）の作り直しは要りません。
 
-別のセッションが、案 1 を入れたテンプレートでシナリオ C の要求を辿った記録は [`issue-61-walkthrough.md`](issue-61-walkthrough.md) にあります。
+別のセッションが、案 1 を入れたテンプレート（最初のコミット `2af0afa` の時点。案 1 の中身は、入れ直した `1e32b33` と同じ）でシナリオ C の要求を辿った記録は [`issue-61-walkthrough.md`](issue-61-walkthrough.md) にあります。
 
 ## 5. 判定が Full なのに、Lite の欄で書いた設計書の扱い
 
