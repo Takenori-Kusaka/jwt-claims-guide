@@ -1,0 +1,1440 @@
+# template_version: 0.4.0
+# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。
+# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。
+format: "claims-review/1"
+design: "research/pilot/scenario-b"
+independent: true
+reviews:
+  - reviewer:
+      name: "R2"
+      kind: "llm"
+      model: "Claude Opus 5.5（claude-opus-5-5）、Claude Code のサブエージェントのセッション 1 つ"
+      note: "LLM によるレビュー。人による検証ではない。攻撃者と運用を先に読む（procedure.md の 1 名で行う場合の役割の順）"
+    self_declared: true
+    started: "2026-11-24T07:08:15+09:00"
+    updated: "2026-11-24T07:40:00+09:00"
+    submitted: "2026-11-24T07:40:00+09:00"
+    independence:
+      mode: "kept"
+    target:
+      commit: "857320c"
+      note: "worktree agent-acb20059fb1493488 の research/pilot/scenario-b（読み取りだけ）"
+    materials:
+      questions: 168
+      perspectives: "0.4.0"
+      report_template: "0.4.0"
+    context:
+      materials: "templates/review の perspectives.md 0.4.0（168 問）・procedure.md 0.4.0・report_template.md 0.4.0・decision_tree.md 0.4.0・escalation.md 0.4.0・rationale_rubric.md 0.5.0（worktree のコミット 857320c）。対比表（contrasts/）は開いていない。perspectives.md の 9.（較正）は過去のレビューの指摘を含むので読んでいない"
+      lite_full: "Full（設計書の判定）。README の 5 問のうち 3 問が Yes で、レビュアーの確認も Full"
+      steps: "0〜7（8 は書き手の対応の後。段 3 の No の読み直しを別のセッションに渡す手順は、このパイロットでは行っていない）"
+      roles_order: "1 名（LLM、役割を切り替えた）：攻撃者 → 運用 → 受け手 → 発行者 → 個人情報 → クライアント。同じ日の同じセッション"
+      ci:
+        error: 0
+        warn: 2
+        info: 16
+        profile: "full"
+        matches_design: true
+        note: "レビュアーが同じコミットで claim_lint を走らせ、設計書の 1. と一致（L69 C-groups・L11 C-sub-unread の warn）"
+      human_check: "LLM によるレビュー。人による検証ではない（templates/CONTRIBUTING.md の 3.）。指摘の採否は人のレビュアーが決める"
+    answers:
+      ap-1-1:
+        answer: "yes"
+        memo: "alg_allowlist（RS256・ES256）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-2:
+        answer: "yes"
+        memo: "デコードだけの経路が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-3:
+        answer: "yes"
+        memo: "aud を必須（Cognito は client_id で代替）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-4:
+        answer: "yes"
+        memo: "Entra は自社の tid の iss だけ（B10）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-5:
+        answer: "yes"
+        memo: "D.3 の 2. で「鍵は各 iss の JWKS だけから取る」。署名の前に iss を読む順序との関係は未記述（R2-18）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-6:
+        answer: "yes"
+        memo: "email・upn・preferred_username を照合に使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-7:
+        answer: "no"
+        memo: "groups の provenance は「管理者が設定した値」だが、Entra のグループの所有者（管理者でない社員）やセルフサービスの参加、Okta の委任のグループ管理者が、写しの表に載ったグループに人を足せる。R2-04"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-1-8:
+        answer: "yes"
+        memo: "exp 必須、ずれ 30 秒（内部 5 秒）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-1:
+        answer: "no"
+        memo: "C-groups の max_items 200・overflow「問い合わせに切り替える」は Entra の Graph だけ。Okta の groups の上限（公式文書では 100 件と記憶。未確認）と超過時の挙動が書いてない。R2-13"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-2:
+        answer: "yes"
+        memo: "ロール・部署は内部トークン 30 秒、経理台帳は引き直し"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-3:
+        answer: "yes"
+        memo: "型・形が台帳と受け手のスキーマで一致（社員番号は string）"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-4:
+        answer: "yes"
+        memo: "独自の 3 行は組織の名前空間の下"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-5:
+        answer: "yes"
+        memo: "X-User-Role（変種を含む）を入口で除去し、誰も書かない"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-6:
+        answer: "yes"
+        memo: "受け取った AT を渡さず作り直す"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-7:
+        answer: "na"
+        memo: "エージェントが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-8:
+        answer: "yes"
+        memo: "jti だけ記録"
+        at: "2026-11-24T07:40:00+09:00"
+      ap-2-9:
+        answer: "yes"
+        memo: "内部トークンは署名・jti の記録・失効の手段（exp・db_lookup・one_time_use）がある。テナントは無い"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-01:
+        answer: "na"
+        memo: "DB の文脈を設定しない（M_data_layer を使わない）"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-02:
+        answer: "na"
+        memo: "SET LOCAL を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-03:
+        answer: "na"
+        memo: "SQL Server を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-04:
+        answer: "yes"
+        memo: "認可は本人が書き換えられない属性だけ（custom:* を読まない）"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-05:
+        answer: "na"
+        memo: "DB のロールを選ぶクレームが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-06:
+        answer: "na"
+        memo: "RLS を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-07:
+        answer: "na"
+        memo: "DB のユーザーを利用者に対応付けない"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-08:
+        answer: "yes"
+        memo: "H10〜H13 に connection_max_lifetime 3600。剥奪は問い合わせの条件で効く"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-09:
+        answer: "na"
+        memo: "DB まで利用者の ID を伝える監査の要求が無い（サービスのログで記録）"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-10:
+        answer: "na"
+        memo: "DB の文脈を使わない（クレームが欠けたら内部トークンを拒む）"
+        at: "2026-11-24T07:40:00+09:00"
+      cd-11:
+        answer: "na"
+        memo: "データ層の文脈・すり抜ける主体の設定が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-01:
+        answer: "yes"
+        memo: "段階ごとに書き手が決まり、フックの値（部署）を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-02:
+        answer: "yes"
+        memo: "フックで欠けたロールは空、部署は IdP から取らない（q-hook-failure と同じ）"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-03:
+        answer: "yes"
+        memo: "入口で内部トークン（iss 入口・aud 1 つ）に作り直す"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-04:
+        answer: "yes"
+        memo: "H7・H8 で token_type と aud が替わる"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-05:
+        answer: "yes"
+        memo: "H7・H8 は 30 秒・aud 1 つで上流（300・600 秒、aud 2 つ）以下（L16 が走らないので手で確かめた）"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-06:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-07:
+        answer: "yes"
+        memo: "すべてのホップの validates に中身がある"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-08:
+        answer: "yes"
+        memo: "X-User-Role とその変種を入口で捨てる（許可リストでない点は R2-11）"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-09:
+        answer: "na"
+        memo: "要求にアクセス元（IP・端末）の条件が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      cf-10:
+        answer: "yes"
+        memo: "jti と sub のハッシュ、全文を残さない（act・txn は無い）"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-01:
+        answer: "yes"
+        memo: "独自の 3 行（C-department 60 秒・C-auth0-roles 900 秒・C-employee-id never）とも volatility が載るトークンの受け入れの上限（35・330 秒）以上"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-02:
+        answer: "no"
+        memo: "C-department・C-employee-id・C-auth0-roles に registered_ref も prior_art_search も無い（claim_request の問 3 は台帳のこの列を出どころに挙げている）。R2-14"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-03:
+        answer: "yes"
+        memo: "namespaces に https://claims.example.com/ を宣言。予約名との照合は各 claim_request の問 4"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-04:
+        answer: "no"
+        memo: "C-auth0-roles に consumer_access_path が無い（claim_request の問 5 にだけ書いてある）。R2-14"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-05:
+        answer: "yes"
+        memo: "型は 1 つ。社員番号は数字の文字列（pattern）"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-06:
+        answer: "yes"
+        memo: "配列は JSON の配列。scope の空白区切りは RFC 9068 の形"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-07:
+        answer: "yes"
+        memo: "3 行とも absent_semantics と on_missing がある"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-08:
+        answer: "no"
+        memo: "C-department・C-auth0-roles に value_normalization が無い（claim_request の問 10 だけ）。R2-14"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-09:
+        answer: "yes"
+        memo: "独自の 3 行は部署のコード・社員番号・語彙の値で照合（表示名を使わない）。Okta の groups の名前による写しは q-value-vocabulary で No"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-10:
+        answer: "yes"
+        memo: "書き手は入口（社員台帳から）と Auth0 の Action。本人の値（custom:*・user_metadata）と分けている"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-11:
+        answer: "yes"
+        memo: "独自の 3 行に max_bytes・max_items・overflow_strategy がある"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-12:
+        answer: "yes"
+        memo: "独自の 3 行の issuers は 1 つ（入口か Auth0）。on_missing あり"
+        at: "2026-11-24T07:40:00+09:00"
+      dc-gate:
+        answer: "no"
+        memo: "dc-02・dc-04・dc-08 に No がある（台帳の列の欠け。判断の中身は claim_request にある）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-01:
+        answer: "yes"
+        memo: "3 件とも受け手（orders・invoices・gateway）と判断を書き、usage と一致"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-02:
+        answer: "yes"
+        memo: "部署は 60 秒の許容と経理台帳の引き直し、Auth0 のロールは 330 秒、社員番号は never"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-03:
+        answer: "yes"
+        memo: "3 件とも IANA・SCIM・RFC 9068 を探した記録が claim_request にある（台帳の列は空。dc-02）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-04:
+        answer: "yes"
+        memo: "問 4 で IdP の予約名・Auth0 の禁止の接頭辞と照合"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-05:
+        answer: "yes"
+        memo: "受け手は共通の検証部品で JSON のキーとして読むと回答。設計の宣言で、実装での確認ではない"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-06:
+        answer: "yes"
+        memo: "flat_prefix と台帳の namespace・shape が一致"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-07:
+        answer: "yes"
+        memo: "単一の型、区切り文字列なし"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-08:
+        answer: "yes"
+        memo: "社員番号・部署のコードは文字列"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-09:
+        answer: "yes"
+        memo: "部署は on_missing 無視＋部署で絞る操作を拒む、社員番号は拒否、Auth0 のロールは無視＋ロールなしで、台帳と一致"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-10:
+        answer: "yes"
+        memo: "完全一致（社員番号は数値に変換しない）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-11:
+        answer: "yes"
+        memo: "書き手は platform（入口・Auth0 の管理者）だけ"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-12:
+        answer: "yes"
+        memo: "部署のコード・社員番号・ロールの語彙で照合"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-13:
+        answer: "yes"
+        memo: "16・20・32 バイト、超えたら発行を失敗"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-14:
+        answer: "yes"
+        memo: "部署は H7 だけ、社員番号は H8 だけ。ただし目録の required_claims は両方に社員番号を求める（R2-15）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-15:
+        answer: "yes"
+        memo: "入口だけ、または Auth0 だけ"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-16:
+        answer: "yes"
+        memo: "組織共通の検証部品（D.3 の 11.）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-17:
+        answer: "yes"
+        memo: "ヘッダーに移さない。X-User-Role・X-Department・X-Employee-Id の変種を捨てると回答"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-18:
+        answer: "yes"
+        memo: "社員台帳を引けなければ拒む（503）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-19:
+        answer: "yes"
+        memo: "絞り込みの値で、無視すれば機能が無いか権限が増えない"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-20:
+        answer: "yes"
+        memo: "log_policy・pii_category と一致"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-21:
+        answer: "na"
+        memo: "委任のトークンが無い（q-actor 不要）"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-22:
+        answer: "yes"
+        memo: "consumers が設計書の受け手と一致"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-23:
+        answer: "yes"
+        memo: "受け手が先の順を書いた"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-24:
+        answer: "yes"
+        memo: "並行発行の期間（内部トークンの寿命とリリースの期間）を書いた"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-25:
+        answer: "yes"
+        memo: "入口の試験と受け手の契約テスト、Auth0 の Action のテスト"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-gate:
+        answer: "yes"
+        memo: "3 件の回答はクレームごとに固有"
+        at: "2026-11-24T07:40:00+09:00"
+      pa-trace:
+        answer: "no"
+        memo: "claim_request の問 3 が出どころとする台帳の registered_ref・prior_art_search が台帳に無く、両方から辿れない。R2-14"
+        at: "2026-11-24T07:40:00+09:00"
+      q-access-context-from-pep:
+        answer: "na"
+        memo: "アクセス元の条件を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-agent-delegation-claims:
+        answer: "na"
+        memo: "代理で動くトークンが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-agent-own-identity:
+        answer: "na"
+        memo: "エージェントが無い（P4 を使わない）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-agent-short-lived-no-rt:
+        answer: "na"
+        memo: "エージェントが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-approval-from-as:
+        answer: "na"
+        memo: "エージェント・クライアントが判断する承認が無い（請求書の承認は R2-19）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-audit-correlation:
+        answer: "yes"
+        memo: "sub のハッシュ・jti・iss で相関（act・txn・承認 ID は無い）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-audit-log-protected:
+        answer: "yes"
+        memo: "D.5 の 8.（情報システム部だけ、1 年）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-auth-context-semantics:
+        answer: "yes"
+        memo: "iat はトークンの発行時刻としてログアウトの時刻と比べるだけ。auth_time の代わりにしていない（not_meaning）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-authorize-service-and-user:
+        answer: "no"
+        memo: "入口 → サービスは mTLS で確かめるが、BFF → 入口（H2〜H6）は直接の相手を確かめない。R2-02"
+        at: "2026-11-24T07:40:00+09:00"
+      q-baseline-kept:
+        answer: "yes"
+        memo: "3.2 の 7 基準をすべて満たすと記入（Cognito の aud は client_id＋token_use で代替）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-break-glass:
+        answer: "na"
+        memo: "緊急時の特権のトークンを作らない（2.2）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-change-order:
+        answer: "yes"
+        memo: "9.3 に受け手が先の手順"
+        at: "2026-11-24T07:40:00+09:00"
+      q-claim-earliest-hop:
+        answer: "yes"
+        memo: "部署・社員番号は入口で社員台帳から初めて分かる値で、その最初のホップ（H7・H8）から載る"
+        at: "2026-11-24T07:40:00+09:00"
+      q-confidential-reaches-reader:
+        answer: "yes"
+        memo: "読まれてはいけないクレームが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-consumer-expression:
+        answer: "yes"
+        memo: "完全一致、欠落は拒否か権限なし"
+        at: "2026-11-24T07:40:00+09:00"
+      q-copies-outlive:
+        answer: "yes"
+        memo: "Graph のキャッシュ・JWKS・DB の接続に期限がある（Graph のキャッシュの決め方は R2-12）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-cross-tenant-identity:
+        answer: "na"
+        memo: "テナントが 1 つ（IdP をまたぐ名寄せは社員台帳の表で行い email を使わない）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-db-context-parameterized:
+        answer: "na"
+        memo: "DB の文脈を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-db-context-writers:
+        answer: "na"
+        memo: "DB の文脈を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-ddm-rls-only:
+        answer: "na"
+        memo: "DDM・RLS を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-delegation-depth-and-revocation:
+        answer: "na"
+        memo: "委任が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-dependency-outage:
+        answer: "yes"
+        memo: "社員台帳の停止で全停止、Graph の失敗で拒否、JWKS は最後の鍵、フックの打ち切りで部署を使わないと書いた"
+        at: "2026-11-24T07:40:00+09:00"
+      q-deprecated-deadline:
+        answer: "na"
+        memo: "deprecated の行が無い（X-User-Role の移行の期日は R2-07）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-derived-value:
+        answer: "yes"
+        memo: "D.5 の 4. で派生値を検討（受け手 1 つで部署のコードそのもの）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-evidence-attribution:
+        answer: "yes"
+        memo: "RFC 8693 §4.3（client_id）・RFC 7800 §3.1（cnf）・Microsoft の configurable token lifetimes（AT の最短 10 分）を記憶で照合（原典は開いていない）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-external-user-deprovision:
+        answer: "no"
+        memo: "異動でのロール（approver・editor・admins）の剥奪は IdP の管理者がグループを外すまで始まらず、人事の異動から IdP への経路と秒数が無い。Keycloak 以外の IdP 側のログアウトも届かない（12.）。R2-06"
+        at: "2026-11-24T07:40:00+09:00"
+      q-four-lifetimes-written:
+        answer: "yes"
+        memo: "9.1〜9.3 と生成の表で 4 層を別に書いた"
+        at: "2026-11-24T07:40:00+09:00"
+      q-freshness-mitigation:
+        answer: "yes"
+        memo: "超える行は無く、経理台帳とログアウトの対策の担い手（invoices・入口）を書いた"
+        at: "2026-11-24T07:40:00+09:00"
+      q-gateway-bypass-path:
+        answer: "yes"
+        memo: "サービスは mTLS と内部トークンで止める（B7）。BFF → 社員台帳の書き込みの経路は図に無い（R2-08）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-hook-adds-raw-pii:
+        answer: "yes"
+        memo: "Auth0 の Action が足すのはロールだけ"
+        at: "2026-11-24T07:40:00+09:00"
+      q-hook-failure:
+        answer: "yes"
+        memo: "Okta のフックの値は使わず、Cognito・Auth0 のフックで欠けたロールは「権限なし」に倒す（拒否ではないが許可は増えない）。I11・I25・I26 の hook_invoked は unknown のまま"
+        at: "2026-11-24T07:40:00+09:00"
+      q-hop-lifetime:
+        answer: "yes"
+        memo: "H7・H8 の upstream が無いので手で確かめた（30 ≤ 300）。lint の回避は q-lint-workaround"
+        at: "2026-11-24T07:40:00+09:00"
+      q-hop-narrowing:
+        answer: "yes"
+        memo: "H7・H8 は aud 1 つ、独自クレームは受け手ごと"
+        at: "2026-11-24T07:40:00+09:00"
+      q-identifier-choice:
+        answer: "yes"
+        memo: "iss＋sub、Entra は tid＋oid、Okta は uid。email・upn を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-idp-capability-verified:
+        answer: "no"
+        memo: "Entra の AT の版（requestedAccessTokenVersion）と寿命のポリシー、Okta の groups の件数の上限、各 IdP のリフレッシュでの再計算に出どころが無い（12. に一部だけ）。R2-09・R2-13"
+        at: "2026-11-24T07:40:00+09:00"
+      q-idp-diff-absorbed:
+        answer: "yes"
+        memo: "サービスが読むのは入口の iss の組織のクレームだけ"
+        at: "2026-11-24T07:40:00+09:00"
+      q-internal-delegation-token:
+        answer: "yes"
+        memo: "目録の INTERNAL_TOKEN に署名・寿命・失効・ログがある"
+        at: "2026-11-24T07:40:00+09:00"
+      q-key-rotation:
+        answer: "yes"
+        memo: "JWKS から取り、取り直しの最短間隔と負のキャッシュ、公開してから使う順序がある（鍵の漏えい時の扱いは R2-18）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-lifetime-rationale:
+        answer: "no"
+        memo: "5.1 と付録 E の 4. の理由は「NIST の 1 時間以内で短めに」で、リフレッシュの負荷・IdP の停止の影響という代償との比較が無い。R2-21"
+        at: "2026-11-24T07:40:00+09:00"
+      q-limit-consistency:
+        answer: "no"
+        memo: "2.1 は Entra の azp を入口で照合と書くが H3 の validates に無い（R2-01）。INTERNAL_TOKEN の required_claims と H7 の custom_claims が食い違う（R2-15）。生成の表のクレーム名が台帳・スキーマと違う（R2-16）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-lint-workaround:
+        answer: "no"
+        memo: "H7・H8 の upstream を L16 と合わないため外した（hops.yaml の冒頭・12.）。規則の側の誤りの候補として #6 に渡した記録が設計書に無い。R2-23"
+        at: "2026-11-24T07:40:00+09:00"
+      q-long-running:
+        answer: "na"
+        memo: "非同期の処理が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-minimal-per-recipient:
+        answer: "yes"
+        memo: "部署は orders、社員番号は invoices だけ（required_claims の食い違いは R2-15）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-nested-jwt-both-layers:
+        answer: "na"
+        memo: "JWE を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-no-passthrough:
+        answer: "yes"
+        memo: "入口だけが作り直し、IdP と交換しない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-no-secret-or-raw-pii:
+        answer: "yes"
+        memo: "秘密・生年月日などを載せない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-no-unverified-passthrough-mode:
+        answer: "yes"
+        memo: "D.3 の 10.、各 claim_request の問 18 と一致"
+        at: "2026-11-24T07:40:00+09:00"
+      q-object-level-authz:
+        answer: "yes"
+        memo: "orders は sub、invoices は社員番号でデータの側と照合（D.4 の 3.）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-operational-metrics:
+        answer: "yes"
+        memo: "付録 A に 7 指標・周期・持ち主"
+        at: "2026-11-24T07:40:00+09:00"
+      q-operator-act:
+        answer: "na"
+        memo: "運用者の代理操作が無い（2.2）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-original-principal:
+        answer: "yes"
+        memo: "サービス間の呼び出しが無く、内部トークンの sub が元の利用者"
+        at: "2026-11-24T07:40:00+09:00"
+      q-outside-catalog:
+        answer: "no"
+        memo: "書き手の 4 件に加え、IdP の管理者による資格情報のリセット・一時パスでの代理ログイン、複数の IdP のアカウントを持つ社員の IdP の選び分け、BFF が社員台帳に書く経路、再試行と jti、試験用の IdP・鍵の経路、移行期間の旧経路の守りが答えられていない。R2-04・R2-07・R2-08・R2-10・R2-24"
+        at: "2026-11-24T07:40:00+09:00"
+      q-pairwise-external:
+        answer: "yes"
+        memo: "目録の subject_type が各行にある（ENTRA_AT は pairwise と明記）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-pairwise-unguessable:
+        answer: "na"
+        memo: "組織がペアワイズの sub を作らない（Entra の仮名の sub は読まない）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-payload-readable:
+        answer: "yes"
+        memo: "confidential_from が全行で空"
+        at: "2026-11-24T07:40:00+09:00"
+      q-rar-per-audience:
+        answer: "na"
+        memo: "authorization_details を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-refresh-reevaluated:
+        answer: "no"
+        memo: "Keycloak・Entra・Okta のリフレッシュでのロール・グループの再計算を前提にした 330・630 秒に、実測・文書の出どころが無い（Entra は「確かめていない」）。R2-09"
+        at: "2026-11-24T07:40:00+09:00"
+      q-registered-synonym:
+        answer: "yes"
+        memo: "C-auth0-roles（Auth0 の上流の値）と C-roles（内部トークン）は段階が違い、not_meaning で区別"
+        at: "2026-11-24T07:40:00+09:00"
+      q-relies-on-at-expiry:
+        answer: "no"
+        memo: "Graph の結果のキャッシュの寿命を「AT の残りの寿命まで」と決めている（GRAPH_AT の assumption、U21）。R2-12"
+        at: "2026-11-24T07:40:00+09:00"
+      q-required-rejected:
+        answer: "no"
+        memo: "入口が利用者の決定と認可に読む oid・tid（Entra）、uid・cid（Okta）、scp、token_use（Cognito）が required_claims・受け手のスキーマに無い。COGNITO_AT の required_claims は空。R2-03"
+        at: "2026-11-24T07:40:00+09:00"
+      q-reuse-standard-structure:
+        answer: "no"
+        memo: "役割の用途（roles）に当たる C-auth0-roles に registered_ref（RFC 9068 §2.2.3.1）が無い。R2-14"
+        at: "2026-11-24T07:40:00+09:00"
+      q-revocation-delivery:
+        answer: "yes"
+        memo: "種別ごとに手段と秒数。重要な操作は問い合わせ"
+        at: "2026-11-24T07:40:00+09:00"
+      q-role-explosion:
+        answer: "yes"
+        memo: "ロールは 4 語の役割だけ"
+        at: "2026-11-24T07:40:00+09:00"
+      q-rt-policy-by-client:
+        answer: "no"
+        memo: "機密の BFF の RT の方式の根拠に、公開クライアント向けの RFC 9700 §4.14.2 を引いている。R2-22"
+        at: "2026-11-24T07:40:00+09:00"
+      q-scope-and-role:
+        answer: "yes"
+        memo: "scope は入口、ロールはサービスで確かめる"
+        at: "2026-11-24T07:40:00+09:00"
+      q-scope-elevation-logged:
+        answer: "na"
+        memo: "エージェントが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-scope-semantics:
+        answer: "yes"
+        memo: "scope をクライアントの範囲として扱い、利用者の権限は roles。Okta・Auth0 では scope を宛先の区別にも使う（R2-17）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-session-rt-bounds:
+        answer: "yes"
+        memo: "idle 1800・最大 36000（24 時間以下）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-shared-validator:
+        answer: "yes"
+        memo: "組織共通の検証部品（版は未定）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-single-aud-resource:
+        answer: "na"
+        memo: "エージェント・resource を使う経路が無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-single-issuer:
+        answer: "yes"
+        memo: "各段階で発行者は 1 つ。サービスは追記・作り直しをしない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-size-limit:
+        answer: "yes"
+        memo: "R8 で 7 種別を計算（Okta の 200 件の前提は R2-13）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-sql-tenant-predicate:
+        answer: "na"
+        memo: "テナントが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-step-up-by-rs:
+        answer: "na"
+        memo: "追加認証を求めない（付録 B。要求に無い）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-step-up-path-coverage:
+        answer: "na"
+        memo: "追加認証を求める操作が無い（付録 B）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-system-actor-no-fake-sub:
+        answer: "yes"
+        memo: "GRAPH_AT は入口自身の権限で、利用者のクレームを載せない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-tenant-data-match:
+        answer: "na"
+        memo: "テナントが無い"
+        at: "2026-11-24T07:40:00+09:00"
+      q-token-logging:
+        answer: "no"
+        memo: "記録する HTTP ヘッダーの許可リストと、HAR・ログの共有でトークンを除く手順が無い。R2-11"
+        at: "2026-11-24T07:40:00+09:00"
+      q-token-not-in-url:
+        answer: "yes"
+        memo: "URL に載るのは認可コードだけ"
+        at: "2026-11-24T07:40:00+09:00"
+      q-trace-id-trust:
+        answer: "na"
+        memo: "txn を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-txn-required-claims:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-txn-scope-fixed:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+        at: "2026-11-24T07:40:00+09:00"
+      q-typ-distinguishes:
+        answer: "yes"
+        memo: "aud・azp・token_use・typ で ID トークンを拒む（B2・B17）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-unverified-claim-extraction:
+        answer: "yes"
+        memo: "署名の検証の後に取り出す"
+        at: "2026-11-24T07:40:00+09:00"
+      q-unwrapped-value-authz:
+        answer: "na"
+        memo: "移行の後はヘッダーなどの写しを認可に使わない（移行の間は R2-07）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-validate-before-read:
+        answer: "yes"
+        memo: "権限のクレームは検証の後。発行者ごとの鍵の選び方は ap-1-5 の補足（R2-18）"
+        at: "2026-11-24T07:40:00+09:00"
+      q-validity-not-authz:
+        answer: "yes"
+        memo: "操作ごとにロール・部署・本人を判断"
+        at: "2026-11-24T07:40:00+09:00"
+      q-value-vocabulary:
+        answer: "no"
+        memo: "C-groups に value_vocabulary が無く、Okta の groups はグループの名前（改名・同名の作成ができる文字列）で写しの表を引く。R2-05"
+        at: "2026-11-24T07:40:00+09:00"
+      q-variant-comparison:
+        answer: "no"
+        memo: "B23 の見送りで、入口が BFF だけを受ける（BFF → 入口の mTLS）安価な代替を比べていない。R2-02"
+        at: "2026-11-24T07:40:00+09:00"
+      q-writer-distinguished:
+        answer: "yes"
+        memo: "custom:* と cognito:groups、IdP の部署と社員台帳の部署を分けている"
+        at: "2026-11-24T07:40:00+09:00"
+    rows:
+      "claims:C-aud":
+        decision: "hold"
+        reviewer_kind: "llm"
+        hash: "4a8171179b6a86a9b8c27ef8f1062ee5d4d816c44eb38af1118cbfad94da5f56"
+        comment: "Okta・Auth0 は aud が共通で、宛先の区別を scope に頼る（R2-17）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-auth0-employee-number":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "d8381ce529dbd6ef8193cbde9560e54c9a886914d9655868e0cc79617b703290"
+        comment: "B22"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-auth0-plain-roles":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "c8c9effd43b009b297f349e95b08bb0695f9cc89acf522cd26edf72b955acbe7"
+        comment: "B20"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-auth0-roles":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "978f2163781bd953828951bc459f9be69db39b65f40aef6d38209c44b65cd9df"
+        comment: "consumer_access_path・value_normalization・registered_ref が無い（R2-14）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-azp":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "151cfbd879eaa6a5ab661d859e6f26f32a0bb2e352cf524594df05732c39235e"
+        comment: "Entra の AT の azp を照合する行が無く H3 でも照合しない（R2-01）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-client-id":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "2abb07e7535a5385b18aeb1d90fba990ed8479935665ee8bf170e1919491c17f"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-cnf":
+        decision: "hold"
+        reviewer_kind: "llm"
+        hash: "b881ecd55bee5f3828787ad209bd9103f4b2cad034b5f89577f64ce14ad31d2b"
+        comment: "B23 の見送り。BFF → 入口の mTLS の比較（R2-02）と専門家の判断を待つ"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-cognito-custom-role":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "ad58d96fcdfc2d2a110f05dd171d6a197144ab710a0ab1e7feb220c536b5a9af"
+        comment: "B18"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-department":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "c35d253dfeeb914b9677f6edd82f30f14f8a8aaf77781a69aa3200bd7d50540d"
+        comment: "B11・B15 の守りとして妥当（value_normalization の欠けは R2-14）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-email":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "cfd68be168c29bd3c0e364e9c044039bdb3c195b8b752a0b68b2e2eeda7d981c"
+        comment: "要求の 7. の 9 の決定"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-employee-id":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "07b80de7c5af664cb0c8757b2555a674b1bdd49b3affffb7d1ab2a8350d80d2f"
+        comment: "B22 の守りとして妥当（R2-15 は目録の側）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-events":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "8e20e4d720c2887542b470c521a776de4d45bc4a908d81f543e8770a54021515"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-exp":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "96e6963be2b29e5ec18debbf634e505a3775847a0dc83bc16b5f72199f23a644"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-groups":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "7e2ad16cb4f91ee022ba441a70620208b80d7a98de2204e3eaa4da01ff314283"
+        comment: "Okta はグループの名前で写す（R2-05）、Okta の件数の上限（R2-13）、Graph のキャッシュ（R2-12）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-iat":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "f5d07a42f623a7a62da5cd587e153d5017451419e96643ac42a87293c64f45f1"
+        comment: "ログアウトの時刻を社員台帳に書く経路が図・ホップに無い（R2-08）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-idp-department":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "4f8724cea133108a5dddf31bb83c5e0494d18ab61c70490874586c2bd3d031f2"
+        comment: "B11・B15"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-iss":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "9e234424cd06ef2c05a3c974c2c68a88993a6d7cb89c6f0ac0b2d0dcc53da86c"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-jti":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "d6f46850ae6f8909fca31573a6d28838a01232bf1a7ad71c8d0403466dc47b82"
+        comment: "経理台帳の jti の 1 回だけの受け入れの共有の記録先と再試行の扱い（R2-10）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-nonce":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "8fe666c56c8fc4a9fb30340e6ec2a4fafc876d5409b685faf9fbd4d17b17da76"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-roles":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "88d3bcdc427cd941d06db6b38575687720e6547bd634517047dd99bd8a0af958"
+        comment: "ロールの出どころが 5 つの IdP の管理の範囲の和になる（R2-04）、異動での剥奪の経路（R2-06）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-scope":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "1fe083b950ec33a5e6aa146fa15e13cda97a513366929ddc65ba5568684758a2"
+        comment: "Okta・Entra の scp が台帳の行に無いのに、B3 の守りを scp に頼る（R2-03）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-sid":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "17b95c809bfc5d05fc02559d10059e6910157d4b7671b598973b3d9c4a395c2d"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-sub":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "2ae2c73da9e94f6d04d1e9ddd717e1c8a08f8bb84ea57323342283b08cbdb853"
+        comment: "issuers に Entra・Okta の iss があるが carried_in に ENTRA_AT・OKTA_AT が無い（R2-20）。oid・tid・uid の行が無い（R2-03）"
+        at: "2026-11-24T07:40:00+09:00"
+      "claims:C-sub-unread":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "71bfaca5e25b90d72c42a9b0c0654b8c4d34b72af34ec5c3bf54ccedfc9391e1"
+        comment: "L11 の warn は既定どおりの行として理解できる"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H1":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "a8105b8db7cfa12adbd116125b5ba623e3216c807ee578fc032de0001f2b1a28"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H10":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "c47d97e890d1082b28408407c18dbc5c863fcbebe561eee365bfe06f9ca23840"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H11":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "7538119156f90bcef613c5d40a61f2709c7ebf45c7ca0b10e7e6de4acf1a701c"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H12":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "f37a768a1c05236d5ba56651793a046b7d5b7cdefa8ec43b3d40bb6c515c4541"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H13":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "5afec5e49d2d1550dc0c678dd460d408ecef5ea7973b4ea8084ec0f540bc66a8"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H2":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "9ec5601c4d15bfa3456e9adf80da27340de04c1f3dabf5d3507c3d3367f63dbd"
+        comment: "BFF を直接の相手として確かめない（R2-02）、ヘッダーの許可リスト（R2-11）"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H3":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "1e59a58243737cbb1b9ed3d1cd40e0c1ff5b62af44e27eabd6bc638bc7cc3a15"
+        comment: "azp（クライアント）を照合しない（R2-01）、R2-02、R2-11"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H4":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "79d665b74698fe3bbb0c029e81d1b8dec0bb13e271f4d911a44fd02565efdf3f"
+        comment: "groups の名前による写し（R2-05）、R2-02、R2-11"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H5":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "a1df7f8f23708380216e50809cbb254aaeecded1807bfca121bfb765770295dd"
+        comment: "R2-02、R2-11"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H6":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "9fd3435223d8e7bcdc193aa5c58a0de30a5895328e6012803bc7c15fbce2a1f8"
+        comment: "R2-02、R2-11"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H7":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "1cde20c8bb73da2941c42ccb9e686b7259556ebdb284f72343ecaeffea4ab81d"
+        comment: "upstream を外した（R2-23）、forwarded_headers が無い（R2-11）"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H8":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "0eb9bc4fa1f2aa7dce97dfdf394f10804c112fca228f38553a362c95444f9bdb"
+        comment: "upstream を外した（R2-23）、jti の運用（R2-10）"
+        at: "2026-11-24T07:40:00+09:00"
+      "hops:H9":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "dda884631f070ce77a4204d0d9afb9b1fea564b281545ce9db233829566cf8f8"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:AUTH0_AT":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "a9d9cfd04af8f8fb53e5079ddf005c46fc4508fd841d538f9bbcfc0582a27ebb"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:AUTHORIZATION_CODE":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "2ab8685d374c652fcd9b239845701468ad797849c68f778343836295b00c4495"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:BFF_SESSION":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "665cbd72e6729cdc4f2d03d5a34ebf763b27b029adccbce083de808a2cda0d02"
+        comment: "ログアウトで社員台帳に書く経路（R2-08）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:CLIENT_ASSERTION":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "5759815bdff394c8c88adf9be7f8ed3a39e9546925efcf24f3c03561930fc6a0"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:COGNITO_AT":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "3fcbfee7028e66fd6fe7f4dc3fb913002b02be4af0a8c7be69b21ee7ce2f29ba"
+        comment: "required_claims が空（token_use・client_id・sub を宣言していない。R2-03）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:DPOP_PROOF":
+        decision: "hold"
+        reviewer_kind: "llm"
+        hash: "e4286f67c9c55f8a6cce0f7a5eed1b3cce3aa6c7ac7523ef0fea0b1bc41ea0d0"
+        comment: "B23 の見送り（R2-02、専門家）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:ENTRA_AT":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "e08e7ba1588a033b514a540c76a0eabcdcdba2253e592d548f8532b58f773bc2"
+        comment: "azp の照合（R2-01）、required_claims に oid・tid が無い（R2-03）、寿命・版の前提（R2-09）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:GRAPH_AT":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "94dcae1673e2588f8a16e18629cf324f25612ceff9bf3f73412f76d2b4df2fed"
+        comment: "キャッシュの寿命を AT の残りの寿命にしている（R2-12）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:IDP_SESSION":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "ed1e92f58bd598508a5d412b060d9beb829021db9d34d466b003689eac9bbe64"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:ID_JAG":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "b13b8951f127bc86768142059c11c00b1e35327ff93f47b6ceb35959c3b032c5"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:ID_TOKEN":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "eb8cba0dae553f32069dd42823f640f340fb2b02fe6d00de9fa0d453c34a0e2e"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:INTERNAL_TOKEN":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "58d4af9deaf677a8af24ec8eb96197bbface6d51e7a9f9269e44f6ef3458b5ec"
+        comment: "required_claims と H7 の食い違い（R2-15）、jti の運用（R2-10）、署名鍵の保護（R2-18）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:INTROSPECTION_JWT":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "d612a03e766c1de6592a67bbfa1dd782592f619b2fd5d603df501fb3ebd73108"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:JARM_RESPONSE":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "4f6774de3c6ba8b27f06a4cfc07dbe3b765645d5013f5f2f6a4f65dff644a3d6"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:JAR_REQUEST_OBJECT":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "f36f1756fc7fc6bcd1cfd9bdc78a2ff35fc2c8ca75b1770a4cf2a4e56744e6c8"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:KC_AT":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "c100bfbfabaa668da62c2a6ecbd34c69bb3f6c38ddc75a24cddd359d1ab33305"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:LOGOUT_TOKEN":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "0d8a9cf20c1cccce70e2979286c3aa615f1c181fa0631b31f9f541a44b2e0cf7"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:OKTA_AT":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "1c326387bba6ec75aadfd5215f47ef43a6415a6acff132a166b27d7d88bc2dad"
+        comment: "required_claims に uid・cid が無い（R2-03）、groups の件数（R2-13）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:REFRESH_TOKEN":
+        decision: "request_changes"
+        reviewer_kind: "llm"
+        hash: "71393c5f50c57432e606246a89948d3c22851aac5df58c496f0b41a4f242b49e"
+        comment: "rt_strategy の根拠が公開クライアント向け（R2-22。issuance_profile の側）"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:SET":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "c9297d14b5ed37fa387bace83b68459a82b8a10d5e60a447685ca6953b1c971f"
+        comment: "Keycloak 以外の IdP 側のログアウトは 12. に記載"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:STATUS_LIST":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "d283e9049b347646a66de812d4634c6d155feccb5b1a0b5a63ad424a09a48852"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:TXN_TOKEN":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "e3764cb5f844079c543352ee223053786fd20c820d1b4d7783df673c89f79bad"
+        at: "2026-11-24T07:40:00+09:00"
+      "token_types:WORKLOAD_JWT":
+        decision: "approve"
+        reviewer_kind: "llm"
+        hash: "82d57b0626210d646bd92f31acc9d7be7322ec14c2261af7e77e5900ad8cc840"
+        at: "2026-11-24T07:40:00+09:00"
+    findings:
+      - id: "R2-01"
+        location: "template:00_core#principals（ポータルの BFF の行）、hops:H3 の validates、claims:C-azp の carried_in"
+        anchors: ["hops:H3", "claims:C-azp", "token_types:ENTRA_AT"]
+        questions: ["q-limit-consistency", "q-typ-distinguishes"]
+        content: "2.1 は「Okta の cid・Entra の azp（入口の設定で照合）」と書くが、H3 の validates に azp（または appid）の照合が無く、C-azp の carried_in は KC_AT だけ。自社のテナントの別のアプリ（同意の釣りで社員の同意を得た攻撃者のアプリを含む）が api://orders・api://invoices 宛てに取った AT を、入口がポータルの AT と区別せずに受ける。ほかの 4 つの IdP はクライアントを照合している（azp・cid・client_id）。対策：H3 に「azp がポータルのクライアント ID」を足し、台帳に Entra の azp の行（または C-azp の carried_in に ENTRA_AT）を足す。テナントの利用者の同意の設定も前提に書く"
+        severity: "Major"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "2.1 と H3 の 2 つの欄が食い違い、攻撃の経路（同意の釣り）が具体的"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-02"
+        location: "hops:H2〜H6 の validates、template:00_core#priorities-deferrals（送信者制約の見送り）、template:00_core#scope-boundary（ポータル → 入口の行）"
+        anchors: ["hops:H2", "hops:H3", "hops:H4", "hops:H5", "hops:H6", "claims:C-cnf"]
+        questions: ["q-variant-comparison", "q-authorize-service-and-user"]
+        content: "入口は BFF からの要求を直接の相手として確かめない（H2〜H6 に mTLS・接続元の条件が無い）。入口 → サービスはメッシュの mTLS で確かめるのと非対称。B23 の見送りの理由は「AT は BFF と入口のサーバーにしかない」だが、漏れた AT（ログ・メモリのダンプ・BFF の不具合）はどこからでも入口に送れる。入口が BFF の証明書の接続だけを受ければ、DPoP・mTLS の AT の束縛より安く、B23 の大半（別の端末からの再送）を止められるのに、見送りの比較（3.1・issuance_profile.sender_constraint）に候補として出ていない"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "B23 は要求の脅威で、安価な代替が比べられていない"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-03"
+        location: "claims（行が無い）、token_types:ENTRA_AT・OKTA_AT・COGNITO_AT の required_claims、schemas/ENTRA_AT・OKTA_AT・COGNITO_AT.consumer.schema.json"
+        anchors: ["token_types:ENTRA_AT", "token_types:OKTA_AT", "token_types:COGNITO_AT", "claims:C-sub", "claims:C-scope"]
+        questions: ["q-required-rejected", "q-idp-diff-absorbed", "dc-12"]
+        content: "入口が利用者の決定・宛先・種類の判断に読む IdP 固有のクレームが台帳の行に無い：Entra の oid・tid・scp・azp・_claim_names・_claim_sources、Okta の uid・cid・scp、Keycloak の realm_access.roles、Cognito の cognito:groups・token_use。これらは hops の validates の文と C-sub・C-roles の upstream_issuer の文の中にだけある。結果：(1) required_claims と受け手のスキーマ（ENTRA_AT は iss・aud・exp・iat だけ、COGNITO_AT は空）が欠落を拒否しない、(2) B13（Okta の uid）・B10・B3（Okta は aud が共通で scp だけが守り）の守りが identifier_properties（stable・reassignable）と on_missing を持たず、lint・スキーマ・R8 が確かめない、(3) Okta の sub だけが reassignable と書かれ、代わりの uid の不変性が宣言されない"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "B10・B13・B3 の守りの根になるクレームが未登録"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-04"
+        location: "claims:C-roles の assumption・upstream_issuer、claims:C-groups の provenance、template:00_core#system-privileges、catalog_answers の I19・I26"
+        anchors: ["claims:C-roles", "claims:C-groups", "claims:C-auth0-roles"]
+        questions: ["ap-1-7", "q-outside-catalog"]
+        content: "ロール（admins・editor・approver）の出どころが 5 つの IdP の管理の範囲の和になっている。(1) どの IdP の写しの表でも admins を作れるので、5 つの IdP のどれか 1 つの管理者（Okta の委任のグループ管理者、Entra のグループの所有者・セルフサービスの参加を許したグループ、Cognito のプールの管理者、Auth0 の管理者）が admins を与えられる。(2) 複数の IdP にアカウントを持つ社員は、ロールが多く付く IdP を選んでログインできる（名寄せの表が 1 人に複数の IdP のキーを許すかが書いてない）。(3) IdP の管理者は資格情報のリセット・一時のアクセスパスで任意の社員としてログインでき、給与明細まで読める（I19 は Keycloak の Impersonate だけを扱い、I26 は社員本人の変更として読んでいる）。対策の候補：名寄せの表で社員ごとに使う IdP を 1 つに固定する、admins を与えられる IdP とグループを写しの表で限る（または admins を社員台帳から引く）、IdP の資格情報のリセットを入口の拒否の理由と付録 A の指標に足す"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "要求の「5 つの IdP の混在」から来る攻撃面で、観点書の問いが 1 つの IdP を前提にしている"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-05"
+        location: "claims:C-groups の description・value_vocabulary（無い）、hops:H4"
+        anchors: ["claims:C-groups", "hops:H4"]
+        questions: ["q-value-vocabulary"]
+        content: "Okta の groups はグループの名前で、入口はその名前を写しの表で組織のロールに替える。グループの名前は Okta の管理者（委任のグループ管理者を含む）が改名・同名の作成をできるので、「admins」という名前のグループを作るか改名すれば admins を得られる。Entra はグループの ID（不変）なのに Okta だけ名前。対策：Okta のグループの ID で写す（groups のクレームの値をカスタムの式で ID にする、またはグループのプロファイルの不変の属性を使う）か、Okta の groups の絞り込みを写しの表のグループだけに限り、改名を監視する。C-groups に value_vocabulary（IdP ごとの値の形）を書く"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "表示名による照合（dc-09 と同じ型）で権限を作っている"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-06"
+        location: "claims:C-roles の on_revoke・propagation_delay、template:00_core#lifecycle（9.1 のロールの剥奪 330・630 秒）、付録 E の 3"
+        anchors: ["claims:C-roles"]
+        questions: ["q-external-user-deprovision"]
+        content: "異動（経理 → 営業など）で外すべきロール（approver・editor・admins）は IdP のグループ・ロールから来るが、人事の異動の発令から IdP のグループを外すまでの経路と秒数が無い。665 秒は「IdP で外した後」の遅れで、外すのが人手なら上限が無い。経理台帳は社員台帳の部署で守られるが、請求書の承認（approver）・管理操作は異動の後も残る。対策：社員台帳の異動を IdP のグループに反映する経路（SCIM・人事連携）と秒数を書くか、異動で変わるロールを社員台帳から引く"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "要求の主体の説明に「異動が起きる」とあり、ロールの側の反映が設計されていない"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-07"
+        location: "template:00_core#definition-lifecycle（9.3 の移行の手順）、template:00_core#uncertain（移行の間の守り）、catalog_answers の outside_enumeration (4)"
+        anchors: ["hops:H2", "hops:H7", "hops:H8"]
+        questions: ["q-outside-catalog", "q-unwrapped-value-authz"]
+        content: "移行の (1)〜(3) の間は B4〜B7 を防げないと書くが、期間の上限・期日が無く、その間の安価な守りを比べていない。(a) 今の入口でも X-User-Role とその変種（大小・_・重複）を捨てる設定はすぐ入れられる（B4〜B6）、(b) サービスの前のネットワークの閉鎖・メッシュの mTLS を手順の最初に置けば、移行の間も B7 を止められる、(c) サービスが「内部トークンが無い要求の X-User-Role」を拒む段を置ける。現状の手順では管理操作の偽装（B4・B7）が移行の間ずっと開いている"
+        severity: "Major"
+        origin: "カタログ外の質問"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "移行期間の旧経路（q-outside-catalog の例）で、偽装に届く"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-08"
+        location: "template:00_core#sequence（B->>D ログアウトの時刻を進める）、template:00_core#scope-boundary の図と表、hops（BFF → 社員台帳のホップが無い）、token_types:BFF_SESSION の revocation"
+        anchors: ["token_types:BFF_SESSION", "claims:C-iat", "hops:H10"]
+        content: "B12 の守り（入口が AT の iat と社員台帳のログアウトの時刻を比べる）は、BFF が社員台帳（人事の権威ある情報源）にログアウトの時刻を書くことに依存するが、この書き込みの経路が範囲の図・ホップの表に無い（入口・invoices は読み取り専用の DB 利用者）。人事の台帳にポータルが書けるという前提、書ける DB 利用者の権限、BFF が奪われたときの影響（任意の社員のログアウトの時刻を未来にして全操作を止める）、Keycloak のログアウトトークンを受けた BFF が落ちていたときの取りこぼしが書いてない"
+        severity: "Major"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "シーケンス図（7.）とホップ・範囲の図（2.・8.）が食い違い、B12 の守りの前提が未検討"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-09"
+        location: "token_types:ENTRA_AT の max_lifetime・issuers・refresh、hops:H3 の validates（exp − iat ≤ 600）、template:00_core#uncertain"
+        anchors: ["token_types:ENTRA_AT", "hops:H3"]
+        questions: ["q-idp-capability-verified", "q-refresh-reevaluated"]
+        content: "入口は Entra の AT に exp − iat ≤ 600 と v2.0 の iss を求めるが、それが成り立つ前提（API のアプリ登録の requestedAccessTokenVersion が 2、トークンの寿命のポリシーを API に割り当てる）を設定の項目として書いていない。前提が崩れると（既定の AT は 60〜90 分、v1 の iss は sts.windows.net）、Entra の全社員の要求を入口が拒む（閉じる側の全停止）。リリース前の確かめ（発行された AT の exp − iat と iss を見る）と、付録 A の「入口の拒否の件数」の理由に「寿命の超過」を足すとよい。あわせて、ロールの剥奪の 330・630 秒はリフレッシュでの再計算を前提にしているが、Keycloak・Okta・Entra のどれも出どころが無い"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "保留"
+        verdict_reason: "本番の障害の型として妥当。Entra の挙動の事実は IdP の運用の担当に確かめる（unverified-idp-behavior）"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-10"
+        location: "hops:H8 の validates、token_types:INTERNAL_TOKEN の jti_policy、claims:C-jti"
+        anchors: ["hops:H8", "token_types:INTERNAL_TOKEN", "claims:C-jti"]
+        content: "経理台帳で invoices が内部トークンの jti を 35 秒の間 1 回だけ受けるが、(1) invoices が複数の台で動くときの共有の記録先（どの台に来ても再利用を拒める）、(2) 入口・BFF が時間切れで同じ要求を再送したときの扱い（同じ内部トークンを送れば正規の要求が拒まれ、作り直すなら jti の 1 回だけは再送を止めない）、(3) 記録先が止まったときに閉じるか開くかが書いてない"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "運用の障害の型で、付録 A の「jti の再利用の拒否の件数」の誤検知にもなる"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-11"
+        location: "hops:H2〜H8 の forwarded_headers（H7・H8 に無い）、token_types の log_policy、template:modules/M_privacy_minimization#audit-log"
+        anchors: ["hops:H2", "hops:H7", "hops:H8"]
+        questions: ["ap-2-5", "cf-08", "q-token-logging"]
+        content: "ヘッダーの扱いが「X-User-Role とその変種を捨てる」という否定のリストだけで、入口 → サービスで渡してよいヘッダーの許可リストが無い。サービスのフレームワークは同名のヘッダーを「,」でつなぐので、X-User-Role 以外の利用者の属性に見えるヘッダー（X-User-Id・X-Forwarded-User・X-Department など、claim_request の問 17 では捨てると書く）や Authorization の重複も、入口で拒むか捨てる規則にすべき。ログに残す HTTP ヘッダーの許可リスト、HAR・ログの共有でトークンを除く手順も無い（q-token-logging）"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "否定のリストは変種の追加で漏れる。要求の CVE の型（連結）は名前を問わない"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-12"
+        location: "token_types:GRAPH_AT の assumption、catalog_answers の U21"
+        anchors: ["token_types:GRAPH_AT"]
+        questions: ["q-relies-on-at-expiry"]
+        content: "Graph で引いた所属のキャッシュを「利用者ごとに AT の残りの寿命まで」置く。Entra の寿命のポリシーが効かなければ（R2-09）キャッシュも 60〜90 分に延びる。キャッシュの寿命は AT と別の値（例：60 秒か C-groups の volatility 以下）で決める"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "観点書の No の条件にそのまま当たる"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-13"
+        location: "claims:C-groups の max_items・overflow_strategy、token_types:OKTA_AT の size（R8 の 19 KB）"
+        anchors: ["claims:C-groups", "token_types:OKTA_AT"]
+        questions: ["ap-2-1", "q-idp-capability-verified"]
+        content: "C-groups の上限 200 と「問い合わせに切り替える」は Entra の Graph の経路だけで、Okta の groups の件数の上限と超えたときの挙動（レビュアーの記憶では Okta の groups のクレームは 100 件までで、超えるとトークンの要求が失敗する。未確認）が書いてない。R8 の OKTA_AT の 19 KB は 200 件の前提"
+        severity: "Minor"
+        origin: "観点"
+        kind: "前提の誤り"
+        verdict: "保留"
+        verdict_reason: "事実を Okta の公式文書で確かめてから直す"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-14"
+        location: "claims:C-department・C-employee-id・C-auth0-roles の列、claim_request_*.md の問 3・問 5・問 10"
+        anchors: ["claims:C-department", "claims:C-employee-id", "claims:C-auth0-roles"]
+        questions: ["dc-02", "dc-04", "dc-08", "pa-trace", "q-reuse-standard-structure"]
+        content: "claim_request の問 3 は出どころを「台帳：registered_ref・prior_art_search」とするが、3 行とも台帳にその列が無い。C-auth0-roles に consumer_access_path、C-department・C-auth0-roles に value_normalization も無い（回答は claim_request にだけある）。C-auth0-roles は登録名 roles（RFC 9068 §2.2.3.1）と同じ意味なので registered_ref に書く"
+        severity: "Minor"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "25 問と台帳の 2 か所が食い違う"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-15"
+        location: "token_types:INTERNAL_TOKEN の required_claims、schemas/INTERNAL_TOKEN.consumer.schema.json、hops:H7 の custom_claims、claim_request_employee_id.md の問 14"
+        anchors: ["token_types:INTERNAL_TOKEN", "hops:H7"]
+        questions: ["q-limit-consistency", "q-minimal-per-recipient"]
+        content: "INTERNAL_TOKEN の required_claims（と受け手のスキーマ）は社員番号を必須にするが、H7（orders 宛て）は roles・部署だけを運び、問 14 は「orders 宛てには載せない」と書く。どちらかが誤り（orders が全要求を拒むか、orders 宛てにも社員番号を載せることになる）。宛先ごとに必須が違うなら、目録の種別を宛先で分けるか、required_claims をホップの側に書く"
+        severity: "Minor"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "2 つの欄が食い違う"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-16"
+        location: "design.md の 8. の矢印の表・9. の生成の表（https://claims.example.com/.roles など）と、台帳・スキーマ・付録 D.2（https://claims.example.com/roles）"
+        anchors: ["claims:C-auth0-roles", "claims:C-employee-id", "claims:C-department"]
+        questions: ["q-limit-consistency"]
+        content: "render が組織の名前空間のクレーム名を「https://claims.example.com/.roles」「/.employee_id」「/.department」と書き、台帳・スキーマ・D.2 の名前（「/」の後に「.」が無い）と違う。実装者が生成の表から Auth0 の Action を書くと、入口が読む名前と食い違い、ロールが黙って空になる（B20 と同じ結果）。namespace の style（flat_prefix）の表示の規則か render の不具合"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "生成の表は設計書の読み物として実装者が読む"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-17"
+        location: "template:00_core#question-mechanism（UC1・UC2 の q-resource）、claims:C-aud・C-scope、hops:H4・H6"
+        anchors: ["claims:C-aud", "claims:C-scope", "hops:H4", "hops:H6"]
+        questions: ["q-scope-semantics"]
+        content: "6. は q-resource を C-aud で答えるが、Okta（api://default）と Auth0（https://api.example.com）は aud が両サービスで共通で、実際の宛先の区別（B3）は scope（scp）で行っている。scope は「クライアントに委ねた範囲」で、BFF が 1 つの AT で両方の scope を求めれば区別が消える（前提は C-scope の assumption だけ）。6. の表に Okta・Auth0 では q-resource を scope で補うことと、その前提が崩れる条件を書く（Auth0 は API を 2 つに分ける見直しの条件も無い）"
+        severity: "Minor"
+        origin: "観点"
+        kind: "目的と仕組みの不一致"
+        confused_question: "q-resource を scope（q-authorized の仕組み）で答えた（Okta・Auth0）"
+        verdict: "採用"
+        verdict_reason: "判断の木の q-resource（aud）と取り違えやすい scope で答えている"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-18"
+        location: "template:modules/M_token_validation（付録 D.3 の 1.・2.・8.・9.）、token_types の unknown_kid（use_last_known）、token_types:INTERNAL_TOKEN"
+        anchors: ["token_types:INTERNAL_TOKEN", "token_types:KC_AT"]
+        questions: ["ap-1-5", "q-key-rotation"]
+        content: "(1) 5 つの発行者の鍵の選び方が未記述：D.3 は「署名の前にペイロードを使わない」と「鍵は各 iss の JWKS だけから取る」を並べるが、iss を署名の前に読んで鍵の集合を選ぶのか、kid で全 JWKS から探して鍵と iss の対応を確かめるのかが書いてない。(2) IdP の鍵の漏えいで IdP が鍵を外しても、入口は JWKS のキャッシュ（最大 3600 秒）と use_last_known でその鍵を受け続ける。(3) 内部トークンの署名鍵（入口だけが持つ）の保管（HSM・KMS）と漏えい時の緊急のローテーション（サービスの JWKS のキャッシュ 300 秒・旧鍵 1 時間）が無い。内部トークンの鍵が漏れれば全社員になりすませる"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "書き足しで済むが、内部トークンの鍵は全体の信頼の根"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-19"
+        location: "hops:H8 の enforced_at（請求書の承認は approver）、template:00_core#question-mechanism の UC2、claims:C-roles の enforced_at"
+        anchors: ["claims:C-roles", "hops:H8"]
+        content: "「請求書の承認（approver）」は要求の 3. の操作の表に無い（要求にあるのは carol が approver のロールを持つことだけ）。設計が操作を足したのに、出どころと「要求に無い」ことが書いてない。逆に、要求の操作 6 つ（read・admin・ledger・docs・edit・payslip）の受け手の対応は追える"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "要求と設計の対応（トレース）のずれ"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-20"
+        location: "claims:C-sub の issuers・carried_in・upstream_issuer"
+        anchors: ["claims:C-sub"]
+        content: "理由の採点（RR7 否）：C-sub の issuers に Entra・Okta の iss があるが、carried_in に ENTRA_AT・OKTA_AT が無い（その 2 つの sub は C-sub-unread）。同じ行の列の間で、どの発行者のどのクレームがこの行かが食い違う。R2-03 で oid・uid の行を足し、C-sub の issuers を Keycloak・Cognito・Auth0・入口に絞る"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "RR7（内部の一貫性）"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-21"
+        location: "template:00_core#lifetime-policy、付録 E の 4、token_types の lifetime_refs"
+        anchors: ["token_types:KC_AT", "token_types:ENTRA_AT"]
+        questions: ["q-lifetime-rationale"]
+        content: "寿命の理由は「NIST IR 8587 の 1 時間以内の中で短めにした」だけで、剥奪をどれだけ早く効かせたいか（停止・ログアウトは db_lookup で 0 秒なので、AT の寿命が効くのはロールだけ）と、代償（リフレッシュの負荷、IdP の停止で 300 秒後に全員が止まる）の比較が無い。RR3（代償）の不足"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "RR3"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-22"
+        location: "token_types の issuance_profile.rt_strategy の refs（RFC 9700 §4.14.2）"
+        questions: ["q-rt-policy-by-client"]
+        content: "機密クライアント（BFF）の RT の方式の根拠に RFC 9700 §4.14.2 を引いているが、その節がローテーションか送信者制約を求めるのは公開クライアント。機密クライアントの RT はクライアント認証（private_key_jwt）に束縛されることを理由にし、ローテーションは補助として書く。RR5（状況への当てはまり）"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "RR5"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-23"
+        location: "hops:H7・H8（upstream なし）、hops.yaml の冒頭の注、template:00_core#uncertain（L16 と作り直し）"
+        anchors: ["hops:H7", "hops:H8"]
+        questions: ["q-lint-workaround"]
+        content: "L16 と合わないため作り直しのホップの upstream を外し、寿命・宛先の絞り込みの機械の確認が走らない。12. に書いたのはよいが、規則の側（上流が複数の IdP に分かれる作り直し、独自クレームの出どころがトークンでなく台帳の DB）を #6 に渡した記録が無い"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "lint の回避として観点書の No の条件に当たる"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+      - id: "R2-24"
+        location: "token_types の issuers（5 つの IdP）、要求の 6.（時刻は仮想の時計、鍵・パスワードは試験用）、catalog_answers の outside_enumeration"
+        anchors: ["token_types:KC_AT", "token_types:INTERNAL_TOKEN"]
+        questions: ["q-outside-catalog"]
+        content: "試験の経路（模擬の IdP・仮想の時計・試験用の鍵）を本番の入口の許可リストから外す規則が無い。入口は iss の完全一致で 5 つの発行者を受けるが、試験用の発行者・鍵・ずれの大きい時計の設定が本番に残る経路（設定の取り違え）を、範囲の外にした前提として書く"
+        severity: "Minor"
+        origin: "カタログ外の質問"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-outside-catalog の例「テストの経路」"
+        response:
+          owner: "設計の書き手"
+          state: "未着手"
+        at: "2026-11-24T07:40:00+09:00"
+    sampling:
+      seed: "R2-pilot-B-20261124"
+      count: 3
+      picked: ["claims:C-cognito-custom-role", "claims:C-idp-department", "claims:C-cnf"]
+      population: "cd401ec3796e17df96335f87a1e6bea86543d7f2c99eac474c464cb8110528a6"
+      scores:
+        "claims:C-cnf":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "要求 B23・7. の 5 に辿れる（見直しの条件あり）。安価な代替の比較の漏れは理由の不備でなく R2-02 として指摘。RR4 は引用元を開いていない"
+        "claims:C-cognito-custom-role":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "禁止の行で規則の出どころ（slide:p04-split-by-writer）あり。要求 B18・2. の Cognito の行に辿れる。RR4 は引用元を開かず名前と主張の対応だけ"
+        "claims:C-idp-department":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "要求 B11・B15・2. の Okta の 3 秒の打ち切りに辿れる。B18 は要求ではロールの書き換えで、部署への拡張は書き手の読み。RR4 は引用元を開いていない"
+    escalations:
+      applies:
+        - criterion: "unverified-idp-behavior"
+          to: "IdP の運用の担当"
+          location: "template:00_core#uncertain（Entra の AT の寿命・版、RT の再利用の検知）、ENTRA_AT・KC_AT・OKTA_AT の refresh（リフレッシュでの再計算）、C-groups（Okta の件数の上限）"
+          due: "設計の次の版の前"
+          conclusion: "未"
+      not_applicable: ["draft-spec", "custom-crypto", "delegation-depth", "cross-tenant-exchange", "baseline-unmet", "jwe-key-management", "regulated-data", "new-token-type"]
+    feedback:
+      - to: "観点書（templates/review/perspectives.md）"
+        content: "複数の IdP を受ける設計で、ロールを与えられる管理の範囲（どの IdP・どのグループの管理者が組織のロールを作れるか）と、1 人の社員が使う IdP を固定するかを問う問いが無い。IdP の管理者による資格情報のリセット・一時のアクセスパスでの代理ログインも問いに無い"
+        findings: ["R2-04"]
+      - to: "観点書（templates/review/perspectives.md）"
+        content: "移行期間に旧経路（ヘッダーを信じるサービス）が残るとき、その間の守り（今の入口での除去・ネットワークの閉鎖を先に置く）と期日を問う問いが無い（q-outside-catalog の例に名前だけある）"
+        findings: ["R2-07"]
+      - to: "観点書（templates/review/perspectives.md）"
+        content: "ヘッダーを否定のリストで捨てるか、入口 → サービスの許可リストにするかを問う問いが無い（ap-2-5 は同名の変種だけ）。jti の 1 回だけの受け入れの運用（共有の記録先・再送）の問いも無い"
+        findings: ["R2-10", "R2-11"]
+      - to: "lint・render（tools/claim_lint）"
+        content: "render が flat_prefix の名前空間のクレーム名を「https://claims.example.com/.roles」と書く（台帳・スキーマは「/roles」）。作り直しのホップで上流が複数の IdP に分かれるときの L16（upstream）の書き方。hops の validates の文に出る IdP 固有のクレーム（oid・uid・scp など）が台帳の行に無いことを拾う規則の候補"
+        findings: ["R2-03", "R2-16", "R2-23"]
+      - to: "カタログ（templates/catalog/）"
+        content: "IdP の管理者による資格情報のリセット・一時のアクセスパスの後の発行（I19 は Keycloak の Impersonate、I26 は本人の変更）。Okta の groups の件数の上限と超過時の失敗（確かめてから）"
+        findings: ["R2-04", "R2-13"]
+note: "パイロット #9 のブラインドのレビュー（レビュアー R2）。LLM によるレビュー。人による検証ではない"

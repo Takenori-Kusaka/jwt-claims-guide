@@ -1,0 +1,396 @@
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../../templates/registry/token_types.schema.json
+# トークン目録（templates/registry/README.md の 3.2）と発行方式の選択（3.3）。カタログの種類ごとに 1 行を作った
+# シナリオ C（AI エージェントの委任）。パイロット #9 のブラインド記入。発行者は組織の内部のトークン発行サービス（以下 STS）
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: >-
+      エージェント（agent:expense・agent:viewer）、MCP のツールサーバー（tool:invoice-mcp）、ポータル（portal）は、どれもサーバー側で動くワークロードで、
+      組織の PKI のクライアント証明書（mTLS）を持てる。ブラウザやエージェントの利用者の端末にはトークンを置かないので、公開クライアントは作らない
+    refs:
+      - {kind: spec, id: "RFC 6749 §2.1", url: "https://www.rfc-editor.org/rfc/rfc6749#section-2.1"}
+      - {kind: guide-slide, id: p10-agent-identity}
+  client_auth:
+    value: tls_client_auth
+    rationale: >-
+      要求の前提（呼び出し元はワークロードの ID（mTLS）で識別できる）に合わせ、STS へのクライアント認証も同じ証明書で行う。
+      秘密の共有（client_secret_*）はエージェントごとの資格情報の漏えい面を増やすので使わない。client assertion（private_key_jwt）も、鍵を 2 種類持つことになるので使わない
+    refs:
+      - {kind: spec, id: "RFC 8705 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-2.1"}
+  grants:
+    value: [authorization_code_pkce, refresh_token, token_exchange]
+    rationale: >-
+      利用者がエージェントへの委任（タスク）に同意する場面は、STS の同意画面での認可コード＋PKCE（エージェントは利用者のトークンを受け取らず、
+      sub＝利用者・act＝エージェントの AT を直接受け取る）。タスクの間の取り直しは RT。ツールサーバーが上流の請求書の API を呼ぶときは、
+      受け取った AT を subject_token、自分の mTLS を actor として RFC 8693 の交換で上流向けの AT を得る（パススルーをしない。C2・C13・C15）。
+      client credentials はツールサーバーの「広い自分の ID」で上流を読む経路（現状の実装）を残すことになるので許さない
+    refs:
+      - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+      - {kind: spec, id: "RFC 7636 §4", url: "https://www.rfc-editor.org/rfc/rfc7636#section-4"}
+      - {kind: guide-slide, id: p10-agent-identity}
+  sender_constraint:
+    value: mtls
+    rationale: >-
+      すべての AT・RT を、要求したワークロードの証明書に束縛する（cnf の x5t#S256）。ツールが受け取った AT をそのまま上流に渡す（C2）、
+      悪意ある MCP サーバー B が A に再送する（C13）、エージェントがポータルの利用者のトークンを借りる（C12）は、どれも提示した者の証明書が cnf と合わないので拒否できる。
+      組織の網の中だけで、すでにワークロードの証明書があるので、DPoP の鍵を別に管理しない
+    refs:
+      - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+      - {kind: guide-slide, id: p08-rotation}
+  tls_termination:
+    value: end_to_end
+    rationale: >-
+      エージェント → ツールサーバー → 請求書の API の各ホップは、組織の網の中でワークロード同士が直接 mTLS を張る。途中の入口で TLS を終端しないので、
+      証明書をヘッダーで渡す経路（と、そのヘッダーの偽造）が生まれない
+    refs:
+      - {kind: spec, id: "RFC 8705 §6.5", url: "https://www.rfc-editor.org/rfc/rfc8705#section-6.5"}
+  at_format:
+    value: jwt
+    rationale: >-
+      受け手（ツールサーバー・請求書の API）が手元で act・authorization_details・cnf を照合する。寿命を短く（エージェント向け 300 秒、上流向け 60 秒）し、
+      取り消しは交換のたびに STS が確かめるので、イントロスペクションを毎回の要求に入れない
+    refs:
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+      - {kind: spec, id: "RFC 9068 §2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2"}
+  rt_strategy:
+    value: sender_constrained
+    rationale: >-
+      エージェントの RT は mTLS の証明書に束縛する（RFC 9700 §4.14.2 が挙げる 2 つの手段の 1 つ）。加えて STS はローテーションと再利用の検知も行う（目録の RT の行の rt_rotation）。
+      利用者が委任を取り消したら、その委任の RT の系列をすべて失効させる
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  request_protection:
+    value: [resource_indicators, rar]
+    rationale: >-
+      MCP の認可の仕様の MUST により、認可要求・トークン要求に resource を入れて宛先を 1 つに絞る（複数の MCP サーバー向けの広い宛先のトークンを作らない。C13）。
+      支払いは RFC 9396 の authorization_details（type: payment）で承認の内容を運び、受け手が要求の内容と照合する（C5・C6・C7）。
+      PAR・JAR は、同意の要求がブラウザを通るのが STS の同意画面への遷移だけで、改ざんされても STS が承認の記録から内容を埋め直すので、Lite では見送る
+    refs:
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+      - {kind: spec, id: "MCP Authorization（2026-07-28）「Resource Parameter Implementation」", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization"}
+  conformance_profile:
+    value: none
+    rationale: >-
+      社内の業務で、FAPI などの業界の規制の対象ではない（Lite の判定の regulated は No）。送信者制約と RAR は FAPI に合わせなくても上の理由で採る
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html"}
+token_types:
+- id: AGENT_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    利用者の同意（タスク）に基づき、STS がエージェントに出す委任の AT。sub は利用者、act.sub はエージェント、aud は MCP のツールサーバー 1 つ、
+    scope はタスクの範囲（読む・支払う）で、エージェントの方針と利用者の同意の積を超えない。支払いのときだけ承認の記録から作った authorization_details を載せる
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+  purpose: エージェントが利用者の代わりに MCP のツールサーバー（tool:invoice-mcp）を呼ぶ
+  issuer: STS（https://sts.example.com）
+  aud: ["https://invoice-mcp.example.com/mcp"]
+  holder: エージェント（agent:expense・agent:viewer）。証明書に束縛（cnf）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.example.com", jwks_uri: "https://sts.example.com/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, exp, aud, sub, client_id, iat, jti, act, cnf, scope]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: エージェントの RT（AGENT_RT）で取り直す。取り直しのたびに STS が委任（同意）と承認の記録の状態を確かめる
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: "AT そのものは exp まで（寿命 300 秒＋時計のずれ 30 秒）。ただしツールサーバーは上流を呼ぶたびに交換するので、委任の取り消しの後は交換が拒否され、請求書には届かない（TOOL_AT の行の 90 秒）"}
+    - {method: db_lookup, delay_seconds: 0, note: "承認の取り消し（C-authorization-details）は、支払いを実行する請求書の API が支払いのたびに承認の記録を DB で引いて反映する"}
+  tenant_binding: {by: [iss]}
+  key_rotation: {period_days: 90, publish_before_use_seconds: 86400, retire_after_seconds: 86400, note: "署名に使う 1 日前に JWKS に載せ、外した鍵は 1 日残す（AT の最大寿命より十分長い）"}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api, idp]
+  jwe: {used: false}
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: STS は組織の実装で、空白を入れずに書き出す前提（実測していない。12. に記載）
+    path:
+      - {id: internal-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールサーバー・請求書の API の HTTP サーバーの 1 ヘッダーの上限を 8 KiB にする組織の規則（この設計の宣言。製品は未定）", verified_on: "2026-11-24", review_by: "2027-02-22"}
+    other_headers_bytes: 2048
+- id: AGENT_RT
+  kind: refresh_token
+  decision: 採用
+  rationale: >-
+    タスクの間、エージェントが利用者に再び同意を求めずに AGENT_AT を取り直す。証明書に束縛し、利用者が委任を取り消すと系列ごと失効する。
+    AT を短くしても取り消しの起点を STS に集められる
+  refs:
+    - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  purpose: エージェントが同じ委任（タスク）の範囲で AGENT_AT を取り直す
+  issuer: STS（https://sts.example.com）
+  aud: ["https://sts.example.com"]
+  holder: エージェント（agent:expense・agent:viewer）。証明書に束縛
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 3600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  lifetime_set_by: [platform]
+  refresh: 使うたびにローテーションする。委任の最大の期間（8 時間）を超えて延ばさない
+  rt_rotation: {rotation: true, reuse_detection: unverified}
+  sender_constraint: mtls
+  revocation:
+    - {method: revocation_endpoint, delay_seconds: 0, note: "利用者が STS で委任を取り消すと、その委任の RT の系列を STS の DB で失効させる。次の取り直しから拒否"}
+    - {method: refresh_failure, delay_seconds: 0, note: "STS は取り直しのたびに委任の状態を DB で確かめる"}
+  stored_at: service_memory
+  transport: token_response_body
+  visible_to: [client, idp]
+- id: TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    ツールサーバーが上流の請求書の API を呼ぶための AT。ツールが受け取った AGENT_AT を subject_token にして STS で交換する。
+    sub は subject_token から写し（交換の要求で差し替えさせない。C15）、act はツール（外側）とエージェント（内側）の 2 段、aud は請求書の API 1 つ、
+    scope と authorization_details は subject_token の部分集合に限る（C14）
+  refs:
+    - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+    - {kind: spec, id: "MCP Authorization Security Considerations（2026-07-28）「Access Token Privilege Restriction」", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/security_best_practices"}
+  purpose: MCP のツールサーバーが、利用者とエージェントの代わりに上流の請求書の API を呼ぶ
+  issuer: STS（https://sts.example.com）
+  aud: ["https://invoices.example.com"]
+  holder: MCP のツールサーバー（tool:invoice-mcp）。証明書に束縛
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.example.com", jwks_uri: "https://sts.example.com/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, exp, aud, sub, client_id, iat, jti, act, cnf, scope]
+  max_clock_skew: 30
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。必要になるたびに交換で取り直す（交換のたびに委任の取り消しと深さを確かめる）
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 90, note: "交換のたびに STS が委任の状態を確かめるので、取り消しの後は新しい TOOL_AT が出ない。手元の TOOL_AT が切れるまで最悪 60 秒＋時計のずれ 30 秒"}
+    - {method: db_lookup, delay_seconds: 0, note: "請求書の API が支払いのたびに承認の記録（C-authorization-details の approval_id）の状態を DB で確かめ、使った承認を消費する"}
+  tenant_binding: {by: [iss]}
+  key_rotation: {period_days: 90, publish_before_use_seconds: 86400, retire_after_seconds: 86400, note: "AGENT_AT と同じ鍵の系列"}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api, idp]
+  jwe: {used: false}
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: STS は組織の実装で、空白を入れずに書き出す前提（実測していない。12. に記載）
+    path:
+      - {id: internal-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールサーバー・請求書の API の HTTP サーバーの 1 ヘッダーの上限を 8 KiB にする組織の規則（この設計の宣言。製品は未定）", verified_on: "2026-11-24", review_by: "2027-02-22"}
+    other_headers_bytes: 2048
+- id: PORTAL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    利用者が自分でポータルから請求書の API を使うときの AT（委任なし。act を持たない）。この設計の主題ではないが、請求書の API が受け入れるので目録に載せ、
+    エージェントが借りて使えない（C12）ことを cnf（ポータルの証明書）と「act の無い AT は client_id と mTLS の相手が一致するときだけ」の規則で確かめる
+  refs:
+    - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+    - {kind: spec, id: "RFC 8693 §1.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-1.1"}
+  purpose: 利用者がポータル（portal）を通じて自分の請求書を読む・支払う・返金する
+  issuer: STS（https://sts.example.com）
+  aud: ["https://invoices.example.com"]
+  holder: ポータル（portal）のサーバー。証明書に束縛
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.example.com", jwks_uri: "https://sts.example.com/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, exp, aud, sub, client_id, iat, jti, cnf, scope]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: ポータルのログイン（P1 の境界。この設計の範囲の外）の RT で取り直す
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: "ポータルのログアウト・利用者の停止は P1 の設計で扱う（範囲の外）"}
+  tenant_binding: {by: [iss]}
+  key_rotation: {period_days: 90, publish_before_use_seconds: 86400, retire_after_seconds: 86400, note: "AGENT_AT と同じ鍵の系列"}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, api, idp]
+  jwe: {used: false}
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: STS は組織の実装で、空白を入れずに書き出す前提（実測していない。12. に記載）
+    path:
+      - {id: internal-http-header-field, applies_to: header_field, bytes: 8192, basis: "請求書の API の HTTP サーバーの 1 ヘッダーの上限を 8 KiB にする組織の規則（この設計の宣言。製品は未定）", verified_on: "2026-11-24", review_by: "2027-02-22"}
+    other_headers_bytes: 2048
+- id: ID_TOKEN
+  kind: id_token
+  decision: 却下
+  rationale: >-
+    エージェントは利用者のログインの結果を読む RP ではなく、委任の AT だけを受け取る。ID トークンを出すと、エージェントが利用者の識別情報（と、誤って API に送れるトークン）を持つことになる。
+    却下で失うもの：エージェントが利用者の表示名・認証の時刻を知る手段（タスクに要らない）
+  format: jwt
+- id: SESSION
+  kind: session
+  decision: 採用
+  rationale: >-
+    利用者が委任に同意する STS の同意画面のための、STS 側の利用者のセッション。同意のときだけ使い、エージェントには渡さない。
+    委任の取り消しの画面も同じセッションで使う
+  refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  purpose: 利用者が STS で委任（タスク）に同意する・取り消す
+  issuer: STS（https://sts.example.com）
+  aud: ["https://sts.example.com"]
+  holder: 利用者のブラウザ（Cookie）と STS
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 操作のたびに無操作の期限を延ばす。最大 8 時間で再ログイン
+  sender_constraint: none
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: "STS のログアウトでセッションを消す。委任（タスク）はセッションと独立で、取り消しの操作でだけ止まる"}
+  stored_at: idp
+  transport: cookie
+  visible_to: [browser, idp]
+- id: AUTHORIZATION_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: 利用者が同意画面で委任を承認した結果を、エージェントに渡す 1 回限りの値。PKCE と組で使い、エージェントの証明書で交換する
+  refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+    - {kind: spec, id: "RFC 7636 §4", url: "https://www.rfc-editor.org/rfc/rfc7636#section-4"}
+  purpose: 同意の結果をエージェントに渡し、AGENT_AT・AGENT_RT に交換する
+  issuer: STS（https://sts.example.com）
+  aud: ["agent:expense", "agent:viewer"]
+  holder: エージェント（リダイレクトを受ける）
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2"}
+  lifetime_set_by: [platform]
+  refresh: なし（1 回限り）
+  sender_constraint: none
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: "1 回使えば無効。2 回目の使用で、そのコードから出したトークンを失効させる（RFC 6749 §4.1.2）"}
+  stored_at: none
+  transport: redirect_query
+  visible_to: [browser, client, idp]
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 却下
+  rationale: >-
+    上流は請求書の API の 1 段だけで、その先にサービスの網の伝搬がない。取引（タスク）の相関は act の連鎖と jti を STS の監査ログで委任の記録に結ぶ。
+    却下で失うもの：請求書の API の先にサービスが増えたとき、要求ごとの文脈を改ざんされずに運ぶ手段（そのときは P5 を足して見直す）
+  format: jwt
+- id: LOGOUT_TOKEN
+  kind: logout_token
+  decision: 却下
+  rationale: >-
+    エージェント・ツールサーバーは利用者のセッションを持たない RP で、ログアウトを知らせる相手がいない。委任の取り消しは STS の交換・取り直しの拒否で届かせる。
+    却下で失うもの：STS のログアウトを他の RP へ一斉に伝える手段
+  format: jwt
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 却下
+  rationale: >-
+    入口で外部のトークンを作り直す構成ではない（組織は 1 つで、STS が直接、宛先ごとの AT を出す）。
+    却下で失うもの：入口でクレームを正規化して内側の形をそろえる手段
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: >-
+    信頼ドメインをまたぐ委任がない（組織は 1 つ、発行者も STS の 1 つ）。却下で失うもの：別の組織の AS のトークンを SSO 済みの利用者として得る手段
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: >-
+    送信者制約は mTLS（issuance_profile.sender_constraint）。却下で失うもの：TLS を途中で終端する経路での送信者制約（そうなったら DPoP を見直す）
+  format: jwt
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 却下
+  rationale: >-
+    クライアント認証は tls_client_auth。却下で失うもの：証明書を持てないクライアントの鍵による認証（今のクライアントはすべて証明書を持つ）
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: >-
+    同意の要求の改ざんは、STS が承認の記録とエージェントの方針から scope・authorization_details を決め直すことで無害にする。
+    却下で失うもの：認可要求のパラメータの完全性と、ブラウザからの秘匿
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: >-
+    認可応答の iss は RFC 9207 の iss パラメータで照合する（MCP の必須チェック 5）。却下で失うもの：認可応答の全体への署名
+  format: jwt
+- id: JWT
+  kind: jwt
+  decision: 却下
+  rationale: >-
+    上の種類のほかに JWT を作らない（承認の記録は STS が DB で引き、別の署名つきの JWT にしない）。却下で失うもの：承認の記録を自己完結した署名つきの主張として運ぶ手段
+  format: jwt
+- id: SECURITY_EVENT_TOKEN
+  kind: security_event_token
+  decision: 却下
+  rationale: >-
+    委任の取り消しは、TOOL_AT を 60 秒にして交換のたびに確かめることで 90 秒以内に請求書に届かなくなる。SSF・CAEP の受信の部品を、ツールサーバー・請求書の API に作らない。
+    却下で失うもの：AGENT_AT（300 秒）を寿命より前に止める手段
+  format: jwt
+- id: STATUS_LIST_TOKEN
+  kind: status_list_token
+  decision: 却下
+  rationale: >-
+    取り消しは交換のたびの STS の確認で届かせる（上の行）。却下で失うもの：受け手が手元で失効を確かめる手段
+  format: jwt
+- id: INTROSPECTION_RESPONSE_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: >-
+    受け手は JWT の AT を手元で検証し、イントロスペクションを使わない。却下で失うもの：イントロスペクションの応答の改ざんの防止
+  format: jwt

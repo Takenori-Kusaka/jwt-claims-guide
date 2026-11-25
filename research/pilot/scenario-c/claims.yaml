@@ -1,0 +1,525 @@
+# template_version: 0.2.0
+# yaml-language-server: $schema=../../../templates/registry/claims.schema.json
+# 台帳（templates/registry/README.md の 3.1）。シナリオ C（AI エージェントの委任）。パイロット #9 のブラインド記入（LLM による記入。人による検証ではない）
+# 組織の名前空間の共有クレームは足さない（下の却下の行 C-org-task-id・C-org-approval-id）。そのため claim_request_<名前>.md は無い
+scenario: scenario-c-pilot
+data_category_vocabulary:
+  name: fideslang
+  version: 3.1.4
+  url: https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv
+  license: CC-BY-4.0
+  verified_on: '2026-11-24'
+claims:
+# ---------------------------------------------------------------- 採用：登録名（RFC 9068 §2.2 の必須と、委任・送信者制約・承認）
+- id: C-iss
+  name: iss
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+  type: string
+  shape: single
+  description: トークンを発行した STS の識別子（https://sts.example.com）
+  not_meaning: 利用者を認証した場所・エージェントの所属ではない。ほかの発行者の値を受け入れる理由にしない
+  usage: protocol
+  decision: 採用
+  rationale: 受け手（ツールサーバー・請求書の API・交換の STS）は許可リストの 1 つの iss と完全一致で照合し、その iss のメタデータの JWKS だけで署名を検証する
+  refs:
+    - {kind: spec, id: "RFC 9068 §4", url: "https://www.rfc-editor.org/rfc/rfc9068#section-4"}
+  assumption: 発行者は STS の 1 つだけ
+  revisit_trigger: 別の発行者（実物の IdP・取引先の AS）からのトークンを受け入れることになったとき
+  authoritative_writer:
+    - {stage: ②, writer: STS, configurable_by: [platform]}
+  source_system: STS の設定
+  volatility: never
+  on_revoke: 変わらない値。発行者の切り替えは許可リストの変更で行う
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: tool:invoice-mcp, check: 許可リストの iss と完全一致, against: [api_config]}
+    - {service: invoices-api, check: 許可リストの iss と完全一致, against: [api_config]}
+    - {service: sts-token-exchange, check: subject_token の iss が自分と完全一致, against: [api_config]}
+  max_bytes: 64
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-sub
+  name: sub
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+  type: string
+  shape: single
+  description: 委任した利用者（請求書の持ち主）の、STS が割り当てた変わらない ID（u1 など）。「誰の権限で」に答える
+  not_meaning: 今その操作をしている行為者ではない（それは act の最も外側）。エージェント・ツールの ID ではない
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  answers: [q-sub, q-user]
+  rationale: >-
+    請求書の API は sub と請求書の持ち主（DB の行）を照合して、他人の請求書を読ませない（C3）。交換の STS は TOOL_AT の sub を subject_token から写し、
+    要求で差し替えさせない（C15）
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p05-one-request-carries}
+  assumption: 組織は 1 つで、利用者の ID は STS の中で一意
+  revisit_trigger: 別の組織の利用者を扱う（マルチテナントになる）とき
+  authoritative_writer:
+    - {stage: ①, writer: STS（利用者の認証）, configurable_by: [platform]}
+    - {stage: ③, writer: STS（交換。subject_token から写すだけ）, configurable_by: [platform]}
+  source_system: STS の利用者台帳
+  volatility: never
+  on_revoke: 利用者の停止は委任の取り消しと同じく、RT の失効と交換の拒否で止める（9.1）
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 対象の請求書の持ち主と sub が一致しなければ 404（C3）, against: [data_layer]}
+    - {service: tool:invoice-mcp, check: 空でない文字列か（形だけ。持ち主の照合は請求書の API が行う）, against: [format]}
+    - {service: sts-token-exchange, check: 交換で出す sub は subject_token の sub と同じ。要求の別の主体の指定は拒否（C15）, against: [other_claim], with: C-sub}
+  max_bytes: 64
+  pii_category: 個人情報
+  data_category: [user.unique_id]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: STS と請求書の API の監査ログ（ハッシュ化した値）, trust_boundary: 監査ログの基盤（閲覧は監査の担当だけ）}
+  log_policy: ハッシュ化して記録
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-aud
+  name: aud
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+  type: string
+  shape: single
+  description: トークンの宛先の 1 つのリソース（MCP のツールサーバー、または請求書の API）の正規の URI
+  not_meaning: 呼び出してよい操作の範囲ではない（それは scope）。トークンを持つ者ではない（それは cnf）
+  usage: protocol
+  decision: 採用
+  answers: [q-resource]
+  rationale: >-
+    要求の resource（RFC 8707）で宛先を 1 つにし、配列にしない。ツールサーバーは自分宛てのトークンだけを受け入れ、請求書の API も自分宛てだけを受け入れる。
+    受け取った AGENT_AT を上流にそのまま渡す（C2）と、複数の MCP サーバー向けの広い宛先のトークンを別のサーバーに再送する（C13）を、宛先の違いで拒否する
+  refs:
+    - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+    - {kind: spec, id: "MCP Authorization（2026-07-28）「Token Handling」", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization"}
+  assumption: STS は resource を 2 つ以上含む要求を拒否する
+  revisit_trigger: 1 つのタスクで複数の MCP サーバーを同じトークンで呼ぶ要望が出たとき（そのときもサーバーごとに取り直す）
+  authoritative_writer:
+    - {stage: ②, writer: STS（要求の resource から 1 つ）, configurable_by: [platform]}
+    - {stage: ③, writer: STS（交換の resource から 1 つ）, configurable_by: [platform]}
+  source_system: STS のリソースの登録
+  volatility: never
+  on_revoke: 変わらない値
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api]
+  on_missing: 拒否
+  enforced_at:
+    - {service: tool:invoice-mcp, check: aud が自分の正規の URI と一致（C13）, against: [api_config]}
+    - {service: invoices-api, check: aud が自分の正規の URI と一致（C2）, against: [api_config]}
+  max_bytes: 64
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-exp
+  name: exp
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+  type: integer
+  shape: single
+  description: トークンの期限（UNIX 時刻）
+  not_meaning: 委任（タスク）の期限ではない。委任の取り消しはこの値を待たずに交換・取り直しで止まる
+  usage: protocol
+  decision: 採用
+  rationale: 受け手は exp と時計のずれ 30 秒で拒否する。寿命は STS の platform だけが決める
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: 受け手の時計は 30 秒以内に同期している
+  authoritative_writer:
+    - {stage: ②, writer: STS, configurable_by: [platform]}
+  source_system: STS の時計と目録の max_lifetime
+  volatility: never
+  on_revoke: トークンごとの値。取り消しは exp を待たない手段で行う（目録の revocation）
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: tool:invoice-mcp, check: 期限内か（ずれ 30 秒）, against: [format]}
+    - {service: invoices-api, check: 期限内か（ずれ 30 秒）と exp − iat が 60 秒（TOOL_AT）・600 秒（PORTAL_AT）以下, against: [other_claim], with: C-iat}
+    - {service: sts-token-exchange, check: subject_token が期限内か。交換で出す TOOL_AT の exp は subject_token の exp を超えない, against: [other_claim], with: C-exp}
+  max_bytes: 10
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-iat
+  name: iat
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+  type: integer
+  shape: single
+  description: トークンの発行の時刻（UNIX 時刻）
+  not_meaning: 利用者が認証した時刻・委任に同意した時刻ではない
+  usage: protocol
+  decision: 採用
+  rationale: RFC 9068 の必須。受け手は exp − iat で寿命の上限を確かめる
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: 受け手の時計は 30 秒以内に同期している
+  authoritative_writer:
+    - {stage: ②, writer: STS, configurable_by: [platform]}
+  source_system: STS の時計
+  volatility: never
+  on_revoke: トークンごとの値
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [invoices-api]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 未来の iat（ずれ 30 秒を超える）を拒否, against: [format]}
+  max_bytes: 10
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-jti
+  name: jti
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
+  type: string
+  shape: single
+  description: トークンごとの一意の ID（UUID）。STS は jti と委任（タスク）の記録を結んで監査ログに残す
+  not_meaning: 委任・タスク・承認の ID ではない（それは STS の委任の記録と authorization_details の approval_id）
+  usage: protocol
+  decision: 採用
+  rationale: 監査で、上流の呼び出し（TOOL_AT の jti）から、交換の元（AGENT_AT の jti）と委任の記録までたどる
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p06-audit-trail}
+  assumption: STS の監査ログに、発行した jti・交換の元の jti・委任の ID を残す
+  authoritative_writer:
+    - {stage: ②, writer: STS, configurable_by: [platform]}
+  source_system: STS（UUID の生成）
+  volatility: never
+  on_revoke: トークンごとの値
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 監査ログに記録する（再送の拒否には使わない。送信者制約で防ぐ）, against: [format]}
+    - {service: sts-token-exchange, check: 交換の元の jti を監査ログに記録する, against: [format]}
+  max_bytes: 36
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-client-id
+  name: client_id
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.3", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.3"}
+  type: string
+  shape: single
+  description: トークンを要求した OAuth のクライアント（AGENT_AT はエージェント、TOOL_AT はツールサーバー、PORTAL_AT はポータル）
+  not_meaning: 利用者ではない。委任の連鎖の全体ではない（それは act）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: other}
+  decision: 採用
+  answers: [q-agent]
+  rationale: >-
+    act の無い AT（PORTAL_AT）は、client_id が mTLS の相手と一致するときだけ受け入れる。エージェントがポータルの利用者のトークンを借りる経路（C12）を、
+    cnf と合わせて二重に閉じる
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p02-delegation-client}
+  assumption: クライアントの ID と、そのワークロードの証明書の主体（SAN）は、STS のクライアントの登録で 1 対 1 に対応する
+  revisit_trigger: 1 つの証明書を複数のクライアントで共有する構成が出たとき
+  authoritative_writer:
+    - {stage: ②, writer: STS（クライアント認証の結果）, configurable_by: [platform]}
+  source_system: STS のクライアントの登録
+  volatility: never
+  on_revoke: クライアントの登録の削除で、次の取り直し・交換から拒否
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [invoices-api, tool:invoice-mcp]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: act の無いトークンは client_id と mTLS の相手のクライアントが一致（C12）, against: [api_config]}
+    - {service: tool:invoice-mcp, check: client_id が act の最も外側の sub と一致, against: [other_claim], with: C-act}
+  max_bytes: 64
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-scope
+  name: scope
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+  type: string
+  shape: space_delimited
+  max_items: 3
+  description: タスクで許した操作（invoices:read・invoices:pay・invoices:refund）。例のタスクは invoices:read invoices:pay
+  not_meaning: 行為者の権限そのものではない（行為者の方針は請求書の API が設定で持つ）。どの請求書かではない（それは sub と承認の内容）
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    STS は scope を「利用者の同意 ∩ 連鎖のすべての行為者の方針 ∩ subject_token の scope」で決め、交換で広げない（C14 のツールが返金を求める要求は拒否）。
+    請求書の API は操作が scope にあり、かつ連鎖のすべての行為者の方針で許されるときだけ通す（C4）
+  refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guide-slide, id: p10-token-exchange-not-narrowing}
+  assumption: 操作は読む・支払う・返金するの 3 つで、ワイルドカードの scope は作らない
+  revisit_trigger: 請求書の API の操作が増えたとき、または請求書ごとの細かい権限が要るとき
+  authoritative_writer:
+    - {stage: ⑥, writer: STS（同意画面で利用者が承認したタスクの範囲）, configurable_by: [platform]}
+    - {stage: ③, writer: STS（交換。subject_token の部分集合だけ）, configurable_by: [platform]}
+  source_system: STS の委任（同意）の記録と、行為者ごとの方針の表
+  volatility: 900
+  on_revoke: 委任の取り消しで RT を失効させ、交換を拒否する（TOOL_AT は 90 秒以内に止まる）
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 操作が scope にあり、かつ act の連鎖のすべての行為者の方針（設定の表）で許される（C4・C14）, against: [api_config]}
+    - {service: sts-token-exchange, check: 要求の scope が subject_token の scope の部分集合で、連鎖のすべての行為者の方針の中（C14）, against: [other_claim], with: C-scope}
+    - {service: tool:invoice-mcp, check: 呼ばれたツールの操作が scope にある, against: [api_config]}
+  max_bytes: 64
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 請求書の業務チーム（scope の語彙）と認証基盤チーム（発行）
+- id: C-act
+  name: act
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+  type: object
+  shape: single
+  description: >-
+    委任の連鎖。最も外側の act.sub が今の行為者（TOOL_AT ではツールサーバー、AGENT_AT ではエージェント）、入れ子の act がそれより前の行為者。
+    深さ（act の数）は 2 まで
+  not_meaning: 入れ子の act は今の行為者ではなく、権限を足す根拠にもならない（記録と、権限を削る照合にだけ使う）
+  usage: authz
+  decision: 採用
+  answers: [q-actor]
+  rationale: >-
+    請求書の API とツールサーバーは、最も外側の act.sub を mTLS の相手と照合する（取り違えた・借りたトークンを拒否）。認可の判断は最も外側の行為者で行い、
+    入れ子の行為者の権限は足さない。加えて、入れ子の行為者のうち 1 人でも方針で許されない操作は拒否する（削る方向だけ。C4）。
+    深さが 2 を超える連鎖は、交換のときに STS が、受け入れのときに請求書の API が拒否する（C10）
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+    - {kind: author-proposal, id: 委任の深さの上限を 2 にし、入れ子の act は権限を削る照合にだけ使う, tracking: "#9"}
+  assumption: 正規の連鎖は「利用者 → エージェント → ツールサーバー」の 2 段だけ
+  revisit_trigger: ツールサーバーがさらに別のツール・エージェントを呼ぶ（3 段以上の）正規の用途が出たとき
+  authoritative_writer:
+    - {stage: ⑥, writer: STS（同意したエージェントを act.sub に）, configurable_by: [platform]}
+    - {stage: ③, writer: STS（交換。actor の mTLS の主体を外側に足し、subject_token の act を入れ子にする）, configurable_by: [platform]}
+  source_system: STS のクライアントの登録と、交換の要求の mTLS の主体
+  volatility: never
+  on_revoke: トークンごとの値。行為者の登録の削除で、次の交換から拒否
+  carried_in: [AGENT_AT, TOOL_AT]
+  consumers: [tool:invoice-mcp, invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 最も外側の act.sub が mTLS の相手と一致。深さ 2 以下。連鎖のすべての行為者が方針で操作を許す（C4・C10）, against: [api_config]}
+    - {service: tool:invoice-mcp, check: 最も外側の act.sub が mTLS の相手（エージェント）と一致, against: [api_config]}
+    - {service: sts-token-exchange, check: 新しい連鎖の深さが 2 以下。actor の mTLS の主体が方針の表で代理を許されている（C10）, against: [api_config]}
+  max_bytes: 160
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: 請求書の API と STS の監査ログ, trust_boundary: 監査ログの基盤}
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-cnf
+  name: cnf
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+  type: object
+  shape: single
+  description: トークンを要求したワークロードの証明書の拇印（x5t#S256）
+  not_meaning: 利用者の鍵ではない。証明書の主体の名前ではない
+  usage: protocol
+  decision: 採用
+  answers: [q-holder]
+  rationale: >-
+    受け手は mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する。ツールが受け取ったトークンの再送（C2・C13）と、エージェントによるポータルのトークンの借用（C12）を、
+    宛先が合っていても拒否できる
+  refs:
+    - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+  assumption: 各ホップは TLS を終端せずに端から端まで mTLS を張る
+  revisit_trigger: 途中に TLS を終端する入口・メッシュを置くとき（DPoP を見直す）
+  authoritative_writer:
+    - {stage: ②, writer: STS（トークン要求の mTLS の証明書から）, configurable_by: [platform]}
+  source_system: 組織の PKI（ワークロードの証明書）
+  volatility: never
+  on_revoke: 証明書の失効は PKI で行い、mTLS の確立で拒否される
+  carried_in: [AGENT_AT, TOOL_AT, PORTAL_AT]
+  consumers: [tool:invoice-mcp, invoices-api]
+  on_missing: 拒否
+  enforced_at:
+    - {service: tool:invoice-mcp, check: x5t#S256 が mTLS の相手の証明書と一致, against: [other_claim], with: C-cnf}
+    - {service: invoices-api, check: x5t#S256 が mTLS の相手の証明書と一致（C2・C12・C13）, against: [other_claim], with: C-cnf}
+  max_bytes: 64
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  owner: 認証基盤チーム（STS の持ち主）
+- id: C-authorization-details
+  name: authorization_details
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  type: object
+  shape: array
+  max_items: 1
+  value_vocabulary: {values: [payment], owner: 請求書の業務チーム, extensible: false}
+  description: >-
+    人が承認した支払いの内容。type は payment、approval_id（承認の記録の ID）、invoice_id、instructedAmount（currency・amount）、creditorAccount、locations（請求書の API）。
+    STS が承認の記録から写す（エージェントの申告から作らない）
+  not_meaning: 支払いの許可の全体ではない（scope と合わせて読む）。リクエストの本文に書かれた承認の ID は信じない
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    請求書の API は、支払いの要求の請求書・金額・振込先を authorization_details と完全一致で照合し（C5・C6）、本文の承認の ID は使わない（C7）。
+    さらに支払いのたびに approval_id の承認の記録を DB で引き、状態が「承認済み・未使用」で持ち主が sub と一致することを確かめて消費する（同じ承認での二重払いを防ぐ）
+  refs:
+    - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+    - {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+  assumption: 承認の記録は承認のサービスにあり、STS と請求書の API が読める
+  revisit_trigger: 1 つのタスクで複数の支払いを承認する用途、または承認の記録を別の組織が持つとき
+  authoritative_writer:
+    - {stage: ⑥, writer: STS（承認の記録から写す）, configurable_by: [platform]}
+    - {stage: ③, writer: STS（交換。subject_token の部分集合だけ）, configurable_by: [platform]}
+  source_system: 承認の記録（承認のサービス）
+  volatility: 0
+  on_revoke: 承認の取り消しは、請求書の API が支払いのたびに承認の記録を DB で引いて反映する（目録の db_lookup）
+  carried_in: [AGENT_AT, TOOL_AT]
+  consumers: [invoices-api, sts-token-exchange]
+  on_missing: 拒否
+  enforced_at:
+    - {service: invoices-api, check: 支払いの要求の invoice_id・金額・通貨・振込先が完全一致。approval_id の記録が承認済み・未使用・持ち主が sub（C5・C6・C7）, against: [data_layer]}
+    - {service: sts-token-exchange, check: 交換で出す authorization_details は subject_token の部分集合, against: [other_claim], with: C-authorization-details}
+  max_bytes: 400
+  overflow_strategy: 発行を失敗させる
+  pii_category: 個人情報
+  data_category: [user.financial.bank_account, user.payment]
+  confidential_from: []
+  log_policy: 記録しない
+  owner: 請求書の業務チーム（承認の type の定義）と認証基盤チーム（発行）
+# ---------------------------------------------------------------- 却下
+- id: C-may-act
+  name: may_act
+  namespace: null
+  type: object
+  decision: 却下
+  rejection_kind: 代替あり
+  rationale: >-
+    誰が代理してよいかは、STS の方針の表（行為者ごとの操作と、代理を許す相手）で決める。subject_token に may_act を載せると、トークンごとに方針が散らばる。
+    却下で失うもの：トークンを見ただけで「次に誰が代理してよいか」を受け手が知る手段
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+  assumption: 交換を担うのは STS の 1 つだけで、方針の表を持てる
+  revisit_trigger: 交換を担う部品が STS のほかに増えたとき
+- id: C-azp
+  name: azp
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 代替あり
+  rationale: AT のクライアントは client_id（RFC 9068）で表す。却下で失うもの：なし（ID トークンを使わない）
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: ID トークンを出さない
+- id: C-nbf
+  name: nbf
+  namespace: null
+  type: integer
+  decision: 却下
+  rejection_kind: 不要
+  rationale: 発行してすぐ使うトークンだけで、先の時刻から有効にする用途がない。却下で失うもの：予約した時刻からの支払い
+  assumption: 予約の支払いはこの設計の範囲の外
+  revisit_trigger: 予約した時刻に支払うタスクを扱うとき
+- id: C-acr
+  name: acr
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 不要
+  rationale: >-
+    支払いの強い確認は、人の承認の記録（authorization_details）で行い、エージェントのトークンに認証の強さを載せない。
+    却下で失うもの：受け手が「同意のときの認証の強さ」で拒否する手段
+  assumption: 承認のサービスが本人の承認を確かめている
+  revisit_trigger: 承認の記録を使わずに支払う操作が出たとき
+- id: C-tenant
+  name: tid
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 不要
+  rationale: 組織は 1 つで、テナントを分けない（§7 の 9）。却下で失うもの：将来テナントを足すときの束縛のクレーム
+  assumption: 利用者・請求書・発行者が 1 つの組織に属する
+  revisit_trigger: 別の組織・子会社の請求書を扱うとき（M_multitenancy を使う）
+- id: C-roles
+  name: roles
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 代替あり
+  rationale: >-
+    行為者ごとの操作は請求書の API の設定（方針の表）で持ち、利用者の権限は請求書の持ち主（DB）で決める。トークンに役割を載せると、連鎖の過去の行為者の役割で通す誤り（C4）を招く。
+    却下で失うもの：受け手が設定を持たずにトークンだけで判断する手段
+  refs:
+    - {kind: guide-slide, id: p10-agent-identity}
+  assumption: 行為者は 6 つで、方針の表は請求書の API の設定で持てる
+- id: C-txn
+  name: txn
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 不要
+  rationale: Txn-Token を使わない（目録の TXN_TOKEN）。取引の相関は jti と STS の委任の記録、支払いは approval_id で行う。却下で失うもの：ホップをまたぐ要求ごとの ID
+  assumption: 請求書の API の先にサービスの伝搬がない
+  revisit_trigger: 請求書の API が別のサービスを呼ぶようになったとき
+- id: C-org-task-id
+  name: task_id
+  namespace: org
+  type: string
+  decision: 却下
+  rejection_kind: 不要
+  rationale: >-
+    タスク（委任）の ID は STS の委任の記録にあり、jti と結んで監査ログに残す。組織の共有クレームを足すと追加前の 25 問と受け手の契約が増える。
+    却下で失うもの：受け手がトークンだけでタスクを特定し、タスクごとの監査を自分で結ぶ手段
+  refs:
+    - {kind: guide-slide, id: p02-check-before-creating}
+  assumption: 監査はトークンの jti から STS の記録を引ける
+  revisit_trigger: 受け手の側でタスク単位の上限（回数・金額）を数える必要が出たとき
+- id: C-org-approval-id
+  name: approval_id
+  namespace: org
+  type: string
+  decision: 却下
+  rejection_kind: 代替あり
+  rationale: >-
+    承認の ID は authorization_details の中（type payment の approval_id）に、金額・相手先と一緒に置く。単独の独自クレームにすると、ID だけを照合して内容を照合しない誤りを招く。
+    却下で失うもの：authorization_details を読めない受け手が承認の ID だけを読む手段
+  refs:
+    - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  assumption: 支払いを受ける受け手は請求書の API だけで、authorization_details を読める
+- id: C-email
+  name: email
+  namespace: null
+  type: string
+  decision: 却下
+  rejection_kind: 不要
+  rationale: 受け手は利用者を sub で照合し、連絡先を使わない。載せるとエージェント・ツールが利用者の連絡先を得る。却下で失うもの：受け手からの利用者への通知
+  assumption: 通知は請求書の業務のシステムが利用者台帳から行う
+  revisit_trigger: エージェントが利用者に直接連絡するタスクを足すとき

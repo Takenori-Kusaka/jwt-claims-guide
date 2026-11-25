@@ -78,6 +78,42 @@ jobs:
         run: python tools/variant_compare.py templates/examples/scenario-b templates/examples/scenario-b/variants/sender-none.yaml --check templates/examples/scenario-b/design.md
       - name: Casestudy check on scenario B
         run: python tools/casestudy_check.py templates/examples/scenario-b
+      # #9: the blind pilot designs (research/pilot/). They are records of a trial, not worked examples: catalog_refs is
+      # empty by design (the authors did not read the casestudy), so casestudy_check is not run on them; the comparison
+      # with the casestudy is in research/template-design/pilot.md. claim_lint has no suppression of errors (RULES.md).
+      - name: claim_lint on the pilot designs (#9) - scenario B with the Full profile, scenario C with --profile lite (written with the Lite fields)
+        run: |
+          python tools/claim_lint research/pilot/scenario-b --also-scan research/pilot/scenario-b/design.md
+          python tools/claim_lint research/pilot/scenario-c --profile lite --also-scan research/pilot/scenario-c/design.md
+          python tools/claim_lint render research/pilot/scenario-b --check
+          python tools/claim_lint render research/pilot/scenario-c --check
+          python tools/check_slide_refs.py research/pilot/scenario-b
+          python tools/check_slide_refs.py research/pilot/scenario-c
+      - name: Pilot review records (#9) - the four review.yaml against the schema and the designs, the form of the four reports, the sha256 commitments
+        # report --check is not run here: each report is the generated report plus a title label and a hand-written
+        # addendum of the reviewer, and the files are kept byte for byte (research/pilot/commitments.txt)
+        run: |
+          for d in scenario-b scenario-c; do for r in R1 R2; do
+            python tools/review_record.py check research/pilot/$d/reviews/$r/review.yaml --design research/pilot/$d --annotate
+            python tools/review_check.py --report research/pilot/$d/reviews/$r/review-report.md
+          done; done
+          python - <<'EOF'
+          import hashlib, re, sys
+          n = 0
+          for line in open('research/pilot/commitments.txt', encoding='utf-8'):
+              m = re.match(r'([0-9a-f]{64}) \*review-([BC])-(R[12])/(\S+)$', line.strip())
+              if not m:
+                  continue
+              want, case, rev, name = m.groups()
+              path = f'research/pilot/scenario-{case.lower()}/reviews/{rev}/{name}'
+              got = hashlib.sha256(open(path, 'rb').read()).hexdigest()
+              if got != want:
+                  sys.exit(f'{path}: sha256 {got} differs from the commitment {want}')
+              n += 1
+          if n != 12:
+              sys.exit(f'expected 12 commitments, found {n}')
+          print('commitments: 12 files match research/pilot/commitments.txt')
+          EOF
       - name: Event catalogue (#2) - columns, seed-list closure, subject-state matrix, sources.md counts
         run: python tools/catalog_check.py
       - name: catalog_check tests (pass and fail cases)
