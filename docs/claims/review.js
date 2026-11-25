@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'db1e43112c3e';
+  const BUILD_ID = '0d96b0ae339d';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;

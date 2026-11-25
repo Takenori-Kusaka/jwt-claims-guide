@@ -182,6 +182,49 @@ def test_r3_every_idp_token_type_belongs_to_an_idp(tmp_path):
     assert any('entra に token_types がない' in f['message'] for f in by(lint(tmp_path, d), 'R3', 'error'))
 
 
+SB = dict(kind='self_built',
+          trigger_list=[{'trigger': 'すべての発行', 'out_of_scope': {'assumption': 'この発行者は社内の入口だけが使い、契機は設計書に列挙した',
+                                                                 'breaks_when': '入口の外から発行を求める経路ができたとき'}}],
+          trigger_list_source={'document': '設計書 3.2 節（発行の契機）', 'verified_on': '2026-11-25'})
+
+
+def _move_auth0_at_to_keycloak(d):
+    idp(d, 'auth0')['token_types'].remove('AUTH0_AT')
+    idp(d, 'keycloak')['token_types'].append('AUTH0_AT')
+
+
+def _move_auth0_at_to_self_built(d):
+    idp(d, 'auth0')['token_types'].remove('AUTH0_AT')
+    d['catalog_answers']['idp'].append(dict(SB, name='org-sts', token_types=['AUTH0_AT']))
+
+
+def _relabel_auth0_at_internal(d):
+    tt(d, 'AUTH0_AT')['kind'] = 'internal_token'
+    idp(d, 'auth0')['token_types'].remove('AUTH0_AT')
+
+
+def _move_kc_at_to_cognito(d):
+    idp(d, 'keycloak')['token_types'].remove('KC_AT')
+    idp(d, 'cognito')['token_types'].append('KC_AT')
+
+
+@pytest.mark.parametrize('mutate', [_move_auth0_at_to_keycloak, _move_auth0_at_to_self_built, _relabel_auth0_at_internal,
+                                    _move_kc_at_to_cognito])
+def test_r3_token_type_attached_to_an_idp_that_does_not_issue_it(tmp_path, mutate):
+    """Re-check of PR #70: moving a token type to another entry (or relabelling its kind) silenced the per-IdP checks
+    without a trace. The issuers of the inventory give it away."""
+    d = base()
+    mutate(d)
+    got = [f for f in by(lint(tmp_path, d), 'R3', 'warn') if 'issuers' in f['message'] or '同じ iss' in f['message']]
+    assert got, mutate.__name__
+
+
+def test_r3_self_built_name_is_matched_by_whole_words(tmp_path):
+    d = base()
+    d['catalog_answers']['idp'].append(dict(SB, name='central-sts', token_types=['REFRESH_TOKEN']))  # contains "entra"
+    assert not [f for f in by(lint(tmp_path, d), 'R3', 'warn')]
+
+
 def test_r3_self_built_under_a_product_like_name_is_reported(tmp_path):
     """Check of PR #70: Auth0 renamed auth0-tenant and declared self_built silenced R3b and L2 without a trace."""
     d = base()
@@ -338,6 +381,25 @@ def test_l1b_only_the_entry_that_remints_may_read_an_idp_name():
         res = core.run(tmp, today=TODAY)
     got = [f for f in by(res, 'L1b') if f['target'] == 'C-x-realm-access']
     assert [f['severity'] for f in got] == ['error'] and '入口' in got[0]['message']
+
+
+def test_l1b_the_client_may_read_an_idp_name_from_the_id_token(tmp_path):
+    """Re-check of PR #70: a BFF that reads Entra's oid from the ID token. For an ID token the entry is the client."""
+    d = base()
+    idt = copy.deepcopy(tt(d, 'ID_TOKEN'))
+    idt.update(id='ENTRA_IDT', issuers=[i for i in idt['issuers'] if 'microsoftonline' in i['iss']])
+    d['token_types']['token_types'].append(idt)
+    idp(d, 'entra')['token_types'].append('ENTRA_IDT')
+    row = copy.deepcopy(claim(d, 'C-entra-oid'))
+    row.update(id='C-entra-oid-idt', carried_in=['ENTRA_IDT'], consumers=['portal-bff'],
+               enforced_at=[dict(e, service='portal-bff') for e in row['enforced_at']])
+    d['claims']['claims'].append(row)
+    d['catalog_answers']['answers'][0].setdefault('token_types', [])
+    res = lint(tmp_path, d)
+    assert [f['severity'] for f in by(res, 'L1b') if f['target'] == 'C-entra-oid-idt'] == ['info']
+    claim(d, 'C-entra-oid-idt')['consumers'].append('orders')  # a downstream service is still not the entry
+    got = [f for f in by(lint(tmp_path, d), 'L1b', 'error') if f['target'] == 'C-entra-oid-idt']
+    assert got and 'orders' in got[0]['message']
 
 
 def test_l1b_same_name_of_two_idps_may_differ_but_not_inside_one_idp(tmp_path, migrated):
@@ -673,6 +735,66 @@ def test_l17_a_declaration_that_does_not_discriminate_keeps_the_error(tmp_path, 
     res = lint(tmp_path, d)
     got = by(res, 'L17', 'error')
     assert len(got) == 1 and '排他と言えない' in got[0]['message'] and by(res, 'L17', 'info') == []
+
+
+def _overlapping_aud(d):
+    tt(d, 'ID_TOKEN')['aud'] = ['orders', 'invoices', 'api://orders', 'api://invoices']  # control: L17 error
+
+
+@pytest.mark.parametrize('at_entry,idt_entry', [
+    ({'claim': 'iat', 'value': 1}, {'claim': 'iat', 'value': '1'}),                    # a time claim, and 1 against "1"
+    ({'claim': 'iss', 'value': 'https://nowhere-a.example'}, {'claim': 'iss', 'value': 'https://nowhere-b.example'}),
+    ({'claim': 'sub', 'value': 'a'}, {'claim': 'sub', 'value': 'b'}),                  # a row exists, but declares no values
+    ({'claim': 'typ', 'value': 'Bearer'}, {'claim': 'typ', 'value': 'JWT-ID'}),         # not a value the row declares
+    (None, None),
+])
+def test_l17_a_made_up_value_does_not_prove_the_kinds_apart(tmp_path, at_entry, idt_entry):
+    """Re-check of PR #70: with overlapping aud the kinds are not apart; a value on a claim that merely has a row brought
+    the info back. A value counts only when the registry row declares it (iss: the issuers of the token type)."""
+    d = base()
+    _overlapping_aud(d)
+    if at_entry:
+        for t in ('KC_AT', 'ENTRA_AT'):
+            tt(d, t)['kind_discriminator'] = [e for e in tt(d, t)['kind_discriminator'] if e['claim'] != at_entry['claim']] + [at_entry]
+        tt(d, 'ID_TOKEN')['kind_discriminator'].append(idt_entry)
+        if at_entry['claim'] == 'typ':  # give the ID token a typ row whose values do not include the made-up one
+            row = copy.deepcopy(claim(d, 'C-kc-typ'))
+            row.update(id='C-kc-typ-idt', carried_in=['ID_TOKEN'], consumers=[], allowed_values={'enum': ['ID']})
+            row['issuers'] = [i['iss'] for i in tt(d, 'ID_TOKEN')['issuers']]
+            d['claims']['claims'].append(row)
+    res = lint(tmp_path, d)
+    got = by(res, 'L17', 'error')
+    assert len(got) == 1 and '排他と言えない' in got[0]['message'] and by(res, 'L17', 'info') == []
+
+
+def test_l17_value_grounding_one_condition_at_a_time(tmp_path):
+    """Only KC_AT and the ID token overlap, and both carry sub and iat with on_missing 拒否, so each condition decides alone."""
+    def design(kc, idt, enum=None):
+        d = base()
+        tt(d, 'ID_TOKEN')['aud'] = ['orders', 'portal']
+        tt(d, 'KC_AT')['kind_discriminator'] = [{'claim': 'aud'}, kc]
+        tt(d, 'ID_TOKEN')['kind_discriminator'].append(idt)
+        if enum:
+            claim(d, 'C-iat')['allowed_values'] = {'enum': enum}
+        return d
+    # a value the row does not declare
+    res = lint(tmp_path, design({'claim': 'sub', 'value': 'a'}, {'claim': 'sub', 'value': 'b'}))
+    assert len(by(res, 'L17', 'error')) == 1 and 'C-sub' in by(res, 'L17', 'error')[0]['message']
+    # a time claim, even when the row declares the values
+    res = lint(tmp_path, design({'claim': 'iat', 'value': 1}, {'claim': 'iat', 'value': 2}, enum=[1, 2]))
+    assert len(by(res, 'L17', 'error')) == 1 and 'トークンごとに変わる値' in by(res, 'L17', 'error')[0]['message']
+
+
+def test_l17_a_value_the_registry_declares_proves_the_kinds_apart(tmp_path):
+    d = base()  # the same overlap, told apart by Keycloak's payload typ: Bearer (C-kc-typ) against ID (a row for the ID token)
+    tt(d, 'ID_TOKEN')['aud'] = ['orders', 'invoices', 'portal']
+    row = copy.deepcopy(claim(d, 'C-kc-typ'))
+    row.update(id='C-kc-typ-idt', carried_in=['ID_TOKEN'], consumers=[], allowed_values={'enum': ['ID']})
+    row['issuers'] = [i['iss'] for i in tt(d, 'ID_TOKEN')['issuers']]
+    d['claims']['claims'].append(row)
+    tt(d, 'ID_TOKEN')['kind_discriminator'].append({'claim': 'typ', 'value': 'ID'})
+    res = lint(tmp_path, d)
+    assert by(res, 'L17', 'error') == [] and len(by(res, 'L17', 'info')) == 1
 
 
 def test_l17_absent_that_contradicts_the_token_type_is_an_error(tmp_path):

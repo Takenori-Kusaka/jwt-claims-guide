@@ -319,14 +319,14 @@ idp:
     trigger_list: [{trigger: TokenGeneration_HostedAuth, events: [I01]}]
 ```
 
-- R3 は IdP ごとに契機の一覧を確かめます（指摘の対象は `idp[<name>]`。1 つの対応で書いた設計書では今までどおり `idp`）。採用した AT・ID トークンの種別は、どれかの IdP の `token_types` に書きます（どこにも無いと error。IdP ごとの検査がその種別を見なくなるため）。AT の種別は IdP ごとに分けます（2 つ以上の IdP に書くと warn）。
+- R3 は IdP ごとに契機の一覧を確かめます（指摘の対象は `idp[<name>]`。1 つの対応で書いた設計書では今までどおり `idp`）。採用した AT・ID トークンの種別は、どれかの IdP の `token_types` に書きます（どこにも無いと error。IdP ごとの検査がその種別を見なくなるため）。AT の種別は IdP ごとに分けます（2 つ以上の IdP に書くと warn）。種別は、それを出す IdP の要素に書きます（目録の `issuers` の `iss` が、その IdP のほかの種別と合わないと warn）。
 - R3b と L2 は、IdP ごとに、その IdP の `token_types` に載るクレームだけを見ます。R3b の `hook_checked` は、IdP が複数なら IdP の名前を含む文か、`{auth0: "…"}` のような IdP ごとの対応で書きます（Keycloak について確かめた文は、Auth0 の確認にならない）。
 - Lite の既定の回答の引き継ぎ（`inherit: idp-default`）は、IdP が 1 つの設計書だけで使えます（止める設定が IdP ごとに違うため）。
 - `claim_lint drift`（Keycloak の設定との比較）は、`keycloak` の要素の `token_types` だけを比べます。
 
 #### 組織が自分で作る発行者（`kind: self_built`）
 
-製品ではない発行者（組織の STS、内部トークンを作る入口など）は、`idp` の要素に `kind: self_built` を書きます（パイロットのシナリオ C の迷い 5）。契機の一覧を決めるのは設計書なので、`trigger_list` に発行者が受ける grant・要求の全項目を書き、`trigger_list_source` には公開の URL の代わりに、一覧を定める文書（`document`：設計書の節・仕様書のパスか名前）と、決めた・確かめた日（`verified_on`）を書きます。まだ作っていない発行者は `planned: true` を足します。存在しない URL を書く必要はありません。R3b（フックが呼ばれるか）と L2（製品が書き換えを許さないクレーム）は、この発行者では見ません。製品の IdP を別の名前で self_built と書くと、その 2 つが黙るので、名前が製品の名前を含むと warn です。
+製品ではない発行者（組織の STS、内部トークンを作る入口など）は、`idp` の要素に `kind: self_built` を書きます（パイロットのシナリオ C の迷い 5）。契機の一覧を決めるのは設計書なので、`trigger_list` に発行者が受ける grant・要求の全項目を書き、`trigger_list_source` には公開の URL の代わりに、一覧を定める文書（`document`：設計書の節・仕様書のパスか名前）と、決めた・確かめた日（`verified_on`）を書きます。まだ作っていない発行者は `planned: true` を足します。存在しない URL を書く必要はありません。R3b（フックが呼ばれるか）と L2（製品が書き換えを許さないクレーム）は、この発行者では見ません。製品の IdP を別の名前で self_built と書くと、その 2 つが黙るので、名前が製品の名前を語として含む（`auth0-tenant` など）と warn です。
 
 ```yaml
 idp:
@@ -348,7 +348,7 @@ L1b は、名前空間なしの未登録名を error にします。`idp_defined
 2. 名前が `tools/claim_lint/idp_claims.yaml` の、その IdP の一覧にある（一次資料で確かめた名前だけを、URL と確かめた日つきで固定している。一覧にない名前は、文書で確かめてから一覧に足す PR を出す。草案の名前の `draft_claims.yaml` と同じ扱い）
 3. `carried_in` が、その IdP が出す AT・ID トークンの種別だけである（内部トークンなど下流の種別に、IdP の名前のまま載せない）
 4. どのホップも、その IdP のトークン以外で運ばず、ヘッダーにも転記しない
-5. `consumers` のすべてが、その種別を入口のホップ（`kind: entry`）で受け取り、組織のトークンに作り直す入口（reissue・exchange のホップの `exchanger`）である。IdP のトークンを直接受け取るサービス（入口の無い設計の API）が IdP の名前を読む行は、この列では書けない（今までどおり、組織の名前空間に写す）
+5. `consumers` のすべてが、その種別を入口のホップ（`kind: entry`）で受け取り、組織のトークンに作り直す入口（reissue・exchange のホップの `exchanger`）である。ID トークンに載る行では、その IdP のトークンを持つクライアント（BFF。ID トークンの `aud` の名前か、その IdP の AT を運ぶホップの `from`）も受け手にできる。IdP の AT を直接受け取るサービス（入口の無い設計の API）が IdP の名前を読む行は、この列では書けない（今までどおり、組織の名前空間に写す）
 
 同じ名前を 2 つの IdP が別の形で定めている場合（Entra の `scp` は空白区切りの文字列、Okta の `scp` は配列）は、IdP ごとに行を分けます。「同じ名前の行は型と意味をそろえる」の検査は、`idp_defined` の行では同じ IdP の中だけで行います。
 
@@ -396,7 +396,7 @@ IdP ごとの AT を受けて 1 つの内部トークンを作るホップは、
 
 #### ヘッダーの typ が同じ種別（`kind_discriminator`）と、aud の無い AT（`audience_claim`）
 
-- **typ**：`typ` の列にはヘッダーの値だけを書きます。Keycloak と Entra は、AT と ID トークンのヘッダーの typ がどちらも `JWT` です（Entra は文書で「always JWT」。Keycloak は実測）。Cognito の AT のヘッダーには typ がありません（`(absent)` と書く）。L17 は、種類の違う種別が同じ typ を使うと error にします。同じ typ の種別のすべてに `kind_discriminator` があれば、L17 は種類の違う組ごとに、宣言から排他と言えるかを見ます：同じクレームに別の `value`（その種別に載る台帳の行があり、`on_missing` が拒否のもの）、片方が `absent`（その種別の `required_claims` にも台帳の行にも無いもの）、重ならない `aud`。すべての組で言えれば info、言えない組が 1 つでもあれば error のままです（列を書いただけでは下がりません）（RFC 8725 §3.12 は、明示的な typ のほかに、必須クレームの値・aud・鍵・発行者を変える方法を挙げ、新しい用途には typ を勧めている）。`(absent)` どうしも同じ typ として扱います。typ の無い種別の検証が、typ のある別の種類のトークンを受けないことは、機械では見ていません。
+- **typ**：`typ` の列にはヘッダーの値だけを書きます。Keycloak と Entra は、AT と ID トークンのヘッダーの typ がどちらも `JWT` です（Entra は文書で「always JWT」。Keycloak は実測）。Cognito の AT のヘッダーには typ がありません（`(absent)` と書く）。L17 は、種類の違う種別が同じ typ を使うと error にします。同じ typ の種別のすべてに `kind_discriminator` があれば、L17 は種類の違う組ごとに、宣言から排他と言えるかを見ます：同じクレームに別の `value`（その種別に載る台帳の行があり、`on_missing` が拒否で、値を行の `allowed_values.enum` か `value_vocabulary.values` に書いてあるもの。`iss` は種別の `issuers` にある値。時刻・乱数のクレームは使えない）、片方が `absent`（その種別の `required_claims` にも台帳の行にも無いもの）、重ならない `aud`。すべての組で言えれば info、言えない組が 1 つでもあれば error のままです（列を書いただけでは下がりません）（RFC 8725 §3.12 は、明示的な typ のほかに、必須クレームの値・aud・鍵・発行者を変える方法を挙げ、新しい用途には typ を勧めている）。`(absent)` どうしも同じ typ として扱います。typ の無い種別の検証が、typ のある別の種類のトークンを受けないことは、機械では見ていません。
 - **aud の無い AT**：Cognito の AT は、リソースの束縛を求めないかぎり aud を持たず、`client_id` を持ちます。その種別には `audience_claim: client_id` を書き、`required_claims` に `client_id` を入れます（`aud` は入れない）。L27 が aud の欠けを error にしないのは、その種別を出す IdP（`catalog_answers.yaml` の `idp` の `token_types`）のすべてについて `idp_claims.yaml` の `audience_claim` に同じ名前があり、その種別に aud の台帳の行もホップの aud も無いときだけです（リソースの束縛を求めた Cognito の AT は aud を持つので、aud を必須にする）。`typ: at+jwt` の種別では使えません（RFC 9068 §2.2 は aud を REQUIRED とする）。
 
 #### 発行方式の値の、IdP ごとの例外（`exceptions`）

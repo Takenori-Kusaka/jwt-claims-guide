@@ -212,10 +212,21 @@ def _idp_defined_problem(x, c):
     # IdP's token keeps the error (PR #70 check: scenario A's API reading realm_access must not pass)
     entries = {_service_name(h.get('to')) for h in x.hops if h.get('token_type') in carried and h.get('kind') == 'entry'}
     minters = {str(h.get('exchanger')) for h in x.hops if _minted(h)}
-    strangers = [s for s in c.get('consumers') or [] if s not in entries or s not in minters]
+    # for an ID token the entry is the client it was issued to (the relying party, a BFF): a name of the token's aud, or
+    # the service that presents this IdP's access tokens (the `from` of a hop that carries one). A row carried in an access
+    # token too is held to the access token's condition for the API side
+    clients = set()
+    idts = [t for t in carried if (x.tt.get(t) or {}).get('kind') == 'id_token']
+    if idts:
+        mine = {t.get('id') for t in x.adopted_tts() if t.get('kind') == 'access_token'
+                and (ent['token_types'] is None or t.get('id') in ent['token_types'])}
+        clients = {_service_name(h.get('from')) for h in x.hops if h.get('token_type') in mine}
+        clients |= {str(a) for t in idts for a in (x.tt.get(t) or {}).get('aud') or []}
+    strangers = [s for s in c.get('consumers') or [] if not (s in entries and s in minters) and s not in clients]
     if strangers:
         return (f"受け手 {'・'.join(strangers)} は、このクレームが載る種別（{'・'.join(carried)}）を入口のホップ（kind: entry）で受け取り、"
-                '組織のトークンに作り直す入口（reissue・exchange のホップの exchanger）ではない。IdP が決めた名前を読めるのは入口だけ')
+                '組織のトークンに作り直す入口（reissue・exchange のホップの exchanger）ではない。IdP が決めた名前を読めるのは入口だけ'
+                '（ID トークンでは、その IdP のトークンを持つクライアント）')
     return None
 
 
@@ -766,6 +777,21 @@ def rule_l17(x):
             _l17_same_typ(x, typ, ts)
 
 
+# claims whose value differs from token to token (times, random values, hashes): a required value of such a claim cannot
+# tell two kinds of token apart (re-check of PR #70)
+KD_VOLATILE = {'exp', 'iat', 'nbf', 'auth_time', 'updated_at', 'jti', 'nonce', 'at_hash', 'c_hash', 's_hash', 'sid'}
+
+
+def _norm_value(v):
+    return ('true' if v else 'false') if isinstance(v, bool) else str(v).strip()
+
+
+def _declared_values(row):
+    """The values a registry row says the claim can have (allowed_values.enum, value_vocabulary.values), normalized."""
+    vals = list((row.get('allowed_values') or {}).get('enum') or []) + list((row.get('value_vocabulary') or {}).get('values') or [])
+    return {_norm_value(v) for v in vals}
+
+
 def _kd_forms(t):
     """kind_discriminator as {claim: ('value', v) | ('absent',) | ('aud', set of the row's aud)}; entries that say neither
     are left out (returned second)."""
@@ -773,7 +799,7 @@ def _kd_forms(t):
     for e in t.get('kind_discriminator') or []:
         c = e.get('claim')
         if 'value' in e:
-            forms[c] = ('value', e['value'])
+            forms[c] = ('value', _norm_value(e['value']))  # 1 and "1" are the same value
         elif e.get('absent') is True:
             forms[c] = ('absent',)
         elif c == 'aud':
@@ -823,11 +849,25 @@ def _kd_grounded(x, t):
             if not form[1]:
                 problems.append('aud を書いたが、この種別の aud（宛先）の列が空')
                 continue
+        elif c in KD_VOLATILE:
+            problems.append(f'{c} はトークンごとに変わる値（時刻・乱数・ハッシュ）。決まった value で種類を区別できない')
+            continue
         elif not rows:
             problems.append(f'{c} が、台帳の行（carried_in に {t["id"]}）にない（発行者がその値を載せると言えない）')
             continue
         elif any(r.get('on_missing') != '拒否' for r in rows):
             problems.append(f'{c} の on_missing が拒否でない（区別に使う値が無いトークンを、この種類として受けてしまう）')
+            continue
+        elif c == 'iss':
+            # the issuers the token type accepts are in the inventory: an iss value that is not among them proves nothing
+            if form[1] not in {_norm_value(i.get('iss')) for i in t.get('issuers') or []}:
+                problems.append(f'iss の value {form[1]} が、この種別の issuers の iss にない')
+                continue
+        elif any(form[1] not in _declared_values(r) for r in rows):
+            # the value must be one the registry row declares (re-check of PR #70: a made-up value on any claim that has
+            # a row turned the error into info)
+            problems.append(f'{c} の value {form[1]} が、台帳の行（{rows[0].get("id")}）の allowed_values.enum・value_vocabulary.values にない'
+                            '（発行者がその値を載せると、台帳が宣言していない）')
             continue
         ok[c] = form
     return ok, problems, contradictions

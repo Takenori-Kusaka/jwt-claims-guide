@@ -252,6 +252,46 @@ def _r3_token_type_owners(entries, token_types):
         elif len(owners) > 1 and t.get('kind') == 'access_token':
             out.append(F('R3', WARN, 'idp', f"AT の種別 {t.get('id')} を {'・'.join(owners)} の token_types に書いている。AT は発行者ごとに検証の規則が違うので、"
                                             'IdP ごとに種別を分ける'))
+    return out + _r3_reattached(entries, token_types)
+
+
+def _r3_reattached(entries, token_types):
+    """A token type attached to an IdP entry that does not issue it (re-check of PR #70): the checks made per IdP then
+    compare it with the wrong product, or not at all. What the inventory says about issuers (token_types[].issuers[].iss)
+    is compared with the entries. warn: the names of IdPs and the iss values are not tied by a column."""
+    out = []
+    live = [t for t in token_types if t.get('decision') in ('採用', '既定どおり')]
+    iss = {t.get('id'): {str(i.get('iss')) for i in t.get('issuers') or [] if i.get('iss')} for t in live}
+    own = {t.get('id'): {e['name'] for e in entries if e['token_types'] is not None and t.get('id') in e['token_types']} for t in live}
+    kind = {t.get('id'): t.get('kind') for t in live}
+    product = {e['name'] for e in entries if e['kind'] != SELF_BUILT}
+    seen = set()
+    # (1) the types that only this entry names share no iss with one another
+    for e in entries:
+        mine = [t for t in iss if own[t] == {e['name']} and iss[t]]
+        for t in mine:
+            others = set().union(*[iss[u] for u in mine if u != t]) if len(mine) > 1 else set()
+            if others and not iss[t] & others:
+                seen.add(t)
+                out.append(F('R3', WARN, e['target'], f"種別 {t} の issuers（{'・'.join(sorted(iss[t]))}）が、IdP {e['name']} のほかの種別の issuers と 1 つも重ならない。"
+                                                      'この種別を出す IdP の要素に書いているか確かめる（別の IdP に書くと、R3b・L2・L27・L74 が別の製品の表と照合する）'))
+    # (2) two types accept the same iss but no entry names both; (3) a type that is not an access / ID token and belongs to
+    # no entry accepts the iss of a product IdP's type
+    ids = sorted(iss)
+    for a in ids:
+        for b in ids:
+            if a == b or a in seen or not iss[a] & iss[b] or not own[b]:
+                continue
+            both = '・'.join(sorted(iss[a] & iss[b]))
+            if own[a] and not own[a] & own[b] and len(own[a]) <= len(own[b]):
+                seen.add(a)
+                out.append(F('R3', WARN, 'idp', f"種別 {a}（{'・'.join(sorted(own[a]))}）と {b}（{'・'.join(sorted(own[b]))}）は同じ iss（{both}）を受け入れるのに、"
+                                                '別の IdP の要素に分かれている。同じ発行者の種別は同じ要素に書く'))
+            elif not own[a] and kind[a] not in IDP_KINDS and own[b] & product:
+                seen.add(a)
+                out.append(F('R3', WARN, 'idp', f"種別 {a}（kind: {kind[a]}）は、IdP の種別 {b} と同じ iss（{both}）を受け入れるのに、どの IdP の要素にも無い。"
+                                                'IdP が出すトークンなら kind を access_token・id_token にして、その IdP の token_types に書く'
+                                                '（書かないと R3b・L2・L27・L74 がこの種別を見ない）'))
     return out
 
 
@@ -298,7 +338,7 @@ def _r3_self_built(doc, entry, catalog_dir):
         out.append(F('R3', ERROR, target, f'発行者 {idp}（kind: {SELF_BUILT}）の trigger_list_source に、一覧を定める文書（document：設計書の'
                                           '節・仕様書のパスか名前。公開の URL があれば url）と、一覧を決めた・確かめた日（verified_on）がない'))
     out += _r3_trigger_list(tl, catalog_dir)
-    like = [w for w in PRODUCT_WORDS if w in idp]
+    like = [w for w in PRODUCT_WORDS if w in re.split(r'[^a-z0-9]+', idp)]  # whole words: central-sts is not entra
     if like:
         out.append(F('R3', WARN, target, f"発行者 {idp}（kind: {SELF_BUILT}）の名前が、製品の IdP（{'・'.join(like)}）を含む。製品を別の名前で {SELF_BUILT} と書くと、"
                                          'R3b（フックが呼ばれるか）と L2（書き換えを許さないクレーム）がその IdP を見なくなる。製品なら製品の名前で書く'))

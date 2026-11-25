@@ -1849,6 +1849,9 @@ claims:
   status: active
   owner: 情報システム部 ID 基盤チーム
   change_controller: cognito（製品が決めた名前）
+  allowed_values:
+    enum:
+    - access
 - id: C-cognito-groups
   name: cognito:groups
   namespace: null
@@ -2019,6 +2022,9 @@ claims:
   status: active
   owner: 情報システム部 ID 基盤チーム
   change_controller: keycloak（製品が決めた名前）
+  allowed_values:
+    enum:
+    - Bearer
 - id: C-cognito-custom-role
   name: custom:role
   namespace: null
