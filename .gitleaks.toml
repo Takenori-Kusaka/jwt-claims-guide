@@ -54,11 +54,12 @@ rows the reviewer had viewed as `"<row anchor>": "<sha256 of the row, tools/row_
 "token_types:TXN_TOKEN": "<64 hex>". The default rule generic-api-key reads the hash after the "token"-like anchor as a key:
 a false positive (first seen on PR #72). The hashes are of the committed registry rows and are checked by
 python tools/review_record.py check --design.
-Only a finding whose match ends with a row anchor (claims / token_types / hops / catalog_answers / issuance_profile : id) as
-the key and exactly 64 lowercase hex digits as the value, in a review.yaml or review.v2.yaml file, is excluded; a 64-hex
+Only a finding on a line that is nothing but a row anchor (claims / token_types / hops / catalog_answers / issuance_profile : id) as
+the key and exactly 64 lowercase hex digits as the value (the whole line is matched: the rule's own match starts in the
+middle of the anchor), in a review.yaml or review.v2.yaml file, is excluded; a 64-hex
 value under any other key in the same file is still reported."""
 targetRules = ["generic-api-key"]
 condition = "AND"
 paths = ['''(^|/)review(\.v2)?\.yaml$''']
-regexTarget = "match"
-regexes = ['''(?:claims|token_types|hops|catalog_answers|issuance_profile):[A-Za-z0-9_.-]+": "[0-9a-f]{64}"$''']
+regexTarget = "line"
+regexes = ['''^\s*"(?:claims|token_types|hops|catalog_answers|issuance_profile):[A-Za-z0-9_.-]+": "[0-9a-f]{64}"\s*$''']
