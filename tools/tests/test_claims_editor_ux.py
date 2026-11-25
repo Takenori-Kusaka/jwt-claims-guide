@@ -481,13 +481,21 @@ class EditorUX(unittest.TestCase):
             self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length >= n && document.querySelector("#rv-short-note:not([hidden])")', arg=len(want))
             got = set(pg.evaluate('() => Array.from(document.querySelectorAll(".rv-q:not([hidden])")).map(e => e.dataset.q)'))
             self.assertTrue(want <= got and got - want <= optional, (key, got ^ want))
-            self.assertEqual(pg.evaluate('() => Array.from(document.querySelectorAll("#rv-open-prompts [data-prompt]")).map(e => e.dataset.prompt)'),
-                             [p['id'] for p in rt.prompts(tri, have)])
+            self.assertEqual(pg.evaluate('() => Array.from(document.querySelectorAll("#rv-open-prompts [data-prompt]:not([hidden])")).map(e => e.dataset.prompt)'),
+                             [p['id'] for p in rt.default_prompts(tri, have)])
+            sl = pg.evaluate('() => ClaimsReview.shortList()')
+            self.assertEqual(set(sl['optional']), {q['id'] for q in rt.optional(tri, have)}, key)
+            self.assertEqual(sl['prompts'] + sl['morePrompts'], [p['id'] for p in rt.prompts(tri, have)], key)
             self.assertIn(f'全 168 問のうち、あなたが答える {len(got)} 問', pg.inner_text('#rv-short-note'))
             self.assertIn('lint が確かめる 81 問', pg.inner_text('#rv-short-rest'))
             if 'unknown' in states.values():
                 self.assertIn('読めない（問いは出す）', pg.inner_text('#rv-short-traits'))
             counts[key] = len(want)
+            if key == 'b':
+                # "if time remains": the priority 2 questions and the other open prompts are one choice away
+                pg.select_option('#rv-f-triage', 'short+')
+                self.poll(pg, 'n => document.querySelectorAll(".rv-q:not([hidden])").length >= n', arg=len(want) + len(rt.optional(tri, have)))
+                self.assertEqual(pg.evaluate('() => document.querySelectorAll("#rv-open-prompts [data-prompt]:not([hidden])").length'), len(rt.prompts(tri, have)))
             if key == 'a':
                 # the questions a machine or the author answers are one choice away, and say who answers them
                 pg.select_option('#rv-f-triage', '')
@@ -520,7 +528,7 @@ class EditorUX(unittest.TestCase):
         pg.check('#q-q-revocation-delivery input[value="no"]')
         self.poll(pg, '() => ClaimsReview.data().reviews.some(r => r.answers["q-revocation-delivery"] && r.answers["q-revocation-delivery"].answer === "no")')
         self.assertEqual(pg.input_value('#rv-f-triage'), 'short')
-        pg.click('#rv-open-prompts [data-prompt="op-one-time"] button')
+        pg.click('#rv-open-prompts [data-prompt="op-one-time"]:not([hidden]) button')
         self.poll(pg, '() => location.hash.startsWith("#/review/findings")')
         self.assertEqual(pg.problems, [])
 

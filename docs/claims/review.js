@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '53742e593d59';
+  const BUILD_ID = '7eb4b171d5ee';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -743,7 +743,7 @@
     put('multi_idp', hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
     put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
     put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
-      declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null);
+      declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null || declared(lite, 'delegation_or_exchange', 'answer') === true);
     put('approval', names.has('authorization_details') || hops.some((x) => has(x.authorization_details)), noHops);
     // the author's answer decides multitenant; tenant_binding is read only when there is no answer
     const mt = declared(lite, 'multitenant', 'answer');
@@ -762,14 +762,20 @@
     if (!C) return null;
     const states = readTraits(); const traits = designTraits();
     const warned = new Set(CE.diagnostics().filter((d) => d.source === 'claim_lint' && d.severity !== 'info').map((d) => d.rule));
-    const why = new Map();
+    const why = new Map(); const more = new Set();
     R.questions.forEach((x) => {
       if (x.triage !== 'C') return;
-      const byCond = C.priorities.includes(x.priority) && (x.show_when || []).some((c) => traits.has(c));
+      const hit = (x.show_when || []).some((c) => traits.has(c));
+      const byCond = C.priorities.includes(x.priority) && hit;
       const byLint = (x.show_on_lint || []).filter((r) => warned.has(r));
       if (byCond || byLint.length) why.set(x.id, byLint.length && !byCond ? `lint の ${byLint.join('・')} の warn` : '');
+      else if ((C.optional_priorities || []).includes(x.priority) && hit) more.add(x.id);   // "if time remains"
     });
-    return { traits, states, why, prompts: (R.checklist.open_prompts || []).filter((p) => p.show_when.some((c) => traits.has(c))) };
+    // the open prompts that fit the design first: a condition other than always, then prefer_when, then the order of the data
+    const rank = (p) => (p.show_when.some((c) => c !== 'always' && traits.has(c)) ? 0 : (p.prefer_when || []).some((c) => traits.has(c)) ? 1 : 2);
+    const all = (R.checklist.open_prompts || []).filter((p) => p.show_when.some((c) => traits.has(c))).map((p, i) => [rank(p), i, p]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+    const max = C.max_prompts || all.length;
+    return { traits, states, why, more, prompts: all.slice(0, max), morePrompts: all.slice(max) };
   }
   function viewChecklist(query) {
     const q = new URLSearchParams(query || '');
@@ -787,9 +793,10 @@
     const tri = Array.from(new Set(R.questions.map((x) => x.triage || 'all')));
     const tl = (R.checklist && R.checklist.triage_labels) || {};
     const short = shortList();
-    const triSel = h('select', { id: 'rv-f-triage' }, short ? h('option', { value: 'short' }, tl.short || '短い一覧') : null, h('option', { value: '' }, `すべての問い（${R.questions.length} 問）`),
+    const triSel = h('select', { id: 'rv-f-triage' }, short ? h('option', { value: 'short' }, tl.short || '短い一覧') : null,
+      short && short.more.size + short.morePrompts.length ? h('option', { value: 'short+' }, tl['short+'] || '短い一覧と、時間があれば') : null, h('option', { value: '' }, `すべての問い（${R.questions.length} 問）`),
       tri.filter((t) => t !== 'all').sort().map((t) => h('option', { value: t }, (tl[t] || t) + `：${R.questions.filter((x) => (x.triage || 'all') === t).length} 問`)));
-    const inTriage = (x) => !triSel.value || (triSel.value === 'short' ? !!short && short.why.has(x.id) : (x.triage || 'all') === triSel.value);
+    const inTriage = (x) => !triSel.value || (triSel.value === 'short' ? !!short && short.why.has(x.id) : triSel.value === 'short+' ? !!short && (short.why.has(x.id) || short.more.has(x.id)) : (x.triage || 'all') === triSel.value);
     const shortNote = h('div', { class: 'note', id: 'rv-short-note', hidden: true });
     const promptBox = h('section', { class: 'rv-stage', id: 'rv-open-prompts', hidden: true });
     const def = (R.checklist && R.checklist.default) || {};
@@ -828,7 +835,7 @@
       roleNote.hidden = !role;
       if (role) roleNote.textContent = `「${role.name}」で絞っています：観点書の 7. の索引で「${role.name}」に載っている問い ${role.questions.length} 問だけです。役割の索引が未整備の問い ${unindexed} 問にも、この役割に関わる問いがありえます（「役割の索引が未整備の問い」で絞ると見られます。全問に役割を付けるのは観点書の側の作業）。`;
       count.textContent = `${n} / ${R.questions.length} 問を表示（自分の回答 ${m ? Object.keys(m.answers).length : 0} 問）`;
-      const isShort = triSel.value === 'short' && !!short;
+      const isShort = (triSel.value === 'short' || triSel.value === 'short+') && !!short;
       shortNote.hidden = !isShort; promptBox.hidden = !isShort;
       if (isShort && !shortNote.dataset.done) {
         shortNote.dataset.done = '1';
@@ -837,15 +844,19 @@
         const cond = (R.checklist.conditions || []).filter((c) => c.id !== 'always').map((c) => `${c.label}：${word[short.states[c.id]]}`);
         const b = R.checklist.short.budget || {};
         shortNote.append(h('p', null, h('strong', null, `全 ${R.questions.length} 問のうち、あなたが答える ${short.why.size} 問と、開いた問い ${short.prompts.length} 個を出しています。`),
-          b.questions ? ` 量の目安は ${b.questions[0]}〜${b.questions[1]} 問・${b.minutes[0]}〜${b.minutes[1]} 分です（筆者の提案。人による確かめは未実施）。優先 1 から答えてください。` : ''),
+          b.questions ? ` 問いに答える時間の目安は ${b.minutes[0]}〜${b.minutes[1]} 分です（見積もり。人では測っていません）。` : '',
+          short.more.size + short.morePrompts.length ? ` 時間があれば：優先 2 の問い ${short.more.size} 問と、開いた問い ${short.morePrompts.length} 個（「表示する問い」で開けます）。` : '',
+          b.row_sample ? ` 行ごとの問いは、全部の行でなく、認可・識別子に使う行から ${b.row_sample} 行を選んで答えます。` : ''),
           h('p', { class: 'small', id: 'rv-short-traits' }, 'この設計から読んだ性質（設計書が示すか、書き手が宣言していれば「当たる」）― ', cond.join('／'), '。図と要求に照らして確かめ、合わないときは、それ自体を指摘にして、「表示する問い」で全部の問いを開いてください。'),
-          h('p', { class: 'small', id: 'rv-short-rest' }, `出していない問い：lint が確かめる ${by('A')} 問、書き手が提出前に確かめる ${by('B')} 問、専門家に回す ${by('D')} 問、人の判断が要るがこの設計の性質に当たらない・優先 3 の ${by('C') - short.why.size} 問。「表示する問い」で開けます。分け方は `,
+          h('p', { class: 'small', id: 'rv-short-rest' }, `出していない問い：lint が確かめる ${by('A')} 問、書き手が提出前に確かめる ${by('B')} 問、専門家に回す ${by('D')} 問、人の判断が要るがこの設計の性質に当たらない・優先 3 の ${by('C') - short.why.size - short.more.size} 問。「表示する問い」で開けます。分け方は `,
             h('a', { href: gh(R.checklist.short.source) }, 'triage.yaml'), '、紙で読むなら ', h('a', { href: gh(R.checklist.short.doc) }, 'short_list.md'), '。'));
         promptBox.append(h('h2', null, '開いた問い（要求と運用から辿る）'),
           h('p', { class: 'muted small' }, 'Yes／No では答えません。要求の文と運用の場面から自分で辿り、気づいたことを指摘にします（出どころは「テンプレート外」）。1 つにつき 2〜3 分が目安です。'),
-          ...short.prompts.map((p) => h('article', { class: 'rv-prompt', 'data-prompt': p.id }, h('h3', null, code(p.id), ' ', p.ask), p.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', p.hint) : null,
+          ...short.prompts.concat(short.morePrompts).map((p, i) => h('article', { class: 'rv-prompt', 'data-prompt': p.id, 'data-more': i >= short.prompts.length ? '1' : null, hidden: i >= short.prompts.length ? true : null },
+            h('h3', null, code(p.id), ' ', i >= short.prompts.length ? '（時間があれば）' : '', p.ask), p.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', p.hint) : null,
             h('button', { type: 'button', disabled: m ? null : true, onclick: () => newFinding({ questions: [], location: p.id, origin: 'テンプレート外', content: '' }) }, '気づきを指摘にする'))));
       }
+      promptBox.querySelectorAll('[data-more]').forEach((el) => { el.hidden = triSel.value !== 'short+'; });
       const hash = P.route('review', 'checklist', params);
       if (location.hash !== hash) history.replaceState(null, '', hash);
     }
@@ -1604,7 +1615,7 @@
     draw,
     visibleNames: () => visible().map((r) => r.reviewer.name),
     // #56: the traits read from the open design and the questions of its short list (compared with tools/review_triage.py by the tests)
-    traits: () => readTraits(), shortList: () => { const x = shortList(); return x ? { questions: Array.from(x.why.keys()), prompts: x.prompts.map((p) => p.id) } : null; },
+    traits: () => readTraits(), shortList: () => { const x = shortList(); return x ? { questions: Array.from(x.why.keys()), optional: Array.from(x.more), prompts: x.prompts.map((p) => p.id), morePrompts: x.morePrompts.map((p) => p.id) } : null; },
     importTexts: (list) => importFiles(list.map((x) => ({ name: x.name, text: () => Promise.resolve(x.text) }))),
     clock: null,
   };

@@ -273,14 +273,20 @@ def review_bundle():
             # the short list of #56: the class C questions of the default priorities whose conditions hold for the open
             # design (review.js designTraits(), the same reading as tools/review_triage.py traits()), plus the open prompts
             'checklist': {'default': {'triage': ['short']},
-                          'triage_labels': {'short': 'この設計の短い一覧（人の判断が要る問いのうち、設計の性質に当たるもの）',
+                          'triage_labels': {'short': 'この設計の短い一覧（優先 1 の問いと、開いた問い 3 つ）',
+                                            'short+': '短い一覧と、時間があれば（優先 2 の問いと、残りの開いた問い）',
                                             'A': 'A 機械（lint が確かめる。レビュアーは答えない）', 'B': 'B 書き手の自己点検（レビュアーは答えない）',
                                             'C': 'C 人の判断（条件に当たらないもの・優先 3 を含む全部）', 'D': 'D 専門家（基準に当たる行を回す）'},
-                          'short': {'priorities': tri['budget']['default_priorities'], 'budget': tri['budget'],
+                          # priorities: shown by default (priority 1). optional_priorities ("if time remains") and
+                          # max_prompts (open prompts shown by default; ranked: a condition other than always that
+                          # holds, then prefer_when, then the order here) were added after the re-check of PR #71
+                          'short': {'priorities': tri['budget']['default_priorities'], 'optional_priorities': tri['budget']['optional_priorities'],
+                                    'max_prompts': tri['budget']['default_prompts'], 'budget': tri['budget'],
                                     'source': 'templates/review/triage.yaml', 'doc': 'templates/review/short_list.md'},
                           'conditions': [{'id': k, 'label': v['label'], 'read': v['read']} for k, v in tri['conditions'].items()],
                           'units': tri['units'], 'priorities': {str(k): v for k, v in tri['priorities'].items()},
-                          'open_prompts': [dict({'id': p['id'], 'ask': p['ask'], 'show_when': p['show_when']}, **({'hint': p['hint']} if p.get('hint') else {}))
+                          'open_prompts': [dict({'id': p['id'], 'ask': p['ask'], 'show_when': p['show_when'], 'prefer_when': p.get('prefer_when') or []},
+                                                **({'hint': p['hint']} if p.get('hint') else {}))
                                            for p in tri['open_prompts']]},
             'template_heads': dict(sorted(heads.items())),
             'contrasts': contrasts,

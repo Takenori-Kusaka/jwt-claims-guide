@@ -10,13 +10,13 @@
 
 ## 提出前の自己点検（書き手が確かめる）
 
-書き手が自分の設計書を開けば確かめられることを、49 行にまとめました（観点書 `templates/review/perspectives.md` の 70 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
-満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**【No なら Blocker】の行から 3 件を抜き取って欄を開きます**（手順の段 0）。
+書き手が自分の設計書を開けば確かめられることを、51 行にまとめました（観点書 `templates/review/perspectives.md` の 73 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
+満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**25 問の回答の行（必ず）と、【No なら Blocker】の行から 2 件を抜き取って、欄を開きます**（手順の段 0）。
 区分と理由は `templates/review/triage.yaml` にあります。量と分け方は筆者の提案です（追跡 #56）。
 
 ### どの設計でも
 
-- [ ] **【No なら Blocker】** 追加前の 25 問の回答（claim_request_*.md）は、どれも問いに答えていて、台帳の該当の行（namespace・shape・log_policy・pii_category・rationale）と同じことを言っているか（空欄でないことは lint の L72 が見る） — `pa-03`・`pa-05`・`pa-06`・`pa-10`・`pa-16`・`pa-18`・`pa-20`・`pa-23`・`pa-24`・`pa-25`・`pa-trace`
+- [ ] **【レビュアーが必ず抜き取る】** **【No なら Blocker】** 追加前の 25 問の回答（claim_request_*.md）は、どれも問いに答えていて、台帳の該当の行（namespace・shape・log_policy・pii_category・rationale）と同じことを言っているか（空欄でないことは lint の L72 が見る） — `pa-03`・`pa-05`・`pa-06`・`pa-10`・`pa-16`・`pa-18`・`pa-20`・`pa-23`・`pa-24`・`pa-25`・`pa-trace`
 - [ ] 共通の基準（受け入れの検証・必須の欠落の拒否・型の固定・不変の ID・組織の名前空間・ログにトークン全文と個人情報を残さない）を、すべて満たしているか（満たさない基準があれば、Full にし、専門家に回したか） — `q-baseline-kept`
 - [ ] （項目 9）アクセス元の文脈（IP・ネットワーク・端末）を、PEP が要求ごとに評価しているか — `cf-09`
 - [ ] 受け手のすべてが、アルゴリズム・発行者・宛先・必須クレームを固定した組織の共通の検証部品で検証するか（受け手ごとの独自の設定・読み方があれば No） — `q-shared-validator`
@@ -72,11 +72,13 @@
 - [ ] **【No なら Blocker】** （項目 7）入口で検証しても、各サービスでも検証しているか（すべてのホップの `validates` に中身があれば Yes）（規則の案：L46） — `cf-07`・`q-unverified-claim-extraction`・`ap-1-2`
 - [ ] （項目 10）`sub`・`act`・`txn`・承認 ID を分けて記録し、トークン全文は記録しない、と `log_policy` に書いてあるか（規則の案：L45） — `cf-10`・`ap-2-8`
 - [ ] 採用の Txn-Token の required_claims に、草案の必須（iat・aud・exp・txn・sub・scope・req_wl）がそろう（規則の案：N8。いまの lint が一部を見る） — `q-txn-required-claims`
+- [ ] **【No なら Blocker】** 内部・委任のトークン種別（internal_token・txn_token と、act を運ぶ種別）に log_policy を求める（規則の案：N18。いまの lint が一部を見る） — `ap-2-9`・`q-internal-delegation-token`
 - [ ] どのトークンも、URL・クエリ・リダイレクトの断片以外で運ぶ、と目録の `transport` から言えるか（WebSocket など、ヘッダーを付けられない経路の扱いが書いてあるか）（規則の案：L54） — `q-token-not-in-url`
 - [ ] logout_token の種別に、nonce の拒否と、sub か sid の必須を求める（規則の案：N9。いまの lint が一部を見る） — `q-typ-distinguishes`
 - [ ] **【No なら Blocker】** 認可・識別子のクレームをヘッダー以外に写す（integrity_until の db_session・cache・queue_message・log）とき、その写し先を書けるのが入口・注入者だけという宣言を求める（L67 の残り）（規則の案：N15。いまの lint が一部を見る） — `q-unwrapped-value-authz`
 - [ ] （項目 5）DB のロールを選ぶクレームを高権限として扱い、発行元を限定しているか（規則の案：L48） — `cd-05`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
 - [ ] （項目 8）トークンと接続の寿命を分け、プールの接続の最大寿命（`connection_max_lifetime`）と、剥奪を開いた接続に届かせる手段を決めたか（規則の案：L49） — `cd-08`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
+- [ ] status が deprecated の行に、sunset_on・alt・consumers_migration を求める（L18 は読む受け手がいることだけを知らせる）（規則の案：N17。いまの lint が一部を見る） — `q-deprecated-deadline`
 
 ## レビュアーへ
 
