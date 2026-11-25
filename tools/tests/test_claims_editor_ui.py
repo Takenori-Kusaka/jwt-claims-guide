@@ -299,6 +299,8 @@ class ClaimsEditor(unittest.TestCase):
             .map(a => [a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('rel')])""")
         self.assertTrue(leaving)
         self.assertEqual([x for x in leaving if x[1:] != ['_blank', 'noopener noreferrer']], [])
+        # the link is in one of the tabs of the claim detail screen (#67): its tab is selected first
+        pg.click('#ctab-' + link.evaluate('e => e.closest("[role=tabpanel]").dataset.tabpanel'))
         with pg.context.expect_page() as popup:
             link.click()
         slide = popup.value
@@ -626,19 +628,22 @@ class ClaimsEditor(unittest.TestCase):
         self.go(pg, h, '台帳')
         self.assertTrue(pg.locator('details[data-fold="claim~C-iss"]').evaluate('e => e.open'))
         self.assertFalse(pg.locator('details[data-fold="sec~却下"]').evaluate('e => e.open'))
-        # column groups are keyed by their names (templates/registry/README.md 3.1), not by their position
-        groups = []
-        for c in pg.evaluate('() => window.CLAIMS_VIEWER_DATA.meta.columns.claims'):
-            if c.get('group') and c['group'] not in groups:
-                groups.append(c['group'])
+        # the claim detail screen (#67): one fold per tab that has columns not filled in, keyed by the tab (unfilled~<tab>)
+        row = next(c for c in load_yaml('templates/examples/scenario-a/claims.yaml')['claims'] if c['id'] == 'C-iss')
+        tabs = pg.evaluate('() => window.CLAIMS_VIEWER_DATA.meta.claim_tabs')
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         keys = pg.eval_on_selector_all('main details.fold', 'els => els.map(e => e.dataset.fold)')
-        self.assertEqual(keys, ['grp~' + g.replace(' ', '_') for g in groups])
+        self.assertEqual(keys, ['unfilled~' + t['id'] for t in tabs if any(k not in row for k in t['columns'])])
+        self.assertEqual(pg.locator('main details.fold[open]').count(), 0)  # folded by default
         second = keys[1]
+        pg.click('#ctab-' + second.split('~')[1])
         pg.locator(f'details[data-fold="{second}"] > summary').click()
         self.poll(pg, 'k => decodeURIComponent(decodeURIComponent(location.hash)).includes(k)', arg=second, timeout=5)
-        pg.click('text=すべて畳む')
-        self.assertEqual(pg.locator('main details.fold[open]').count(), 0)
+        h = pg.evaluate('() => location.hash')
+        self.go(pg, '#/overview', 'シナリオ A')
+        self.go(pg, h, '(C-iss)')
+        self.assertEqual(pg.eval_on_selector_all('main details.fold[open]', 'els => els.map(e => e.dataset.fold)'), [second])
+        self.assertTrue(pg.is_visible(f'details[data-fold="{second}"] .col.empty'))
         self.shot(pg, '30_folds')
         self.assertEqual(pg.problems, [])
 

@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = '26b0f1c1176e';
+  const BUILD_ID = '334cb9d5061a';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;
@@ -106,7 +106,7 @@
     d.append(h('summary', null, summary));
     let built = false;
     const build = () => { if (built) return; built = true; add(d, typeof content === 'function' ? content() : content); };
-    if (d.open) build();
+    if (d.open || opts.eager) build();  // eager: the content is in the page while the fold is closed (a jump can land in it)
     d.addEventListener('toggle', () => {
       if (d.open) build();
       const differs = d.open === closedByDefault;  // the state that is not the default is written in the URL
@@ -214,10 +214,10 @@
     return h('span', { class: 'codes', 'data-diag-for': id }, Object.keys(SEVERITY).filter((k) => by[k]).map((k) =>
       badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k]}`, fs.filter((f) => f.severity === k).map((f) => `[${SOURCE[f.source] || f.source}] ${f.rule} ${f.message}`).join('\n'))));
   }
-  function lintList(id) {
+  function lintList(id, title) {
     const fs = lintIndex().get(id) || [];
     if (!fs.length) return null;
-    return h('div', { class: 'note warn', 'data-lint-for': id }, h('strong', null, '検査の指摘（JSON Schema・claim_lint）'),
+    return h('div', { class: 'note warn', 'data-lint-for': id }, h('strong', null, title || '検査の指摘（JSON Schema・claim_lint）'),
       h('ul', null, fs.map((f) => h('li', null, sevBadge(f.severity), ' ', h('span', { class: 'src' }, SOURCE[f.source] || f.source), ' ', code(f.rule), ' ',
         f.line ? h('button', { type: 'button', class: 'link', onclick: () => state.hooks.goto && state.hooks.goto(f.file, f.line) }, `${f.file}:${f.line}`) : null, ' ', inline(f.message)))));
   }
@@ -603,25 +603,138 @@
       form, count, tbl];
   }
 
-  function viewClaim(id) {
-    const c = claimById(id);
-    if (!c) return notFound('台帳の行 ' + id);
+  // ---- one claim, as an entity page of a data catalogue (#67): six fields on top, the other columns in tabs.
+  // Which column is in which tab is data (meta.claim_tabs, tools/build_claims_viewer.py CLAIM_TABS); a column of the
+  // schema that the table does not name is in the last tab, and so are the keys of the row that the schema does not have.
+  const CLAIM_TAB_DEFAULT = 'overview';
+  function claimTabs(c) {
+    const cols = META.columns.claims || [];
+    const by = new Map(cols.map((x) => [x.key, x]));
+    const extra = Object.keys(c).filter((k) => !by.has(k));
+    const tabs = (META.claim_tabs && META.claim_tabs.length ? META.claim_tabs : [{ id: 'other', label: 'そのほか', columns: cols.map((x) => x.key) }]);
+    return tabs.map((t, i) => ({ id: t.id, label: t.label, cols: t.columns.map((k) => by.get(k)).filter(Boolean), extra: i === tabs.length - 1 ? extra : [] }));
+  }
+  function claimTabOf(c, column) {
+    const t = claimTabs(c).find((x) => x.cols.some((k) => k.key === column) || x.extra.includes(column));
+    return t ? t.id : null;
+  }
+  function claimColumn(c, obj) {
+    const has = own(obj, c.key);
+    const qs = (META.review || {})['claims.' + c.key] || [];
+    return h('div', { class: 'col' + (has ? '' : ' empty'), 'data-col': c.key },
+      h('div', { class: 'ch' }, h('span', { class: 'lbl' }, c.label), h('code', { class: 'key' }, c.key),
+        has && c.meaning ? h('details', null, h('summary', null, '列の意味'), h('p', null, inline(c.meaning))) : null,
+        qs.length ? h('details', { 'data-review': c.key }, h('summary', null, `確認事項 ${qs.length} 件`),
+          h('ul', null, qs.map((q) => h('li', null, h('a', { href: q.url }, q.id), ' ', q.text)))) : null),
+      h('div', { class: 'cv' }, has ? columnValue('claims', c.key, obj[c.key], c) : [h('span', null, '（未記入）'), c.meaning ? h('p', { class: 'small' }, inline(c.meaning)) : null]));
+  }
+  function claimHead(c) {
     const d = lookup(DECISION, c.decision) || ['neutral', '•'];
+    const blank = () => h('span', { class: 'muted' }, '（未記入）');
+    const col = (k) => (own(c, k) ? columnValue('claims', k, c[k], (META.columns.claims || []).find((x) => x.key === k)) : blank());
+    const item = (key, label, body) => h('div', { class: 'chi', 'data-head': key }, h('dt', null, label), h('dd', null, body));
+    return h('dl', { class: 'chead', 'data-claim-head': c.id },
+      item('name', '名前', [c.namespace ? h('span', { class: 'muted' }, String(c.namespace)) : null, h('strong', null, String(c.name || '')), ' ', code(c.id)]),
+      item('description', '意味', col('description')),
+      item('type', '型', [own(c, 'type') ? code(String(c.type)) : blank(), own(c, 'shape') && typeof c.shape === 'string' ? h('span', { class: 'muted' }, `（${c.shape}）`) : null]),
+      item('issuers', '発行元', col('issuers')),
+      item('carried_in', '入るトークン', col('carried_in')),
+      item('status', '状態', [badge(d[0], d[1], String(c.decision || '—')), own(c, 'status') ? [' ', text(String(c.status))] : null]));
+  }
+  function viewClaim(id, query) {
+    const c = claimById(id);
+    if (!c) return notFound('クレーム ' + id);
     const onHops = hops().filter((x) => arr(x.custom_claims).includes(c.id));
     const prof = section('issuance-profile');
     const effects = [];
     if (prof && prof.effects) prof.effects.forEach((e) => (e.requires || []).forEach((r) => { if ((r.rows || []).includes(c.id)) effects.push([e, r]); }));
+    const tabs = claimTabs(c);
+    const want = new URLSearchParams(query || '').get('tab');
+    const first = tabs.some((t) => t.id === want) ? want : (tabs.some((t) => t.id === CLAIM_TAB_DEFAULT) ? CLAIM_TAB_DEFAULT : tabs[0].id);
+    const related = { consume: onHops.length ? h('p', { class: 'note', 'data-related': 'hops' }, 'このクレームを運ぶ経路：', h('span', { class: 'codes' }, onHops.map((x) => hopLink(x.id)))) : null,
+      issue: effects.length ? h('p', { class: 'note', 'data-related': 'effects' }, '発行方式から導かれる要件のうち、このクレームが満たすもの：', h('span', { class: 'codes' },
+        effects.map(([e, r]) => h('a', { href: route('profile') + '', title: r.text }, r.id)))) : null };
+    const buttons = []; const panels = [];
+    const mark = (tid) => {
+      buttons.forEach((b) => { const on = b.dataset.tab === tid; b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
+      panels.forEach((p) => { p.hidden = p.dataset.tabpanel !== tid; });
+    };
+    // the selected tab is kept in the query (?tab=), so that a reload and the back button come back to it
+    const select = (tid, focus) => {
+      mark(tid);
+      if (focus) buttons.find((b) => b.dataset.tab === tid).focus();
+      const p = parseHash();
+      const q = new URLSearchParams(p.query);
+      if (tid === CLAIM_TAB_DEFAULT) q.delete('tab'); else q.set('tab', tid);
+      const qs = q.toString();
+      const hash = '#/' + p.parts.map(encodeURIComponent).join('/') + (qs ? '?' + qs : '');
+      if (location.hash !== hash) history.replaceState(null, '', hash);
+    };
+    tabs.forEach((t, i) => {
+      const filled = t.cols.filter((x) => own(c, x.key));
+      const empty = t.cols.filter((x) => !own(c, x.key));
+      const total = t.cols.length + t.extra.length;
+      const n = filled.length + t.extra.length;
+      const b = h('button', { type: 'button', role: 'tab', id: 'ctab-' + t.id, 'data-tab': t.id, 'aria-controls': 'cpanel-' + t.id, class: n ? null : 'none',
+        'aria-selected': 'false', tabindex: '-1', onclick: () => select(t.id) },
+      t.label, ' ', h('span', { class: 'cnt', 'aria-hidden': 'true' }, `${n}/${total}`), h('span', { class: 'vh' }, `（${total} 項目のうち ${n} 項目を記入）`));
+      b.addEventListener('keydown', (e) => {
+        const keys = { ArrowRight: i + 1, ArrowLeft: i - 1 + tabs.length, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        select(tabs[keys[e.key] % tabs.length].id, true);
+      });
+      buttons.push(b);
+      panels.push(h('div', { role: 'tabpanel', id: 'cpanel-' + t.id, 'data-tabpanel': t.id, 'aria-labelledby': 'ctab-' + t.id, tabindex: '0', hidden: true },
+        lookup(related, t.id) || null,
+        filled.length ? h('div', { class: 'cols' }, filled.map((x) => claimColumn(x, c))) : null,
+        t.extra.length ? [h('h2', null, 'スキーマにない列'), h('p', { class: 'muted' }, 'クレーム一覧のスキーマ（templates/registry/claims.schema.json）に無い列です。問題として報告されます。'),
+          h('div', { class: 'cols' }, t.extra.map((k) => claimColumn({ key: k, label: k }, c)))] : null,
+        !n ? h('p', { class: 'muted', 'data-tab-empty': t.id }, total ? 'このタブの項目は、まだ記入されていません。' : 'このタブに入る項目はありません。') : null,
+        empty.length ? foldable(foldKey('unfilled', t.id), h('span', { 'data-unfilled': String(empty.length) }, `未記入 ${empty.length} 件を表示`), () => h('div', { class: 'cols' }, empty.map((x) => claimColumn(x, c))),
+          { closed: true, eager: true, cls: 'unfilled' }) : null));
+    });
+    mark(first);
+    const pii = typeof c.pii_category === 'string' && c.pii_category !== '該当なし' ? badge('info', '◆', '個人情報：' + c.pii_category) : null;
     return [h('p', null, h('a', { href: route('claims') }, '← クレームの一覧')),
       h('h1', { tabindex: '-1', 'data-anchor': anchorOf('claims', c.id) }, c.namespace ? h('span', { class: 'muted' }, String(c.namespace)) : null, String(c.name || ''), ' ', h('span', { class: 'muted' }, '(' + c.id + ')')),
-      h('p', null, badge(d[0], d[1], String(c.decision || '—')), ' ', ROW_KIND[rowKind(c)], c.description ? ['：', inline(c.description)] : null, ' ', revealLink('claims', c.id)),
-      h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('claims', c.id) }, rowExtras('claims', c.id, c, 'detail')),
-      lintList(c.id),
-      onHops.length || effects.length ? h('div', { class: 'note' },
-        onHops.length ? h('p', null, 'この行を運ぶホップ：', h('span', { class: 'codes' }, onHops.map((x) => hopLink(x.id)))) : null,
-        effects.length ? h('p', null, '発行方式から導かれる要件のうち、この行が満たすもの：', h('span', { class: 'codes' },
-          effects.map(([e, r]) => h('a', { href: route('profile') + '', title: r.text }, r.id)))) : null) : null,
-      h('p', { class: 'muted' }, `台帳の全列（${META.columns.claims.length} 列）を、templates/registry/README.md の見出しで表示します。書いていない列は「（未記入）」です。`),
-      foldButtons(() => $('#main')), record('claims', c)];
+      h('p', { class: 'cbadges' }, pii, ' ', lintBadges(c.id), ' ', revealLink('claims', c.id)),
+      claimHead(c),
+      lintList(c.id, 'このクレームの問題'),
+      h('div', { class: 'ctabs', role: 'tablist', 'aria-label': 'クレームの項目', id: 'claim-tabs' }, buttons),
+      panels,
+      // what other parts add to the row (the review of #50 and #67): after the columns, where the reader has read them
+      h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('claims', c.id) }, rowExtras('claims', c.id, c, 'detail'))];
+  }
+  // a problem lands on its field (#67): the detail screen of the row, for a claim the tab that holds the column, the
+  // fold of the unfilled columns opened when the column is in it; the row of the column gets the focus and a mark
+  function focusColumn(kind, id, column) {
+    const view = lookup({ claims: 'claim', token_types: 'token', hops: 'hop' }, kind);
+    const row = lookup({ claims: claimById, token_types: tokenById, hops: hopById }, kind);
+    if (!view || !row(id)) return false;
+    const col = column === null || column === undefined || column === '' ? null : String(column).split(/[.[/]/)[0];
+    const q = {};
+    if (kind === 'claims' && col) { const t = claimTabOf(row(id), col); if (t && t !== CLAIM_TAB_DEFAULT) q.tab = t; }
+    state.pendingCol = col;
+    const r = route(view, id, q);
+    if (location.hash === r) render(); else location.hash = r;
+    return true;
+  }
+  function landOnColumn() {
+    const col = state.pendingCol;
+    state.pendingCol = null;
+    if (!col) return;
+    const el = Array.from(document.querySelectorAll('#main [data-col]')).find((x) => x.dataset.col === col);
+    if (!el) return;
+    const panel = el.closest('[role="tabpanel"]');
+    if (panel && panel.hidden) { const b = document.getElementById('ctab-' + panel.dataset.tabpanel); if (b) b.click(); }
+    const fold = el.closest('details.fold');
+    if (fold && !fold.open) { fold.open = true; fold.dispatchEvent(new Event('toggle')); }
+    el.tabIndex = -1;
+    el.classList.add('flash');
+    el.scrollIntoView({ block: 'center' });
+    el.focus({ preventScroll: true });
+    setTimeout(() => el.classList.remove('flash'), 2500);
   }
 
   function viewTokens() {
@@ -890,12 +1003,13 @@
     if (view === 'lint' && state.hooks.onLintView) state.hooks.onLintView();
     const base = lookup(DETAIL, view) || view;
     const noFile = own(VIEW_FILE, base) && !hasFile(VIEW_FILE[base]) ? () => viewNoFile(base) : null;
-    const fn = noFile || lookup({ dashboard: viewDashboard, claims: () => viewClaims(query), claim: () => viewClaim(id), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
+    const fn = noFile || lookup({ dashboard: viewDashboard, claims: () => viewClaims(query), claim: () => viewClaim(id, query), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
       profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: () => viewLint(query), tables: viewTables,
       trace: viewTrace }, view);
     const navView = lookup({ claim: 'claims', token: 'tokens', hop: 'hops' }, view) || view;
     const extra = !fn && own(state.views, view) ? () => state.views[view].render(parts.slice(1), query) : null;
     show(navView, fn || extra || (() => notFound('画面 ' + view)), PYTHON_VIEWS[view]);
+    landOnColumn();
   }
   function show(navView, fn, python) {
     nav(navView);
@@ -940,6 +1054,8 @@
     helpers: { value: (v, col) => value(v, col), columnValue: (coll, key, v) => columnValue(coll, key, v, (META.columns[coll] || []).find((c) => c.key === key)),
       inline, inlineRepo, badge, lintBadges, foldable, foldKey, slideLink, revealLink, claimLink, tokenLink, hopLink, columns: (coll) => META.columns[coll] || [],
       registry: () => reg(), keepScroll: () => { render.keepScroll = true; render.focus = false; } },
+    // focusColumn(kind, id, column) -> bool: go to the detail screen of the row and land on the column (#67)
+    focusColumn,
     anchorOf,
     route,
     parseHash,

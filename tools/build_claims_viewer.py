@@ -70,6 +70,27 @@ COLUMN_SECTIONS = [
     ('### 3.3 ', 'issuance_profile', 'templates/registry/token_types.schema.json', ('$defs', 'issuance_profile')),
     ('### 3.4 ', 'hops', 'templates/registry/hops.schema.json', ('$defs', 'hop')),
 ]
+# The claim detail screen (#67) shows a claim as an entity page of a data catalogue: six fields on top, the other
+# columns in tabs. Which column of claims.schema.json ($defs.claim) is in which tab is this table; a column it does not
+# name goes to the last tab (そのほか), a name that is not a column of the schema stops the build.
+CLAIM_TABS = [
+    ('overview', '概要', ['id', 'name', 'namespace', 'description', 'not_meaning', 'absent_semantics', 'usage', 'answers',
+                         'does_not_answer', 'registered_ref', 'catalog_refs', 'catalog_refs_reason', 'flat_alias', 'paired_id']),
+    ('value', '値と型', ['type', 'shape', 'allowed_values', 'value_vocabulary', 'composite_format', 'value_normalization',
+                        'max_bytes', 'max_items', 'typical_items', 'overflow_strategy', 'path', 'mandatory', 'sd', 'display']),
+    ('issue', '発行と元データ', ['issuers', 'upstream_issuer', 'authoritative_writer', 'modifiers', 'provenance', 'issue_events',
+                              'carried_in', 'source_system', 'verification_method', 'last_verified', 'source_max_length']),
+    ('lifetime', '有効期間と更新', ['volatility', 'recompute_trigger', 'propagation_delay', 'on_revoke', 'status', 'sunset_on']),
+    ('protect', '保護', ['confidential_from', 'confidentiality_measure', 'integrity_until', 'pii_category', 'data_category',
+                        'identifier_properties', 'recipients_external', 'cross_border', 'log_policy']),
+    ('consume', '使う側', ['consumers', 'consumer_access_path', 'consumers_migration', 'on_missing', 'enforced_at']),
+    ('history', '経緯', ['decision', 'rejection_kind', 'alt', 'rationale', 'assumption', 'revisit_trigger', 'refs',
+                        'prior_art_search', 'owner', 'change_controller', 'evidence', 'asvs_ids', 'spec_version', 'note']),
+    ('other', 'そのほか', []),
+]
+# the six fields on top of the claim detail screen: (label on screen, the columns it is made of)
+CLAIM_HEAD = [('名前', ['id', 'name', 'namespace']), ('意味', ['description']), ('型', ['type', 'shape']), ('発行元', ['issuers']),
+              ('入るトークン', ['carried_in']), ('状態', ['decision', 'status'])]
 ROW_RE = re.compile(r'^\|\s*`([a-z_]+)`\s*\|')
 REGISTRY_REF_RE = re.compile(r'`registry:(claims|token_types|hops)#([a-z_]+)`')
 REPO_BLOB = 'https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/'
@@ -151,6 +172,33 @@ def columns():
                 parent.setdefault('parts', []).append(c)
         out[key] = cols
     return out, problems
+
+
+def claim_tabs(props=None, tabs=None):
+    """meta.claim_tabs: [{id, label, columns}] in the order of CLAIM_TABS; every property of $defs.claim is in exactly one
+    tab (the ones CLAIM_TABS does not name are added to the last tab, in schema order)."""
+    if props is None:
+        props, _ = schema_properties(*[(rel, pointer) for _, key, rel, pointer in COLUMN_SECTIONS if key == 'claims'][0])
+    tabs = CLAIM_TABS if tabs is None else tabs
+    problems, seen = [], {}
+    for tid, _, cols in tabs:
+        for c in cols:
+            if c not in props:
+                problems.append(f'CLAIM_TABS: {tid}.{c} is not a property of $defs.claim of claims.schema.json')
+            if c in seen:
+                problems.append(f'CLAIM_TABS: {c} is in two tabs ({seen[c]} and {tid})')
+            seen[c] = tid
+    for _, cols in CLAIM_HEAD:
+        for c in cols:
+            if c not in props:
+                problems.append(f'CLAIM_HEAD: {c} is not a property of $defs.claim of claims.schema.json')
+    if len({t[0] for t in tabs}) != len(tabs):
+        problems.append('CLAIM_TABS: a tab id is written twice')
+    if problems:
+        raise SystemExit('build_claims_viewer: ' + '\n  '.join(['the tabs of the claim detail screen do not match the schema:'] + problems))
+    out = [{'id': tid, 'label': label, 'columns': list(cols)} for tid, label, cols in tabs]
+    out[-1]['columns'] += [p for p in props if p not in seen]
+    return out
 
 
 def review_links():
@@ -608,6 +656,7 @@ def expected():
             'columns': cols, 'review': review_links(), 'names': names(),
             'datasets': [{'id': i, 'design': rel, 'label': label, 'profile': prof} for i, rel, label, prof in DATASETS],
             'skeleton_dir': SKELETON_DIR,
+            'claim_tabs': claim_tabs(), 'claim_head': [{'label': label, 'columns': cols} for label, cols in CLAIM_HEAD],
             'lint_zip': {'file': 'data/claim_lint.zip', 'entries': lint_zip_entries()},
             'review_source': 'templates/review/*.md（見る欄の registry:<ファイル>#<列>）'}
     out = OrderedDict()

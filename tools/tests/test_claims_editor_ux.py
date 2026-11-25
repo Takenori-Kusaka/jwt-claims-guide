@@ -40,7 +40,8 @@ except ImportError:  # pragma: no cover
 
 # words of the implementation that a reader new to the guide does not know: not in headings, buttons or the menu
 JARGON = ['CSP', 'connect-src', 'worker', 'Worker', 'Pyodide', 'rowHash', 'hash', 'ハッシュ', 'stale', 'tier', 'profile', 'claim_lint',
-          'render', 'bundle', 'registry', 'anchor', 'lint', 'PR', 'JSON Schema', 'YAML のまま', 'レビューモード', '概要']
+          'render', 'bundle', 'registry', 'anchor', 'lint', 'PR', 'JSON Schema', 'YAML のまま', 'レビューモード']
+# （「概要」 was in this list while it named the dashboard; #67 asks for a tab 「概要」 on the claim detail screen）
 FILE_IN_HEADING = re.compile(r'[A-Za-z0-9_*.-]+\.(?:ya?ml|md|json|js)\b|templates/|tools/')
 # the rendered text of the page (visible text nodes), leaving out the labelled links to GitHub and a file shown as it is
 RENDERED = '''() => {
