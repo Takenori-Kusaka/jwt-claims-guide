@@ -499,9 +499,11 @@ sequenceDiagram
 <!-- render:arrow-table:begin -->
 ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。
 
+受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける（大文字と小文字は区別しない）。
+
 | ホップ | トークン | 確かめるクレーム | 書き手 | 確かめること | aud | 寿命 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `H1` | `BFFSESSION` | — | — | — | — | 36000 秒 |
+| `H1` | `BFFSESSION` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | — | 36000 秒 |
 | `H2` | `KC_AT` | `iss` | ② Keycloak（レルム corp）と外部の IdP<br>③ 入口の STS（gateway）<br>④ TTS | KC_AT・EXT_AT の iss を入口の許可リスト（5 つ）と完全一致で比べ、鍵はその iss のメタデータの jwks_uri からだけ取る。Entra の iss はテンプレート形式を受けず、固定のテナント ID の値だけ | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `sub` | ② Keycloak（basic スコープの sub マッパー）と外部の IdP<br>③ 入口の STS（対応表で組織の利用者 ID に置き換える） | 文字列であること。IdP ごとの不変の ID（Entra は tid と oid、Okta は uid）で対応表を引き、ログイン名・メールは使わない（ケーススタディ B13） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
 | `H2` | `KC_AT` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | KC_AT・EXT_AT の aud に入口の宛先が含まれる。Cognito の AT は aud がないので client_id を許可リストと照合する（ケーススタディ B16） | `orders`・`ledger`・`docs`・`payroll` | 300 秒 |
@@ -602,8 +604,8 @@ sequenceDiagram
 | `H10` | `TXN` | `tctx` | ④ TTS（入口の経路の表） | operation が TXN の scope（ledger.read）と食い違えば拒否し、監査に記録する。operation で書き込みを許さない（TXN の経路の操作は scope で決める。PR #44 のレビュー B01） | `https://corp.example.com` | 300 秒 |
 | `H11` | — | `https://claims.example.com/.tenant_id` | ledger（トークンなし） | corp であること | — | — |
 | `H11` | — | `https://claims.example.com/.user_id` | ledger（トークンなし） | 文字列であること。監査に記録する | — | — |
-| `H12` | — | — | — | — | — | — |
-| `H13` | — | — | — | — | — | — |
+| `H12` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
+| `H13` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
 | `H14` | `AGENT_AT` | `iss` | ② Keycloak（レルム corp）と外部の IdP<br>③ 入口の STS（gateway）<br>④ TTS | AGENT_AT の iss が STS と完全一致 | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `sub` | ② Keycloak（basic スコープの sub マッパー）と外部の IdP<br>③ 入口の STS（対応表で組織の利用者 ID に置き換える） | AGENT_AT の sub を交換の subject に使い、交換の前後で sub が変わっていないこと | `invoice-mcp` | 300 秒 |
 | `H14` | `AGENT_AT` | `aud` | ② Keycloak（Audience マッパー）と外部の IdP<br>③ 入口の STS（resource indicator の値）<br>④ TTS（信頼ドメイン） | AGENT_AT の aud が invoice-mcp だけ。自分宛てでないトークンは受けず、受けたトークンを上流に渡さない（ケーススタディ C2・C13） | `invoice-mcp` | 300 秒 |
