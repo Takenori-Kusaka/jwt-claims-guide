@@ -6,6 +6,7 @@
 
 ### 追加
 
+- `glossary.md` の 5.（#53）：設計書のエディターの画面の用語（編集／レビュー・ダッシュボード・書式の検査・設計の規則の検査・レビューの記録・判定・再確認が要る・独立レビュー・段階）。画面・README・テンプレートで同じ名前を使う
 - `review/review.schema.json`（#50）：レビューの記録 `review.yaml`（設計書と同じディレクトリ）の JSON Schema。レビュアーごとに、観点書の問いへの回答（Yes／No／該当なし とメモ）、行ごとの判定（承認・修正を求める・保留。行の内容のハッシュ `tools/row_hash.py` に結びつける）、`report_template.md` の欄の指摘、却下の理由の抜き取り（乱数の種）、専門家に回した項目、戻す事項を持つ。名前は自己申告で、本当の承認は GitHub の PR のレビュー。設計書のエディターのレビューモードが書き出し・読み込み、`tools/review_record.py` が CI で確かめる（古くなった承認の一覧、レポートの生成）。`review/README.md` に案内を足した
 - `CONTRIBUTING.md`（#50、PR #52 の点検）：「レビューの記録がある設計書を変えるとき」（承認した行・却下の行・教材を変えたときの CI の反応と直し方）を足した。`review/review.schema.json` に、レビューした時の教材の版（`materials`）、独立レビューの経過（`independence`、`edited_after_viewing_others`）、判定したレビュアーの種類（`reviewer_kind`）、抜き取りの母集団（`population`）と引き直し（`reason`・`previous`）を足した
 - `examples/scenario-b/review.yaml`・`examples/scenario-b/review-report-2026-11-23.md`（#50）：シナリオ B の今の版を、LLM のセッション 1 つが観点書の全 168 問でレビューした記録と、そこから生成したレポート（人による点検は未実施。指摘 24 件はすべて「保留」）

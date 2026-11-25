@@ -95,3 +95,25 @@
 | 項目 ID | テンプレートの節の固定の ID（`template:00_core#token-inventory`）。レビュー教材と対応表が参照する | templates/trace/README.md の「成果物の参照の書式」 |
 
 根拠：templates/registry/README.md の 1.、research/template-design/report.md の Q3、筆者の提案：テンプレートで作った用語を、ガイドの用語と分けて並べる（追跡 #4）
+
+<a id="terms-editor"></a>
+## 5. 設計書のエディターの用語
+
+項目 ID：`template:glossary#terms-editor`
+
+設計書のエディター（`docs/claims/`）の画面で使う語です。画面・README・テンプレートで同じ名前を使います（#53）。ファイル名と技術の名前は、見出しやボタンには書かず、小さな補足か「詳しく」の中に書きます。
+
+| 用語 | 意味 | 書かない表記 | 根拠 |
+| --- | --- | --- | --- |
+| 編集／レビュー | エディターの 2 つのモード。上のバーで切り替える。編集は設計書を直す画面、レビューは観点の問いに答え、行を判定し、指摘を記録する画面 | レビューモード（#50）、プレビュー | docs/claims/index.html |
+| ダッシュボード | 開いた設計書の件数・検査の結果・レビューの進み具合・要対応の項目を並べる最初の画面（複数のファイルを開いたとき） | 概要 | docs/claims/preview.js |
+| 書式の検査 | 台帳・トークン目録・ホップのファイルが、スキーマ（`templates/registry/*.schema.json`）に合うかの検査。入力のたびに行う | Schema の検査、JSON Schema（見出しでは） | templates/registry/README.md |
+| 設計の規則の検査 | `tools/claim_lint` の規則（L1〜・R1〜）による検査。エディターでは Python をブラウザの中で動かす（初めては読み込みに数秒） | lint、claim_lint（見出し・ボタンでは）、Pyodide | tools/claim_lint/RULES.md |
+| 検査の結果 | 書式の検査と設計の規則の検査の指摘（error・warn・info）の一覧 | 検査の結果（lint） | tools/claim_lint/RULES.md |
+| レビューの記録 | レビュアーごとの回答・判定・指摘。ファイル `review.yaml` として設計書と同じディレクトリに置く | review.yaml（見出しでは） | templates/review/review.schema.json |
+| 判定 | 台帳の行・トークンの種類・ホップなどの 1 行に付ける、承認／修正を求める／保留。記録した時の行の中身に結びつく | 行のハッシュ（画面では） | templates/review/review.schema.json |
+| 再確認が要る | 判定を記録した後に、その行の中身が変わった状態 | stale | tools/review_record.py |
+| 独立レビュー | 提出するまで、ほかのレビュアーの記録を画面に出さないレビュー | — | templates/review/procedure.md |
+| 段階（core・full） | スライドと成果物の対応表で、要件が中核（core）か全体（full）か（`tier` の値） | tier（画面では） | templates/trace/README.md |
+
+根拠：筆者の提案：エディターの画面の言葉を、初めて使う開発者・レビュアーに向けてそろえる（追跡 #53）

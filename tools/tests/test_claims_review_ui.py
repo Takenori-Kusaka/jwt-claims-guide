@@ -130,7 +130,7 @@ class ReviewMode(unittest.TestCase):
             pg.screenshot(path=os.path.join(ROOT, EVIDENCE, name + '.jpg'), type='jpeg', quality=70, full_page=False)
 
     def become(self, pg, name, kind='human'):
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         pg.fill('#rv-name', name)
         pg.select_option('#rv-kind', kind)
         pg.click('#rv-new-go')
@@ -231,7 +231,7 @@ class ReviewMode(unittest.TestCase):
         pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "  - id: C-iss  # note\\n", "  - id: C-iss\\n    x_changed_after_approval: 1\\n")')
         self.poll(pg, '() => (document.querySelector("tr[data-anchor=\'claims:C-iss\'] [data-review-for=\'claims:C-iss\']") || {}).dataset?.reviewState === "stale"')
         self.assertIn('再確認が要る', pg.inner_text('tr[data-anchor="claims:C-iss"]'))
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         self.assertIn('claims:C-iss', pg.inner_text('#rv-attention'))
         self.go(pg, '#/review/rows?state=stale', '行ごとの判定')
         self.poll(pg, '() => document.querySelectorAll("table[data-table=review-rows] tbody tr").length === 1')
@@ -242,7 +242,7 @@ class ReviewMode(unittest.TestCase):
         # a removed row (its id changed): the record is kept and listed, not dropped
         pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "  - id: C-iss\\n", "  - id: C-iss-renamed\\n")')
         self.poll(pg, '() => !ClaimsEditor.anchors().some(a => a.anchor === "claims:C-iss")')
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         self.assertTrue(pg.is_visible('[data-missing="claims:C-iss"]'))
         self.assertIn('claims:C-iss', pg.evaluate('() => Object.keys(ClaimsReview.data().reviews[0].rows)'))
         self.assertEqual(pg.problems, [])
@@ -254,7 +254,7 @@ class ReviewMode(unittest.TestCase):
         committed = read(os.path.join(B, 'review.yaml'))
         self.assertEqual(pg.evaluate('() => ClaimsReview.text()'), committed)
         self.assertFalse(pg.evaluate('() => ClaimsReview.unsaved()'))
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         with pg.expect_download() as dl:
             pg.click('#rv-export')
         self.assertEqual(dl.value.suggested_filename, 'review.yaml')
@@ -263,7 +263,7 @@ class ReviewMode(unittest.TestCase):
             p, other = self.second_reviewer(tmp)
             pg.set_input_files('#rv-import', [p])
             self.poll(pg, '() => ClaimsReview.visibleNames().length === 2')
-            self.go(pg, '#/review', 'レビューモード')
+            self.go(pg, '#/review', 'レビュー')
             self.assertEqual(pg.evaluate('() => document.querySelectorAll("table[data-table=reviewers] tbody tr").length'), 2)
             self.go(pg, '#/claims', 'クレームの一覧')
             badges = pg.evaluate('() => Array.from(document.querySelectorAll("tr[data-anchor=\'claims:C-iss\'] [data-review-for]")).map(e => [e.dataset.reviewBy, e.dataset.reviewState])')
@@ -272,7 +272,7 @@ class ReviewMode(unittest.TestCase):
             self.assertEqual(pg.evaluate('() => document.querySelectorAll("tr[data-finding-by=\'レビュアー B（人）\']").length'), 1)
             # the merged file is what tools/review_record.py merge writes
             want = review_record.dump(review_record.merge([review_record.load(os.path.join(B, 'review.yaml')), other]))
-            self.go(pg, '#/review', 'レビューモード')
+            self.go(pg, '#/review', 'レビュー')
             with pg.expect_download() as dl:
                 pg.click('#rv-export')
             got = pathlib.Path(dl.value.path()).read_bytes().decode('utf-8')
@@ -283,7 +283,7 @@ class ReviewMode(unittest.TestCase):
             pg.click('#btn-close')
             self.poll(pg, '() => !ClaimsEditor.state().open && !document.querySelector("dialog#confirm")')
             self.sample(pg, 'b')
-            self.go(pg, '#/review', 'レビューモード')
+            self.go(pg, '#/review', 'レビュー')
             pg.set_input_files('#rv-import', [p2])  # the LLM review is the same: merged without a question
             self.poll(pg, '() => ClaimsReview.visibleNames().length === 2')
             self.assertEqual(pg.evaluate('() => ClaimsReview.text()'), got)
@@ -291,7 +291,7 @@ class ReviewMode(unittest.TestCase):
             other['reviews'][0]['answers']['dc-02'] = {'answer': 'no', 'memo': '別の版'}
             p3 = os.path.join(tmp, 'review-b3.yaml')
             pathlib.Path(p3).write_text(review_record.dump(other), encoding='utf-8')
-            self.go(pg, '#/review', 'レビューモード')
+            self.go(pg, '#/review', 'レビュー')
             pg.set_input_files('#rv-import', [p3])
             pg.wait_for_selector('dialog#confirm[open]')
             self.assertIn('同じレビュアーの記録が 2 つ', pg.inner_text('dialog#confirm'))
@@ -389,7 +389,7 @@ class ReviewMode(unittest.TestCase):
         self.assertEqual(pg.inner_text('[data-cov="all|all"]').split('（')[0].strip(), '0 / 168')
         self.shot(pg, '53_review_independent')
         # submitting shows them
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         pg.click('#rv-submit')
         pg.click('dialog#confirm [data-choice="submit"]')
         self.poll(pg, '() => ClaimsReview.visibleNames().length === 2')
@@ -523,7 +523,7 @@ class ReviewMode(unittest.TestCase):
         pg.click('dialog#confirm [data-choice="cancel"]')
         self.poll(pg, '() => ClaimsReview.data().independent === true')
         # writing out every record: asked; "自分の記録だけ" writes only mine
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         pg.click('#rv-export')
         pg.wait_for_selector('dialog#confirm[open]')
         with pg.expect_download() as dl:
@@ -647,7 +647,7 @@ class ReviewMode(unittest.TestCase):
         pg.check('#q-dc-02 input[value="no"]')
         pg.wait_for_timeout(1500)
         self.assertEqual(pg.evaluate('k => localStorage.getItem(k)', key), saved)
-        self.go(pg, '#/review', 'レビューモード')
+        self.go(pg, '#/review', 'レビュー')
         self.assertTrue(pg.is_visible('#rv-slot-hold'))
         pg.click('#rv-slot-ask')
         pg.wait_for_selector('dialog#confirm[open]')
@@ -667,7 +667,7 @@ class ReviewMode(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p = os.path.join(tmp, 'evil.yaml')
             pathlib.Path(p).write_text(review_record.dump(d), encoding='utf-8')
-            self.go(pg, '#/review', 'レビューモード')
+            self.go(pg, '#/review', 'レビュー')
             pg.set_input_files('#rv-import', [p])
             self.poll(pg, 'n => ClaimsReview.visibleNames().includes(n)', arg=rv['reviewer']['name'])
         js = pg.evaluate('n => ClaimsReview.reportText(n)', rv['reviewer']['name'])

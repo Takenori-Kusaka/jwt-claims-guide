@@ -255,7 +255,7 @@ class ClaimsEditor(unittest.TestCase):
         self.lint_fresh(pg)
         screens = [('#/overview', 'シナリオ B'), ('#/claims', 'クレームの一覧'), ('#/ledger', '台帳'), ('#/claim/C-tenant-id', 'C-tenant-id'),
                    ('#/tokens', 'トークン目録'), ('#/token/KC_AT', 'KC_AT'), ('#/profile', '発行方式'), ('#/hops', 'ホップの表'),
-                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '検査の結果'), ('#/tables', 'そのほかの生成した表'),
+                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '検査の結果'), ('#/tables', '判断の行・データ源・問いと仕組み'),
                    ('#/trace', '対応表の進み具合')]
         for i, (h, title) in enumerate(screens):
             self.go(pg, h, title)
