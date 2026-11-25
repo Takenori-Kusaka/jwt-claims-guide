@@ -12,7 +12,7 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = 'fa0c6f5a20a2';
+  const BUILD_ID = '441f32911598';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };
@@ -1024,7 +1024,7 @@
       tg.textContent = '';
       const n = c.error + c.warn + c.info;
       add(tg, [h('span', { 'aria-hidden': 'true' }, problems.open ? '▼ ' : '▲ '), h('span', { id: 'problems-count', 'data-counts': `${c.error}/${c.warn}/${c.info}` },
-        n ? `問題：エラー ${c.error}・警告 ${c.warn}・情報 ${c.info}` : '問題はありません'), h('span', { class: 'vh' }, problems.open ? '（一覧を閉じる）' : '（一覧を開く）')]);
+        n ? `問題：エラー ${c.error}・警告 ${c.warn}・情報 ${c.info}` : lint.state === 'fresh' ? '問題はありません' : '書式の問題はありません（設計の規則は、まだ検査していない）'), h('span', { class: 'vh' }, problems.open ? '（一覧を閉じる）' : '（一覧を開く）')]);
       tg.dataset.errors = String(c.error);
     }
     add(el, [h('span', { id: 'lint-state', 'data-state': lint.state }, ls),
@@ -1531,6 +1531,7 @@
     buildBanner,
     mode: () => modes.cur,
     setMode,
+    setPane: (which, open) => { setPane(which, open); if (open && view) view.requestMeasure(); },
     // 「レビューを開始」 of the top bar: review.js opens its dialog (onStartReview); with nothing open, files are chosen first
     onStartReview: null,
     startReview,

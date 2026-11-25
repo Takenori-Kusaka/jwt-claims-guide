@@ -268,8 +268,9 @@ def _fallback_show_when(q):
 
 
 def _fallback_unit(q):
-    colls = {r['path'] for r in q['see_refs'] if r['kind'] == 'registry'}
-    return 'row' if 'claims' in colls else 'hop' if 'hops' in colls else 'design'
+    # the questions written per claim (the design checklist dc-, the 25 questions pa-) and per hop (cf-); the rest is read
+    # once for the whole design
+    return 'row' if q['id'].startswith(('dc-', 'pa-')) else 'hop' if q['id'].startswith('cf-') else 'design'
 
 
 def triage_fallback(questions):

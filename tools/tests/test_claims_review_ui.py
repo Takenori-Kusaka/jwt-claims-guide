@@ -568,6 +568,11 @@ class ReviewFlow(unittest.TestCase):
                 self.assertGreaterEqual(pg.locator('#tabs [role=tab]').count(), 14)
                 self.start(pg, 'レイアウト')
                 self.started(pg, 'レイアウト')
+                # a review folds the YAML editor (it is reading); the toggle of the top bar opens it again
+                self.assertEqual(pg.get_attribute('#btn-toggle-editor', 'aria-expanded'), 'false')
+                self.assertTrue(pg.is_hidden('#pane-left'))
+                pg.click('#btn-toggle-editor')
+                self.assertTrue(pg.is_visible('#pane-left'))
                 box = pg.evaluate('''() => { const r = (s) => document.querySelector(s).getBoundingClientRect();
                   const kids = Array.from(document.querySelectorAll('header.top > *, #ws-bar > *')).filter((e) => e.offsetParent !== null && e.id !== 'ws-bar');
                   const tabs = Array.from(document.querySelectorAll('#tabs [role=tab]'));
@@ -783,6 +788,17 @@ class ReviewFlow(unittest.TestCase):
         pg.keyboard.press('Space')
         self.poll(pg, 'a => document.querySelector(`.rv-row[data-anchor="${a}"]`).dataset.rowState === "viewed"', arg=a)
         self.assertEqual(pg.evaluate('() => document.activeElement.dataset.viewed'), a)
+        # a comment on a column is written right under that column (the value stays in sight); found in the dry run of #67
+        b = pg.locator('.rv-row').nth(1).get_attribute('data-anchor')
+        pg.click(f'.rv-row[data-anchor="{b}"] .rv-row-title')
+        col = pg.locator('.rv-row.open .rv-values .col').first.get_attribute('data-col')
+        pg.click(f'[data-add-comment-col="{b}#{col}"]')
+        self.assertEqual(pg.locator(f'.rv-row.open .col[data-col="{col}"] #rv-comment-form').count(), 1)
+        self.assertEqual(pg.evaluate('() => document.activeElement.id'), 'rvc-content')
+        pg.fill('#rvc-content', '列へのコメント')
+        pg.click('#rvc-save')
+        self.assertEqual(self.data(pg)['reviews'][0]['comments'][0]['column'], col)
+        pg.click(f'.rv-row[data-anchor="{b}"] .rv-row-title')
         # the filter buttons say which is on
         self.assertEqual(pg.get_attribute('#rv-flt-all', 'aria-pressed'), 'true')
         pg.click('#rv-flt-todo')

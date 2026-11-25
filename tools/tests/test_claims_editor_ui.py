@@ -186,7 +186,7 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().files'), names[:4])
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().origin'), 'files')
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertEqual(pg.locator('table[data-table="claims"] tbody tr').count(), len(load_yaml('templates/examples/scenario-a/claims.yaml')['claims']))
         self.assertEqual(pg.problems, [])
 
@@ -230,7 +230,7 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().files'), ['hops.yaml'])  # recognised from the content
         self.assertEqual(pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'), text.replace('\r\n', '\n'))
-        self.go(pg, '#/hops', 'ホップ')
+        self.go(pg, '#/hops', '経路')
         self.assertGreater(pg.locator('table[data-table="hops"] tbody tr').count(), 0)
         self.assertEqual(pg.problems, [])
 
@@ -269,11 +269,11 @@ class ClaimsEditor(unittest.TestCase):
     def test_every_screen_renders_and_every_column_is_shown(self):
         pg = self.open()
         self.sample(pg, 'b')
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.lint_fresh(pg)
-        screens = [('#/overview', 'シナリオ B'), ('#/claims', 'クレームの一覧'), ('#/ledger', '台帳'), ('#/claim/C-tenant-id', 'C-tenant-id'),
-                   ('#/tokens', 'トークン目録'), ('#/token/KC_AT', 'KC_AT'), ('#/profile', '発行方式'), ('#/hops', 'ホップの表'),
-                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '検査の結果'), ('#/tables', '判断の行・データ源・問いと仕組み'),
+        screens = [('#/overview', 'シナリオ B'), ('#/claims', 'クレーム一覧'), ('#/ledger', 'クレームを 1 件ずつ開く'), ('#/claim/C-tenant-id', 'C-tenant-id'),
+                   ('#/tokens', 'トークン目録'), ('#/token/KC_AT', 'KC_AT'), ('#/profile', '発行方式'), ('#/hops', '経路の一覧'),
+                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '問題'), ('#/tables', '判断の行・データ源・問いと仕組み'),
                    ('#/trace', '対応表の進み具合')]
         for i, (h, title) in enumerate(screens):
             self.go(pg, h, title)
@@ -293,7 +293,7 @@ class ClaimsEditor(unittest.TestCase):
         self.go(pg, '#/claim/C-employee-id', '(C-employee-id)')
         self.assertIn('照合する場所', pg.inner_text('[data-col="enforced_at"] .lbl'))
         self.assertIn('L18', pg.inner_text('[data-lint-for="C-employee-id"]'))  # lint overlay on the row
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('warn', pg.inner_text('tr[data-row="C-employee-id"]'))
         # status is not shown by colour only
         for h in ('#/profile', '#/claims', '#/lint'):
@@ -363,14 +363,14 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => document.querySelector("#editor").shadowRoot.querySelectorAll(".cm-lint-marker-error").length > 0', timeout=5)
         self.assertIn('✖', pg.inner_text('#tab-claims\\.yaml'))
         # the preview shows them on the row
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('error', pg.inner_text('tr[data-row="C-iss"]'))
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         self.assertIn('bogus_column', pg.inner_text('[data-lint-for="C-iss"]'))
         self.assertIn('bogus_column', pg.inner_text('main [data-col="bogus_column"]'))  # shown as a column outside the schema
         self.shot(pg, '20_edit_schema')
         # claim_lint (Pyodide): the same findings as the CLI on the same edited files
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         res = self.lint_fresh(pg)['result']
         with tempfile.TemporaryDirectory(dir=os.path.join(ROOT, 'templates', 'examples')) as tmp:
             d = os.path.join(tmp, 'scenario-a')  # the same directory name: the payload schema $id and the targets
@@ -386,7 +386,7 @@ class ClaimsEditor(unittest.TestCase):
         lint_schema = [d for d in diags if d['source'] == 'claim_lint' and d['rule'] == 'SCHEMA']
         self.assertTrue(any(d['file'] == 'claims.yaml' and d['line'] == want_line for d in lint_schema), lint_schema)
         self.assertEqual([d for d in diags if d['source'] == 'schema'], [])  # replaced by claim_lint's SCHEMA once fresh
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.assertIn('bogus_column', pg.inner_text('table[data-table="diagnostics"]'))
         # clicking the line of a finding moves the editor there
         pg.locator('table[data-table="diagnostics"] [data-goto^="hops.yaml:"]').first.click()
@@ -418,7 +418,7 @@ class ClaimsEditor(unittest.TestCase):
                 menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
-            self.go(pg, '#/lint', '検査の結果')
+            self.go(pg, '#/lint', '問題')
             for profile in ('full', 'lite'):
                 pg.select_option('#lint-profile', profile)
                 self.poll(pg, 'p => ClaimsEditor.state().lint === "fresh" && ClaimsEditor.lastLint.profile === p', arg=profile)
@@ -632,7 +632,7 @@ class ClaimsEditor(unittest.TestCase):
     def test_folds_are_kept_in_the_url(self):
         pg = self.open()
         self.sample(pg, 'a')
-        self.go(pg, '#/ledger', '台帳')
+        self.go(pg, '#/ledger', 'クレームを 1 件ずつ開く')
         row = pg.locator('details[data-fold="claim~C-iss"]')
         self.assertFalse(row.evaluate('e => e.open'))
         row.locator('summary').first.click()
@@ -643,7 +643,7 @@ class ClaimsEditor(unittest.TestCase):
         h = pg.evaluate('() => location.hash')
         # the same URL opens the same folds
         self.go(pg, '#/overview', 'シナリオ A')
-        self.go(pg, h, '台帳')
+        self.go(pg, h, 'クレームを 1 件ずつ開く')
         self.assertTrue(pg.locator('details[data-fold="claim~C-iss"]').evaluate('e => e.open'))
         self.assertFalse(pg.locator('details[data-fold="sec~却下"]').evaluate('e => e.open'))
         # the claim detail screen (#67): one fold per tab that has columns not filled in, keyed by the tab (unfilled~<tab>)
@@ -673,7 +673,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.select_option('#paste-kind', 'claims.yaml')
         pg.click('#paste-open')
         self.poll(pg, '() => ClaimsEditor.state().open')
-        self.go(pg, '#/ledger', '台帳')
+        self.go(pg, '#/ledger', 'クレームを 1 件ずつ開く')
         pg.click('text=すべて開く')
         keys = pg.eval_on_selector_all('details.fold', 'els => els.map(e => e.dataset.fold)')
         self.assertEqual(len(keys), len(set(keys)), keys)
@@ -727,7 +727,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.keyboard.press('Shift+Tab')
         pg.keyboard.press('Shift+Tab')
         self.assertNotIn(pg.evaluate('() => document.activeElement.id'), ('in-add', 'in-files', 'in-folder'))
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         pg.locator('main h1').click()
         pg.keyboard.press('/')
         self.assertEqual(pg.evaluate('document.activeElement.id'), 'f-q')
@@ -757,7 +757,7 @@ class ClaimsEditor(unittest.TestCase):
         # a row panel (what #50 attaches review records with) appears on the rows of every screen
         pg.evaluate('''() => ClaimsEditor.registerRowPanel((anchor, row, kind, where) => {
             const s = document.createElement('span'); s.className = 'test-panel'; s.textContent = 'panel ' + anchor + ' ' + where; return s; })''')
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('panel claims:C-iss list', pg.inner_text('tr[data-anchor="claims:C-iss"]'))
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         self.assertIn('panel claims:C-iss detail', pg.inner_text('[data-panel-for="claims:C-iss"]'))
@@ -828,7 +828,7 @@ class ClaimsEditor(unittest.TestCase):
             e => window.reportViolation({directive: e.violatedDirective, blocked: e.blockedURI}))''')
         steps = []
         self.sample(pg, 'b'); steps.append('open sample B')
-        self.go(pg, '#/lint', '検査の結果'); steps.append('open the lint screen (loads Pyodide and claim_lint)')
+        self.go(pg, '#/lint', '問題'); steps.append('open the lint screen (loads Pyodide and claim_lint)')
         self.lint_fresh(pg); steps.append('claim_lint ran')
         pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "claims:", "claims:  # edited")')
         self.poll(pg, '() => ClaimsEditor.state().lint !== "fresh"', timeout=5)
@@ -930,7 +930,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.wait_for_selector('#btn-sample-a')
         self.sample(pg, 'a')
         try:
-            self.go(pg, '#/lint', '検査の結果')
+            self.go(pg, '#/lint', '問題')
             end = time.time() + 40  # with the policy, Pyodide is ready in about 3 s here
             st = None
             while time.time() < end:
@@ -1012,7 +1012,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.goto(pathlib.Path(DOCS, 'claims', 'index.html').as_uri())
         pg.click('#btn-sample-a')
         self.poll(pg, '() => ClaimsEditor.state().open', timeout=10)
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.poll(pg, '() => ClaimsEditor.state().lint === "unavailable"', timeout=5)
         self.assertEqual(problems, [])
 

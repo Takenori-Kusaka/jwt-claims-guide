@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = 'fa0c6f5a20a2';
+  const BUILD_ID = '441f32911598';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;
@@ -76,6 +76,10 @@
     el.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   function code(t) { return h('code', null, String(t)); }
+  // the words of the screens (#67) in the headings that come from the generated tables (tools/claim_lint render keeps the
+  // words of the templates; templates/glossary.md 5.1 has the table)
+  const UI_TERMS = [['値の出どころ', '値の元データ'], ['出どころ', '元データ'], ['台帳の行', 'クレーム'], ['台帳', 'クレーム一覧'], ['ホップ', '経路'], ['観点', '確認事項'], ['縮小 Lite', 'Lite'], ['載るトークン', '入るトークン']];
+  function ui(s) { let t = String(s === null || s === undefined ? '' : s); UI_TERMS.forEach(([a, b]) => { t = t.split(a).join(b); }); return t; }
   function badge(kind, symbol, text, title) {
     return h('span', { class: 'badge ' + kind, title: title || null }, h('span', { 'aria-hidden': 'true' }, symbol), text);
   }
@@ -401,8 +405,8 @@
     const cols = t.columns.slice();
     const withLint = opts.lint !== false && lintIndex();
     return h('div', { class: 'tablewrap' }, h('table', { 'data-table': t.id },
-      t.title ? h('caption', null, t.title) : null,
-      h('thead', null, h('tr', null, cols.map((c) => h('th', { scope: 'col' }, c.label)), withLint ? h('th', { scope: 'col' }, '問題') : null)),
+      t.title ? h('caption', null, ui(t.title)) : null,
+      h('thead', null, h('tr', null, cols.map((c) => h('th', { scope: 'col' }, ui(c.label))), withLint ? h('th', { scope: 'col' }, '問題') : null)),
       h('tbody', null, t.rows.map((r) => {
         const target = rowTarget(r);
         const kind = target ? anchorKind(target) : null;
@@ -414,7 +418,7 @@
   }
   function sectionBlock(s, level) {
     if (!s) return null;
-    return [h(level || 'h2', null, s.title), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)];
+    return [h(level || 'h2', null, ui(s.title)), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)];
   }
   // ------------------------------------------------------------ views
   const VIEWS = [
@@ -908,8 +912,8 @@
     const out = [h('h1', { tabindex: '-1' }, '判断の行・データ源・問いと仕組み'), h('p', { class: 'lead' }, '設計書（design.md）の生成の区間と同じ表です（tools/claim_lint/RENDER.md の 1.）。')];
     const ss = ids.map((i) => section(i)).filter(Boolean);
     if (!ss.length) return out.concat(needBundle('判断の行・データ源・問い × 仕組み'));
-    out.push(h('nav', { class: 'toc', 'aria-label': '表' }, ss.map((s) => h('a', { href: '#t-' + s.id, onclick: jump }, s.title))));
-    ss.forEach((s) => out.push(h('h2', { id: 't-' + s.id, tabindex: '-1' }, s.title), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)));
+    out.push(h('nav', { class: 'toc', 'aria-label': '表' }, ss.map((s) => h('a', { href: '#t-' + s.id, onclick: jump }, ui(s.title)))));
+    ss.forEach((s) => out.push(h('h2', { id: 't-' + s.id, tabindex: '-1' }, ui(s.title)), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)));
     return out;
   }
 

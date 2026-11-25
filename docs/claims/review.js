@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'fa0c6f5a20a2';
+  const BUILD_ID = '441f32911598';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -310,7 +310,8 @@
         h('span', { class: 'rv-coltools small' }, h('button', { type: 'button', class: 'link', 'data-add-comment-col': anchor + '#' + k, 'aria-label': `${label} にコメントを追加`, disabled: m ? null : true,
           onclick: () => openForm({ anchor, column: k }) }, 'コメント'),
         n ? [' ・ ', h('a', { href: P.route('review', 'col') + '/' + kind + '/' + encodeURIComponent(k), title: 'この欄を見る確認事項' }, `確認事項 ${n}`)] : null)),
-      h('div', { class: 'cv' }, known.has(k) ? H.columnValue(kind, k, row[k]) : H.value(row[k])));
+      h('div', { class: 'cv' }, known.has(k) ? H.columnValue(kind, k, row[k]) : H.value(row[k]),
+        m && st.form && st.form.anchor === anchor && st.form.column === k ? commentForm(st.form) : null));
     })), empty ? h('p', { class: 'muted small' }, `未記入の欄 ${empty} 件は、ここには出していません（詳細の画面で見られます）。`) : null];
   }
   function rowBody(anchor, detail, set) {
@@ -324,7 +325,8 @@
     if (hiding() && hiddenCount()) out.push(h('p', { class: 'muted small', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の記録を隠しています。`));
     const cs = commentsOf(anchor);
     if (cs.length) out.push(h('div', { class: 'rv-comments', 'data-comments-for': anchor }, cs.map(([rv, c]) => commentItem(rv, c))));
-    if (st.form && st.form.anchor === anchor && m) out.push(commentForm(st.form));
+    const inCol = !detail && st.form && st.form.column && isObj((CE.rowOf(anchor) || {}).row) && own(CE.rowOf(anchor).row, st.form.column);
+    if (st.form && st.form.anchor === anchor && m && !inCol) out.push(commentForm(st.form));
     else {
       out.push(h('p', { class: 'buttons' },
         h('button', { type: 'button', id: 'rv-addc-' + sid(anchor), 'data-add-comment': anchor, disabled: m ? null : true, onclick: () => openForm({ anchor }) }, 'コメントを追加'),
@@ -493,8 +495,14 @@
     const qs = applicable().filter((x) => (x.unit ? x.unit === unit : x.see_refs.some((s) => s.kind === 'registry' && s.path === kind)));
     if (!qs.length) return null;
     const open = qs.filter((x) => !answerOf(m, x.id)).length;
-    return H.foldable(H.foldKey('rvq', anchor), h('span', { class: 'fs', 'data-related-questions': String(qs.length) }, `この行を見ながら確かめる確認事項 ${qs.length} 件` + (m ? `（未回答 ${open} 件）` : '')),
-      () => [h('p', { class: 'muted small' }, '確認事項の答えは、設計書の全体に 1 つです（行ごとではありません）。'), qs.map((x) => questionItem(x, m, null, 'r-' + sid(anchor) + '-'))], { closed: true });
+    // a plain <details> (not a fold kept in the URL): the questions are rendered when it is first opened
+    const box = h('details', { class: 'rv-related' }, h('summary', { 'data-related-questions': String(qs.length) }, `この行を見ながら確かめる確認事項 ${qs.length} 件` + (m ? `（未回答 ${open} 件）` : '')));
+    box.addEventListener('toggle', () => {
+      if (!box.open || box.dataset.filled) return;
+      box.dataset.filled = '1';
+      add(box, [h('p', { class: 'muted small' }, '確認事項の答えは、設計書の全体に 1 つです（行ごとではありません）。'), qs.map((x) => questionItem(x, m, null, 'r-' + sid(anchor) + '-'))]);
+    });
+    return box;
   }
   function viewChecklist(query) {
     const q = new URLSearchParams(query || '');
@@ -923,6 +931,7 @@
     const begin = () => {
       st.bar = true; st.shown = null; st.filter = null; st.openRow = null; st.form = null;
       CE.setMode('review');
+      CE.setPane('editor', false);  // a review is reading: the YAML editor is folded (「▶ エディター」 opens it again)
       changed(false, true);
       const target = P.route('review');
       if (location.hash === target) P.render(); else location.hash = target;
@@ -953,7 +962,7 @@
     if (locked()) return breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => (ok ? make() : false));
     return make();
   }
-  function leave() { st.bar = false; st.form = null; CE.setMode('edit'); renderBar(); P.render(); const b = $('#btn-start-review'); if (b) b.focus(); }
+  function leave() { st.bar = false; st.form = null; CE.setMode('edit'); CE.setPane('editor', true); renderBar(); P.render(); const b = $('#btn-start-review'); if (b) b.focus(); }
   // the bar that stays on top while a review is going on: the progress and the one button that submits
   function renderBar() {
     const bar = $('#review-bar'); const btn = $('#btn-start-review');
@@ -969,13 +978,13 @@
     const sub = m.submissions.length;
     const dirty = !sub || p.pending > 0 || (m.updated && String(m.updated) > String(m.submitted));
     const state = !sub ? '未提出' : dirty ? `提出済み（${String(m.submitted).slice(0, 10)}）の後に、未提出の変更あり` : `提出済み（${String(m.submitted).slice(0, 10)}）`;
-    add(bar, [h('span', { class: 'rb-who' }, 'レビュー中：', h('strong', null, m.reviewer.name), m.reviewer.kind === 'llm' ? '（LLM）' : ''),
+    add(bar, [h('span', { class: 'rb-who' }, sub && !dirty ? 'レビュー（提出済み）：' : 'レビュー中：', h('strong', null, m.reviewer.name), m.reviewer.kind === 'llm' ? '（LLM）' : ''),
       h('span', { id: 'rv-progress', class: 'rb-progress', role: 'status', 'data-viewed': String(p.viewed), 'data-total': String(p.total), 'data-comments': String(p.comments), 'data-pending': String(p.pending),
         'data-changed': String(p.changed), 'data-submitted': sub && !dirty ? '1' : '0' },
       `確認済み ${p.viewed} / ${p.total} 行・コメント ${p.comments} 件・${state}`, p.changed ? `・前回の確認から変更あり ${p.changed} 行` : ''),
       h('progress', { max: String(p.total || 1), value: String(p.viewed), 'aria-label': '確認済みの行の割合' }),
       h('span', { class: 'rb-actions' }, h('button', { type: 'button', id: 'rv-next', onclick: () => nextUnviewed(st.openRow) }, '次の未確認へ'),
-        h('button', { type: 'button', class: 'primary', id: 'rv-submit', onclick: openSubmit }, 'レビューを提出'),
+        h('button', { type: 'button', class: sub && !dirty ? null : 'primary', id: 'rv-submit', title: sub && !dirty ? '提出の後に変えたことは、ありません。もう一度提出することもできます' : null, onclick: openSubmit }, 'レビューを提出'),
         h('button', { type: 'button', class: 'link small', id: 'rv-leave', title: '記録は残ります。「レビューを続ける」で戻れます', onclick: leave }, '中断'))]);
   }
   // 「次の未確認へ」: the next row after `from` (in the order of the list) that is not marked, unfolded and focused
@@ -1043,7 +1052,7 @@
     const last = re ? m.submissions[m.submissions.length - 1] : null;
     out.push(h('p', { class: 'lead' }, re
       ? `前回の提出（${last.at}、${VERDICT[last.verdict][2]}）の後に内容が変わった行と、まだ確認していない行を出しています。変わった列は、前回と今を並べます。`
-      : '行を開いて内容を見て、「確認済み」を付けます（自分の印で、承認ではありません）。気づいた点は「コメントを追加」でためます。全部を見なくても提出できます。'),
+      : '行を開いて内容を見て、「確認済み」を付けます（自分の印で、承認ではありません）。気づいた点は「コメントを追加」でためます。全部を見なくても提出できます（見た行だけが記録に残ります）。どこから見るか迷ったら、「コメントあり」の行や、種類を「クレーム」に絞って上から見ます。'),
     h('div', { class: 'rv-filter', role: 'group', 'aria-label': '表示する行', id: 'rv-filter', 'data-filter': st.filter, 'data-rereview': re ? '1' : '0' },
       Object.keys(FILTERS).map((k) => h('button', { type: 'button', id: 'rv-flt-' + k, 'data-filter-btn': k, 'aria-pressed': st.filter === k ? 'true' : 'false', onclick: () => setFilter(k) }, label(k))), kindSel));
     // the comments that are not resolved come first in a review after a submission
@@ -1206,7 +1215,7 @@
       h('p', { id: 'rv-file-state', 'data-unsaved': unsaved() ? '1' : '0' }, unsaved() ? '書き出していない記録があります。' : '書き出していない記録はありません。', ` レビュアー ${st.file.reviews.length} 人。`),
       h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む（複数を選ぶと合わせる）'), imp, ' ',
         h('button', { type: 'button', class: m && m.submitted ? null : 'primary', id: 'rv-export', onclick: () => exportAll() }, 'review.yaml を書き出す（全員の記録）'), ' ',
-        m ? h('button', { type: 'button', id: 'rv-export-mine', onclick: () => exportReview(true) }, '自分の記録だけ書き出す') : null, ' ',
+        m && st.file.reviews.length > 1 ? h('button', { type: 'button', id: 'rv-export-mine', onclick: () => exportReview(true) }, '自分の記録だけ書き出す') : null, ' ',
         h('a', { href: P.route('review', 'report') }, 'レポートを作る')),
       st.slotHold ? h('div', { class: 'note warn', id: 'rv-slot-hold' }, h('p', null, `このブラウザに自動保存したレビューの記録（${st.slotHold.savedAt} に保存）が残っています。どれを使うかを選ぶまで、レビューの記録の自動保存を止めています。`),
         h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-slot-ask', onclick: () => askSlot(st.slotHold).then(() => changed(true)) }, '自動保存した記録をどうするか選ぶ'), ' ',
@@ -1231,7 +1240,7 @@
     const key = { claims: 'claims', token_types: 'token_types', hops: 'hops' }[coll];
     const rows = reg[coll] && Array.isArray(reg[coll][key]) ? reg[coll][key].filter(isObj) : [];
     const qs = R.questions.filter((x) => x.see_refs.some((r) => r.kind === 'registry' && r.path === coll && r.anchor === col));
-    const out = [h('p', null, h('a', { href: P.route('review', 'checklist') }, '← 確認事項')),
+    const out = [h('p', null, h('a', { href: P.route('review') }, '← レビューする行'), ' ・ ', h('a', { href: P.route('review', 'checklist') }, '確認事項の一覧')),
       h('h1', { tabindex: '-1', 'data-column': coll + '.' + col }, `欄：${c ? c.label : col}`),
       h('p', { class: 'muted small' }, '項目の名前：', code(`registry:${coll}#${col}`)),
       c && c.meaning ? h('p', { class: 'lead' }, H.inline(c.meaning)) : null,
@@ -1436,7 +1445,8 @@
       if (Object.keys(tg).length) m.target = tg; else delete m.target;
       st.focus = 'rv-ctx-save';
       changed(true);
-    } }, h('h2', { class: 'wide' }, '基本情報（レポートの 1.）'),
+    } }, h('h2', { class: 'wide' }, '基本情報（任意。空のままでも書き出せます）'),
+    h('p', { class: 'wide muted small' }, 'レポートの最初の表に載る補足です。分かるものだけ入れます。入れない欄は「記録なし」と出ます。'),
     fld('rv-ctx-commit', '対象の版（コミット）', t.commit), fld('rv-ctx-tnote', '対象の注記', t.note), fld('rv-ctx-lite_full', 'Lite／Full の確認', c.lite_full, true),
     fld('rv-ctx-steps', '実施した手順の段', c.steps, true), fld('rv-ctx-roles_order', '役割の切り替えの順と日付', c.roles_order, true), fld('rv-ctx-materials', '教材の版の補足', c.materials, true),
     fld('rv-ctx-ci-error', 'CI：error', ci.error), fld('rv-ctx-ci-warn', 'CI：warn', ci.warn), fld('rv-ctx-ci-info', 'CI：info', ci.info),
