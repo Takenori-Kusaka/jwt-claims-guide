@@ -3,6 +3,7 @@
 on it with the to-do list (TODO, R1, ...) and never with SCHEMA; the coverage sections carry their key names; the
 fill-in tables of the chosen profiles and modules go to appendix D of design.md."""
 import os
+import re
 import shutil
 import sys
 
@@ -171,12 +172,12 @@ def test_use_copies_the_fill_in_tables_of_the_chosen_profiles(tmp_path):
 
 def test_lite_copies_only_the_sections_a_lite_design_fills_in(tmp_path):
     d = tmp_path / 'design'
-    names = ','.join(new_design.template_parts())
-    assert new_design.main([str(d), '--profile', 'lite', '--use', names]) == 0
+    parts = {n: rel for n, rel in new_design.template_parts().items() if n not in new_design.FULL_ONLY}
+    assert new_design.main([str(d), '--profile', 'lite', '--use', ','.join(parts)]) == 0
     body = _appendix(d / 'design.md')
     items = [l.split('`')[1] for l in body.split('\n') if l.startswith('項目：`')]
     expected = []
-    for name, rel in new_design.template_parts().items():
+    for name, rel in parts.items():
         lines = open(os.path.join(ROOT, 'templates', rel + '.md'), encoding='utf-8').read().split('\n')
         for i, line in enumerate(lines):
             if line.startswith('#') and new_design.LITE_MARK in line:
@@ -214,7 +215,7 @@ def test_use_on_an_existing_design_adds_only_what_is_missing(tmp_path):
 def test_render_write_keeps_the_fill_in_tables(tmp_path):
     """The fill-in region is not a render region: render --write fills its own regions and leaves appendix D alone."""
     d = tmp_path / 'design'
-    assert new_design.main([str(d), '--profile', 'lite', '--use', 'P4']) == 0
+    assert new_design.main([str(d), '--profile', 'full', '--use', 'P4']) == 0
     design = d / 'design.md'
     before = _appendix(design)
     assert set(render.regions(design.read_text(encoding='utf-8'))) <= set(render.SECTION_IDS)
@@ -303,8 +304,49 @@ def test_a_section_written_elsewhere_gets_a_pointer_not_a_second_table(tmp_path,
     assert '| 決めること |' in block
 
 
-def test_p4_says_where_its_fill_ins_go_whatever_the_p4_lite_option():
-    """The place (appendix D) does not depend on the P4 Lite decision (research/template-design/p4-lite-options.md)."""
+def test_p4_says_where_its_fill_ins_go():
+    """The place is appendix D (it did not depend on the P4 Lite decision, research/template-design/p4-lite-options.md)."""
     text = open(os.path.join(ROOT, 'templates', 'profiles', 'P4_ai_agent_delegation.md'), encoding='utf-8').read()
-    assert '- 記入欄を書く場所：Lite でも Full でも、設計書（`design.md`）の付録 D' in text
-    assert '記入欄（MCP を使う設計では Lite でも書く。書く場所は `design.md` の付録 D）：' in text
+    assert '- 記入欄を書く場所：設計書（`design.md`）の付録 D' in text
+    assert '記入欄（MCP を使う設計で書く。書く場所は `design.md` の付録 D）：' in text
+
+
+# ------------------------------------------------------------------ #61, option 0: P4 is Full only
+def test_p4_has_no_lite_path_in_the_templates():
+    p4 = open(os.path.join(ROOT, 'templates', 'profiles', 'P4_ai_agent_delegation.md'), encoding='utf-8').read()
+    heads = [l for l in p4.split('\n') if re.match(r'^## \d+\. ', l) and '〔' in l]  # 1.-9. (10. has no fill-ins)
+    assert len(heads) == 9 and all(l.endswith('〔Full：記入〕') for l in heads), heads
+    assert new_design.LITE_MARK not in p4 and 'Lite でも書く' not in p4 and 'Lite：参照' not in p4
+    assert '**P4 は Full だけです。Lite の記入欄はありません**' in p4
+    assert 'P4 を使わず P5（`template:profiles/P5_internal_propagation`）で書きます' in p4
+    assert new_design.fill_in_sections('P4_ai_agent_delegation', 'lite') == []
+    readme = open(os.path.join(ROOT, 'templates', 'README.md'), encoding='utf-8').read()
+    assert '**P4（AI エージェントの委任）を使う設計は Full です。P4 に Lite はありません**' in readme
+    assert 'P4_ai_agent_delegation（**Full だけ**。' in readme and '書く記入欄は MCP の必須チェック表だけ' not in readme
+    start = open(os.path.join(ROOT, 'templates', 'GETTING_STARTED.md'), encoding='utf-8').read()
+    assert '**P4 は Full だけです**' in start and 'P4 ではなく P5 で書きます' in start
+    # max_delegation_depth stays a Full-only column of the registry
+    reg = open(os.path.join(ROOT, 'templates', 'registry', 'README.md'), encoding='utf-8').read()
+    row = next(l for l in reg.split('\n') if l.startswith('| `max_delegation_depth` |'))
+    assert row.rstrip().endswith('| Full のみ |')
+
+
+@pytest.mark.parametrize('use', ['P4', 'P1,P4_ai_agent_delegation,M_token_validation'])
+def test_lite_with_p4_is_refused_and_writes_nothing(tmp_path, capsys, use):
+    d = tmp_path / 'design'
+    assert new_design.main([str(d), '--profile', 'lite', '--use', use]) == 2
+    err = capsys.readouterr().err
+    assert 'P4_ai_agent_delegation is Full only' in err and '--profile full' in err and 'P5' in err
+    assert not d.exists()  # nothing was written, not even the directory
+    # an existing Lite design is left as it is (the add-only path of --use), with or without --with-hops
+    assert new_design.main([str(d), '--profile', 'lite', '--use', 'P1']) == 0
+    before = {p.name: p.read_bytes() for p in d.iterdir()}
+    assert new_design.main([str(d), '--profile', 'lite', '--use', use]) == 2
+    assert new_design.main([str(d), '--profile', 'lite', '--use', use, '--with-hops']) == 2
+    assert new_design.main([str(d), '--profile', 'lite', '--use', use, '--force']) == 2
+    assert {p.name: p.read_bytes() for p in d.iterdir()} == before
+    # the same names with --profile full (also the default) are accepted
+    assert new_design.main([str(d), '--profile', 'full', '--use', use]) == 0
+    assert 'template:profiles/P4_ai_agent_delegation#mcp-checklist' in _appendix(d / 'design.md')
+    with pytest.raises(ValueError, match='Full only'):
+        new_design.add_fill_ins((d / 'design.md').read_text(encoding='utf-8'), 'lite', ['P4'])

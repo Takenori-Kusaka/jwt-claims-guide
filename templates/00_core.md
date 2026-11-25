@@ -607,9 +607,9 @@ python tools/new_design.py designs/my-service --profile full --use P1,P4,M_token
 
 | 区分 | ここに書く項目 | 根拠 |
 | --- | --- | --- |
-| Lite | 見出しが〔Lite・Full：記入〕で始まる項目だけ（`--profile lite`）。ほかの項目は問いを読み、答えは 3.（既定から外れた点）と台帳に書く | templates/README.md の「Lite で書くもの（縮小 Lite）」 |
+| Lite | 見出しが〔Lite・Full：記入〕で始まる項目だけ（`--profile lite`）。ほかの項目は問いを読み、答えは 3.（既定から外れた点）と台帳に書く。P4 は Full だけで、Lite の項目は無い | templates/README.md の「Lite で書くもの（縮小 Lite）」 |
 | Full | 記入欄のあるすべての項目（`--profile full`） | templates/README.md の「プロファイルとモジュールの組み合わせ方」 |
-| 当てはまらない項目 | 表を消さずに、「無い」と理由を書く（冒頭の「使わない記入欄」）。足された見出しの〔〕は、もとの項目の扱い（〔Full：記入／Lite：参照〕、〔Lite：生成／Full：生成と確かめ〕 など）で、生成とされた項目は、生成の結果を確かめた旨を書く | research/template-design/pilot.md の 7. |
+| 当てはまらない項目 | 表を消さずに、「無い」と理由を書く（冒頭の「使わない記入欄」）。足された見出しの〔〕は、もとの項目の扱い（〔Full：記入／Lite：参照〕、〔Full：記入〕、〔Lite：生成／Full：生成と確かめ〕 など）で、生成とされた項目は、生成の結果を確かめた旨を書く | research/template-design/pilot.md の 7. |
 
 <!-- fill-ins:begin -->
 <!-- fill-ins:end -->
