@@ -14,7 +14,9 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | ファイル | 中身 |
 | --- | --- |
 | [procedure.md](procedure.md) | 読み方の手順（段 0〜8）。1 名で行う場合、LLM の一次スクリーニング |
-| [perspectives.md](perspectives.md) | 観点書。スライド 148 の 6 段（定義・発行・伝搬・検証・認可・運用）ごとの問い。各問いに、見る欄・No のとき・対比表・lint・実行テスト・事例・根拠 |
+| [short_list.md](short_list.md) | **レビュアーが答える問い**（#56）。観点書の問いのうち、人の判断が要るものだけを、設計の性質に当たる分だけ、優先の順に並べた短い一覧と、一覧の外を辿る「開いた問い」。triage.yaml から作る |
+| [triage.yaml](triage.yaml) | 観点書の全問の振り分け（A 機械／B 書き手の自己点検／C 人の判断／D 専門家）と根拠、出す条件、優先、lint の規則の案（#56）。short_list.md・観点書の「区分」の行・書き手の自己点検（`.github/PULL_REQUEST_TEMPLATE/design_doc.md`）・エディターのデータの正 |
+| [perspectives.md](perspectives.md) | 観点書（全問の参照用）。スライド 148 の 6 段（定義・発行・伝搬・検証・認可・運用）ごとの問い。各問いに、見る欄・No のとき・対比表・lint・実行テスト・事例・根拠・区分 |
 | [decision_tree.md](decision_tree.md) | ユースケースから仕組みを選ぶ判断の木 |
 | [contrasts/](contrasts/) | 取り違えやすい概念の対比表（8 本）。各表に、解く問い・仕様上の単位・対比・扱わないこと・典型的な誤用・根拠 |
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
@@ -43,7 +45,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 
 設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）で、上のバーを「レビュー」に切り替えると、この教材を使ってレビューを記録できます（最初の画面の「設計書をレビューする」からも始められる）。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします（Git の履歴が監査の記録になる）。
 
-- 観点のチェックリスト：観点書の 168 問（`python tools/build_claims_viewer.py` が観点書から作る。CI の `--check` が食い違いを見る）を、6 段と役割（7. の索引）で絞り込み、問いごとに Yes／No／該当なし とメモを記録する。「見る欄」から、その欄（台帳の列・設計書の節・25 問の回答）に移る
+- 観点のチェックリスト：既定で、開いている設計書の性質に当たる、人の判断が要る問い（short_list.md と同じ選び方）と、開いた問いだけを出す（#56）。「表示する問い」で、観点書の 168 問の全部や、区分ごとの問いに切り替えられる（`python tools/build_claims_viewer.py` が観点書と triage.yaml から作る。CI の `--check` が食い違いを見る）。6 段と役割（7. の索引）でも絞り込める。問いごとに Yes／No／該当なし とメモを記録する。「見る欄」から、その欄（台帳の列・設計書の節・25 問の回答）に移る。画面の作り直しは #67
 - 行ごとの判定：承認／修正を求める／保留 を、レビュアー・日時・コメントとともに記録する。判定は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると「再確認が要る」になる
 - 指摘は report_template.md の欄で記録する。分析の画面（網羅・lint との重ね合わせ・前の版との差分・25 問の回答・却下の理由の抜き取り）と、report_template.md の形のレポートの生成がある
 - **レビュアーの名前は自己申告です。** 本当の承認は GitHub の PR のレビューで行います
@@ -74,13 +76,27 @@ python tools/review_check.py --report <レポート>                            
 | 計 | 168 |
 <!-- counts:end -->
 
+### 区分ごとの数（#56）
+
+`python tools/review_triage.py --counts` の出力と同じです（`--check` が食い違いを見る）。区分は筆者の提案です（追跡 #56）。
+
+<!-- triage-counts:begin -->
+| 区分 | 問いの数 | 行き先 |
+| --- | --- | --- |
+| A 機械 | 81（既存の規則が確かめる 47、規則が一部を確かめる 15、規則がまだ無い 19） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |
+| B 書き手の自己点検 | 36 | 提出前のチェックリスト（PR のテンプレート。規則待ちの A と合わせて 49 行） |
+| C 人の判断 | 47（優先 1：18、優先 2：12、優先 3：17。うち規則ができるまで人が答える機械の問い 4） | short_list.md（既定で出すのは優先 1・2 のうち、設計の性質に当たるもの） |
+| D 専門家 | 4 | escalation.md |
+| 計 | 168 | 開いた問いは、このほかに 6 個 |
+<!-- triage-counts:end -->
+
 シナリオ B の較正（`../examples/scenario-b/review-report.md` の 9.）の後に 7 問を足しました（各問いの「No なら」に「較正で追加」と書いた）。PR #45 の独立点検の後に `q-pairwise-external` を 2 問に分けました（`q-pairwise-unguessable`）。定義の段が多いのは、設計のチェックリスト（13 問）と追加前の 25 問（27 問）を置いたためです。25 問の後半（問 13〜25）は発行・伝搬・運用に関わりますが、スライド 143 と issue #5 に合わせて同じ節で扱います。
 
 ## 使い方の最短の道
 
-1. [procedure.md](procedure.md) の段 0 で、CI と Lite／Full を確かめる
+1. [procedure.md](procedure.md) の段 0 で、CI・書き手の自己点検・Lite／Full を確かめる
 2. 設計書の 12.（自信のない点）と 6.（問い × 仕組み）を読み、[decision_tree.md](decision_tree.md) で仕組みを確かめる
-3. [perspectives.md](perspectives.md) の 6 段を、段の担当の役割で読む。分からない語は対比表へ
+3. `python tools/review_triage.py --design <設計書のディレクトリ>` で、この設計の 1 枚（性質の表と、当たる問い。15〜25 問が目安）を出し、性質の表を図と要求に照らしてから、問いと開いた問いに答える（全部の問いは [short_list.md](short_list.md)）。分からない語は対比表へ。問いの見る欄と根拠は [perspectives.md](perspectives.md) の同じ ID の問いにある
 4. [report_template.md](report_template.md) に記録し、[escalation.md](escalation.md) に当たる行を回す
 
 ## 検査
@@ -88,6 +104,9 @@ python tools/review_check.py --report <レポート>                            
 ```
 python tools/review_check.py           # 問い ID・見る欄・根拠・リンクの解決、対応表の印、問いの数
 python tools/review_check.py --list    # 問い ID と段の一覧
+python tools/review_triage.py --check  # 振り分け（triage.yaml）が全問にあり、引いた lint の規則が実在し、作ったファイルと一致する（review_check.py も V14 として見る）
+python tools/review_triage.py --write  # triage.yaml から、短い一覧・区分の行・書き手の自己点検を作り直す
+python tools/review_triage_audit.py    # 「既存の規則が答えを決める」とした問いを、記入例の答えを No に書き換えて確かめる
 python tools/trace_check.py            # 対応表（review: の成果物を持つ要件）
 python tools/check_slide_refs.py templates
 ```
