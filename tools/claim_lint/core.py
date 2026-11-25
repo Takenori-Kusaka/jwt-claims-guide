@@ -95,14 +95,28 @@ def load_yaml(path):
         return yaml.load(f, Loader=_Loader)
 
 
+# #60: what to do about a blank field whose way out is not "write a value"
+TODO_HINTS = {'hops:hops': '。ホップを書く。ホップの無い設計（Lite）は hops.yaml を置かない（templates/GETTING_STARTED.md の手順 1）',
+              'claims:namespaces': '。組織の名前空間を使わない設計は namespaces のキーを書かない'}
+
+
 def schema_check(doc, schema_path, where):
     import jsonschema
     with open(schema_path, encoding='utf-8') as f:
         schema = json.load(f)
     v = jsonschema.Draft202012Validator(schema)
-    out = []
+    out, todo = [], set()
     for e in sorted(v.iter_errors(doc), key=lambda e: list(e.absolute_path)):
         loc = '/'.join(str(p) for p in e.absolute_path) or '(root)'
+        if e.absolute_path and _empty(e.instance):
+            # #60: a value that is not written yet (null, '', [] or {}: what tools/new_design.py leaves blank) is the
+            # author's to-do list, not a broken file. It is reported once per field as TODO, still an error (no
+            # severity is lowered); SCHEMA is kept for values that are written and wrong
+            if loc not in todo:
+                todo.add(loc)
+                hint = TODO_HINTS.get(f'{where}:{loc}', '')
+                out.append(Finding('TODO', ERROR, f'{where}:{loc}', f'まだ書いていない欄（{e.message}）{hint}'))
+            continue
         out.append(Finding('SCHEMA', ERROR, f'{where}:{loc}', e.message))
     return out
 

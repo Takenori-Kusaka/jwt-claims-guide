@@ -6,6 +6,18 @@
 
 ### 追加
 
+- 空の設計書と生成の表の誤り（#60。パイロット #9 の結果。`research/template-design/pilot.md` の 7.）：
+  - `tools/new_design.py`：作った直後の設計書に、スキーマの違反（SCHEMA）が無くなった。`claims.yaml` に空の `namespaces` を書かない。`--profile lite` を足し、Lite では `hops.yaml` を作らない。**ホップを書かない設計は `hops.yaml` を置かない**（`GETTING_STARTED.md` の手順 1、`00_core.md` の 8.）。`catalog_answers.yaml` に、網羅の節（`idp`・`questions`・`subject_states`・`pairwise`）を、問いの ID・主体の状態・層の名前を鍵にして作る
+  - claim_lint の `TODO`：スキーマが求める欄がまだ空（null・空の文字列・空の配列・空のオブジェクト）のとき、SCHEMA の代わりに 1 欄に 1 件出す。重大度は SCHEMA と同じ error で、引き下げていない。それまで通っていた設計書が通らなくなることも、その逆も無い（規則の名前の付け替えなのでマイナー）
+  - `claim_lint render`：`flat_prefix` の名前空間のクレームの名前を、ペイロードの JSON Schema・`required_claims` と同じ `<名前空間><名前>` で出す（それまでは間に `.` が入っていた）。矢印ごとの表は、受け手（`hops[].to`）に結びつく `enforced_at.service` が無いホップを空の行にせず、理由を出す。寿命の表の「状態」の列は、台帳のどの行にも `status` が無いとき（縮小 Lite）は出さない
+  - 生成の区間を作り直した：`examples/scenario-a/design.md`・`examples/scenario-b/design.md`（矢印ごとの表の注と行）。台帳・目録・ホップ・カタログへの回答と、ペイロードの JSON Schema は変えていない
+- 記入欄の置き場所と、Lite／Full の線引き（#61。パイロット #9 の結果）：
+  - `00_core.md`（0.6.0）：付録 D「プロファイルとモジュールの記入欄」（`template:00_core#profile-fill-ins`）を足した。`python tools/new_design.py <設計書> --profile lite|full --use P1,P4,M_token_validation` が、選んだプロファイル・モジュールの記入欄の表を付録 D に足す（すでにある項目は書き換えない。Lite は見出しが〔Lite・Full：記入〕で始まる項目だけ）。冒頭に「使わない記入欄は消さずに『無い』と理由を書く」を足した
+  - `README.md`（0.6.0）：5 問のそれぞれに Yes と No の例を 2 つ以上書いた。問い 1 は組織の境界ではなく信頼の境界で読む（組織の中の信頼しない部品も Yes）、問い 4 は発行者が既存か分からなければ Yes。判定が Full なのに Lite の欄で書いた設計書の扱いを 1 つにした（L73 の warn で知らせ、レビューの段 0 で Full に書き直すよう返す。測定の記録だけが例外）。L73 の重大度は変えていない
+  - `GETTING_STARTED.md`（0.6.0）：手順 1 に `--profile lite` とホップを書かない設計の書き方、手順 3 に記入欄の置き場所と `--use` を足した
+  - 列を減らす規則（既定どおりで `consumers: []` の行など）が縮小 Lite だけのものであることを、`registry/README.md` の 2. と `tools/claim_lint/RULES.md` と `README.md` に同じ文で書いた（`registry/README.md` は文言の追加だけで、#58 と重ならないよう版の行は変えていない）
+  - P4 の Lite の扱いは、3 つの案を `research/template-design/p4-lite-options.md` に書いた（作成者の決定待ち）
+
 - `glossary.md` の 5.（#53）：設計書のエディターの画面の用語（編集／レビュー・ダッシュボード・書式の検査・設計の規則の検査・レビューの記録・判定・再確認が要る・独立レビュー・段階）。画面・README・テンプレートで同じ名前を使う
 - `review/review.schema.json`（#50）：レビューの記録 `review.yaml`（設計書と同じディレクトリ）の JSON Schema。レビュアーごとに、観点書の問いへの回答（Yes／No／該当なし とメモ）、行ごとの判定（承認・修正を求める・保留。行の内容のハッシュ `tools/row_hash.py` に結びつける）、`report_template.md` の欄の指摘、却下の理由の抜き取り（乱数の種）、専門家に回した項目、戻す事項を持つ。名前は自己申告で、本当の承認は GitHub の PR のレビュー。設計書のエディターのレビューモードが書き出し・読み込み、`tools/review_record.py` が CI で確かめる（古くなった承認の一覧、レポートの生成）。`review/README.md` に案内を足した
 - `CONTRIBUTING.md`（#50、PR #52 の点検）：「レビューの記録がある設計書を変えるとき」（承認した行・却下の行・教材を変えたときの CI の反応と直し方）を足した。`review/review.schema.json` に、レビューした時の教材の版（`materials`）、独立レビューの経過（`independence`、`edited_after_viewing_others`）、判定したレビュアーの種類（`reviewer_kind`）、抜き取りの母集団（`population`）と引き直し（`reason`・`previous`）を足した

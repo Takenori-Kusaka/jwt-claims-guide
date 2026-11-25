@@ -31,11 +31,13 @@ python tools/claim_lint render templates/examples/scenario-a --validate tools/te
 | `token-inventory` <a id="token-inventory"></a> | トークン目録：ID・種類・採否・発行 → 宛先（`aud`）・持ち手（`holder`）・形式（typ・alg）・寿命（idle と最大）・保存場所・運び方・読める相手（`visible_to`）・JWE・理由 | `token_types`。種類の名前は `templates/catalog/token_kinds.yaml` | トークン目録 |
 | `question-mechanism` <a id="question-mechanism"></a> | 問い × 仕組み：問いの一覧の仕組み、答える台帳の行（`answers`）、答えに使わない行（`does_not_answer`）、照合する場所 | `templates/registry/questions.yaml`、台帳 | 問い × 仕組み（縮小 Lite では手で書く節。生成の表は確かめ用） |
 | `hop-table` | ホップごとの表：種類・運ぶトークン・aud・scope・寿命・独自クレーム・交換するサービス・検証 | `hops.yaml` | ホップごとの表 |
-| `arrow-table` <a id="arrow-table"></a> | 矢印ごとの表：ホップ × 載るトークン × 受け手が確かめるクレーム × 書き手 × 確かめること × aud × 寿命。トークンのないホップ（DB の接続など）では、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す（トークンの書き手は出さない） | `hops.yaml`、台帳の `carried_in`・`enforced_at`・`authoritative_writer` | シーケンス図の矢印の読み物 |
-| `lifecycle` | 寿命の 4 つの層（slide:p08-four-lifetimes）：トークンの寿命、クレームの値の鮮度（`volatility` は反映までに許す秒数で、0 は即時の反映が要る。`never` はトークンの寿命の間に値が変わらないので比べない。載るトークンの受け入れの最大がこれを超える行に「超える」と出し、遅れが許容以内の目録の失効の手段を候補として並べる。手段がそのクレームに効くかは `on_revoke` で人が確かめる。検査の正は L5（#6））、セッションと RT、クレームの定義の寿命 | `token_types`・`hops.yaml`・台帳（`templates/registry/README.md` の 6.） | ライフサイクル表（縮小 Lite では手で書く節。生成の表は確かめ用） |
+| `arrow-table` <a id="arrow-table"></a> | 矢印ごとの表：ホップ × 載るトークン × 受け手が確かめるクレーム × 書き手 × 確かめること × aud × 寿命。トークンのないホップ（DB の接続など）では、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す（トークンの書き手は出さない）。受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける。結びつく行が無いホップは、空の行にせず、「確かめること」の列に理由を出す（載る行が無い・`enforced_at` が無い・名前が合わない。名前が合わないときは、運ぶ行の service の一覧も出す）。運ぶ行があるのに結びつかないホップは、表の前に ID を並べて知らせる（#60） | `hops.yaml`、台帳の `carried_in`・`enforced_at`・`authoritative_writer` | シーケンス図の矢印の読み物 |
+| `lifecycle` | 寿命の 4 つの層（slide:p08-four-lifetimes）：トークンの寿命、クレームの値の鮮度（`volatility` は反映までに許す秒数で、0 は即時の反映が要る。`never` はトークンの寿命の間に値が変わらないので比べない。載るトークンの受け入れの最大がこれを超える行に「超える」と出し、遅れが許容以内の目録の失効の手段を候補として並べる。手段がそのクレームに効くかは `on_revoke` で人が確かめる。検査の正は L5（#6））、セッションと RT、クレームの定義の寿命（「状態」の列は、台帳のどの行にも `status` が無いときは出さず、その旨を注に出す。縮小 Lite では書かない列のため。#60） | `token_types`・`hops.yaml`・台帳（`templates/registry/README.md` の 6.） | ライフサイクル表（縮小 Lite では手で書く節。生成の表は確かめ用） |
 | `decision-rows` <a id="decision-rows"></a> | 判断の行：ID・候補・採否（却下の種類）・代わりの行（`alt`）・理由・前提・根拠 ID・裏付け・見直しの条件 | 台帳の `decision`・`rejection_kind`・`rationale`・`assumption`・`refs`・`evidence`・`revisit_trigger` | 判断の行 |
 | `data-sources` <a id="data-sources"></a> | データ源：載せる行の `source_system`・書き手（段階と、設定できる主体）・発行の契機・再計算・値が変わりうる間隔・反映の遅れ | 台帳 | 判断の行に添える |
 | `catalog-summary` | カタログへの回答の集計：全件・発行と利用・該当・**対象外の件数と割合**、該当の行、対象外の行（起きない前提と、前提が崩れる条件） | `catalog_answers.yaml`、`templates/catalog/` | カタログへの回答 |
+
+クレームの名前は、どの表でも、ペイロードの JSON Schema（4.）とトークン目録の `required_claims` と同じ書き方で出します（#60）。名前空間が `style: object` なら `<名前空間>.<名前>`（入れ子の道筋）、`flat_prefix` なら `<名前空間><名前>`（最上位の 1 つのキー。間に `.` を入れない）です。`tools/tests/test_claim_lint_render.py` が、表の名前と Schema のキーの一致を確かめます。
 
 根拠は、`guide-slide` を `slide:<id>`、URL のある根拠をリンク、`author-proposal` を「筆者の提案：…（追跡 issue）」と表示します。表の中の `|` と改行は、Markdown の表が崩れないように書き換えます。
 

@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.6.0 -->
 # 設計書の共通部分（00_core）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（`claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml`）に 1 回だけ書き、ここからは ID で参照します。
@@ -8,6 +8,8 @@
   - 〔Lite：手で書く〕：Lite でも Full でも、書き手が書く節（5 つ。`research/template-design/gate1.md` の 10.）
   - 〔Lite：生成〕：`python tools/claim_lint render <設計書のディレクトリ> --write` が台帳から書く節。手で書かない
   - 〔Full だけ〕：Lite では書かない節
+- プロファイルとモジュールの記入欄：選んだプロファイル（`profiles/`）・モジュール（`modules/`）の「記入欄」の表は、この設計書の付録 D（`template:00_core#profile-fill-ins`）に書きます。`python tools/new_design.py <設計書のディレクトリ> --profile lite|full --use <プロファイルとモジュール>` が、表を付録 D に足します。プロファイル・モジュールのファイルそのものには書き込みません（問いと候補を読む資料です）
+- 使わない記入欄：自分の設計に当てはまらない記入欄（例：トークンで DB・ブローカーに接続しない設計の「DB・ブローカーの接続の層」）は、節と表を消さずに、表の最初の列に「無い」と書き、同じ行にそう言える理由を 1 つ書きます。節ごと消すと、レビューする人が「書き忘れ」と「当てはまらない」を見分けられないためです。見出しの〔Full だけ〕の節を Lite で書かないのは、この決まりの対象ではありません（書かないままでよい）
 - 生成の区間：`<!-- render:<節>:begin -->` と `<!-- render:<節>:end -->` の間は render が書き直します（`tools/claim_lint/RENDER.md`）。区間の中を手で直すと CI（`render --check`）が失敗します。台帳を直してから生成し直してください
 - 項目 ID：各節の `項目 ID：` の値（`template:00_core#<アンカー>`）は、レビュー教材（#5）と対応表（#22）が参照する固定の ID です。設計書に写すときも、見出しの直前のアンカーを消さないでください
 - 記入例：Lite は [examples/scenario-a/design.md](examples/scenario-a/design.md)、Full は `examples/scenario-b/design.md`（#4 の 2 つ目の PR）
@@ -18,8 +20,8 @@
 | 欄 | 書くこと |
 | --- | --- |
 | 版 | 設計書の版と、前の版（13. の差分の起点） |
-| Lite／Full | README の 5 問の答えと判定。1 つでも Yes なら Full |
-| 使うプロファイル | P1・P4・P5 のどれを、どの境界で使うか（2. の図と同じ） |
+| Lite／Full | README の 5 問の答えと判定。1 つでも Yes なら Full。判定と、書く欄・claim_lint の profile をそろえる（README の「Lite と Full の判定」） |
+| 使うプロファイル | P1・P4・P5 のどれを、どの境界で使うか（2. の図と同じ）。使うモジュールも書く。記入欄は付録 D |
 | 作成方法 | 生成 AI を使ったか。使ったなら、その旨と人の確認の範囲 |
 
 <a id="ci-results"></a>
@@ -321,6 +323,8 @@ sequenceDiagram
 項目 ID：`template:00_core#hop-table`
 <!-- req:p12-review-viewpoints.R7 -->
 
+ホップを 1 つも書かない設計は、`hops.yaml` を置きません（`hops: []` はスキーマに反します。claim_lint は、ファイルが無いことを info で知らせます）。交換・作り直しのホップがある設計は、README の 5 問の 3 が Yes なので Full です。
+
 決めること：経路のホップごとに、運ぶトークン・`aud`・`scope`・寿命・運ぶ独自クレーム・交換を担うサービス・受け手の検証。**規則：下流は `aud`・`scope`・寿命・独自クレームのどれでも上流を超えない。** 超える場合（Txn-Token は仕様上、元より長くてよい）は `narrowing_exception` に理由を書きます。値は `hops.yaml` に書き、この節は render が生成します。交換・作り直しのホップの `aud`・`scope`・`max_lifetime`・`custom_claims`・`exchanger` は Lite でも手で書きます。
 
 | 観点 | 検討の問い | 根拠 |
@@ -390,7 +394,7 @@ sequenceDiagram
 | Azure Database for PostgreSQL（Entra） | 削除した利用者も最大 60 分は入れる。DB 側で削除すれば即時 | slide:p07-lifetime-mismatch |
 | Kafka | 既定（`connections.max.reauth.ms` が 0）では切断しない。正の値にすると、期限内に再認証しない接続をブローカーが切る（スライドの表の「しなければ切断」は、正の値にした場合の意味） | slide:p07-lifetime-mismatch、Kafka 4.4 Broker Configs「connections.max.reauth.ms」 |
 
-記入欄：
+記入欄（トークンで DB・ブローカーに接続しない設計は、最初の列に「無い」と書き、同じ行にその理由を書く。節は消さない）：
 
 | 接続（ホップの ID） | 接続の最大寿命 | 開くときに使うトークン（目録の ID）と寿命 | 剥奪を開いた接続に届かせる手段（書き手が書く） |
 | --- | --- | --- | --- |
@@ -521,7 +525,7 @@ sequenceDiagram
 根拠：templates/CONTRIBUTING.md の 4.、slide:p11-why-govern
 
 <!-- heading-only -->
-## 付録（Full だけ）
+## 付録（A〜C は Full だけ。D は Lite でも書く）
 
 <a id="operational-metrics"></a>
 ### A. 運用で測る指標〔Full だけ〕
@@ -589,3 +593,25 @@ sequenceDiagram
 |  |  |  |
 
 根拠：slide:p06-return-results、slide:p06-flow-partner-events、RFC 9421 §2
+
+<a id="profile-fill-ins"></a>
+### D. プロファイルとモジュールの記入欄〔Lite：手で書く（Lite でも記入とされた項目だけ）〕
+
+項目 ID：`template:00_core#profile-fill-ins`
+
+決めること：冒頭の「使うプロファイル」に書いたプロファイルとモジュールの、記入欄の表への答え。判断そのものは台帳に 1 回だけ書き、ここには決めたことの要約と、台帳・目録の ID を書きます。表は手で写さず、次のコマンドで足します（すでにある項目は書き換えません。プロファイルを後から足すときも同じコマンドです）。
+
+```
+python tools/new_design.py designs/my-service --profile full --use P1,P4,M_token_validation
+```
+
+| 区分 | ここに書く項目 | 根拠 |
+| --- | --- | --- |
+| Lite | 見出しが〔Lite・Full：記入〕で始まる項目だけ（`--profile lite`）。ほかの項目は問いを読み、答えは 3.（既定から外れた点）と台帳に書く | templates/README.md の「Lite で書くもの（縮小 Lite）」 |
+| Full | 記入欄のあるすべての項目（`--profile full`） | templates/README.md の「プロファイルとモジュールの組み合わせ方」 |
+| 当てはまらない項目 | 表を消さずに、最初の列に「無い」と理由を書く（冒頭の「使わない記入欄」） | research/template-design/pilot.md の 7. |
+
+<!-- fill-ins:begin -->
+<!-- fill-ins:end -->
+
+根拠：research/template-design/pilot.md の 6. と 7.、templates/README.md の「プロファイルとモジュールの組み合わせ方」、筆者の提案：プロファイルとモジュールの記入欄を、設計書の付録 D の 1 か所にまとめる（追跡 #61）

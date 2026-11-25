@@ -513,3 +513,18 @@ Major の 37 件を、区分と出どころで分けると次のとおりです�
 | #64 | 迷いが 3 回以上出た欄の案内を足す | 6. |
 
 どれも #11 の子の issue にしています。#53（エディターの動線）と #56（観点書の振り分け）とは重ねていません。#56 には、9. の材料を渡します。
+
+## 14. パイロットの後に、設計書の生成の区間を作り直した（#60）
+
+#60 で `claim_lint render` の表の誤りを直したので、パイロットの 2 つの設計書（`research/pilot/scenario-b/design.md`・`scenario-c/design.md`）の**生成の区間（`<!-- render:…:begin -->` から `end` まで）だけ**を `render --write` で作り直しました。手で書いた節、台帳（`claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml`）、ペイロードの JSON Schema（`schemas/`）、記入のログ、4 回のレビューの記録（`reviews/`。`commitments.txt` の sha256 は変わらない）は、変えていません。
+
+| 設計書 | 変わった区間 | 中身 |
+| --- | --- | --- |
+| シナリオ B | 判断の行・データ源・矢印ごとの表・寿命の表 | `flat_prefix` の名前空間のクレームの名前が、`https://claims.example.com/.employee_id` から `https://claims.example.com/employee_id` になった（JSON のキー・`required_claims` と同じ）。矢印ごとの表で、載る行の無いホップ（H1・H9〜H13）の「確かめること」に理由が出る |
+| シナリオ C | 矢印ごとの表・寿命の表 | 矢印ごとの表の 3 行（H1〜H3）が、空の行から「受け手の名前を含む `enforced_at.service` が無い」という理由の行になり、表の前にその 3 つのホップの ID が出る。寿命の表の 4. から、全部「—」だった「状態」の列が無くなり、注が 1 行増えた |
+
+**レビューの記録を読むときの注意**：4 回のレビュー（B-R1・B-R2・C-R1・C-R2）は、作り直す前の区間を見ています。指摘 B-R1 T7・B-R2 R2-16（名前の表示）、C-R1 F14・C-R2 F22（矢印の表が全部「—」）、書き手の欠陥 B6・D7 は、作り直す前の表への指摘で、今の `design.md` には当てはまりません。作り直す前の区間は、コミット `8f421f8` の同じファイルにあります。この文書の 1.〜12. の件数は、作り直す前のものです（変えていません）。
+
+シナリオ C の矢印ごとの表が今も 3 行とも「結びつく行なし」なのは、設計書の台帳の書き方（`hops[].to` が URL、`enforced_at.service` がサービスの名前）がそのままだからです。パイロットの記録なので、台帳は直していません。
+
+`python tools/claim_lint render research/pilot/scenario-b --check` と `scenario-c --check` は通ります（CI の `claims.yml`、`tools/tests/test_claim_lint_render.py`）。

@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.6.0 -->
 # 始め方（GETTING_STARTED）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
@@ -16,12 +16,15 @@
 記入例の YAML は写しません。記入例をそのまま写すと claim-lint は error 0 で通り、記入例の判断と理由（`rationale`）が残ってしまうからです（#4 の方針「理由の写し書きを防ぐ」）。代わりに、必須のキーだけを持つ空のファイルを作ります。
 
 ```
-python tools/new_design.py designs/my-service
+python tools/new_design.py designs/my-service                  # Full の骨組み（Lite か Full かをまだ決めていないときも、これで始める）
+python tools/new_design.py designs/my-service --profile lite   # Lite と決まっているとき（hops.yaml を作らない）
 ```
 
-- 作られるもの：`design.md`（`templates/00_core.md` の写し）、`claims.yaml`（行なし）、`token_types.yaml`（カタログの 17 種類ごとに `decision: 却下`・`rationale` が空の行。使う種類は `採用` に変え、使わない種類は却下の理由を書く）、`hops.yaml`（行なし）、`catalog_answers.yaml`（全イベントの回答が空の行と、Lite の 5 問）
+- 作られるもの：`design.md`（`templates/00_core.md` の写し）、`claims.yaml`（行なし）、`token_types.yaml`（カタログの 17 種類ごとに `decision: 却下`・`rationale` が空の行。使う種類は `採用` に変え、使わない種類は却下の理由を書く）、`hops.yaml`（行なし。`--profile lite` では作らない）、`catalog_answers.yaml`（全イベントの回答が空の行、Lite の 5 問、網羅の節 `idp`・`questions`・`subject_states`・`pairwise`・`outside_enumeration`。問いの ID、主体の状態、層の名前は鍵として入っていて、値だけが空）
+- **ホップを書かない設計は、`hops.yaml` を置きません**。Full の骨組みで始めて、手順 2 で Lite と決まり、ホップを書かないなら、`hops.yaml` を消します。`hops: []` のままでは、スキーマが 1 行以上を求めるので error（TODO）が残ります。ファイルが無いことは claim_lint が info（LOAD）で知らせるだけで、error にはなりません。ホップを書くなら 1 行以上を書きます（列は `registry/README.md` の 3.4）
+- 組織の名前空間を使わない設計は、`claims.yaml` に `namespaces` のキーを書きません（骨組みにも入っていません。使うときの書き方は、`claims.yaml` の先頭のコメントにあります）
 - yaml-language-server の modeline（`$schema`）は、置き場所からの相対パスで書かれます。OS を問わず同じコマンドで動きます（シェルの展開を使わない）
-- 作った直後に `python tools/claim_lint designs/my-service --profile lite` を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です
+- 作った直後に `python tools/claim_lint designs/my-service --profile lite` を実行すると、空の欄の数だけ指摘が出ます。目録・発行方式・Lite の 5 問などの空欄は error、カタログへの回答の空欄は Lite では warn（R2。Full では error）です。その一覧が、これから書くことの一覧です。作った直後の骨組みに、スキーマの違反（SCHEMA）は 1 件もありません。スキーマが求める欄がまだ空（null・空の文字列・空の配列）のときは、SCHEMA ではなく **TODO（まだ書いていない欄）** として 1 欄に 1 件出ます（重大度は error のまま）。SCHEMA が出たら、書いた値の形が違います
 - 記入例（`templates/examples/`）は、書き方に迷ったときに読む資料として使います
 
 根拠：templates/CONTRIBUTING.md の 4.、research/template-design/report.md の Q6、筆者の提案：空の骨組みから始めて lint の指摘を作業の一覧にする（追跡 #4）
@@ -48,7 +51,18 @@ python tools/new_design.py designs/my-service
 
 項目 ID：`template:GETTING_STARTED#step-3-profiles`
 
-信頼の境界ごとに、プロファイルを 1 つ選びます（[README.md](README.md) の「プロファイルとモジュールの組み合わせ方」）。選んだプロファイルとモジュールの判断表を開き、問いを読んでおきます（Lite では、答えは 00_core の 3. と台帳に書く）。
+信頼の境界ごとに、プロファイルを 1 つ選びます（[README.md](README.md) の「プロファイルとモジュールの組み合わせ方」）。選んだプロファイルとモジュールの判断表を開き、問いを読んでおきます。
+
+**記入欄を書く場所は、`design.md` の付録 D（プロファイルとモジュールの記入欄）です。** 選んだものを `--use` に並べて、もう一度 `new_design.py` を実行すると、その記入欄の表が付録 D に足されます（`design.md` のほかのファイルと、すでに書いた項目には触れません）。名前は、ファイル名（`.md` を除く）か、1 つに決まる先頭の部分（`P4` など）です。
+
+```
+python tools/new_design.py designs/my-service --profile full --use P1,P5,M_token_validation,M_idp_keycloak
+python tools/new_design.py designs/my-service --profile lite --use P1,M_token_validation,M_idp_keycloak
+```
+
+- Full：記入欄のあるすべての項目が足されます
+- Lite：見出しが〔Lite・Full：記入〕で始まる項目だけが足されます（例：`M_privacy_minimization` の個人情報保護法の判断表、`M_idp_keycloak` の外せないクレーム）。ほかの項目は問いを読み、答えは 00_core の 3. と台帳に書きます
+- 当てはまらない記入欄は消さずに、最初の列に「無い」と理由を書きます（00_core の冒頭の「使わない記入欄」）
 
 | 境界 | プロファイル |
 | --- | --- |
@@ -56,7 +70,7 @@ python tools/new_design.py designs/my-service
 | AI エージェントが利用者の代わりに呼ぶ | `profiles/P4_ai_agent_delegation.md` |
 | 入口の内側でサービス間に運ぶ | `profiles/P5_internal_propagation.md` |
 
-根拠：templates/README.md の「プロファイルとモジュールの組み合わせ方」
+根拠：templates/README.md の「プロファイルとモジュールの組み合わせ方」、templates/00_core.md の付録 D、research/template-design/pilot.md の 6.
 
 <a id="step-4-first-three"></a>
 ## 手順 4（1〜2 時間。筆者の見積もり）：最初の 3 欄の下書き
@@ -83,7 +97,8 @@ python tools/claim_lint designs/my-service --profile lite     # Full なら --pr
 python tools/claim_lint render designs/my-service --write    # design.md の生成の区間を埋める
 ```
 
-- 最初は error がたくさん出ます（空の設計書では 100 件を超える）。規則の ID（R1・R2・R8 など）の意味は `tools/claim_lint/RULES.md` にあります
+- 最初は error がたくさん出ます（空の設計書では、Lite で 100 件ほど、Full で 260 件ほど。Full は、カタログへの回答と主体の状態の行列の空欄も error のため）。規則の ID（TODO・R1・R2・R8 など）の意味は `tools/claim_lint/RULES.md` にあります
+- `--profile` は手順 2 の判定に合わせます。5 問に 1 つでも Yes があれば Full なので、`--profile lite` を付けません。Yes があるのに `--profile lite` で実行すると、L73 が warn で知らせ、レビューの受け付けで Full に書き直すよう返されます（[README.md](README.md) の「Lite と Full の判定」）
 - error を 0 件にしてからレビューに回します。error の規則は抑止できません（`templates/CONTRIBUTING.md` の 2.）
 - render の区間を手で直すと、`render --check` が失敗します。台帳を直してから `--write` します
 
