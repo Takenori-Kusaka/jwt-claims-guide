@@ -15,6 +15,7 @@ yet), never as SCHEMA: the skeleton has no SCHEMA finding (tools/tests/test_new_
 --use names the profiles and modules of the design (file names of templates/profiles and templates/modules, or a
 unique prefix such as P4). Their fill-in tables (the tables after a 記入欄 line) are copied into appendix D of design.md
 (`template:00_core#profile-fill-ins`). With --profile lite only the sections marked 〔Lite・Full：記入…〕 are copied.
+P4 is Full only (#61, decided 2026-11-26): --profile lite with P4 in --use writes nothing and exits with 2.
 When DIR/design.md already exists, --use (without --force) only adds the fill-in sections that are not there yet and
 writes no other file, so it can be run again after the profiles are chosen (GETTING_STARTED 手順 3).
 """
@@ -148,6 +149,9 @@ ITEM_RE = re.compile(r'^項目 ID：`(template:[A-Za-z0-9_/]+#[a-z0-9-]+)`')
 # a section whose mark says that its answer is written elsewhere: 〔Lite・Full：記入（00_core に書く）〕,
 # 〔Lite・Full：記入（台帳の既定どおりの行）〕
 ELSEWHERE_RE = re.compile(r'〔[^〕]*記入（((?:00_core|台帳)[^）]*)）〕\s*$')
+# profiles that have no Lite path (#61, option 0 of research/template-design/p4-lite-options.md): a design that uses
+# P4 is Full; an agent design with no trust boundary and no delegation or exchange is written with P5
+FULL_ONLY = ('P4_ai_agent_delegation',)
 
 
 def template_parts():
@@ -173,6 +177,17 @@ def resolve_use(names):
         if hit[0] not in out:
             out.append(hit[0])
     return out
+
+
+def full_only_error(profile, use):
+    """The message for --profile lite with a Full-only profile in --use, or None."""
+    hit = [n for n in resolve_use(use) if n in FULL_ONLY]  # resolve_use raises ValueError for an unknown name
+    if profile != 'lite' or not hit:
+        return None
+    return (f"--profile lite --use {','.join(hit)}: {', '.join(hit)} is Full only and has no Lite fill-ins "
+            '(templates/README.md, the Lite/Full criteria; #61). Use --profile full for a design that uses it. '
+            'An agent design that crosses no trust boundary and has no delegation or token exchange is written '
+            'with P5 (--use P5), not with P4. Nothing was written.')
 
 
 def fill_in_sections(name, profile='full'):
@@ -223,6 +238,9 @@ def add_fill_ins(text, profile='full', use=()):
     names = resolve_use(use)
     if not names:
         return text
+    refused = full_only_error(profile, use)
+    if refused:
+        raise ValueError(refused)
     if FILL_BEGIN not in text or FILL_END not in text:
         raise ValueError(f'no {FILL_BEGIN} ... {FILL_END} region (appendix D of templates/00_core.md)')
     head, rest = text.split(FILL_BEGIN, 1)
@@ -253,9 +271,12 @@ def main(argv=None):
     a = ap.parse_args(argv)
     use = [x.strip() for x in a.use.split(',') if x.strip()]
     try:
-        resolve_use(use)
+        refused = full_only_error(a.profile, use)
     except ValueError as e:
         sys.stderr.write(f'{e}\n')
+        return 2
+    if refused:
+        sys.stderr.write(refused + '\n')
         return 2
     design = os.path.join(a.dir, 'design.md')
     if a.with_hops and os.path.exists(design) and not a.force:
