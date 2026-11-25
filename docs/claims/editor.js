@@ -12,7 +12,7 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = '53742e593d59';
+  const BUILD_ID = '5396e8760972';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };
@@ -879,8 +879,9 @@
   function diagsOf(f) {
     const fresh = lint.state === 'fresh';
     // the JSON Schema check in the browser is shown until claim_lint has checked the same text (claim_lint checks the
-    // same schemas with jsonschema: its SCHEMA findings are then the ones shown, as the CLI prints them)
-    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !(d.rule === 'SCHEMA' && !fresh)), f.anchorDiags);
+    // same schemas with jsonschema: its SCHEMA findings are then the ones shown, as the CLI prints them). TODO is
+    // claim_lint's name for a blank field that the schema asks for (#60): it is hidden with SCHEMA while stale
+    return [].concat(f.yamlDiags, fresh ? [] : f.schemaDiags, f.lintDiags.filter((d) => !((d.rule === 'SCHEMA' || d.rule === 'TODO') && !fresh)), f.anchorDiags);
   }
   function applyDiagnostics(f) {
     const doc = f.state.doc;
@@ -912,7 +913,7 @@
   function publish(first) {
     const list = [];
     ws.files.forEach((f) => list.push(...diagsOf(f)));
-    list.push(...(ws.lintLoose || []).filter((d) => lint.state === 'fresh' || d.rule !== 'SCHEMA'));
+    list.push(...(ws.lintLoose || []).filter((d) => lint.state === 'fresh' || (d.rule !== 'SCHEMA' && d.rule !== 'TODO')));
     const byTarget = new Map();
     list.forEach((d) => { const k = d.anchorId || d.target; if (!k) return; if (!byTarget.has(k)) byTarget.set(k, []); byTarget.get(k).push(d); });
     ws.diag = { byTarget, list };

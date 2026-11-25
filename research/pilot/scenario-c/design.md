@@ -570,11 +570,15 @@ sequenceDiagram
 <!-- render:arrow-table:begin -->
 ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。
 
+受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける（大文字と小文字は区別しない）。
+
+**運ぶ行はあるのに、受け手に結びつく行が無いホップ：H1・H2・H3**（3 件。理由は各行の「確かめること」）。受け手が何も確かめないホップなのか、名前の食い違いで結びつかないだけなのかを確かめる。
+
 | ホップ | トークン | 確かめるクレーム | 書き手 | 確かめること | aud | 寿命 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `H1` | `AGENT_AT` | — | — | — | `https://invoice-mcp.example.com/mcp` | 300 秒 |
-| `H2` | `TOOL_AT` | — | — | — | `https://invoices.example.com` | 60 秒 |
-| `H3` | `PORTAL_AT` | — | — | — | `https://invoices.example.com` | 600 秒 |
+| `H1` | `AGENT_AT` | — | — | 結びつく行なし：受け手 `https://invoice-mcp.example.com/mcp` の名前を含む `enforced_at.service` が無い（運ぶ行の service：invoices-api・sts-token-exchange・tool:invoice-mcp）。名前をそろえるか、受け手の確かめを台帳に書く | `https://invoice-mcp.example.com/mcp` | 300 秒 |
+| `H2` | `TOOL_AT` | — | — | 結びつく行なし：受け手 `https://invoices.example.com` の名前を含む `enforced_at.service` が無い（運ぶ行の service：invoices-api・sts-token-exchange・tool:invoice-mcp）。名前をそろえるか、受け手の確かめを台帳に書く | `https://invoices.example.com` | 60 秒 |
+| `H3` | `PORTAL_AT` | — | — | 結びつく行なし：受け手 `https://invoices.example.com` の名前を含む `enforced_at.service` が無い（運ぶ行の service：invoices-api・sts-token-exchange・tool:invoice-mcp）。名前をそろえるか、受け手の確かめを台帳に書く | `https://invoices.example.com` | 600 秒 |
 <!-- render:arrow-table:end -->
 
 根拠：slide:p06-narrow-downstream、templates/registry/README.md の 3.4、RFC 8693 §5
@@ -617,6 +621,8 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、0 は即時の反映が要ること、`never` はトークンの寿命の間に値が変わらないことを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。
 
+4. の「状態」の列は出していない：台帳のどの行にも `status` が無い（縮小 Lite では書かない列。`templates/registry/README.md` の 2.）。廃止予定（deprecated）・廃止（sunset）の行があるときは、Lite でも `status` と `sunset_on` を書く。
+
 **1. トークンの寿命**
 
 | トークン | 寿命 | 時計のずれ | 寿命を変えられる主体 | ホップでの寿命 |
@@ -651,19 +657,19 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 **4. クレームの定義の寿命**
 
-| クレーム | 状態 | 廃止の期限 | 持ち主 | 変更を決める者 |
-| --- | --- | --- | --- | --- |
-| `iss` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `sub` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `aud` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `exp` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `iat` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `jti` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `client_id` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `scope` | — | — | 請求書の業務チーム（scope の語彙）と認証基盤チーム（発行） | — |
-| `act` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `cnf` | — | — | 認証基盤チーム（STS の持ち主） | — |
-| `authorization_details` | — | — | 請求書の業務チーム（承認の type の定義）と認証基盤チーム（発行） | — |
+| クレーム | 廃止の期限 | 持ち主 | 変更を決める者 |
+| --- | --- | --- | --- |
+| `iss` | — | 認証基盤チーム（STS の持ち主） | — |
+| `sub` | — | 認証基盤チーム（STS の持ち主） | — |
+| `aud` | — | 認証基盤チーム（STS の持ち主） | — |
+| `exp` | — | 認証基盤チーム（STS の持ち主） | — |
+| `iat` | — | 認証基盤チーム（STS の持ち主） | — |
+| `jti` | — | 認証基盤チーム（STS の持ち主） | — |
+| `client_id` | — | 認証基盤チーム（STS の持ち主） | — |
+| `scope` | — | 請求書の業務チーム（scope の語彙）と認証基盤チーム（発行） | — |
+| `act` | — | 認証基盤チーム（STS の持ち主） | — |
+| `cnf` | — | 認証基盤チーム（STS の持ち主） | — |
+| `authorization_details` | — | 請求書の業務チーム（承認の type の定義）と認証基盤チーム（発行） | — |
 <!-- render:lifecycle:end -->
 
 根拠：slide:p08-four-lifetimes、slide:p08-token-types-lifetimes、slide:p08-refresh-reevaluation、slide:p08-rotation、slide:p08-revocation-propagation、slide:p08-async-processing、templates/registry/README.md の 6.

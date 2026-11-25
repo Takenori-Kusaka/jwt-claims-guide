@@ -1057,7 +1057,8 @@ def rule_l73(x):
         if not isinstance(a, dict) or not isinstance(a.get('answer'), bool):
             x.add('L73', 'lite_criteria', f'{k} に Yes／No（answer: true／false）の回答がない')
         elif a['answer']:
-            x.add('L73', 'lite_criteria', f"{k} が Yes なので #4 の定義では Full。Lite で書いている（{a.get('reason', '')}）")
+            x.add('L73', 'lite_criteria', f"{k} が Yes なので #4 の定義では Full。Lite で書いている（{a.get('reason', '')}）。"
+                                          'Full の欄で書き直し、--profile を付けずに検査する（templates/README.md の「Lite と Full の判定」）')
 
 
 RULES = [rule_l1a, rule_l1b, rule_l2, rule_l3, rule_l4, rule_l5, rule_l6, rule_l7, rule_l8, rule_l9, rule_l15, rule_l16,
