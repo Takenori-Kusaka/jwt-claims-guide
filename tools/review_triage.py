@@ -5,8 +5,9 @@ A machine / B author self-check / C human judgement / D expert, and is the sourc
   python tools/review_triage.py --check            # triage.yaml is complete and the generated files match it (CI)
   python tools/review_triage.py --write            # rewrite the generated files
   python tools/review_triage.py --counts           # questions per class, priority and condition
-  python tools/review_triage.py --design DIR       # the sheet for one design: its 12 traits (holds / does not / cannot
-                                                   # be read, with the field read) and the questions to answer
+  python tools/review_triage.py --design DIR [--seed S]   # the sheet for one design: its 12 traits (holds / does not /
+                                                   # cannot be read, with the field read), the priority 1 questions,
+                                                   # three open prompts, then the questions "if time remains"
   python tools/review_triage.py --load DIR [DIR..] # the size of the short list of each design (items, sentences, characters)
 
 Generated from triage.yaml (never edited by hand):
@@ -127,7 +128,8 @@ def read_traits(reg):
     put('delegation', (a and f'claims.yaml の {a}（act・may_act）') or (t and f'token_types.yaml の {t} の max_delegation_depth')
         or (d and 'catalog_answers.yaml の questions.q-actor が「要る」（書き手の宣言。台帳に act の行は無い）'),
         'claims.yaml に act・may_act の行が無く、max_delegation_depth も無く、書き手も q-actor を「要らない」とした',
-        d is None and 'catalog_answers.yaml の questions.q-actor の回答が無い')
+        (d is None and 'catalog_answers.yaml の questions.q-actor の回答が無い')
+        or (declared(lite, 'delegation_or_exchange', 'answer') and '要確認：lite_criteria.delegation_or_exchange は Yes だが、act の行が無く、q-actor は「要らない」（委任か交換かを、図と要求で確かめる）'))
     h = first(hops, lambda h: h.get('authorization_details'))
     put('approval', (names.get('authorization_details') and f'claims.yaml の {names["authorization_details"]}（authorization_details）')
         or (h and f'hops.yaml の {h} の authorization_details'), 'authorization_details が、claims.yaml の行にも hops.yaml にも無い', no_hops and 'hops.yaml が無い')
@@ -185,24 +187,79 @@ def load_design(design_dir):
     return reg
 
 
-def selected(tri, have, warn_rules=()):
-    """The class C questions shown by default for a design with the traits `have`: priority within the default
-    priorities and a condition that holds, or a lint rule of show_on_lint that gave a warning. In the order of
-    priority, then of perspectives.md."""
-    prios = set((tri.get('budget') or {}).get('default_priorities') or [1, 2])
+def selected(tri, have, warn_rules=(), priorities=None):
+    """The class C questions shown by default for a design with the traits `have`: a default priority (1) and a
+    condition that holds, or a lint rule of show_on_lint that gave a warning. In the order of priority, then of
+    perspectives.md. priorities: other priorities to select (optional(): the questions "if time remains")."""
+    prios = set(priorities or (tri.get('budget') or {}).get('default_priorities') or [1])
     out = []
     for q in tri['questions']:
         if q.get('class') != 'C':
             continue
         by_cond = q.get('priority') in prios and bool(set(q.get('show_when') or []) & set(have))
-        by_lint = bool(set(q.get('show_on_lint') or []) & set(warn_rules))
+        by_lint = priorities is None and bool(set(q.get('show_on_lint') or []) & set(warn_rules))
         if by_cond or by_lint:
             out.append(q)
     return sorted(out, key=lambda q: q.get('priority', 9))
 
 
-def prompts(tri, have):
-    return [p for p in tri.get('open_prompts') or [] if set(p.get('show_when') or []) & set(have)]
+def optional(tri, have):
+    """The questions "if time remains" (priority 2) of a design: shown apart and counted apart."""
+    return selected(tri, have, priorities=(tri.get('budget') or {}).get('optional_priorities') or [2])
+
+
+def prompts(tri, have, on=None):
+    """The open prompts of a design, the ones that fit it first: a condition other than `always` holds, then a trait of
+    prefer_when holds, then the rest; within each, the order of triage.yaml. The first budget.default_prompts are shown
+    by default (default_prompts()), the others under "more".
+
+    have: the traits that hold or cannot be read (a prompt is shown for both). on: the traits that hold; prefer_when
+    counts these only (a design whose delegation cannot be read is not ranked as a delegation design). on=None: have."""
+    have = set(have)
+    on = have if on is None else set(on)
+    ps = [p for p in tri.get('open_prompts') or [] if set(p.get('show_when') or []) & have]
+
+    def rank(p):
+        if set(p['show_when']) - {'always'} & have:
+            return 0
+        return 1 if set(p.get('prefer_when') or []) & on else 2
+    return sorted(ps, key=rank)
+
+
+def default_prompts(tri, have, on=None):
+    return prompts(tri, have, on)[:(tri.get('budget') or {}).get('default_prompts') or 3]
+
+
+def on_traits(reg):
+    """The conditions that hold (not the ones that cannot be read)."""
+    return {c for c, v in read_traits(reg).items() if v['state'] == 'on'}
+
+
+def default_seed(reg):
+    """The seed of the row sample when the reviewer gives none: the hash of the registry rows and today's date, so
+    that the author cannot know the rows in advance and two reviews of one day draw the same rows. It is printed on
+    the sheet; the reviewer writes it in the report."""
+    import datetime
+    import hashlib
+    import json
+    h = hashlib.sha256(json.dumps((reg.get('claims') or {}).get('claims'), ensure_ascii=False, sort_keys=True, default=str).encode('utf-8')).hexdigest()
+    return f'{h[:8]}-{datetime.date.today().isoformat()}'
+
+
+def row_sample(tri, reg, seed):
+    """The rows a "per row" question is answered for: budget.row_sample adopted claims used for authorization or as an
+    identifier, ranked by sha256(seed + ':' + id) (the same kind of draw as tools/review_record.py sample). One row of
+    the organisation's own authorization claims (a namespace and usage authz: roles, groups and the like) is always in
+    the sample when there is one, drawn by the seed among them: the questions about who writes a value and how fresh it
+    is matter most there, and a plain draw mostly returns iss, aud and other fixed rows. -> (rows, population, own row)"""
+    import hashlib
+    claims = [c for c in _adopted(((reg.get('claims') or {}).get('claims'))) if c.get('usage') in ('authz', 'identifier')]
+    n = (tri.get('budget') or {}).get('row_sample') or 3
+
+    def ranked(rows):
+        return sorted((str(c.get('id')) for c in rows), key=lambda i: hashlib.sha256(f'{seed}:{i}'.encode('utf-8')).hexdigest())
+    own = ranked([c for c in claims if c.get('namespace') and c.get('usage') == 'authz'])[:1]
+    return (own + [i for i in ranked(claims) if i not in own])[:n], len(claims), (own[0] if own else None)
 
 
 def sentences(text):
@@ -210,16 +267,18 @@ def sentences(text):
     return len([x for x in re.split(r'[。？]', text or '') if x.strip()])
 
 
-def load_of(tri, have):
-    """The size of the short list of a design: questions, open prompts, and the sentences and characters to read (the
-    questions only, and with the hints)."""
-    items = selected(tri, have) + prompts(tri, have)
+def load_of(tri, have, on=None):
+    """The size of the default list of a design (priority 1 questions and the default open prompts): items, and the
+    sentences and characters to read (the questions only, and with the hints); and the number "if time remains"."""
+    qs, ps = selected(tri, have), default_prompts(tri, have, on)
+    items = qs + ps
     ask = [x['ask'] for x in items]
     hint = [x.get('hint') or '' for x in items]
-    return {'questions': len(selected(tri, have)), 'prompts': len(prompts(tri, have)), 'items': len(items),
+    return {'questions': len(qs), 'prompts': len(ps), 'items': len(items),
             'ask_sentences': sum(sentences(a) for a in ask), 'ask_chars': sum(len(a) for a in ask),
             'all_sentences': sum(sentences(a) + sentences(h) for a, h in zip(ask, hint)),
-            'all_chars': sum(len(a) + len(h) for a, h in zip(ask, hint))}
+            'all_chars': sum(len(a) + len(h) for a, h in zip(ask, hint)),
+            'optional_questions': len(optional(tri, have)), 'more_prompts': len(prompts(tri, have)) - len(ps)}
 
 
 # ---------------------------------------------------------------- generated text
@@ -253,7 +312,8 @@ def class_line(tri, q):
         if q.get('step'):
             return f'- 区分：C {name}（レビュアーが、手順の段 {q["step"]} で確かめる。短い一覧には出さない）'
         until = ('。機械で決まるが規則がまだ無いので（案：' + '・'.join(_proposed_ref(r) for r in q['until_rule']) + '）、規則ができるまでレビュアーが答える') if q.get('until_rule') else ''
-        return f'- 区分：C {name}（レビュアーが答える。優先 {q["priority"]}。出す条件：{cond}{warn}{until}）'
+        prio = '既定で出す' if q['priority'] in tri['budget']['default_priorities'] else '時間があれば' if q['priority'] in tri['budget']['optional_priorities'] else '既定では出さない'
+        return f'- 区分：C {name}（レビュアーが答える。優先 {q["priority"]}＝{prio}。出す条件：{cond}{warn}{until}）'
     return f'- 区分：D {name}（レビュアーは答えず、`review:escalation#{q["escalation"]}` の基準で回す）'
 
 
@@ -305,78 +365,68 @@ def short_list_text(tri, root=ROOT):
     qs = tri['questions']
     n = {c: sum(1 for q in qs if q['class'] == c) for c in 'ABCD'}
     cq = [q for q in qs if q['class'] == 'C']
-    default = [q for q in cq if q['priority'] in tri['budget']['default_priorities']]
     b = tri['budget']
+    default = [q for q in cq if q['priority'] in b['default_priorities']]
+    opt = [q for q in cq if q['priority'] in b['optional_priorities']]
     whole = b['whole_procedure_minutes']
+
+    def table(rows):
+        out = ['| 問い ID | 問い | 出す条件 |', '| --- | --- | --- |']
+        for q in rows:
+            until = '<br>（機械で決まる問い。lint の規則ができるまで）' if q.get('until_rule') else ''
+            out.append(f'| `{q["id"]}` | {_cell(q, see_of)}{until} | {_cond_labels(tri, q["show_when"])} |')
+        return out
     L = [f'<!-- template_version: {_version(root)} -->',
          '# 人に渡す短い一覧（レビュアーが答える問い）',
          '',
          '<!-- このファイルは python tools/review_triage.py --write が templates/review/triage.yaml から作る。手で直さない -->',
          '',
-         f'設計書の PR をレビューする人が答える問いは、ここにあるものだけです。観点書（[perspectives.md](perspectives.md)）の {len(qs)} 問を 1 問ずつ振り分け'
-         f'（[triage.yaml](triage.yaml)）、人が判断する {n["C"]} 問を残しました。そこから、設計の性質に当たるものを、優先の順に出します。',
-         '',
-         '- 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施',
-         '- **この文書は、問いの全部の一覧です。1 つの設計で答えるのは、このうち設計の性質に当たる分だけです。** レビュアーに渡す 1 枚は、'
-         '`python tools/review_triage.py --design <設計書のディレクトリ>` が作ります（性質の表と、その設計に当たる問いだけ）',
-         f'- **量の目安**：問いは {b["questions"][0]}〜{b["questions"][1]} 問。問いに答える時間（手順の段 3）と開いた問い（段 5）を合わせて {b["minutes"][0]}〜{b["minutes"][1]} 分。'
-         f'**レビューの全体（段 0〜6）は {whole[0]}〜{whole[1]} 分**の見積もりです。どれも筆者の提案と LLM の見積もりで、**人では測っていません**（追跡 #56。人が測るのは #20）。'
-         + b['note'],
-         '- 問いは 1 文です。斜体の行は、見る場所と、あわせて確かめることの手がかりです（読まなくても答えられる問いは、読まずに進んでかまいません）',
-         '- 区分・優先・出す条件は、どれも筆者の提案です（追跡 #56）。根拠にしたパイロット（#9）の数は [research/template-design/triage-evidence.md](../../research/template-design/triage-evidence.md) にあります',
-         '- 「漏れゼロ」は約束しません。パイロットでは、人の判断が要る Major の指摘の半分が、問いの一覧の外から出ました。そのため、問いのほかに「開いた問い」（4.）を置いています',
-         '',
-         '<a id="not-here"></a>',
-         '',
-         '## 0. ここに無い問いの行き先',
-         '',
-         '| 区分 | 数 | 誰が確かめるか |',
-         '| --- | --- | --- |',
-         f'| A 機械 | {n["A"]} | claim_lint（[RULES.md](../../tools/claim_lint/RULES.md)）。レビュアーは、設計書の 1. に貼られた結果で error が 0 であることだけを見る（手順の段 0）。'
-         f'うち {sum(1 for q in qs if q["class"] == "A" and not q.get("lint"))} 問は規則がまだ無く、{sum(1 for q in qs if q["class"] == "A" and q.get("lint") and q.get("proposed"))} 問は規則が一部しか見ない。'
-         'この分は、規則ができるまで書き手の自己点検にも置く（6.） |',
-         f'| B 書き手の自己点検 | {n["B"]} | 書き手が、提出前のチェックリスト（PR のテンプレート `.github/PULL_REQUEST_TEMPLATE/design_doc.md`）で確かめる。'
-         'レビュアーは、印の無い行（書き手が「満たさない」「当てはまらない」とした行）を読み、No なら Blocker の行から 3 件を抜き取って欄を開く（手順の段 0） |',
-         f'| C 人の判断 | {n["C"]} | レビュアー。この文書（既定で出すのは優先 1・2 の {len(default)} 問のうち、設計の性質に当たるもの）。'
-         f'うち {sum(1 for q in cq if q.get("until_rule"))} 問は、機械で決まるが規則がまだ無いので、規則ができるまでレビュアーが答える |',
-         f'| D 専門家 | {n["D"]} | レビュアーは答えず、[escalation.md](escalation.md) の基準に当たる行を回す（5.） |',
+         f'レビュアーが答える問いの全部です。1 つの設計で答えるのは、このうち設計の性質に当たる分だけで、**その 1 枚は `python tools/review_triage.py --design <設計書のディレクトリ>` が作ります**。'
+         f'既定で出すのは優先 1 の問い（設計ごとに {b["questions"][0]}〜{b["questions"][1]} 問）と、開いた問い {b["default_prompts"]} つです。'
+         f'時間の目安は、問いに答えるのに {b["minutes"][0]}〜{b["minutes"][1]} 分、レビューの全体（手順の段 0〜6）で {whole[0]}〜{whole[1]} 分です（LLM の見積もり。**人では測っていません**。#20）。'
+         'この文書の作り方・ここに無い問いの行き先は、末尾の 8. にあります。',
          '',
          '<a id="traits"></a>',
          '',
          '## 1. 先に、設計の性質を読む',
          '',
-         '問いは、設計の性質に当たるものだけを出します。性質は、台帳・目録・ホップと、書き手のカタログへの回答から機械で読みます。',
+         '問いは、設計の性質に当たるものだけを出します。`--design` の 1 枚の先頭に、12 の性質が「当たる／当たらない／読めない」と、読んだ欄つきで出ます。',
+         '**レビュアーは、手順の段 1 で、この表を図と要求に照らして確かめます**（1〜2 分）。「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答えます。',
          '',
-         '```',
-         'python tools/review_triage.py --design <設計書のディレクトリ>   # 12 の性質（当たる／当たらない／読めない と、読んだ欄）と、出す問い',
-         '```',
-         '',
-         '- 性質は、**台帳が示すか、書き手が宣言していれば**当たります（例：台帳に `act` の行が無くても、書き手が「誰が代理しているか」を要ると答えていれば、委任の問いを出す）',
-         '- 読むためのファイルが無くて**読めない性質は、当たるものとして問いを出し**、その旨を書きます。黙って一覧を短くしません',
-         '- **レビュアーは、手順の段 1 で、この表を図と要求に照らして確かめます**（1〜2 分）。「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答えます',
-         '- エディターのレビューモード（`docs/claims/`）の「観点のチェックリスト」は、開いている設計書から同じ性質を読み、既定でこの一覧を出します',
-         '',
-         '| 性質 | 読み方 | 出る問い（優先 1・2） | 出る開いた問い |',
-         '| --- | --- | --- | --- |']
+         '| 性質 | 読み方 | 出る問い（優先 1） | 時間があれば（優先 2） | 出る開いた問い |',
+         '| --- | --- | --- | --- | --- |']
     for cid, c in tri['conditions'].items():
         nq = sum(1 for q in default if cid in q['show_when'])
+        no = sum(1 for q in opt if cid in q['show_when'])
         npr = sum(1 for p in tri['open_prompts'] if cid in p['show_when'])
-        L.append(f'| {c["label"]} | {c["read"]} | {nq} | {npr} |')
+        L.append(f'| {c["label"]} | {c["read"]} | {nq} | {no} | {npr} |')
     L += ['',
-          '条件を 2 つ以上持つ問いは、どれか 1 つに当たれば出ます（上の表では、それぞれの行で数えています）。',
+          '- 性質は、**台帳が示すか、書き手が宣言していれば**当たります。読むためのファイルが無い・宣言どうしが食い違う性質は「読めない」として、問いを出します。黙って一覧を短くしません',
+          '- 条件を 2 つ以上持つ問いは、どれか 1 つに当たれば出ます（上の表では、それぞれの行で数えています）',
           '',
           '<a id="questions"></a>',
           '',
-          '## 2. 問い（読む単位ごと）',
+          f'## 2. 問い（優先 1。既定で出す {len(default)} 問のうち、設計の性質に当たるもの）',
           '',
-          '問いごとに、**自分の言葉で答えを 1 行書けるか**を確かめます。書けない・設計書から読み取れないなら指摘にします。'
-          '問い ID は観点書の ID で、No のときの重大度の目安・根拠は観点書にあります。「見る欄」は、答えを探すために開く設計書の節（`template:…`）と台帳の列（`registry:…`）です。']
+          '問いは 1 文です。**自分の言葉で答えを 1 行書けるか**を確かめ、書けない・設計書から読み取れないなら指摘にします。'
+          '斜体は手がかり（見る場所と、あわせて確かめること）で、問いだけで答えられるなら読まなくてかまいません。「見る欄」は、開く設計書の節（`template:…`）と台帳の列（`registry:…`）です。'
+          'No のときの重大度の目安と根拠は、観点書の同じ ID の問いにあります。']
     for unit in UNITS:
-        rows = sorted((q for q in default if q['unit'] == unit), key=lambda q: q['priority'])
-        L += ['', f'<a id="unit-{unit}"></a>', '', f'### {tri["units"][unit]}', '', '| 優先 | 問い ID | 問い | 出す条件 |', '| --- | --- | --- | --- |']
-        for q in rows:
-            until = '<br>（機械で決まる問い。lint の規則ができるまで）' if q.get('until_rule') else ''
-            L.append(f'| {q["priority"]} | `{q["id"]}` | {_cell(q, see_of)}{until} | {_cond_labels(tri, q["show_when"])} |')
+        rows = [q for q in default if q['unit'] == unit]
+        L += ['', f'<a id="unit-{unit}"></a>', '', f'### {tri["units"][unit]}', '']
+        if unit == 'row':
+            L += [f'**全部の行には答えません。** 認可・識別子に使う行（`usage` が authz・identifier）から {b["row_sample"]} 行を抜き取り、その行について答えます。'
+                  '抜き取る行は `--design <ディレクトリ> --seed <種>` が決めます（同じ種なら同じ行）。**種はレビュアーが決めます**（PR の番号など。書き手が先に行を知れないように）。付けなければ、台帳の内容と日付から作った種を 1 枚に書きます。種はレポートに書きます。'
+                  '組織独自の認可の行（名前空間つきで `usage` が authz。ロール・グループなど）があれば、**必ず 1 行入れ**、残りを種で引きます（値を書ける人・鮮度の問いは、この行でこそ効くため）。問いが名指す行が抜き取りに無ければ、その行を足します。抜き取った行で答えが No なら、残りの行も見ます。', '']
+        L += table(rows)
+    L += ['',
+          '<a id="optional"></a>',
+          '',
+          f'### 時間があれば（優先 2。{len(opt)} 問のうち、設計の性質に当たるもの）',
+          '',
+          '優先 1 と開いた問いを終えて、時間が残ったときに答えます。答えなかった問いは、レポートに書きます。量の目安には数えていません。',
+          '']
+    L += table(opt)
     L += ['',
           '<a id="on-lint"></a>',
           '',
@@ -395,13 +445,14 @@ def short_list_text(tri, root=ROOT):
           '',
           '## 4. 開いた問い（要求と運用から辿る）',
           '',
-          '問いの一覧の内側だけを見ていると、見つからないものがあります。次の問いは、設計書の決まった欄を開くだけでは答えられません。要求の文と運用の場面から自分で辿り、辿った範囲と気づいたことを書きます（指摘の出どころは「テンプレート外」）。',
-          '1 つにつき 2〜4 分が目安で、2. の問いと合わせて上の時間の中に入れます（筆者の提案。追跡 #56。人では測っていません）。',
+          '設計書の決まった欄を開くだけでは答えられない問いです。要求の文と運用の場面から自分で辿り、辿った範囲と気づいたことを書きます（指摘の出どころは「テンプレート外」）。',
+          f'**設計ごとに {b["default_prompts"]} つまで**を出します。性質に合うもの（「先に出す設計」に当たるもの。「読めない」性質では数えない）を先に選び、残りは下の表の順です。選ばれなかったものは「さらに」として、時間があれば辿ります。1 つにつき 2〜4 分が目安です（未計測）。',
           '',
-          '| ID | 辿ること | 出す条件 |',
-          '| --- | --- | --- |']
+          '| ID | 辿ること | 出す条件 | 先に出す設計 |',
+          '| --- | --- | --- | --- |']
     for p in tri['open_prompts']:
-        L.append(f'| {p["id"]} | {_cell(p, {})} | {_cond_labels(tri, p["show_when"])} |')
+        pref = _cond_labels(tri, p.get('prefer_when') or []) or ('（条件に当たれば先に出す）' if set(p['show_when']) - {'always'} else '—')
+        L.append(f'| {p["id"]} | {_cell(p, {})} | {_cond_labels(tri, p["show_when"])} | {pref} |')
     L += ['',
           'これらは、パイロット（#9）で問いの一覧の外から出た Major の指摘を元に作りました。同じ設計で作って同じ設計で確かめた問いなので、別の設計でも効くかは分かっていません（triage-evidence.md の 3.）。',
           '旧経路・テストの経路は `q-outside-catalog` に、同意と宛先の束縛は `q-approval-from-as` にまとめてあります。',
@@ -423,7 +474,7 @@ def short_list_text(tri, root=ROOT):
           '## 6. 機械が確かめること（レビュアーは答えない）',
           '',
           '次の問いは、lint の規則が答えを決めます。レビュアーは、設計書の 1. の結果で error が 0 であることと、warn に理由が付いていることだけを見ます。',
-          '規則が決めるのは「宣言が矛盾していない」ことまでです（RULES.md）。既存の規則が答えを決めるとした問いは、記入例の答えを No に書き換えて、lint が指摘を出すことを 1 問ずつ確かめました（[research/template-design/triage-audit.md](../../research/template-design/triage-audit.md)）。',
+          '規則が決めるのは「宣言が矛盾していない」ことまでです（RULES.md）。既存の規則だけが答えを決めるとした問いは、記入例の答えを No に書き換えて、lint が指摘を出すことを 1 問ずつ確かめました（[research/template-design/triage-audit.md](../../research/template-design/triage-audit.md)）。',
           '',
           '| lint の規則 | 確かめる問い |',
           '| --- | --- |']
@@ -441,13 +492,13 @@ def short_list_text(tri, root=ROOT):
           '| --- | --- | --- |']
     for q in pend:
         L.append(f'| `{q["id"]}` | ' + ('・'.join(_lint_ref(r) for r in q.get('lint') or []) or '無い') + ' | ' + '・'.join(_proposed_ref(r) for r in q['proposed']) + ' |')
-    rest = [q for q in cq if q['priority'] not in tri['budget']['default_priorities']]
+    rest = [q for q in cq if q['priority'] not in b['default_priorities'] + b['optional_priorities']]
     L += ['',
           '<a id="more"></a>',
           '',
-          f'## 7. 詳しく見る（優先 3。既定では出さない {len(rest)} 問）',
+          f'## 7. 詳しく見る（優先 3。出さない {len(rest)} 問）',
           '',
-          '時間が残ったとき、または 2. の問いに答える中で気になったときに見ます。ほかの問いにまとめた問いと、手順の別の段で確かめる問いも、ここにあります。',
+          '問いに答える中で気になったときに見ます。ほかの問いにまとめた問いと、手順の別の段で確かめる問いも、ここにあります。',
           '',
           '| 問い ID | 問い | 当たる設計 |',
           '| --- | --- | --- |']
@@ -455,6 +506,33 @@ def short_list_text(tri, root=ROOT):
         note = f'（`{q["merged_into"]}` にまとめた）' if q.get('merged_into') else f'（手順の段 {q["step"]} で確かめる）' if q.get('step') else ''
         L.append(f'| `{q["id"]}` | {q["ask"]}{note} | {_cond_labels(tri, q["show_when"])} |')
     L += ['',
+          '<a id="not-here"></a>',
+          '',
+          '## 8. ここに無い問いの行き先と、この文書について',
+          '',
+          f'観点書（[perspectives.md](perspectives.md)）の {len(qs)} 問を 1 問ずつ振り分け（[triage.yaml](triage.yaml)）、人が判断する {n["C"]} 問を残しました。',
+          '',
+          '| 区分 | 数 | 誰が確かめるか |',
+          '| --- | --- | --- |',
+          f'| A 機械 | {n["A"]} | claim_lint（[RULES.md](../../tools/claim_lint/RULES.md)）。レビュアーは、設計書の 1. に貼られた結果で error が 0 であることだけを見る（手順の段 0）。'
+          f'うち {sum(1 for q in qs if q["class"] == "A" and not q.get("lint"))} 問は規則がまだ無く、{sum(1 for q in qs if q["class"] == "A" and q.get("lint") and q.get("proposed"))} 問は規則が一部しか見ない。'
+          'この分は、規則ができるまで書き手の自己点検にも置く（6.） |',
+          f'| B 書き手の自己点検 | {n["B"]} | 書き手が、提出前のチェックリスト（PR のテンプレート `.github/PULL_REQUEST_TEMPLATE/design_doc.md`）で確かめる。'
+          'レビュアーは、印の無い行を読み、25 問の回答の行と、No なら Blocker の行から 2 件を抜き取って欄を開く（手順の段 0） |',
+          f'| C 人の判断 | {n["C"]} | レビュアー。優先 1 の {len(default)} 問（既定）、優先 2 の {len(opt)} 問（時間があれば）、優先 3 の {len(rest)} 問（出さない）。'
+          f'優先 1 のうち {sum(1 for q in cq if q.get("until_rule"))} 問は、機械で決まるが規則がまだ無いので、規則ができるまでレビュアーが答える |',
+          f'| D 専門家 | {n["D"]} | レビュアーは答えず、[escalation.md](escalation.md) の基準に当たる行を回す（5.） |',
+          '',
+          '- 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施',
+          '- 区分・優先・出す条件・量と時間の目安は、どれも筆者の提案と LLM の見積もりです（追跡 #56）。人が測るのは #20 です。根拠にしたパイロット（#9）の数は [research/template-design/triage-evidence.md](../../research/template-design/triage-evidence.md) にあります',
+          '- 「漏れゼロ」は約束しません。パイロットでは、人の判断が要る Major の指摘の半分が、問いの一覧の外から出ました。そのため、問いのほかに開いた問い（4.）を置いています',
+          '- エディターのレビューモード（`docs/claims/`）の「観点のチェックリスト」は、開いている設計書から同じ性質を読み、既定でこの一覧を出します',
+          '',
+          '```',
+          'python tools/review_triage.py --design <設計書のディレクトリ> [--seed <種>]   # その設計の 1 枚（性質の表、問い、開いた問い）',
+          'python tools/review_triage.py --load <設計書のディレクトリ>…                  # 一覧の大きさ（問い・文・字数）',
+          '```',
+          '',
           '根拠：筆者の提案：問いの区分・優先・出す条件・1 回の量の目安（追跡 #56）、templates/CONTRIBUTING.md の 2.・3.、research/template-design/pilot.md の 9.',
           '']
     return '\n'.join(L)
@@ -485,7 +563,7 @@ def author_lines(tri, root=ROOT):
             seen[key]['ids'].append(q['id'])
             seen[key]['blocker'] = seen[key]['blocker'] or q['id'] in blocker
             continue
-        seen[key] = {'ids': [q['id']], 'text': text, 'when': q.get('when') or [], 'blocker': q['id'] in blocker, 'kind': kind,
+        seen[key] = {'ids': [q['id']], 'text': text, 'when': q.get('when') or [], 'blocker': q['id'] in blocker, 'kind': kind, 'group': q.get('group'),
                      'rules': q.get('proposed') or [], 'lint': q.get('lint') or []}
         out.append(seen[key])
     return out
@@ -498,6 +576,7 @@ def pr_template_text(tri, root=ROOT):
     def item(x):
         ids = '・'.join(f'`{i}`' for i in x['ids'])
         mark = '**【No なら Blocker】** ' if x['blocker'] else ''
+        mark = '**【レビュアーが必ず抜き取る】** ' + mark if x.get('group') else mark
         rule = ''
         if x['kind'] == 'A':
             rule = '（規則の案：' + '・'.join(x['rules']) + ('。いまの lint が一部を見る' if x['lint'] else '') + '）'
@@ -516,7 +595,7 @@ def pr_template_text(tri, root=ROOT):
          '',
          f'書き手が自分の設計書を開けば確かめられることを、{len(lines)} 行にまとめました（観点書 `templates/review/perspectives.md` の {nq} 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。'
          'レビュアーは、ここの問いには答えません。',
-         '満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**【No なら Blocker】の行から 3 件を抜き取って欄を開きます**（手順の段 0）。',
+         '満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**25 問の回答の行（必ず）と、【No なら Blocker】の行から 2 件を抜き取って、欄を開きます**（手順の段 0）。',
          '区分と理由は `templates/review/triage.yaml` にあります。量と分け方は筆者の提案です（追跡 #56）。',
          '',
          '### どの設計でも',
@@ -552,7 +631,7 @@ def readme_text(tri, text):
     rows = ['| 区分 | 問いの数 | 行き先 |', '| --- | --- | --- |',
             f'| A 機械 | {c["A"]}（既存の規則が確かめる {c["A_with_rule"]}、規則が一部を確かめる {c["A_partial_rule"]}、規則がまだ無い {c["A_without_rule"]}） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |',
             f'| B 書き手の自己点検 | {c["B"]} | 提出前のチェックリスト（PR のテンプレート。規則待ちの A と合わせて {c["author_lines"]} 行） |',
-            f'| C 人の判断 | {c["C"]}（優先 1：{c["C_priority_1"]}、優先 2：{c["C_priority_2"]}、優先 3：{c["C_priority_3"]}。うち規則ができるまで人が答える機械の問い {c["C_until_rule"]}） | short_list.md（既定で出すのは優先 1・2 のうち、設計の性質に当たるもの） |',
+            f'| C 人の判断 | {c["C"]}（優先 1：{c["C_priority_1"]}、優先 2：{c["C_priority_2"]}、優先 3：{c["C_priority_3"]}。うち規則ができるまで人が答える機械の問い {c["C_until_rule"]}） | short_list.md（既定で出すのは優先 1 のうち、設計の性質に当たるもの。優先 2 は時間があれば） |',
             f'| D 専門家 | {c["D"]} | escalation.md |',
             f'| 計 | {c["total"]} | 開いた問いは、このほかに {c["open_prompts"]} 個 |']
     return COUNTS_RE.sub(lambda m: m.group(1) + '\n'.join(rows) + '\n' + m.group(2), text)
@@ -566,55 +645,76 @@ def generated(tri, root=ROOT):
             README: readme_text(tri, _read(os.path.join(root, README)))}
 
 
-def design_sheet(tri, design_dir, root=ROOT):
-    """The sheet handed to the reviewer of one design: the 12 traits with what was read, then only the questions of
-    this design (one sentence each, the hint and the fields under it) and the open prompts."""
+def design_sheet(tri, design_dir, root=ROOT, seed=None):
+    """The sheet handed to the reviewer of one design. It starts with the 12 traits (what was read) and the questions
+    of this design (priority 1; one sentence each, the hint and the fields under it), then three open prompts, then the
+    questions "if time remains"; how to answer and what is not asked come last."""
     reg = load_design(design_dir)
     tr = read_traits(reg)
     have = {c for c, v in tr.items() if v['state'] != 'off'}
     unknown = {c for c, v in tr.items() if v['state'] == 'unknown'}
     see_of = {q['id']: q['fields'].get('見る欄', '') for q in _parsed(root)}
-    qs, ps = selected(tri, have), prompts(tri, have)
-    default = [q for q in tri['questions'] if q['class'] == 'C' and q['priority'] in tri['budget']['default_priorities']]
+    on = {c for c, v in tr.items() if v['state'] == 'on'}
+    qs, opt, ps = selected(tri, have), optional(tri, have), prompts(tri, have, on)
+    given = seed is not None
+    seed = seed if given else default_seed(reg)
     b = tri['budget']
+    nd = b['default_prompts']
+    listed = [q for q in tri['questions'] if q['class'] == 'C' and q['priority'] in b['default_priorities'] + b['optional_priorities']]
+    rows, n_rows, own = row_sample(tri, reg, seed)
     out = [f'# このレビューで答える問い：{design_dir}',
            '',
-           f'問い {len(qs)}（全 {len(tri["questions"])} 問のうち、人が判断する {counts(tri)["C"]} 問から）・開いた問い {len(ps)}。'
-           f'目安は、問いに答える時間が {b["minutes"][0]}〜{b["minutes"][1]} 分、レビューの全体が {b["whole_procedure_minutes"][0]}〜{b["whole_procedure_minutes"][1]} 分（LLM の見積もり。人では測っていない）。',
-           '問いごとに、自分の言葉で答えを 1 行書く。書けない・設計書から読み取れないなら指摘にする。[1] を先に答える。',
+           f'問い {len(qs)}・開いた問い {min(nd, len(ps))}（時間があれば：問い {len(opt)}・開いた問い {max(0, len(ps) - nd)}）。答え方と目安は末尾。',
            '',
            '## 1. 設計の性質（先に、図と要求に照らして確かめる）',
-           '',
-           '「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答える（全部の問いは templates/review/short_list.md）。',
            '']
     for c, v in tr.items():
         if c == 'always':
             continue
-        hidden = [q['id'] for q in default if c in q['show_when'] and not set(q['show_when']) & have]
+        hidden = [q['id'] for q in listed if c in q['show_when'] and not set(q['show_when']) & have]
         hidden += [p['id'] for p in tri['open_prompts'] if c in p['show_when'] and not set(p['show_when']) & have]
         tail = f'。出さない問い {len(hidden)}：{"・".join(hidden)}' if v['state'] == 'off' and hidden else ''
         tail = '。読めないので、この性質の問いも出す' if v['state'] == 'unknown' else tail
         out.append(f'- [{STATE_WORD[v["state"]]}] {tri["conditions"][c]["label"]} ― {v["evidence"]}{tail}')
+
+    def item(q):
+        only_unknown = not (set(q['show_when']) & (have - unknown))
+        lines = [f'- {q["id"]}　{q["ask"]}' + ('（性質が読めないので出している）' if only_unknown else '')]
+        if q.get('hint'):
+            lines.append(f'    手がかり：{q["hint"]}')
+        if q['id'] in see_of:
+            lines.append(f'    見る欄：{see_of[q["id"]]}')
+        return lines
     n = 2
     for unit in UNITS:
-        rows = [q for q in qs if q['unit'] == unit]
-        if not rows:
+        part = [q for q in qs if q['unit'] == unit]
+        if not part:
             continue
         out += ['', f'## {n}. {tri["units"][unit]}', '']
         n += 1
-        for q in rows:
-            only_unknown = not (set(q['show_when']) & (have - unknown))
-            out.append(f'- [{q["priority"]}] {q["id"]}　{q["ask"]}' + ('（性質が読めないので出している）' if only_unknown else ''))
-            if q.get('hint'):
-                out.append(f'    手がかり：{q["hint"]}')
-            out.append(f'    見る欄：{see_of[q["id"]]}')
+        if unit == 'row':
+            out += [f'答える行（認可・識別子に使う {n_rows} 行から {len(rows)} 行。種 {seed}'
+                    + ('' if given else '：--seed が無いので、台帳の内容と日付から作った。レポートに書く') + f'）：{"・".join(rows)}。'
+                    + (f'{own} は、組織独自の認可の行として必ず入れた 1 行。' if own else '組織独自の認可の行（名前空間つき）は無い。')
+                    + '問いが名指す行が無ければ足す。答えが No なら、残りの行も見る。', '']
+        for q in part:
+            out += item(q)
     out += ['', f'## {n}. 開いた問い（決まった欄では答えられない。要求と運用から辿り、辿った範囲と気づきを書く）', '']
-    for p in ps:
-        out.append(f'- {p["id"]}　{p["ask"]}')
-        out.append(f'    手がかり：{p["hint"]}')
-    out += ['', f'## {n + 1}. 答えないこと', '',
+    for p in ps[:nd]:
+        out += item(p)
+    out += ['', f'## {n + 1}. 時間があれば', '']
+    for q in opt:
+        out += item(q)
+    for p in ps[nd:]:
+        out += [f'- （開いた問い・さらに）{p["id"]}　{p["ask"]}', f'    手がかり：{p["hint"]}']
+    out += ['', f'## {n + 2}. 答え方と、答えないこと', '',
+            '- 問いごとに、自分の言葉で答えを 1 行書く。書けない・設計書から読み取れないなら指摘にする。手がかりは、問いだけで答えられるなら読まなくてよい',
+            '- 性質の表で「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答える（全部の問いは templates/review/short_list.md）',
+            f'- 目安は、問いに答える時間が {b["minutes"][0]}〜{b["minutes"][1]} 分、レビューの全体（手順の段 0〜6）が {b["whole_procedure_minutes"][0]}〜{b["whole_procedure_minutes"][1]} 分（LLM の見積もり。人では測っていない）',
+            f'- この 1 枚の問いは、全 {len(tri["questions"])} 問のうち、人が判断する {counts(tri, root)["C"]} 問から選んだもの',
             '- 機械（lint）が確かめること：設計書の 1. の結果で、error が 0 かと、warn に理由があるかだけを見る',
-            '- 書き手の自己点検（PR の本文）：印の無い行を読み、【No なら Blocker】の行から 3 件を抜き取って欄を開く',
+            '- 書き手の自己点検（PR の本文）：印の無い行を読み、25 問の回答の行と、【No なら Blocker】の行から 2 件を抜き取って欄を開く',
+            f'- 受け付け（手順の段 0）で、あわせて確かめること：{by_id(tri)["q-lint-workaround"]["ask"]}（{by_id(tri)["q-lint-workaround"]["hint"]}）',
             '- 暗号の方式・IdP や製品の実際の挙動・委任が 2 段以上になる場合：答えずに、専門家に回す（templates/review/escalation.md）']
     return '\n'.join(out), tr
 
@@ -642,7 +742,7 @@ def check(root=ROOT, questions=None, generated_files=True):
     criteria = set(re.findall(r'^\| `([a-z0-9-]+)` \|', _read(esc_path), re.M)) if os.path.isfile(esc_path) else set()
     props = tri.get('proposed_rules') or {}
     groups = tri.get('author_groups') or {}
-    prios = set((tri.get('budget') or {}).get('default_priorities') or [1, 2])
+    prios = set((tri.get('budget') or {}).get('default_priorities') or [1])
     entries = {str(q.get('id')): q for q in tri.get('questions') or []}
 
     def implemented(rule):
@@ -670,7 +770,7 @@ def check(root=ROOT, questions=None, generated_files=True):
     def human_default(where, rule, key, target):
         t = entries.get(target)
         if not t or t.get('class') != 'C' or t.get('priority') not in prios or t.get('merged_into'):
-            errors.append((rule, where, f'{key} の {target} は、既定で出す（優先 1・2 の）区分 C の問いでない'))
+            errors.append((rule, where, f'{key} の {target} は、既定で出す（優先 1 の）区分 C の問いでない'))
 
     def one_sentence(where, rule, text):
         text = str(text or '').strip()
@@ -750,9 +850,9 @@ def check(root=ROOT, questions=None, generated_files=True):
             errors.append(('T7', where, 'from（元にした指摘）が要る'))
         if not p.get('show_when'):
             errors.append(('T7', where, 'show_when が空'))
-        for v in p.get('show_when') or []:
+        for v in (p.get('show_when') or []) + (p.get('prefer_when') or []):
             if v not in conds:
-                errors.append(('T7', where, f'show_when の {v} は conditions に無い'))
+                errors.append(('T7', where, f'show_when・prefer_when の {v} は conditions に無い'))
             used_conds.add(v)
     for cnd in conds:
         if cnd not in used_conds:
@@ -794,6 +894,8 @@ def main(argv=None):
     ap.add_argument('--write', action='store_true')
     ap.add_argument('--counts', action='store_true')
     ap.add_argument('--design', metavar='DIR', help='print the sheet for a design: its traits and the questions to answer')
+    ap.add_argument('--seed', help='with --design: the seed of the rows the per-row questions are answered for (the PR number, for '
+                    'example); without it, a seed made from the registry and the date is used and printed')
     ap.add_argument('--load', metavar='DIR', nargs='+', help='print the size of the short list of each design')
     a = ap.parse_args(argv)
     tri = load(a.root)
@@ -814,12 +916,13 @@ def main(argv=None):
         out += [f'{k}: {v}' for k, v in counts(tri, a.root).items()]
     try:
         if a.design:
-            out.append(design_sheet(tri, a.design, a.root)[0])
+            out.append(design_sheet(tri, a.design, a.root, a.seed)[0])
         if a.load:
-            out.append('design\tquestions\tprompts\titems\task_sentences\task_chars\tall_sentences\tall_chars')
+            out.append('design\tquestions\tprompts\titems\task_sentences\task_chars\tall_sentences\tall_chars\toptional_questions\tmore_prompts')
             for d in a.load:
-                v = load_of(tri, traits(load_design(d)))
-                out.append('\t'.join([d] + [str(v[k]) for k in ('questions', 'prompts', 'items', 'ask_sentences', 'ask_chars', 'all_sentences', 'all_chars')]))
+                reg = load_design(d)
+                v = load_of(tri, traits(reg), on_traits(reg))
+                out.append('\t'.join([d] + [str(v[k]) for k in ('questions', 'prompts', 'items', 'ask_sentences', 'ask_chars', 'all_sentences', 'all_chars', 'optional_questions', 'more_prompts')]))
     except DesignError as e:
         sys.stderr.buffer.write(f'review_triage: {e}\n'.encode('utf-8'))
         return 2

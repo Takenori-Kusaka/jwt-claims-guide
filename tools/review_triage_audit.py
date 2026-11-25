@@ -10,8 +10,13 @@ five such questions by this test).
   python tools/review_triage_audit.py            # run, print the table, exit 1 when a question is not decided
   python tools/review_triage_audit.py --write    # also write research/template-design/triage-audit.md
 
-What this does not show: that the rule sees every way the answer can be No (one mutation per question), nor that the
-receiver does what is declared (RULES.md: the rules compare declarations).
+What this does not show:
+  - the other direction. Only "No gives a finding" is tested, not "Yes gives none": a rule that warns whenever the
+    row exists (L18 on a deprecated claim that is still read) passes this test although it only points at the place to
+    look and does not tell Yes from No (the re-check of PR #71 found q-deprecated-deadline this way)
+  - that the rule sees every way the answer can be No (one mutation per question, chosen by the author of the triage;
+    the re-check found, with other mutations, a part of ap-2-9 and q-internal-delegation-token that no rule sees)
+  - that the receiver does what is declared (RULES.md: the rules compare declarations)
 """
 import argparse
 import copy
@@ -139,10 +144,6 @@ def _roles_unenforced(d):
     c(d, 'C-roles').pop('enforced_at', None)
 
 
-def _internal_no_revocation(d):
-    t(d, 'INT_AT').pop('revocation', None)
-
-
 def _alg_none(d):
     t(d, 'KC_AT')['alg_allowlist'] = ['RS256', 'none']
 
@@ -177,10 +178,6 @@ def _public_plain_rt(d):
     t(d, 'RT')['rt_rotation'] = {'rotation': False, 'reuse_detection': 'no'}
 
 
-def _deprecated(d):
-    c(d, 'C-roles')['status'] = 'deprecated'
-
-
 def _no_unknown_kid(d):
     t(d, 'KC_AT').pop('unknown_kid', None)
 
@@ -211,7 +208,6 @@ MUTATIONS = {
     'txn-bearer': ('B', _txn_bearer, 'TXN の transport を authorization_bearer にする'),
     'tctx-unenforced': ('B', _tctx_unenforced, 'C-tctx の enforced_at を消す'),
     'roles-unenforced': ('B', _roles_unenforced, 'C-roles の enforced_at を消す'),
-    'internal-no-revocation': ('B', _internal_no_revocation, 'INT_AT の revocation を消す'),
     'alg-none': ('B', _alg_none, 'KC_AT の alg_allowlist に none を足す'),
     'aud-optional': ('B', _aud_optional, 'KC_AT の required_claims から aud を外す'),
     'no-tenant-binding': ('A', _no_tenant_binding, 'AT の tenant_binding を消す'),
@@ -220,7 +216,6 @@ MUTATIONS = {
     'jwe-no-inner': ('B', _jwe_no_inner, 'KC_AT を JWE にし、ネストの宣言（sign_then_encrypt）を書かない'),
     'rt-no-idle': ('B', _rt_no_idle, 'RT の idle_timeout を消す'),
     'public-plain-rt': ('B', _public_plain_rt, 'クライアントを public にし、RT のローテーションと再利用の検知を外す'),
-    'deprecated': ('B', _deprecated, '受け手のいる C-roles の status を deprecated にする'),
     'no-unknown-kid': ('B', _no_unknown_kid, 'KC_AT の unknown_kid を消す'),
     'many-items': ('B', _many_items, 'C-roles の max_items を 500 にする'),
 }
@@ -238,10 +233,9 @@ AUDIT = {
     'q-size-limit': 'oversize', 'q-agent-delegation-claims': 'act-answers-sub',
     'cf-05': 'wider-scope', 'q-hop-narrowing': 'wider-scope', 'q-hop-lifetime': 'longer-life', 'q-claim-earliest-hop': 'not-upstream',
     'cf-06': 'txn-bearer', 'q-txn-scope-fixed': 'tctx-unenforced',
-    'ap-2-9': 'internal-no-revocation', 'q-internal-delegation-token': 'internal-no-revocation',
     'ap-1-1': 'alg-none', 'ap-1-3': 'aud-optional', 'ap-1-4': 'no-tenant-binding', 'ap-1-5': 'no-key-source', 'ap-1-8': 'skew',
     'q-nested-jwt-both-layers': 'jwe-no-inner', 'q-session-rt-bounds': 'rt-no-idle', 'q-rt-policy-by-client': 'public-plain-rt',
-    'q-deprecated-deadline': 'deprecated', 'q-key-rotation': 'no-unknown-kid',
+    'q-key-rotation': 'no-unknown-kid',
 }
 
 
@@ -311,7 +305,8 @@ def record(rows):
          '',
          f'- 結果：{len(rows)} 問のうち {ok} 問で、規則が指摘を出した' + ('' if ok == len(rows) else f'。**出さなかった {len(rows) - ok} 問は、区分を直す必要がある**'),
          '- 分かること：その書き換えを、規則が拾うこと',
-         '- 分からないこと：答えが No になる書き方の全部を規則が拾うか（1 問につき書き換えは 1 つ）。受け手が宣言どおりに動くか（規則は宣言どうしを比べるだけ。`tools/claim_lint/RULES.md`）',
+         '- 分からないこと：答えが No になる書き方の全部を規則が拾うか（1 問につき書き換えは 1 つで、振り分けを書いた側が選んだ）。受け手が宣言どおりに動くか（規則は宣言どうしを比べるだけ。`tools/claim_lint/RULES.md`）',
+         '- **確かめているのは「No にしたら指摘が出る」の向きだけ**。「Yes なら指摘が出ない」は確かめていない。行があるだけで出る warn（見る場所を知らせるだけの規則）は、この確かめを通ってしまう。再点検（PR #71）が、別の書き換えで 3 問をこの区分から外した（下の表）',
          '- 「SCHEMA」は、スキーマがその値を許さず、規則の手前で機械が止めたもの',
          '- `tools/tests/test_review_triage.py` が同じ確かめを走らせる（区分を変えて、書き換えの無い問いができると落ちる）',
          '',
@@ -335,6 +330,9 @@ def record(rows):
           '| `q-hop-narrowing` | A（L16） | A（L16）＋残りは `q-no-passthrough` | 交換を担うサービスが規則を強制する設定は、L16 が見ない |',
           '| `q-auth-context-semantics` | C | A・規則なし（案 N16）。書き手の自己点検 | 行の usage・enforced_at の値でほぼ決まる |',
           '| `q-relies-on-at-expiry` | B | C（`q-revocation-delivery` にまとめた） | 自分の前提を自分で疑う問いで、書き手の自己点検に向かない |',
+          '| `q-deprecated-deadline` | A（L18） | A・一部（案 N17）。書き手の自己点検 | 再点検：L18 は、廃止予定の行を読む受け手がいれば必ず出る。期日・代わりの行があっても出るので、答えを決めていない。この道具の確かめ（No の向きだけ）は通っていた |',
+          '| `ap-2-9`・`q-internal-delegation-token` | A（L17・L9・R1） | A・一部（案 N18）。書き手の自己点検 | 再点検：`log_policy` を消しても指摘が増えない。「ログに残るか」は、どの規則も見ない |',
+          '| `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |',
           '']
     return '\n'.join(L)
 

@@ -5,9 +5,10 @@
 `templates/review/triage.yaml` で「既存の規則が答えを決める（レビュアーも書き手も答えない）」とした問いを、1 問ずつ確かめた記録です。
 記入例の写しを、その問いの答えが No になるように 1 か所書き換え、claim_lint が、引いた規則の error か warn を新しく出すかを見ます（PR #71 の独立点検が使った確かめ方。そこで 5 問が外れた）。出さなければ、その規則は問いを決めていないので、この区分から外します。
 
-- 結果：47 問のうち 47 問で、規則が指摘を出した
+- 結果：44 問のうち 44 問で、規則が指摘を出した
 - 分かること：その書き換えを、規則が拾うこと
-- 分からないこと：答えが No になる書き方の全部を規則が拾うか（1 問につき書き換えは 1 つ）。受け手が宣言どおりに動くか（規則は宣言どうしを比べるだけ。`tools/claim_lint/RULES.md`）
+- 分からないこと：答えが No になる書き方の全部を規則が拾うか（1 問につき書き換えは 1 つで、振り分けを書いた側が選んだ）。受け手が宣言どおりに動くか（規則は宣言どうしを比べるだけ。`tools/claim_lint/RULES.md`）
+- **確かめているのは「No にしたら指摘が出る」の向きだけ**。「Yes なら指摘が出ない」は確かめていない。行があるだけで出る warn（見る場所を知らせるだけの規則）は、この確かめを通ってしまう。再点検（PR #71）が、別の書き換えで 3 問をこの区分から外した（下の表）
 - 「SCHEMA」は、スキーマがその値を許さず、規則の手前で機械が止めたもの
 - `tools/tests/test_review_triage.py` が同じ確かめを走らせる（区分を変えて、書き換えの無い問いができると落ちる）
 
@@ -43,12 +44,10 @@
 | `q-hop-narrowing` | L16 | H4 の scope に、上流に無い admin.write を足す | `templates/examples/scenario-b` | L16 +1 | 決める |
 | `q-hop-lifetime` | L16 | H4 の max_lifetime を、上流より長い 3600 秒にする | `templates/examples/scenario-b` | L16 +1 | 決める |
 | `ap-2-5` | L8・L67 | ヘッダーに写すホップの strip_inbound を false にする | `research/pilot/scenario-b` | L8 +1 | 決める |
-| `q-txn-scope-fixed` | L11 | C-tctx の enforced_at を消す | `templates/examples/scenario-b` | L11 +2 | 決める |
+| `q-txn-scope-fixed` | L11・L16 | C-tctx の enforced_at を消す | `templates/examples/scenario-b` | L11 +2 | 決める |
 | `q-claim-earliest-hop` | L16 | H4 の custom_claims に、上流に無い C-task-id を足す | `templates/examples/scenario-b` | L16 +1 | 決める |
-| `ap-2-9` | L17・L9・R1 | INT_AT の revocation を消す | `templates/examples/scenario-b` | R1 +1 | 決める |
-| `q-internal-delegation-token` | L9・L17・R1 | INT_AT の revocation を消す | `templates/examples/scenario-b` | R1 +1 | 決める |
 | `ap-1-1` | L17 | KC_AT の alg_allowlist に none を足す | `templates/examples/scenario-b` | L17 +1 | 決める |
-| `ap-1-3` | L27 | KC_AT の required_claims から aud を外す | `templates/examples/scenario-b` | L27 +2 | 決める |
+| `ap-1-3` | L27・L11 | KC_AT の required_claims から aud を外す | `templates/examples/scenario-b` | L27 +2 | 決める |
 | `ap-1-4` | L9 | AT の tenant_binding を消す | `templates/examples/scenario-a` | L9 +1 | 決める |
 | `ap-1-5` | L25 | KC_AT の key_source を消す | `templates/examples/scenario-b` | L25 +1 | 決める |
 | `ap-1-8` | L27 | KC_AT の max_clock_skew を 900 秒にする | `templates/examples/scenario-b` | L27 +1 | 決める |
@@ -58,7 +57,6 @@
 | `cd-04` | L31 | C-roles の provenance を「本人が編集できる値」にする | `templates/examples/scenario-b` | L31 +1 | 決める |
 | `q-session-rt-bounds` | L23・L15 | RT の idle_timeout を消す | `templates/examples/scenario-b` | L23 +1 | 決める |
 | `q-rt-policy-by-client` | L15・L62 | クライアントを public にし、RT のローテーションと再利用の検知を外す | `templates/examples/scenario-b` | L15 +1 | 決める |
-| `q-deprecated-deadline` | L18 | 受け手のいる C-roles の status を deprecated にする | `templates/examples/scenario-b` | L18 +1 | 決める |
 | `q-key-rotation` | L17 | KC_AT の unknown_kid を消す | `templates/examples/scenario-b` | L17 +1 | 決める |
 
 ## この確かめで区分を直した問い
@@ -75,3 +73,6 @@
 | `q-hop-narrowing` | A（L16） | A（L16）＋残りは `q-no-passthrough` | 交換を担うサービスが規則を強制する設定は、L16 が見ない |
 | `q-auth-context-semantics` | C | A・規則なし（案 N16）。書き手の自己点検 | 行の usage・enforced_at の値でほぼ決まる |
 | `q-relies-on-at-expiry` | B | C（`q-revocation-delivery` にまとめた） | 自分の前提を自分で疑う問いで、書き手の自己点検に向かない |
+| `q-deprecated-deadline` | A（L18） | A・一部（案 N17）。書き手の自己点検 | 再点検：L18 は、廃止予定の行を読む受け手がいれば必ず出る。期日・代わりの行があっても出るので、答えを決めていない。この道具の確かめ（No の向きだけ）は通っていた |
+| `ap-2-9`・`q-internal-delegation-token` | A（L17・L9・R1） | A・一部（案 N18）。書き手の自己点検 | 再点検：`log_policy` を消しても指摘が増えない。「ログに残るか」は、どの規則も見ない |
+| `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |

@@ -83,9 +83,9 @@ python tools/review_check.py --report <レポート>                            
 <!-- triage-counts:begin -->
 | 区分 | 問いの数 | 行き先 |
 | --- | --- | --- |
-| A 機械 | 81（既存の規則が確かめる 47、規則が一部を確かめる 15、規則がまだ無い 19） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |
-| B 書き手の自己点検 | 36 | 提出前のチェックリスト（PR のテンプレート。規則待ちの A と合わせて 49 行） |
-| C 人の判断 | 47（優先 1：18、優先 2：12、優先 3：17。うち規則ができるまで人が答える機械の問い 4） | short_list.md（既定で出すのは優先 1・2 のうち、設計の性質に当たるもの） |
+| A 機械 | 81（既存の規則が確かめる 44、規則が一部を確かめる 18、規則がまだ無い 19） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |
+| B 書き手の自己点検 | 36 | 提出前のチェックリスト（PR のテンプレート。規則待ちの A と合わせて 51 行） |
+| C 人の判断 | 47（優先 1：19、優先 2：10、優先 3：18。うち規則ができるまで人が答える機械の問い 4） | short_list.md（既定で出すのは優先 1 のうち、設計の性質に当たるもの。優先 2 は時間があれば） |
 | D 専門家 | 4 | escalation.md |
 | 計 | 168 | 開いた問いは、このほかに 6 個 |
 <!-- triage-counts:end -->
@@ -96,7 +96,7 @@ python tools/review_check.py --report <レポート>                            
 
 1. [procedure.md](procedure.md) の段 0 で、CI・書き手の自己点検・Lite／Full を確かめる
 2. 設計書の 12.（自信のない点）と 6.（問い × 仕組み）を読み、[decision_tree.md](decision_tree.md) で仕組みを確かめる
-3. `python tools/review_triage.py --design <設計書のディレクトリ>` で、この設計の 1 枚（性質の表と、当たる問い。15〜25 問が目安）を出し、性質の表を図と要求に照らしてから、問いと開いた問いに答える（全部の問いは [short_list.md](short_list.md)）。分からない語は対比表へ。問いの見る欄と根拠は [perspectives.md](perspectives.md) の同じ ID の問いにある
+3. `python tools/review_triage.py --design <設計書のディレクトリ>` で、この設計の 1 枚（性質の表と、当たる優先 1 の問い 10〜18 問、開いた問い 3 つ）を出し、性質の表を図と要求に照らしてから、問いと開いた問いに答える（全部の問いは [short_list.md](short_list.md)）。分からない語は対比表へ。問いの見る欄と根拠は [perspectives.md](perspectives.md) の同じ ID の問いにある
 4. [report_template.md](report_template.md) に記録し、[escalation.md](escalation.md) に当たる行を回す
 
 ## 検査
