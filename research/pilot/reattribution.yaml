@@ -1,0 +1,121 @@
+# パイロット #9：指摘の出どころの付け直し（レビュアーとは別のセッション）
+label: "LLM による付け直し。人による検証ではない"
+date: 2026-11-25
+input: "review-{B-R1,B-R2,C-R1,C-R2}/review.yaml の各指摘の location・content・severity だけ。レビュアーの origin・questions・notes・review-report.md は読んでいない"
+materials: "E:/Github/jwt-claims-guide（main）の templates/review/perspectives.md（9. の較正は読まない）・procedure.md・report_template.md、templates/catalog/、templates/registry/questions.yaml、templates/00_core.md・profiles・modules・claim_request.md、tools/claim_lint/RULES.md"
+rules:
+  categories:
+    観点: "perspectives.md の問い ID がその指摘に直接当たる"
+    テンプレート項目: "観点書に当たる問いが無く、設計書のテンプレートの欄の「検討の問い」が当たる"
+    カタログ: "カタログのイベントの行（issue_events・use_events・subject_state_matrix）への回答から見つかる"
+    カタログ外の質問: "q-outside-catalog（カタログの外の場面：移行期間の旧経路・テストの経路など）から見つかる"
+    lint: "claim_lint の規則（既存）か render の出力が直接示す。または規則が拾うべき機械の不整合が本体"
+    理由の採点: "procedure.md の段 4 の 2.（rationale_rubric の RR）だけが当たる。report_template の 5 種には無い区分（付け足し）"
+    テンプレート外: "どの欄・問い・イベントにも当たらない"
+  priority: "観点 > テンプレート項目 > カタログ > カタログ外の質問 > lint > 理由の採点 > テンプレート外。ただし既存の lint の出力そのものが指摘の起点のときは lint"
+  triage: "A 機械（欄の有無・値・整合で決まる。拾う規則／拾うべき規則を書く）／B 書き手の自己点検（自由記述の有無で決まる）／C 人の判断／D 専門家（IdP の実挙動・仕様の解釈・委任の深さ）。#56 用"
+reviews:
+  B-R1:
+    - {id: F01, severity: Major, my_source: 観点, cited_id: q-identifier-choice（dc-09・dc-12）, triage: "A（案：hops.validates・upstream_issuer に出る IdP のクレーム名に台帳の行を求める。L7 の逆向きの拡張）", rationale: "照合のキー（tid・oid・uid）と判定に使うクレームに identifier_properties・on_missing が無い"}
+    - {id: F02, severity: Major, my_source: 観点, cited_id: q-single-aud-resource, triage: "A（L56 未実装：aud が 2 つ以上の AT）", rationale: "KC_AT の aud が 2 つで、1 つの AT が両方の経路で通る"}
+    - {id: F03, severity: Minor, my_source: 観点, cited_id: pa-14, triage: "A（案：種別の required_claims がその種別のホップの custom_claims に含まれるか）", rationale: "社員番号を orders 宛てに載せない（問 14）と目録の必須が食い違う"}
+    - {id: F04, severity: Major, my_source: 観点, cited_id: q-revocation-delivery, triage: C, rationale: "SET・イントロスペクションを代わりの手段なしに却下した型（No なら Major と明記）"}
+    - {id: F05, severity: Major, my_source: 観点, cited_id: q-refresh-reevaluated, triage: D, rationale: "リフレッシュでの再計算を前提に、IdP ごとの確認が無い（unverified-idp-behavior）"}
+    - {id: F06, severity: Minor, my_source: 観点, cited_id: q-rt-policy-by-client, triage: C, rationale: "公開クライアントの根拠を機密クライアントに引いた（理由が同じ種類のクライアントの根拠か）"}
+    - {id: F07, severity: Minor, my_source: 観点, cited_id: dc-02（pa-03）, triage: "A（案：R1 の必須に独自クレームの prior_art_search を足す）", rationale: "prior_art_search の列が無い"}
+    - {id: F08, severity: Minor, my_source: 観点, cited_id: q-lint-workaround, triage: C, rationale: "L16 に合わせて upstream を外した。規則の側の誤りかの判断が要る"}
+    - {id: F09, severity: Minor, my_source: 観点, cited_id: q-relies-on-at-expiry, triage: B, rationale: "残りの AT の期限をキャッシュの寿命にした型そのもの"}
+    - {id: F10, severity: Minor, my_source: 観点, cited_id: q-token-logging（q-audit-correlation）, triage: B, rationale: "記録するヘッダーの許可リスト・HAR の手順・相関のキーが無い"}
+    - {id: F11, severity: Minor, my_source: 観点, cited_id: q-evidence-attribution, triage: C, rationale: "根拠の 3 件の抜き取りで 2 件が当てはまらない"}
+    - {id: F12, severity: Minor, my_source: 観点, cited_id: q-limit-consistency, triage: B, rationale: "2.1 の「azp を照合」と H3 の validates が食い違う（受け手が照合する内容の 2 か所）"}
+    - {id: T1, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "別の時計で書いた iat と台帳の時刻の比較を問う問い・欄が無い（ap-1-8 は exp のずれだけ）"}
+    - {id: T2, severity: Major, my_source: テンプレート項目, cited_id: "template:00_core#scope-boundary（書き手・データ層の検討の問い）", triage: C, rationale: "社員台帳への書き込みの経路が範囲の図に無い"}
+    - {id: T3, severity: Major, my_source: カタログ外の質問, cited_id: q-outside-catalog, triage: C, rationale: "移行期間の旧経路（問いの例に明記）の守り"}
+    - {id: T4, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "要求の「社員」の解釈と雇用の区分。欄も問いも無い"}
+    - {id: T5, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "署名鍵の保管・漏えい時の手順を問う問いが無い（q-key-rotation は公開と廃止の順序だけ）"}
+    - {id: T6, severity: Minor, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "jti の 1 回だけの受け入れの共有の記録先・障害時の扱いを問う欄が無い"}
+    - {id: T7, severity: Minor, my_source: lint, cited_id: "render（flat_prefix の名前のつなぎ方）と drift.py の食い違い", triage: "A（案：render の名前と required_claims・スキーマの名前の一致を確かめる）", rationale: "生成の表の名前の誤り。機械の出力の不具合"}
+    - {id: T8, severity: Minor, my_source: 観点, cited_id: q-idp-capability-verified, triage: D, rationale: "Graph・Entra の設定の挙動に出どころが無い"}
+    - {id: T9, severity: Minor, my_source: 観点, cited_id: ap-2-5（pa-17・cf-08）, triage: C, rationale: "除去の対象が X-User-Role だけで、ほかの ID 系ヘッダーの変種を除去していない"}
+    - {id: T10, severity: Minor, my_source: カタログ, cited_id: "use_events U07（q-typ-distinguishes）", triage: "A（案：logout_token の種別に nonce の拒否と sub か sid の必須を求める）", rationale: "ログアウトトークンの検証の手順の欠け"}
+  B-R2:
+    - {id: R2-01, severity: Major, my_source: 観点, cited_id: q-limit-consistency, triage: B, rationale: "2.1 の azp の照合が H3 と C-azp.carried_in に無い（B-R1 F12 と同じ中身）"}
+    - {id: R2-02, severity: Major, my_source: 観点, cited_id: q-authorize-service-and-user（q-variant-comparison）, triage: C, rationale: "入口が直接の相手（BFF）を通信の層で確かめず、見送りの比較に候補が無い"}
+    - {id: R2-03, severity: Major, my_source: 観点, cited_id: q-identifier-choice（dc-12）, triage: "A（案：B-R1 F01 と同じ）", rationale: "IdP 固有のクレームに行が無く、required_claims・スキーマが欠落を拒否しない"}
+    - {id: R2-04, severity: Major, my_source: 観点, cited_id: dc-10（pa-11・q-value-vocabulary）, triage: C, rationale: "admins の書き手が 5 つの IdP の管理者の和になっている"}
+    - {id: R2-05, severity: Major, my_source: 観点, cited_id: dc-09（pa-12）, triage: C, rationale: "Okta のグループの名前（変わる値）で照合する"}
+    - {id: R2-06, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "人事の異動から IdP のグループへの反映の経路。鮮度の問いは IdP で外した後しか見ない"}
+    - {id: R2-07, severity: Major, my_source: カタログ外の質問, cited_id: q-outside-catalog, triage: C, rationale: "移行期間の旧経路の守り（B-R1 T3 と同じ）"}
+    - {id: R2-08, severity: Major, my_source: テンプレート項目, cited_id: "template:00_core#scope-boundary", triage: C, rationale: "社員台帳への書き込みの経路が図とホップに無い（B-R1 T2 と同じ）"}
+    - {id: R2-09, severity: Minor, my_source: 観点, cited_id: q-idp-capability-verified, triage: D, rationale: "Entra の設定（トークンの版・寿命のポリシー）の前提に出どころが無い"}
+    - {id: R2-10, severity: Minor, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "jti の記録先・再送・障害時（B-R1 T6 と同じ）"}
+    - {id: R2-11, severity: Minor, my_source: 観点, cited_id: ap-2-5（q-token-logging）, triage: C, rationale: "否定のリストだけで、渡してよいヘッダーの許可リストが無い"}
+    - {id: R2-12, severity: Minor, my_source: 観点, cited_id: q-relies-on-at-expiry, triage: B, rationale: "キャッシュの寿命が AT の残りの期限"}
+    - {id: R2-13, severity: Minor, my_source: 観点, cited_id: ap-2-1（dc-11）, triage: D, rationale: "Okta の groups の件数の上限と超過時の挙動が未確認"}
+    - {id: R2-14, severity: Minor, my_source: 観点, cited_id: pa-03（dc-02・q-registered-synonym）, triage: "A（案：R1 に prior_art_search・consumer_access_path・value_normalization を足す）", rationale: "25 問の回答が指す台帳の列が無い"}
+    - {id: R2-15, severity: Minor, my_source: 観点, cited_id: pa-14, triage: "A（案：B-R1 F03 と同じ）", rationale: "required_claims と H7 の custom_claims・問 14 の食い違い"}
+    - {id: R2-16, severity: Minor, my_source: lint, cited_id: "render（flat_prefix）", triage: "A（案：B-R1 T7 と同じ）", rationale: "生成の表の名前が台帳・スキーマと違う"}
+    - {id: R2-17, severity: Minor, my_source: テンプレート項目, cited_id: "template:00_core#question-mechanism（registry:questions#q-resource）", triage: C, rationale: "q-resource を aud で答えたが、Okta・Auth0 は scope で区別している"}
+    - {id: R2-18, severity: Minor, my_source: 観点, cited_id: ap-1-5（q-key-rotation）, triage: C, rationale: "発行者ごとの鍵の選び方と、鍵の漏えい時の扱い"}
+    - {id: R2-19, severity: Minor, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "要求に無い操作（承認）を設計が足した。要求との突き合わせの問いが無い"}
+    - {id: R2-20, severity: Minor, my_source: 理由の採点, cited_id: "procedure#step-4 の 2.（RR7）", triage: "A（案：issuers の発行者が出す種別が carried_in にあるか）", rationale: "同じ行の issuers と carried_in が食い違う"}
+    - {id: R2-21, severity: Minor, my_source: 観点, cited_id: q-lifetime-rationale, triage: C, rationale: "寿命の理由に剥奪の目標と代償の比較が無い"}
+    - {id: R2-22, severity: Minor, my_source: 観点, cited_id: q-rt-policy-by-client, triage: C, rationale: "機密クライアントに RFC 9700 §4.14.2 を引いた（B-R1 F06 と同じ）"}
+    - {id: R2-23, severity: Minor, my_source: 観点, cited_id: q-lint-workaround, triage: C, rationale: "upstream を外し、#6 に渡した記録が無い"}
+    - {id: R2-24, severity: Minor, my_source: カタログ外の質問, cited_id: q-outside-catalog, triage: C, rationale: "テストの経路（問いの例に明記）が本番に残る"}
+  C-R1:
+    - {id: F01, severity: Major, my_source: lint, cited_id: "L73・R1（procedure 段 0）", triage: "A（L73・R1 が既に出す）", rationale: "Full の判定なのに Lite で書き、profile full で error 53"}
+    - {id: F02, severity: Major, my_source: カタログ, cited_id: use_events U10, triage: C, rationale: "U10 の回答の cnf の確認が AGENT_AT の holder と合わない"}
+    - {id: F03, severity: Major, my_source: 観点, cited_id: q-no-passthrough（template:profiles/P4_ai_agent_delegation#delegation-policy）, triage: C, rationale: "交換を許す相手・割り当てる宛先の規則が STS の enforced_at に無い"}
+    - {id: F05, severity: Major, my_source: 観点, cited_id: q-agent-short-lived-no-rt, triage: "A（L58 未実装：エージェントの種別の refresh が RT を出す）", rationale: "エージェントに 8 時間の RT を出す"}
+    - {id: F06, severity: Minor, my_source: 観点, cited_id: q-limit-consistency, triage: B, rationale: "取り消しの目標・TOOL_AT の使い回し・log_policy が欄ごとに違う"}
+    - {id: F07, severity: Minor, my_source: 観点, cited_id: q-approval-from-as, triage: C, rationale: "承認の照合が note にしか無く、承認をタスク・エージェントに結んでいない"}
+    - {id: F08, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "承認の消費の競合・冪等。問い・欄が無い"}
+    - {id: F09, severity: Major, my_source: 観点, cited_id: ap-2-7（q-agent-delegation-claims）, triage: C, rationale: "act の無い AT を出してよいクライアントを限らず、エージェントが利用者として通りうる"}
+    - {id: F10, severity: Major, my_source: 観点, cited_id: q-minimal-per-recipient（q-confidential-reaches-reader）, triage: "A（案：carried_in の種別の holder・visible_to が consumers に無い個人情報の行を warn。L6・L65 の拡張）", rationale: "振込先の口座が読まない受け手に届く"}
+    - {id: F11, severity: Minor, my_source: 観点, cited_id: q-scope-elevation-logged（q-hop-narrowing）, triage: C, rationale: "ツールごとの最小の scope と、引き上げの記録"}
+    - {id: F12, severity: Minor, my_source: 観点, cited_id: q-delegation-depth-and-revocation, triage: D, rationale: "深さの数え方。深さ 2 以上は escalation の delegation-depth"}
+    - {id: F13, severity: Major, my_source: 観点, cited_id: "q-shared-validator ほか 5 問（q-validate-before-read・q-no-unverified-passthrough-mode・q-token-logging・q-lifetime-rationale・q-operational-metrics）", triage: "A（L73・R1：Full の欄が無い）", rationale: "問いの見る欄が無く判定できない"}
+    - {id: F14, severity: Minor, my_source: lint, cited_id: "render の矢印の表", triage: "A（案：hops.to と enforced_at.service の対応を確かめる）", rationale: "名前が結びつかず、生成の表が全部「—」"}
+    - {id: F15, severity: Minor, my_source: 観点, cited_id: q-copies-outlive（use_events U21）, triage: C, rationale: "ツール側の結果のキャッシュ（写し）の期限と止め方"}
+    - {id: F16, severity: Minor, my_source: 観点, cited_id: q-dependency-outage, triage: B, rationale: "承認の DB・STS の障害のときの振る舞いが無い"}
+    - {id: F17, severity: Minor, my_source: 観点, cited_id: pa-08（dc-05・dc-08）, triage: "A（案：authz のオブジェクトのクレームの受け手のスキーマに properties を求める）", rationale: "authorization_details の内側の型・比較の方法が無い"}
+    - {id: F18, severity: Minor, my_source: 理由の採点, cited_id: "procedure#step-4 の 2.（RR2・RR3）", triage: "A（案：assumption のある行に revisit_trigger を求める）", rationale: "revisit_trigger・代償が無い"}
+    - {id: F19, severity: Minor, my_source: 観点, cited_id: q-evidence-attribution, triage: C, rationale: "引いた RFC 8693 §4.1 が、入れ子の act を判断に使うことを禁じる"}
+    - {id: F20, severity: Major, my_source: 観点, cited_id: q-idp-capability-verified, triage: D, rationale: "防ぎ方が依存する STS の挙動が実測されていない"}
+  C-R2:
+    - {id: F01, severity: Major, my_source: lint, cited_id: "L73・R1（procedure 段 0）", triage: "A（L73・R1 が既に出す）", rationale: "Full の判定なのに Lite で書いた（C-R1 F01 と同じ）"}
+    - {id: F02, severity: Major, my_source: カタログ, cited_id: use_events U10, triage: C, rationale: "U10 の cnf の確認の誤り（C-R1 F02 と同じ）"}
+    - {id: F03, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "承認の確かめと消費の TOCTOU・冪等（C-R1 F08 と同じ）"}
+    - {id: F04, severity: Major, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "同意が MCP サーバーの resource を束縛しない。プロンプトインジェクションで誘導される場面を問う欄が無い（P4 の mcp-checklist は resource を送るかだけ）"}
+    - {id: F05, severity: Major, my_source: 観点, cited_id: q-no-passthrough（template:profiles/P4_ai_agent_delegation#delegation-policy）, triage: C, rationale: "交換の規則の表と、act の無い AT の許可の一覧が無い"}
+    - {id: F06, severity: Major, my_source: カタログ外の質問, cited_id: q-outside-catalog, triage: C, rationale: "移行期間の旧経路の閉じ方"}
+    - {id: F07, severity: Major, my_source: 観点, cited_id: q-revocation-delivery, triage: C, rationale: "すぐ止めたい支払いで委任の状態を問い合わせていない"}
+    - {id: F08, severity: Major, my_source: 観点, cited_id: q-dependency-outage, triage: C, rationale: "STS・承認の DB の障害時に閉じるか、可用性の目標"}
+    - {id: F09, severity: Major, my_source: 観点, cited_id: q-operator-act（q-break-glass）, triage: C, rationale: "管理コンソールの運用者の操作のトークンと監査"}
+    - {id: F10, severity: Major, my_source: 観点, cited_id: pa-08（dc-05・dc-08）, triage: "A（案：C-R1 F17 と同じ）", rationale: "authorization_details の内側の型と正規化が無い"}
+    - {id: F11, severity: Major, my_source: 観点, cited_id: q-idp-capability-verified, triage: D, rationale: "組織の STS の挙動に実測も仕様も無い"}
+    - {id: F12, severity: Minor, my_source: 観点, cited_id: q-delegation-depth-and-revocation, triage: D, rationale: "深さの上限と C11 の読み方"}
+    - {id: F13, severity: Minor, my_source: 観点, cited_id: dc-07（pa-09・q-required-rejected）, triage: "A（案：on_missing が拒否なのに、carried_in の種別の一部の required_claims に無い行）", rationale: "無いのが正規のトークンがあるのに on_missing が拒否"}
+    - {id: F14, severity: Minor, my_source: 観点, cited_id: q-token-logging（pa-20）, triage: B, rationale: "log_policy と U14 の食い違い、ヘッダーの許可リスト・HAR の手順が無い"}
+    - {id: F15, severity: Minor, my_source: 観点, cited_id: q-derived-value, triage: C, rationale: "口座の番号でなく参照 ID で足りる"}
+    - {id: F16, severity: Minor, my_source: 観点, cited_id: q-rt-policy-by-client, triage: C, rationale: "機密クライアントに公開クライアントの根拠。L62 の E-rt-sender-constrained とも食い違う"}
+    - {id: F17, severity: Minor, my_source: 観点, cited_id: q-lifetime-rationale, triage: C, rationale: "寿命が 5.1 の中に無く、目標から数値を導く式が無い"}
+    - {id: F18, severity: Minor, my_source: 観点, cited_id: q-shared-validator（q-no-unverified-passthrough-mode）, triage: B, rationale: "共通の検証部品と、無効化のモードを持たないことが書いていない"}
+    - {id: F19, severity: Minor, my_source: 観点, cited_id: q-sql-tenant-predicate, triage: B, rationale: "全 SQL に持ち主の条件を付ける規約と検査が無い"}
+    - {id: F20, severity: Minor, my_source: 観点, cited_id: q-operational-metrics, triage: B, rationale: "攻撃の試みを測る指標が無い"}
+    - {id: F21, severity: Minor, my_source: 観点, cited_id: q-agent-short-lived-no-rt, triage: "A（L58 未実装）", rationale: "AGENT_RT を出す（C-R1 F05 と同じ）"}
+    - {id: F22, severity: Minor, my_source: lint, cited_id: "render の矢印の表", triage: "A（案：C-R1 F14 と同じ）", rationale: "hops.to と enforced_at.service が結びつかない"}
+    - {id: F23, severity: Minor, my_source: lint, cited_id: L15, triage: B, rationale: "L15 の warn に行ごとの理由が無い（CONTRIBUTING の 2.）"}
+    - {id: F24, severity: Minor, my_source: テンプレート外, cited_id: "—", triage: C, rationale: "証明書の更新と cnf の束縛の関係を問う欄が無い"}
+    - {id: F25, severity: Minor, my_source: 観点, cited_id: q-key-rotation, triage: C, rationale: "鍵の漏えい時の緊急のローテーションと use_last_known"}
+    - {id: F26, severity: Minor, my_source: 理由の採点, cited_id: "procedure#step-4 の 2.（RR2・RR3）", triage: "A（案：C-R1 F18 と同じ）", rationale: "revisit_trigger・代償が無い"}
+    - {id: F27, severity: Minor, my_source: カタログ外の質問, cited_id: q-outside-catalog, triage: C, rationale: "試験用の時計・鍵・行為者が本番に残る経路（テストの経路）"}
+counts:
+  B-R1: {total: 22, 観点: 14, テンプレート項目: 1, カタログ: 1, カタログ外の質問: 1, lint: 1, 理由の採点: 0, テンプレート外: 4, triage: {A: 6, B: 3, C: 11, D: 2}}
+  B-R2: {total: 24, 観点: 15, テンプレート項目: 2, カタログ: 0, カタログ外の質問: 2, lint: 1, 理由の採点: 1, テンプレート外: 3, triage: {A: 5, B: 2, C: 15, D: 2}}
+  C-R1: {total: 19, 観点: 14, テンプレート項目: 0, カタログ: 1, カタログ外の質問: 0, lint: 2, 理由の採点: 1, テンプレート外: 1, triage: {A: 7, B: 2, C: 8, D: 2}}
+  C-R2: {total: 27, 観点: 17, テンプレート項目: 0, カタログ: 1, カタログ外の質問: 2, lint: 3, 理由の採点: 1, テンプレート外: 3, triage: {A: 6, B: 5, C: 14, D: 2}}
+  all: {total: 92, 観点: 60, テンプレート項目: 3, カタログ: 3, カタログ外の質問: 5, lint: 7, 理由の採点: 3, テンプレート外: 11, triage: {A: 24, B: 12, C: 48, D: 8}}
+  major_only: {total: 37, 観点: 21, テンプレート項目: 2, カタログ: 2, カタログ外の質問: 3, lint: 2, テンプレート外: 7, triage: {A: 9, B: 1, C: 24, D: 3}}
+summary: "集計は counts（スクリプトで数えた）。Major 37 件のうち 7 件はテンプレート外（B-R1 T1 時計のずれ・T4 雇用の区分・T5 署名鍵の保管、B-R2 R2-06 異動の反映、C-R1 F08・C-R2 F03 承認の消費の競合、C-R2 F04 同意が resource を束縛しない）。A の 24 件のうち既存の規則が既に出すのは C-R1 F01・C-R2 F01（L73・R1）と F13（L73）の 3 件で、残りは未実装の L56・L58 か規則の案。同じ中身の指摘は同じ出どころにそろえた（B-R1 F12＝B-R2 R2-01 など）。観点書の 9.（較正）は読んでいないので、そこに載る過去の指摘との対応は見ていない"
