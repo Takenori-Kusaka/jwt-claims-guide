@@ -12,7 +12,7 @@
   // hash of each file into its URL (?v=). Files of two builds read together (an index.html still in the browser's
   // cache, a newer file from the server) are found here: a banner asks for a reload, and the editor does not start on
   // the mixed files (no exception, nothing half working).
-  const BUILD_ID = 'f2119d2bc92f';
+  const BUILD_ID = 'bfc4783650c8';
   const BUILDS = (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {});
   BUILDS['editor.js'] = BUILD_ID;
   const BUILD_INFO = window.CLAIMS_BUILD_INFO || { id: null, files: {} };
@@ -519,6 +519,11 @@
     st.append(h('div', { class: 'start-in' },
       h('h1', { tabindex: '-1' }, '設計書のエディター'),
       h('p', { class: 'lead' }, 'YAML の設計書を開いて、見る・直す・レビューする。下のどれかで始めてください。'),
+      // the way out to the guide for a first-time visitor: how to start with the templates, the slides, what this editor does
+      h('p', { id: 'start-links' }, '初めての人へ：',
+        h('a', { href: 'https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/templates/GETTING_STARTED.md', target: '_blank', rel: 'noopener noreferrer' }, 'テンプレートの始め方（設計書を書く手順）'), '／',
+        h('a', { href: '../', target: '_blank', rel: 'noopener noreferrer' }, 'スライド（設計の考え方）'), '／',
+        h('a', { href: 'https://github.com/Takenori-Kusaka/jwt-claims-guide#readme', target: '_blank', rel: 'noopener noreferrer' }, 'このエディターとリポジトリの案内')),
       h('p', { id: 'start-msg', class: 'err', role: 'status' }),
       // like the recent files of an editor: the designs autosaved in this browser come first
       saved.length ? h('section', { class: 'recent', id: 'autosave-box', 'aria-labelledby': 'recent-h' }, h('h2', { id: 'recent-h' }, '続きから開く'),
