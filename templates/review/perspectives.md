@@ -91,7 +91,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（受け手ごとに解釈が分かれる）
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L24`（未実装）
 - 根拠：slide:p04-design-checklist、slide:p04-type
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：操作ごとの承認がある。機械で決まるが規則がまだ無いので（案：`lint:L24`（未実装）・N5）、規則ができるまでレビュアーが答える）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：操作ごとの承認がある。機械で決まるが規則がまだ無いので（案：`lint:L24`（未実装）・N5）、規則ができるまでレビュアーが答える）
 
 **dc-06**　（形）複数の値を JSON の配列で運び、区切り文字の連結も JSON の文字列化も使っていない、と台帳の `shape` から言えるか
 - 見る欄：`registry:claims#shape`
@@ -161,7 +161,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（使い道のないクレーム、または表示用の値で認可している）
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／判断の木 `review:decision_tree#carry-or-query`／lint `lint:L72`
 - 根拠：slide:p11-pre-add-questions-1
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：組織独自のクレームがある）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：組織独自のクレームがある）
 
 **pa-02**　（問 2）値が寿命の間に変わるなら、変わってから反映されるまでの秒数と、それを超えるときの対策（短命化・都度判定・イベント）が書いてあるか
 - 見る欄：`template:claim_request#q02`、`registry:claims#volatility`、`registry:claims#on_revoke`、`template:00_core#freshness`
@@ -287,7 +287,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（制限が効かない受け手が出る）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L60`（未実装）
 - 根拠：slide:p11-pre-add-questions-2、slide:p04-forward-compatibility
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：組織独自のクレームがある）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：組織独自のクレームがある）
 
 **pa-20**　（問 20）ログに残すか・値かハッシュか・個人情報の区分が書いてあり、台帳の `log_policy`・`pii_category` と一致しているか
 - 見る欄：`template:claim_request#q20`、`registry:claims#log_policy`、`registry:claims#pii_category`
@@ -356,7 +356,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／判断の木 `review:decision_tree#existing-claim-first`／lint `lint:L1a`
 - 根拠：slide:p02-registered-claims、slide:p02-name-categories、slide:p02-check-before-creating
 <!-- req:p02-registered-claims.R7 req:p02-name-categories.R3 req:p02-check-before-creating.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：組織独自のクレームがある）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：組織独自のクレームがある）
 
 <a id="q-reuse-standard-structure"></a>
 
@@ -366,7 +366,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／判断の木 `review:decision_tree#existing-claim-first`
 - 根拠：slide:p02-keys-events-identity-assurance、RFC 9449 §6.1
 <!-- req:p02-keys-events-identity-assurance.R1 req:p02-keys-events-identity-assurance.R3 req:p02-keys-events-identity-assurance.R4 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：組織独自のクレームがある）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：組織独自のクレームがある）
 
 <a id="q-auth-context-semantics"></a>
 
@@ -386,7 +386,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／判断の木 `review:decision_tree#rar-vs-custom`
 - 根拠：slide:p02-scope、RFC 9396 §3.1、RFC 9068 §2.2.3
 <!-- req:p02-scope.R1 req:p02-scope.R2 req:p02-scope.R4 req:p02-scope.R6 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-value-vocabulary"></a>
 
@@ -396,7 +396,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`
 - 根拠：slide:p02-roles-groups-entitlements、slide:p03-confusing-differences
 <!-- req:p02-roles-groups-entitlements.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-role-explosion"></a>
 
@@ -406,7 +406,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／lint `lint:L69`・`lint:L40`（未実装）
 - 根拠：slide:p05-role-explosion
 <!-- req:p05-role-explosion.R1 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも。`lint:L69` の warn が出たときも出す）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも。`lint:L69` の warn が出たときも出す）
 
 ### 1.4 識別子
 
@@ -418,7 +418,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`・`lint:L28`（未実装）
 - 根拠：slide:p02-user-identifier、slide:p04-immutable-identifiers
 <!-- req:p02-user-identifier.R1 req:p02-user-identifier.R3 req:p02-user-identifier.R4 req:p02-user-identifier.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：発行者（IdP）が複数ある。機械で決まるが規則がまだ無いので（案：`lint:L28`（未実装）・N2）、規則ができるまでレビュアーが答える）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：発行者（IdP）が複数ある。機械で決まるが規則がまだ無いので（案：`lint:L28`（未実装）・N2）、規則ができるまでレビュアーが答える）
 
 <a id="ap-1-6"></a>
 
@@ -529,7 +529,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`
 - 根拠：slide:p09-minimize-derived、slide:p09-checklist、NIST SP 800-63C-4 §3.12.2
 <!-- req:p09-minimize-derived.R1 req:p09-checklist.R2 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：個人情報を載せる）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：個人情報を載せる）
 
 <a id="q-baseline-kept"></a>
 
@@ -593,7 +593,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L31`／事例 Cognito の `custom:` 属性（読み取り専用にしない限り、本人が書き換えられる場合がある）
 - 根拠：slide:p12-antipatterns-1、slide:p03-cognito-pre-token-hook、slide:p04-split-by-writer
 <!-- req:p12-antipatterns-1.R7 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-hook-adds-raw-pii"></a>
 
@@ -623,7 +623,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／実行 `test:negative_tests#rar-unknown-type`
 - 根拠：slide:p06-step-up-approval、RFC 9396 §9.1
 <!-- req:p06-step-up-approval.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：操作ごとの承認がある）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：操作ごとの承認がある）
 
 <a id="q-agent-own-identity"></a>
 
@@ -661,7 +661,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Minor〜Major（理由の不備）。較正で追加（B12。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:R8`
 - 根拠：slide:p12-priorities-deferrals、slide:p04-size-budget
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：送信者制約を見送った）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：送信者制約を見送った）
 
 <a id="q-outside-catalog"></a>
 
@@ -670,7 +670,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（想定漏れの候補）。見つけた場面は、出どころ「カタログ外の質問」で記録し、カタログに戻す（[procedure.md](procedure.md) の 6.）
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:R9`・`lint:R2`
 - 根拠：templates/catalog/sources.md、tools/claim_lint/RULES.md の R9
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 ---
 
@@ -795,7 +795,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／lint `lint:L56`（未実装）
 - 根拠：slide:p10-agent-checklist、RFC 8707 §2
 <!-- req:p10-agent-checklist.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L56`（未実装））、規則ができるまでレビュアーが答える）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L56`（未実装））、規則ができるまでレビュアーが答える）
 
 ### 3.3 渡し方
 
@@ -817,7 +817,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`／lint `lint:L16`
 - 根拠：slide:p10-agent-checklist、slide:p10-mcp-authorization
 <!-- req:p10-agent-checklist.R4 req:p12-antipatterns-2.R6 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
 
 <a id="ap-2-5"></a>
 
@@ -856,7 +856,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（ある経路だけ追加認証を素通りする）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／実行 `test:negative_tests#insufficient-acr`（未実装）
 - 根拠：slide:p06-step-up-approval、RFC 9470 §3
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：認証の強さ・新しさで判断する）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：認証の強さ・新しさで判断する）
 
 <a id="q-txn-scope-fixed"></a>
 
@@ -865,7 +865,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（取引の内容を経路の途中で差し替えられる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#txn-tctx`／lint `lint:L11`／実行 `test:negative_tests#tctx-mismatch`・`test:negative_tests#req-wl-changed`・`test:negative_tests#txn-remint-immutable`
 - 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2（受け取ったまま渡す。`req_wl` が変わらないのはその帰結）
-- 区分：A 機械。lint の `lint:L11` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L11`・`lint:L16` が確かめる（レビュアーは答えない）
 
 <a id="q-txn-required-claims"></a>
 
@@ -893,7 +893,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L17`・`lint:L9`／事例 CVE-2025-55241（署名の無い impersonation token が、ログに残らず 24 時間取り消せない Actor token を包み、Azure AD Graph がテナントの不一致を受け入れた）
 - 根拠：slide:p12-antipatterns-2、slide:p10-delegation-chain-depth、slide:p00-incident-signature-valid
 <!-- req:p12-antipatterns-2.R9 -->
-- 区分：A 機械。lint の `lint:L17`・`lint:L9`・`lint:R1` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L17`・`lint:L9`・`lint:R1` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N18）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-internal-delegation-token"></a>
 
@@ -903,7 +903,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L9`・`lint:L17`／実行 `test:negative_tests#tenant-mismatch`／事例 CVE-2025-55241
 - 根拠：slide:p00-incident-signature-valid、slide:p10-delegation-chain-depth
 <!-- req:p00-incident-signature-valid.R2 req:p10-delegation-chain-depth.R5 req:p12-antipatterns-2.R9 -->
-- 区分：A 機械。lint の `lint:L9`・`lint:L17`・`lint:R1` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L9`・`lint:L17`・`lint:R1` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N18）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="ap-2-7"></a>
 
@@ -913,7 +913,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`／lint `lint:L55`（未実装）／事例 ガイドに事例の行なし
 - 根拠：slide:p12-antipatterns-2、slide:p10-agent-identity
 <!-- req:p12-antipatterns-2.R7 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：委任がある（代理で動く主体がいる））
 
 <a id="q-delegation-depth-and-revocation"></a>
 
@@ -933,7 +933,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L32`（未実装）
 - 根拠：slide:p11-translation-layer、slide:p10-vendor-features、slide:p03-absorb-idp-differences
 <!-- req:p10-vendor-features.R1 req:p11-translation-layer.R1 req:p11-translation-layer.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：発行者（IdP）が複数ある）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：発行者（IdP）が複数ある）
 
 <a id="q-token-not-in-url"></a>
 
@@ -1010,7 +1010,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/id-vs-access-token#misuse`／lint `lint:L27`／実行 `test:negative_tests#aud-wrong`／事例 CVE-2020-26160
 - 根拠：slide:p12-antipatterns-1、RFC 8725 §3.9
 <!-- req:p12-antipatterns-1.R3 -->
-- 区分：A 機械。lint の `lint:L27` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L27`・`lint:L11` が確かめる（レビュアーは答えない）
 
 <a id="ap-1-4"></a>
 
@@ -1124,7 +1124,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／実行 `test:negative_tests#bola-other-owner`
 - 根拠：slide:p05-bola、slide:p06-validation-split、OWASP API Security Top 10 2023 API1
 <!-- req:p05-bola.R2 req:p05-bola.R4 req:p06-validation-split.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-tenant-data-match"></a>
 
@@ -1133,7 +1133,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Blocker
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L9`
 - 根拠：slide:p05-multitenancy、slide:p12-review-viewpoints
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：マルチテナント）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：マルチテナント）
 
 <a id="q-writer-distinguished"></a>
 
@@ -1152,7 +1152,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L11`
 - 根拠：slide:p05-pep-pdp、NIST IR 8587 §4.1.4
 <!-- req:p05-pep-pdp.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-original-principal"></a>
 
@@ -1162,7 +1162,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`
 - 根拠：slide:p05-one-request-carries、slide:p05-confused-deputy、ASVS v5.0.0-8.3.3
 <!-- req:p05-one-request-carries.R3 req:p05-confused-deputy.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
 
 <a id="q-authorize-service-and-user"></a>
 
@@ -1172,7 +1172,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#peer-mtls`
 - 根拠：slide:p06-validation-split、slide:p05-one-request-carries
 <!-- req:p06-validation-split.R7 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる））
 
 <a id="q-scope-and-role"></a>
 
@@ -1182,7 +1182,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`
 - 根拠：slide:p05-scope-vs-role
 <!-- req:p05-scope-vs-role.R1 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-access-context-from-pep"></a>
 
@@ -1192,7 +1192,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/carry-vs-query#misuse`／lint `lint:L5`・`lint:L68`
 - 根拠：slide:p06-access-context、slide:p09-do-not-carry
 <!-- req:p06-access-context.R1 req:p06-access-context.R4 req:p06-flow-checklist.R9 req:p09-do-not-carry.R6 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも。`lint:L68` の warn が出たときも出す）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも。`lint:L68` の warn が出たときも出す）
 
 <a id="q-step-up-by-rs"></a>
 
@@ -1202,7 +1202,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／実行 `test:negative_tests#insufficient-acr`（未実装）
 - 根拠：slide:p06-step-up-approval、RFC 9470 §3
 <!-- req:p06-step-up-approval.R2 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：認証の強さ・新しさで判断する）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：認証の強さ・新しさで判断する）
 
 <a id="q-approval-from-as"></a>
 
@@ -1212,7 +1212,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／実行 `test:negative_tests#approval-mismatch`
 - 根拠：slide:p10-human-approval-evidence、slide:p10-agent-checklist、RFC 9396 §2
 <!-- req:p10-human-approval-evidence.R1 req:p10-agent-checklist.R7 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：操作ごとの承認がある・委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：操作ごとの承認がある・委任がある（代理で動く主体がいる））
 
 <a id="q-cross-tenant-identity"></a>
 
@@ -1222,7 +1222,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`
 - 根拠：slide:p05-cross-tenant
 <!-- req:p05-cross-tenant.R2 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：マルチテナント）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：マルチテナント）
 
 <a id="q-operator-act"></a>
 
@@ -1232,7 +1232,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
 - 根拠：slide:p05-system-privileges、RFC 8693 §4.1
 <!-- req:p05-system-privileges.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-break-glass"></a>
 
@@ -1242,7 +1242,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
 - 根拠：slide:p05-system-privileges、RFC 8693 §4.4
 <!-- req:p05-system-privileges.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 ### 5.1 データ層の規則（スライド 101：10 項目）
 
@@ -1336,7 +1336,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
 - 根拠：slide:p07-three-db-paths、slide:p07-trust-boundary
 <!-- req:p07-three-db-paths.R3 req:p07-trust-boundary.R1 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：トークンの値を DB の層まで運ぶ）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：トークンの値を DB の層まで運ぶ）
 
 <a id="q-sql-tenant-predicate"></a>
 
@@ -1433,7 +1433,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／判断の木 `review:decision_tree#carry-or-query`／lint `lint:L5`
 - 根拠：slide:p04-token-is-snapshot、slide:p08-stale-claims、slide:p08-reissue-triggers
 <!-- req:p04-token-is-snapshot.R1 req:p08-stale-claims.R2 req:p12-antipatterns-2.R2 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-refresh-reevaluated"></a>
 
@@ -1452,7 +1452,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／判断の木 `review:decision_tree#lifetime-by-situation`／実行 `test:negative_tests#revocation-latency`・`test:negative_tests#revoked-token-rejected`
 - 根拠：slide:p08-revocation-propagation、slide:p08-logout、slide:p01-self-contained-vs-reference、slide:p07-lifetime-mismatch
 <!-- req:p01-self-contained-vs-reference.R3 req:p03-cognito-token-use.R6 req:p07-lifetime-mismatch.R3 req:p08-four-lifetimes.R2 req:p08-revocation-propagation.R1 req:p12-review-viewpoints.R18 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 <a id="q-external-user-deprovision"></a>
 
@@ -1481,7 +1481,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`／lint `lint:L47`（未実装）
 - 根拠：slide:p08-async-processing、slide:p08-downstream-after-expiry
 <!-- req:p08-async-processing.R4 req:p08-downstream-after-expiry.R1 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：長時間・非同期の処理がある）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：長時間・非同期の処理がある）
 
 <a id="q-system-actor-no-fake-sub"></a>
 
@@ -1491,7 +1491,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
 - 根拠：slide:p08-downstream-after-expiry
 <!-- req:p08-downstream-after-expiry.R2 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-agent-short-lived-no-rt"></a>
 
@@ -1501,7 +1501,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L58`（未実装）
 - 根拠：slide:p10-agent-checklist、NIST IR 8587 §5.3.1.6
 <!-- req:p10-agent-checklist.R6 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L58`（未実装））、規則ができるまでレビュアーが答える）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L58`（未実装））、規則ができるまでレビュアーが答える）
 
 <a id="q-copies-outlive"></a>
 
@@ -1510,7 +1510,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
 - 根拠：slide:p08-copies-outlive-token、RFC 7662 §4
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：どの設計でも）
 
 <a id="q-deprecated-deadline"></a>
 
@@ -1519,7 +1519,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Minor〜Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L18`
 - 根拠：slide:p11-change-procedure、slide:p11-registry-fields
-- 区分：A 機械。lint の `lint:L18` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L18` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N17）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-change-order"></a>
 
@@ -1550,7 +1550,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:R3b`
 - 根拠：slide:p03-custom-claim-injection、slide:p01-key-rotation-jwks
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 1＝既定で出す。出す条件：どの設計でも）
 
 ### 6.3 ログと監査
 
@@ -1592,7 +1592,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`
 - 根拠：slide:p10-agent-checklist、slide:p06-audit-trail
 <!-- req:p10-agent-checklist.R9 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 2＝時間があれば。出す条件：委任がある（代理で動く主体がいる））
 
 <a id="q-trace-id-trust"></a>
 
@@ -1612,7 +1612,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／lint `lint:L57`（未実装）
 - 根拠：slide:p10-per-tool-scopes、slide:p10-agent-checklist
 <!-- req:p10-per-tool-scopes.R3 req:p10-agent-checklist.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 3。出す条件：委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：委任がある（代理で動く主体がいる））
 
 <a id="q-operational-metrics"></a>
 
@@ -1632,7 +1632,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Major（目的と仕組みの不一致。規則の側のこともある）。規則そのものを試す（一時コピーで規則に当てる）のはこの教材の範囲の外で、#6 の点検に渡す。較正で追加（B05・B06・B13。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
 - 根拠：templates/CONTRIBUTING.md の 2.、tools/claim_lint/RULES.md
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが答える。優先 3＝既定では出さない。出す条件：どの設計でも）
 
 <a id="q-evidence-attribution"></a>
 

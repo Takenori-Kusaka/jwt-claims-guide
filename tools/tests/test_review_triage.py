@@ -87,8 +87,8 @@ def test_every_question_has_one_class_and_a_reason():
     assert all(q['class'] in 'ABCD' and q['why'].strip() for q in tri['questions'])
     c = rt.counts(tri)
     assert (c['A'], c['B'], c['C'], c['D']) == (81, 36, 47, 4)
-    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (47, 15, 19)
-    assert (c['C_priority_1'], c['C_priority_2'], c['C_priority_3'], c['C_until_rule']) == (18, 12, 17, 4)
+    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (44, 18, 19)
+    assert (c['C_priority_1'], c['C_priority_2'], c['C_priority_3'], c['C_until_rule']) == (19, 10, 18, 4)
     assert c['open_prompts'] == 6
 
 
@@ -190,24 +190,33 @@ def test_author_self_check_is_grouped_and_marks_what_the_reviewer_samples():
     lines = [x for x in text.split('\n') if x.startswith('- [ ] ')]
     want = {q['id'] for q in tri['questions'] if q['class'] == 'B' or q.get('interim') == 'B'}
     got = [i for x in lines for i in re.findall(r'`([a-z0-9-]+)`', x.rsplit(' — ', 1)[1])]
-    assert set(got) == want and len(got) == len(set(got)) == 70
-    assert len(lines) == 49 <= 53
+    assert set(got) == want and len(got) == len(set(got)) == 73
+    assert len(lines) == 51 <= 53
     # the 25-question answers are one line; questions waiting for the same rule are one line
     assert sum('`pa-03`' in x and '`pa-25`' in x and '`pa-trace`' in x for x in lines) == 1
+    # that line holds the most checks behind one tick: the reviewer always samples it at step 0
+    assert [x for x in lines if '【レビュアーが必ず抜き取る】' in x] == [x for x in lines if '`pa-03`' in x]
     assert sum('`cf-07`' in x and '`ap-1-2`' in x and 'L46' in x for x in lines) == 1
     # the data-layer Blocker items are marked: the reviewer samples three of the marked lines at step 0
     marked = [x for x in lines if '【No なら Blocker】' in x]
-    assert len(marked) == 12 and sum('`cd-0' in x or '`cd-10`' in x for x in marked) >= 5
+    assert len(marked) == 13 and sum('`cd-0' in x or '`cd-10`' in x for x in marked) >= 5
     proc = open(os.path.join(ROOT, 'templates', 'review', 'procedure.md'), encoding='utf-8').read()
-    assert '【No なら Blocker】の行を 3 件抜き取り' in proc
+    assert '25 問の回答をまとめた行（【レビュアーが必ず抜き取る】）を必ず入れる' in proc and '残りの 2 件は、**【No なら Blocker】の行**から選ぶ' in proc
 
 
 # ---------------------------------------------------------------- the rules really decide the questions given to them
 def test_every_question_decided_by_a_rule_alone_is_reported_when_its_answer_becomes_no():
     rows = audit.run()
-    assert len(rows) == 47
+    assert len(rows) == 44
     assert [r['question'] for r in rows if not r['ok']] == []
-    assert open(os.path.join(ROOT, audit.RECORD), encoding='utf-8').read() == audit.record(rows)
+    record = open(os.path.join(ROOT, audit.RECORD), encoding='utf-8').read()
+    assert record == audit.record(rows)
+    # the audit tests one direction only, and says so (the re-check of PR #71 found three questions it had passed)
+    assert '「No にしたら指摘が出る」の向きだけ' in record and '`q-deprecated-deadline`' in record
+    by = rt.by_id(rt.load(ROOT))
+    for qid in ('q-deprecated-deadline', 'ap-2-9', 'q-internal-delegation-token'):
+        assert by[qid]['proposed'] and by[qid]['interim'] == 'B'
+    assert 'L11' in by['ap-1-3']['lint'] and 'L16' in by['q-txn-scope-fixed']['lint']
 
 
 def test_the_audit_fails_for_a_rule_that_does_not_decide(monkeypatch):
@@ -234,7 +243,7 @@ def test_traits_are_read_from_the_registry_and_from_what_the_author_declared():
     # scenario A: two realms of one IdP are not several issuers
     assert a == {'always', 'org_claims', 'pii', 'multitenant', 'data_layer', 'auth_context', 'sender_declined', 'long_running'}
     assert {'delegation', 'exchange', 'approval', 'sender_constrained', 'multi_idp'} <= b and 'multitenant' not in b
-    assert {'multi_idp', 'exchange', 'data_layer', 'sender_declined'} <= pb and 'delegation' not in pb
+    assert {'multi_idp', 'exchange', 'data_layer', 'sender_declined'} <= pb
     assert pc == {'always', 'pii', 'exchange', 'delegation', 'approval', 'sender_constrained'}
     tr = rt.read_traits(design('pilot-C'))
     assert set(tr) == set(rt.load(ROOT)['conditions']) and all(v['state'] in ('on', 'off', 'unknown') and v['evidence'] for v in tr.values())
@@ -256,9 +265,16 @@ def test_a_design_that_declares_delegation_but_writes_no_act_still_gets_the_dele
     assert tr['delegation']['state'] == 'on' and 'q-actor' in tr['delegation']['evidence']
     assert 'ap-2-7' in ids(rt.selected(tri, rt.traits(reg)))
     assert ids(rt.selected(tri, rt.traits(reg))) == ids(rt.selected(tri, traits_of('pilot-C')))
-    # the author also says "not needed": the trait is off, and the sheet says which questions are not shown
+    # the author also says "not needed", but still declares "delegation or exchange": the declarations disagree, so the
+    # trait cannot be read and the questions stay, with a note (the pilot scenario B is such a design)
     reg['catalog_answers']['questions']['q-actor'] = {'needed': False, 'reason': '代理が無い'}
+    tr = rt.read_traits(reg)
+    assert tr['delegation']['state'] == 'unknown' and '要確認' in tr['delegation']['evidence'] and 'ap-2-7' in ids(rt.selected(tri, rt.traits(reg)))
+    assert rt.read_traits(design('pilot-B'))['delegation']['state'] == 'unknown'
+    # no declaration of delegation anywhere: off, and the sheet says which questions are not shown
+    reg['catalog_answers']['lite_criteria']['delegation_or_exchange'] = {'answer': False, 'reason': '無い'}
     assert rt.read_traits(reg)['delegation']['state'] == 'off'
+    reg['catalog_answers']['lite_criteria']['delegation_or_exchange'] = {'answer': True, 'reason': 'ある'}
     # no answer at all: cannot be read, the questions stay
     del reg['catalog_answers']['questions']['q-actor']
     assert rt.read_traits(reg)['delegation']['state'] == 'unknown' and 'ap-2-7' in ids(rt.selected(tri, rt.traits(reg)))
@@ -281,12 +297,39 @@ def test_a_trait_that_cannot_be_read_shows_its_questions(tmp_path):
 
 def test_the_design_sheet_lists_all_traits_with_what_was_read(capsys):
     tri = rt.load(ROOT)
-    sheet, tr = rt.design_sheet(tri, os.path.join(ROOT, DESIGNS['pilot-B']), ROOT)
+    sheet, tr = rt.design_sheet(tri, os.path.join(ROOT, DESIGNS['pilot-B']), ROOT, seed='pr-74')
     for cid, c in tri['conditions'].items():
         if cid != 'always':
             assert f'] {c["label"]} ― ' in sheet
-    assert '[当たらない] 委任がある（代理で動く主体がいる）' in sheet and '出さない問い 4：ap-2-7' in sheet
-    assert '手がかり：' in sheet and '見る欄：' in sheet and '60〜100 分' in sheet and '人では測っていない' in sheet
+    assert '[読めない] 委任がある（代理で動く主体がいる） ― 要確認' in sheet and '出さない問い 1：dc-05' in sheet
+    assert '手がかり：' in sheet and '見る欄：' in sheet and '70〜110 分' in sheet and '人では測っていない' in sheet
+    # the sheet starts with the traits and the questions; how to answer comes last
+    heads = [x for x in sheet.split('\n') if x.startswith('## ')]
+    assert heads[0].startswith('## 1. 設計の性質') and heads[1].startswith('## 2. クレームの行') and heads[-1].endswith('答え方と、答えないこと')
+    # (counted in lines, not characters: the title holds the path of the design, however long)
+    assert sheet.split('\n').index(heads[0]) <= 4 and '時間があれば' in heads[-2]
+    assert '受け付け（手順の段 0）で、あわせて確かめること：検査（lint）を通すために' in sheet
+    # per-row questions: three rows used for authorization, drawn with a seed (the same seed, the same rows)
+    line = next(x for x in sheet.split('\n') if x.startswith('答える行'))
+    assert '10 行から 3 行。種 pr-74）' in line
+    again, _ = rt.design_sheet(tri, os.path.join(ROOT, DESIGNS['pilot-B']), ROOT, seed='pr-74')
+    other, _ = rt.design_sheet(tri, os.path.join(ROOT, DESIGNS['pilot-B']), ROOT, seed='another')
+    assert again == sheet and next(x for x in other.split('\n') if x.startswith('答える行')) != line
+    # without a seed: not a fixed string; made from the registry and the date, and printed
+    auto, _ = rt.design_sheet(tri, os.path.join(ROOT, DESIGNS['pilot-B']), ROOT)
+    seed = rt.default_seed(design('pilot-B'))
+    assert re.match(r'^[0-9a-f]{8}-\d{4}-\d{2}-\d{2}$', seed) and f'種 {seed}：--seed が無いので' in auto
+    assert rt.default_seed(design('pilot-C')) != seed
+    # one row of the organisation's own authorization claims is always in the sample, whatever the seed
+    for key in DESIGNS:
+        reg = design(key)
+        claims = {c['id']: c for c in reg['claims']['claims']}
+        own_rows = {i for i, c in claims.items() if c.get('decision') != '却下' and c.get('namespace') and c.get('usage') == 'authz'}
+        for sd in ('1', '2', '3', 'pr-74', 'x'):
+            rows, total, own = rt.row_sample(tri, reg, sd)
+            assert len(rows) == min(3, total) == len(set(rows)) and all(claims[r].get('usage') in ('authz', 'identifier') for r in rows)
+            assert (own in own_rows and own == rows[0]) if own_rows else own is None, (key, sd)
+    assert rt.row_sample(tri, design('pilot-B'), 'pr-74')[1] == 10
     # a directory that does not exist, or one without the registry, is an error, not a short list
     assert rt.main(['--root', ROOT, '--design', os.path.join(ROOT, 'no-such-design')]) == 2
     assert rt.main(['--root', ROOT, '--design', os.path.join(ROOT, 'templates', 'review')]) == 2
@@ -298,18 +341,35 @@ def test_the_design_sheet_lists_all_traits_with_what_was_read(capsys):
 
 def test_short_list_differs_by_design_and_stays_short():
     tri = rt.load(ROOT)
-    n = {k: rt.load_of(tri, traits_of(k)) for k in DESIGNS}
-    assert {k: (v['questions'], v['prompts']) for k, v in n.items()} == {'A': (19, 5), 'B': (28, 6), 'pilot-B': (21, 5), 'pilot-C': (20, 6)}
+    n = {k: rt.load_of(tri, traits_of(k), rt.on_traits(design(k))) for k in DESIGNS}
+    # by default: the priority 1 questions of the design (10-17) and three open prompts
+    assert {k: (v['questions'], v['prompts']) for k, v in n.items()} == {'A': (11, 3), 'B': (18, 3), 'pilot-B': (16, 3), 'pilot-C': (15, 3)}
+    assert {k: (v['optional_questions'], v['more_prompts']) for k, v in n.items()} == {'A': (7, 2), 'B': (9, 3), 'pilot-B': (8, 2), 'pilot-C': (4, 3)}
+    lo, hi = tri['budget']['questions']
     for k, v in n.items():
+        assert lo <= v['questions'] <= hi, k
         assert v['ask_sentences'] == v['items']          # one sentence per item
-        assert v['ask_chars'] < 1200
+        assert v['ask_chars'] < 800
     for k in DESIGNS:
         qs = rt.selected(tri, traits_of(k))
-        assert all(q['class'] == 'C' and q['priority'] in (1, 2) and not q.get('merged_into') for q in qs)
-        assert [q['priority'] for q in qs] == sorted(q['priority'] for q in qs)
+        assert all(q['class'] == 'C' and q['priority'] == 1 and not q.get('merged_into') for q in qs)
+        assert all(q['priority'] == 2 for q in rt.optional(tri, traits_of(k))) and not ids(qs) & ids(rt.optional(tri, traits_of(k)))
+    # the open prompts that fit the design come first; the others are "more"
+    dp = {k: [p['id'] for p in rt.default_prompts(tri, traits_of(k), rt.on_traits(design(k)))] for k in DESIGNS}
+    assert dp['pilot-C'] == ['op-proof-holder', 'op-one-time', 'op-clock'] and dp['B'] == ['op-proof-holder', 'op-source-change', 'op-one-time']
+    assert dp['A'] == ['op-source-change', 'op-one-time', 'op-requirement-words']
+    # a trait that cannot be read does not rank a prompt up: the pilot scenario B has exchange (holds) and delegation
+    # (cannot be read), so it gets the key custody prompt, not the one preferred for approval and delegation
+    assert rt.read_traits(design('pilot-B'))['delegation']['state'] == 'unknown' and dp['pilot-B'] == ['op-source-change', 'op-clock', 'op-key-custody']
+    assert [p['id'] for p in rt.default_prompts(tri, traits_of('pilot-B'))] == ['op-source-change', 'op-one-time', 'op-clock']   # if it counted
+    # the question no other priority 1 question covers is on the default list; the lint work-around is step 0 work
+    assert 'q-step-up-path-coverage' in ids(rt.selected(tri, traits_of('A'))) and rt.by_id(tri)['q-lint-workaround'].get('step') == 0
+    assert 'q-lint-workaround' not in ids(rt.selected(tri, traits_of('A'))) | ids(rt.optional(tri, traits_of('A')))
+    assert '`q-lint-workaround`' in open(os.path.join(ROOT, 'templates', 'review', 'procedure.md'), encoding='utf-8').read()
+    assert len(rt.prompts(tri, traits_of('pilot-C'))) == 6
     # machine-decidable questions without a rule are back on the list of the designs they matter for
     assert {'q-single-aud-resource', 'q-agent-short-lived-no-rt', 'dc-05'} <= ids(rt.selected(tri, traits_of('pilot-C')))
-    assert {'q-identifier-choice', 'q-single-aud-resource'} <= ids(rt.selected(tri, traits_of('pilot-B')))
+    assert {'q-identifier-choice', 'q-single-aud-resource', 'q-agent-short-lived-no-rt'} <= ids(rt.selected(tri, traits_of('pilot-B')))
     assert not {'q-identifier-choice', 'q-single-aud-resource', 'q-agent-short-lived-no-rt', 'dc-05'} & ids(rt.selected(tri, traits_of('A')))
     # a lint warning brings the question of show_on_lint in, whatever its priority
     with_warn = rt.selected(tri, traits_of('pilot-C'), warn_rules={'L69'})
@@ -327,7 +387,7 @@ def test_the_editor_data_start_with_the_short_list():
     data = json.loads(line.split(' = ', 1)[1].rstrip(';'))
     assert data == json.loads(json.dumps(bcv.review_bundle()))
     ck = data['checklist']
-    assert ck['default'] == {'triage': ['short']} and ck['short']['priorities'] == [1, 2]
+    assert ck['default'] == {'triage': ['short']} and ck['short']['priorities'] == [1] and ck['short']['optional_priorities'] == [2] and ck['short']['max_prompts'] == 3
     assert [c['id'] for c in ck['conditions']] == list(tri['conditions'])
     assert [p['id'] for p in ck['open_prompts']] == [p['id'] for p in tri['open_prompts']] and all(p['hint'] for p in ck['open_prompts'])
     by = rt.by_id(tri)
@@ -341,11 +401,17 @@ def test_the_editor_data_start_with_the_short_list():
         have = traits_of(k)
         shown = [q['id'] for q in data['questions'] if q['triage'] == 'C' and q['priority'] in ck['short']['priorities'] and set(q['show_when']) & have]
         assert set(shown) == ids(rt.selected(tri, have)), k
-        assert [p['id'] for p in ck['open_prompts'] if set(p['show_when']) & have] == [p['id'] for p in rt.prompts(tri, have)]
+        more = [q['id'] for q in data['questions'] if q['triage'] == 'C' and q['priority'] in ck['short']['optional_priorities'] and set(q['show_when']) & have]
+        assert set(more) == ids(rt.optional(tri, have)), k
+        fit = [p for p in ck['open_prompts'] if set(p['show_when']) & have]
+        on = rt.on_traits(design(k))
+        ranked = sorted(fit, key=lambda p: 0 if set(p['show_when']) - {'always'} & have else 1 if set(p['prefer_when']) & on else 2)
+        assert [p['id'] for p in ranked[:ck['short']['max_prompts']]] == [p['id'] for p in rt.default_prompts(tri, have, on)], k
     # review.js reads the traits with the same rules (the browser test compares the results; here: the function is the
     # one the checklist uses, and it keeps unknown traits)
     js = open(os.path.join(ROOT, 'docs', 'claims', 'review.js'), encoding='utf-8').read()
     assert "filter((c) => t[c] !== 'off')" in js and "declared(asked, 'q-actor', 'needed')" in js and 'noHops' in js
+    assert 'C.optional_priorities' in js and 'C.max_prompts' in js and "(p.prefer_when || []).some((c) => states[c] === 'on')" in js
 
 
 # ---------------------------------------------------------------- the pilot findings
@@ -356,17 +422,21 @@ def test_pilot_majors_are_each_mapped_once_and_the_totals_add_up():
     of = {'B-R1': 'pilot-B', 'B-R2': 'pilot-B', 'C-R1': 'pilot-C', 'C-R2': 'pilot-C'}
     by = rt.by_id(tri)
     kinds = {}
+    later = []
     human = {'total': 0, 'direct': 0, 'fitted': 0}
     for review, findings in re_['reviews'].items():
         majors = {f['id']: f for f in findings if f['severity'] == 'Major'}
         assert set(cov['majors'][review]) == set(majors), review
         have = traits_of(of[review])
         shown = ids(rt.selected(tri, have)) | {p['id'] for p in rt.prompts(tri, have)}
+        default = ids(rt.selected(tri, have)) | {p['id'] for p in rt.default_prompts(tri, have, rt.on_traits(design(of[review])))}
         for fid, m in cov['majors'][review].items():
             assert m['class'] == majors[fid]['triage'][0], (review, fid)   # the class of the re-attribution
             kinds[m['kind']] = kinds.get(m['kind'], 0) + 1
             if m['kind'] in ('direct', 'fitted', 'returned'):
                 assert m['by'] in shown, (review, fid, m['by'])
+                if m['by'] not in default:   # an open prompt that is not among the three shown by default for this design
+                    later.append(f'{review} {fid}')
             if m['kind'] in ('direct', 'fitted'):
                 assert m['class'] == 'C'
             if m['kind'] in ('direct', 'returned'):   # the question was cited by the re-attribution
@@ -388,9 +458,10 @@ def test_pilot_majors_are_each_mapped_once_and_the_totals_add_up():
     assert sum(kinds.values()) == t['major'] == 37
     assert kinds == t['by_kind'] and human == t['human_judgement']
     assert kinds['direct'] + kinds['returned'] + kinds['fitted'] == t['prompted_by_short_list_and_prompts'] == 29
+    assert later == t['only_if_time_remains'] == ['B-R1 T4'] and 29 - len(later) == t['prompted_by_default_list'] == 28
     # the numbers the evidence states are these numbers, with what they do not show
     doc = open(os.path.join(ROOT, 'research', 'template-design', 'triage-evidence.md'), encoding='utf-8').read()
-    assert '29／37（78%）' in doc and '| 計 | 37 | 12 | 5 | 12 | 3 | 1 | 1 | 3 |' in doc
+    assert '29／37（78%）' in doc and '28／37（76%）' in doc and '| 計 | 37 | 12 | 5 | 12 | 3 | 1 | 1 | 3 |' in doc
     assert '前からあったのは問いの ID だけ' in doc and '厳しく数えるなら 11 件' in doc
     assert 'Major として指摘にしたのは 7' in doc and '人では測っていません' in doc
     assert '過学習' in doc and 'LLM による試行。人による検証ではない' in doc
@@ -406,9 +477,11 @@ def test_open_prompts_come_from_findings_outside_the_questions():
 
 def test_times_are_stated_as_unmeasured_estimates_of_the_whole_procedure():
     tri = rt.load(ROOT)
-    assert tri['budget']['whole_procedure_minutes'] == [60, 100]
+    assert tri['budget']['whole_procedure_minutes'] == [70, 110]
+    # the total is the sum of the per-step estimates of procedure.md (steps 0-6)
+    assert (10 + 10 + 5 + 20 + 10 + 10 + 5, 10 + 10 + 10 + 40 + 15 + 20 + 5) == (70, 110)
     short = open(os.path.join(ROOT, rt.SHORT), encoding='utf-8').read()
     proc = open(os.path.join(ROOT, 'templates', 'review', 'procedure.md'), encoding='utf-8').read()
     for text in (short, proc):
-        assert '60〜100 分' in text and '人では測っていません' in text
+        assert '70〜110 分' in text and '60〜100' not in text and '人では測っていません' in text
     assert '別に取ります' not in short
