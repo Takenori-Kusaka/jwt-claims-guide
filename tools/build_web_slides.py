@@ -24,7 +24,9 @@ def load_slide_ids(slides):
           sys.exit(f'slide {d["n"]}: title of {x["id"]} ({x["title"]!r}) is not on the PPTX slide; deck/slide_ids.json is out of date')
   return ids
 
-def build(pptx_name, docs_rel, title, lead, og_desc, other):
+def build(pptx_name, docs_rel, title, lead, og_desc, other, guide=''):
+  # guide: a block of links shown in the page frame, above the table of contents and again after the last slide
+  # (the way from the slides to the templates and the editor). The slides themselves are not touched.
   PPTX = os.path.join(ROOT, 'slides', pptx_name)
   DOCS = os.path.join(ROOT, 'docs', docs_rel); SL = os.path.join(DOCS, 'slides')
   base = pptx_name[:-5]
@@ -86,14 +88,17 @@ def build(pptx_name, docs_rel, title, lead, og_desc, other):
   body.present main{{max-width:none;padding:0}}body.present .slide{{display:none;margin:0;border-radius:0;box-shadow:none;background:#000}}
   body.present .slide.on{{display:flex;align-items:center;justify-content:center;height:calc(100vh - 49px)}}
   body.present .slide.on img{{max-height:100%;width:auto;max-width:100%}}
+  .guide{{background:var(--card);border:1px solid #8884;border-left:4px solid var(--acc);border-radius:8px;padding:10px 16px;margin:12px 0}}
+  .guide p{{margin:.2em 0}}.guide ul{{margin:.3em 0;padding-left:1.3em}}
   ol{{columns:2;font-size:.9rem}}@media (max-width:700px){{ol{{columns:1}}}}
   </style></head><body>
   <div class="bar"><button id="mode">プレゼン表示</button><button id="prev" aria-label="前のスライド">←</button><button id="next" aria-label="次のスライド">→</button><span id="pos"></span></div>
   <header><h1>{title}</h1>
   <p>{lead}（全 {len(slides)} 枚）。<a href="{REPO}">GitHub リポジトリ</a>／<a href="{REPO}/raw/main/slides/{base}.pdf">PDF</a>／<a href="{REPO}/raw/main/slides/{base}.pptx">PPTX</a>／{other}</p>
+  {guide}
   <details><summary>目次</summary><ol>{toc}</ol></details></header>
   <main>{items}</main>
-  <footer><p>本資料と実験データは CC BY 4.0、コードは MIT ライセンスです。本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。</p></footer>
+  <footer>{guide}<p>本資料と実験データは CC BY 4.0、コードは MIT ライセンスです。本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。</p></footer>
   <script>
   const S=[...document.querySelectorAll('.slide')];let i=0;const pos=document.getElementById('pos');
   function show(n){{i=Math.max(0,Math.min(S.length-1,n));S.forEach((s,k)=>s.classList.toggle('on',k===i));pos.textContent=(i+1)+' / '+S.length;
@@ -117,4 +122,9 @@ def build(pptx_name, docs_rel, title, lead, og_desc, other):
 build('JWT_クレーム設計ガイド.pptx', '', 'JWT クレーム設計ガイド ― 組織のあらゆるサービスで共用する独自クレームを、どう設計し、どう流し、どう治めるか',
       '認証認可とマイクロサービスの設計を任された新任のテックリーダーに向けて、JWT の独自クレームの設計・伝搬・検証・ガバナンスを、標準クレームと 4 つの IdP（Entra ID・Keycloak・Auth0/Okta・Cognito）の実際を前提に解説する資料です',
       'クレームはサービス間の契約。既存のクレームの地図、4 つの IdP の実際、独自クレームの設計原則、マイクロサービスの流れ、データ層、期限、機微情報、AI エージェント、ガバナンスを、RFC・NIST・OWASP・デジタル庁の指針と日本語の専門書を根拠に解説',
-      '<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy">ケーススタディ（実測）</a>／<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy/blob/main/catalog/jwt-claims-catalog.xlsx">付録：JWT クレーム一覧（xlsx）</a>／<a href="https://takenori-kusaka.github.io/agentops-reliability-guide/">関連：AgentOps と Agent Reliability 実践ガイド</a>')
+      '<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy">ケーススタディ（実測）</a>／<a href="https://github.com/Takenori-Kusaka/jwt-claims-casestudy/blob/main/catalog/jwt-claims-catalog.xlsx">付録：JWT クレーム一覧（xlsx）</a>／<a href="https://takenori-kusaka.github.io/agentops-reliability-guide/">関連：AgentOps と Agent Reliability 実践ガイド</a>',
+      guide='<nav class="guide" aria-label="設計書を書く"><p><b>このガイドに沿って設計書を書く：テンプレートとエディター</b></p><ul>'
+            '<li><a href="claims/">設計書のエディター</a>：ブラウザで設計書を書き、その場で検査し、レビューする。記入例も開ける。開いたファイルは外部に送信しない</li>'
+            f'<li><a href="{REPO}/blob/main/templates/GETTING_STARTED.md">テンプレートの始め方</a>：空の設計書を作り、最初の検査を通すまでの手順（<a href="{REPO}/tree/main/templates">テンプレート一式</a>）</li>'
+            f'<li><a href="{REPO}#readme">リポジトリの案内</a>：読む・書く・レビューする・検査する、の 4 つの入口</li>'
+            '</ul></nav>')
