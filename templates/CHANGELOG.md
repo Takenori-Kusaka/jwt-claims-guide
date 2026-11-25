@@ -6,6 +6,7 @@
 
 ### 追加
 
+- 入口の案内（#75）：`README.md` と `GETTING_STARTED.md` の冒頭に、2 つの始め方（エディターで書く／CLI で書く）を置いた。手順・欄・規則は変えていない
 - 空の設計書と生成の表の誤り（#60。パイロット #9 の結果。`research/template-design/pilot.md` の 7.）：
   - `tools/new_design.py`：作った直後の設計書に、スキーマの違反（SCHEMA）が無くなった。`claims.yaml` に空の `namespaces` を書かない。`--profile lite` を足し、Lite では `hops.yaml` を作らない。**ホップを書かない設計は `hops.yaml` を置かない**（`GETTING_STARTED.md` の手順 1、`00_core.md` の 8.）。`catalog_answers.yaml` に、網羅の節（`idp`・`questions`・`subject_states`・`pairwise`）を、問いの ID・主体の状態・層の名前を鍵にして作る
   - claim_lint の `TODO`：スキーマが求める欄がまだ空（null・空の文字列・空の配列・空のオブジェクト）のとき、SCHEMA の代わりに 1 欄に 1 件出す。重大度は SCHEMA と同じ error で、引き下げていない。それまで通っていた設計書が通らなくなることも、その逆も無い（規則の名前の付け替えなのでマイナー）
