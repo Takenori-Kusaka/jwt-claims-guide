@@ -170,6 +170,33 @@ def test_r3_rejects_a_malformed_idp_list(tmp_path, mutate, word):
     assert any(word in f['message'] for f in by(lint(tmp_path, d), 'R3', 'error'))
 
 
+def test_r3_every_idp_token_type_belongs_to_an_idp(tmp_path):
+    """Check of PR #70, B5: a token type taken out of its IdP's token_types took the checks of that type with it."""
+    d = base()
+    idp(d, 'auth0')['token_types'] = ['ID_TOKEN', 'REFRESH_TOKEN']
+    res = lint(tmp_path, d)
+    got = by(res, 'R3', 'error')
+    assert len(got) == 1 and 'AUTH0_AT' in got[0]['message']
+    d = base()
+    del idp(d, 'entra')['token_types']
+    assert any('entra に token_types がない' in f['message'] for f in by(lint(tmp_path, d), 'R3', 'error'))
+
+
+def test_r3_self_built_under_a_product_like_name_is_reported(tmp_path):
+    """Check of PR #70: Auth0 renamed auth0-tenant and declared self_built silenced R3b and L2 without a trace."""
+    d = base()
+    e = idp(d, 'auth0')
+    e.update(name='auth0-tenant', kind='self_built',
+             trigger_list=[{'trigger': 'すべての発行', 'out_of_scope': {'assumption': 'この発行者は社内の入口だけが使い、契機は設計書に列挙した',
+                                                                    'breaks_when': '入口の外から発行を求める経路ができたとき'}}],
+             trigger_list_source={'document': '設計書 3.2 節（発行の契機）', 'verified_on': '2026-11-25'})
+    res = lint(tmp_path, d)
+    got = [f for f in by(res, 'R3') if f['target'] == 'idp[auth0-tenant]']
+    assert sorted(f['severity'] for f in got) == ['info', 'warn']
+    assert 'auth0' in next(f for f in got if f['severity'] == 'warn')['message']
+    assert '照合しない' in next(f for f in got if f['severity'] == 'info')['message']
+
+
 def test_r3b_compares_a_claim_with_the_idp_that_issues_it(tmp_path, migrated):
     # C-auth0-roles is carried in AUTH0_AT only: Auth0's hook table is used, and Keycloak's is not
     assert [(f['target'], f['severity']) for f in by(migrated, 'R3b')] == [('I26', 'warn')]
@@ -278,6 +305,41 @@ def test_l1b_idp_defined_does_not_open_a_way_around_the_namespace(tmp_path, muta
     assert got and word in got[0]['message'], got
 
 
+def test_l1b_idp_claim_carried_only_in_another_idps_token(tmp_path):
+    """Mutation gap of the check of PR #70: condition (3) alone (Entra's oid carried in the Okta token only)."""
+    d = base()
+    claim(d, 'C-entra-oid')['carried_in'] = ['OKTA_AT']
+    hop(d, 'H3')['custom_claims'].remove('C-entra-oid')
+    hop(d, 'H4')['custom_claims'].append('C-entra-oid')
+    tt(d, 'ENTRA_AT')['required_claims'].remove('oid')
+    tt(d, 'OKTA_AT')['required_claims'].append('oid')
+    got = [f for f in by(lint(tmp_path, d), 'L1b', 'error') if f['target'] == 'C-entra-oid']
+    assert got and 'OKTA_AT は IdP entra が出す AT・ID トークンの種別でない' in got[0]['message']
+
+
+def test_l1b_only_the_entry_that_remints_may_read_an_idp_name():
+    """Check of PR #70: in scenario A (one IdP, no gateway) the API reads the Keycloak token itself. realm_access read by
+    the API was an L1b error before #58 and stays one with idp_defined."""
+    a = os.path.join(ROOT, 'templates', 'examples', 'scenario-a')
+    docs = {k: core.load_yaml(os.path.join(a, k + '.yaml')) for k in FILES}
+    src = next(c for c in docs['claims']['claims'] if c['id'] == 'C-tenant-id')
+    row = copy.deepcopy(src)
+    row.update(id='C-x-realm-access', name='realm_access', namespace=None, idp_defined={'idp': 'keycloak'})
+    docs['claims']['claims'].append(row)
+    tt(docs, 'AT')['required_claims'].append('realm_access')
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        for k, v in docs.items():
+            with open(os.path.join(tmp, k + '.yaml'), 'w', encoding='utf-8') as f:
+                yaml.safe_dump(v, f, allow_unicode=True, sort_keys=False)
+        for n in os.listdir(a):
+            if n.startswith('claim_request_'):
+                shutil.copy(os.path.join(a, n), tmp)
+        res = core.run(tmp, today=TODAY)
+    got = [f for f in by(res, 'L1b') if f['target'] == 'C-x-realm-access']
+    assert [f['severity'] for f in got] == ['error'] and '入口' in got[0]['message']
+
+
 def test_l1b_same_name_of_two_idps_may_differ_but_not_inside_one_idp(tmp_path, migrated):
     # Entra scp is a space-delimited string and Okta scp an array: two rows named scp, no finding
     assert not [f for f in by(migrated, 'L1b') if '同じ名前' in f['message']]
@@ -323,7 +385,7 @@ def test_consumer_schema_of_the_idp_token_requires_the_idp_claims():
 
 
 def test_l74_finds_an_idp_claim_checked_at_a_hop_without_a_row(tmp_path, migrated):
-    assert by(migrated, 'L74') == [] and migrated['checked']['L74'] == 5
+    assert by(migrated, 'L74') == [] and migrated['checked']['L74'] == 6  # the six entry hops (Auth0 has a list too)
     d = base()
     d['claims']['claims'] = [c for c in d['claims']['claims'] if c['id'] != 'C-okta-uid']
     hop(d, 'H4')['custom_claims'].remove('C-okta-uid')
@@ -343,6 +405,17 @@ def test_l74_on_the_pilot_once_its_idps_are_declared(tmp_path):
                    ('hop H5', 'token_use')}
 
 
+def test_l74_does_not_match_everyday_words_but_reads_the_auth0_list(tmp_path):
+    d = base()  # false positives found in the check of PR #70
+    hop(d, 'H3')['validates']['checks'].append('idp ごとの JWKS で署名を検証する。ver が 2.0 であること')
+    hop(d, 'H5')['validates']['checks'].append('username と version は使わない')
+    assert by(lint(tmp_path, d), 'L74') == []
+    d = base()  # Auth0's RBAC permissions (top-level, not namespaced) read at the entry without a row
+    hop(d, 'H6')['validates']['checks'].append('permissions に read:orders があること')
+    got = by(lint(tmp_path, d), 'L74', 'warn')
+    assert [f['target'] for f in got] == ['hop H6'] and 'auth0' in got[0]['message']
+
+
 def test_l74_is_a_new_rule_and_starts_as_warn():
     assert semantic.SEV['L74'] == 'warn'
 
@@ -350,7 +423,7 @@ def test_l74_is_a_new_rule_and_starts_as_warn():
 def test_pinned_idp_names_have_a_source_and_are_not_registered_names():
     doc = core.load_yaml(os.path.join(TOOLS, 'claim_lint', 'idp_claims.yaml'))
     iana = {x['name'] for x in core.load_yaml(os.path.join(TOOLS, 'claim_lint', 'iana_jwt_claims.yaml'))['claims']}
-    assert set(doc['idps']) == {'entra', 'okta', 'cognito', 'keycloak'}
+    assert set(doc['idps']) == {'entra', 'okta', 'cognito', 'keycloak', 'auth0'}
     for name, block in doc['idps'].items():
         src = block['source']
         assert src['url'].startswith('https://') and src['verified_on'] and src['review_by'], name
@@ -359,7 +432,11 @@ def test_pinned_idp_names_have_a_source_and_are_not_registered_names():
 
 # ------------------------------------------------------------------ 3: a reissue hop with several upstream hops (L16, REF)
 def test_l16_checks_the_reissue_hops_against_every_upstream_hop(migrated):
-    assert [f['severity'] for f in by(migrated, 'L16')] == ['info', 'info']
+    info = by(migrated, 'L16')
+    assert {f['severity'] for f in info} == {'info'}
+    assert len([f for f in info if 'added_claims' in f['message']]) == 2
+    # each aud that an aud_mapping ties to an upstream value is reported (H3-H6 for H7 and for H8)
+    assert len([f for f in info if 'aud_mapping' in f['message']]) == 8
     assert migrated['checked']['L16'] == 10 and migrated['checked']['L16.widen'] == 10  # H7 and H8, five upstream hops each
     assert 'L16' not in core.run(PILOT, today=TODAY)['checked']  # before: no upstream, so nothing was compared
 
@@ -418,6 +495,29 @@ def test_l16_aud_mapping_must_point_at_a_real_upstream_value(tmp_path):
     assert any('H9' in f['message'] for f in by(lint(tmp_path, d), 'L16', 'warn'))
 
 
+def test_l16_aud_mapping_cannot_add_audiences_beyond_the_destination(tmp_path):
+    """Check of PR #70: every new aud mapped to the one upstream scope. Only the hop's destination can be mapped."""
+    d = base()
+    h = hop(d, 'H7')
+    h['aud'] = ['orders', 'admin-api']
+    tt(d, 'INTERNAL_TOKEN')['aud'].append('admin-api')
+    for u in ('H2', 'H3', 'H4', 'H5', 'H6'):
+        h['aud_mapping'].append({'upstream': u, 'aud': 'admin-api', 'via': 'scope', 'value': 'orders'})
+    got = [f for f in by(lint(tmp_path, d), 'L16', 'warn') if f['target'] == 'hop H7']
+    assert len(got) == 5 and all('admin-api' in f['message'] for f in got)
+
+
+def test_l16_authority_claims_added_from_outside_the_tokens_are_reported(tmp_path):
+    d = base()  # roles from a system "x" with a reason: accepted as added (as declared), but never silently
+    hop(d, 'H7')['added_claims'][0] = {'claim': 'C-roles', 'source': 'external_source', 'system': 'x', 'reason': 'ロールを足す。理由は書かない'}
+    got = [f for f in by(lint(tmp_path, d), 'L16', 'warn') if f['target'] == 'hop H7']
+    assert len(got) == 1 and '権限のクレーム' in got[0]['message']
+    d = base()  # an authz claim whose system is not the source the registry row names
+    hop(d, 'H7')['added_claims'][1]['system'] = '入口の設定ファイル'
+    got = [f for f in by(lint(tmp_path, d), 'L16', 'warn') if f['target'] == 'hop H7']
+    assert len(got) == 1 and 'source_system' in got[0]['message']
+
+
 def test_l16_added_claims_without_upstream_is_not_silently_accepted(tmp_path):
     d = base()
     del hop(d, 'H7')['upstream']  # the pilot's workaround, with the new columns left in
@@ -454,7 +554,6 @@ def test_l27_cognito_access_token_passes_with_audience_claim(migrated):
     (lambda d: tt(d, 'COGNITO_AT').pop('audience_claim'), 'aud がない'),
     (lambda d: tt(d, 'COGNITO_AT')['required_claims'].remove('client_id'), 'required_claims に client_id がない'),
     (lambda d: tt(d, 'COGNITO_AT').update(audience_claim='token_use'), 'audience_claim に token_use がない'),
-    (lambda d: tt(d, 'COGNITO_AT').update(typ='at+jwt'), 'RFC 9068'),
     (lambda d: idp(d, 'cognito')['token_types'].remove('COGNITO_AT'), '宣言なし'),
 ])
 def test_l27_audience_claim_conditions(tmp_path, mutate, word):
@@ -462,6 +561,50 @@ def test_l27_audience_claim_conditions(tmp_path, mutate, word):
     mutate(d)
     got = [f for f in by(lint(tmp_path, d), 'L27', 'error') if f['target'] == 'token_type COGNITO_AT']
     assert got and any(word in f['message'] for f in got), got
+
+
+def test_l27_audience_claim_is_refused_for_at_jwt_even_with_a_recorded_deviation(tmp_path):
+    """Mutation gap of the check of PR #70: an at+jwt type that Cognito issues, with the missing aud recorded as a
+    rejected row (which turns the RFC 9068 REQUIRED finding into info). audience_claim must still be refused."""
+    d = base()
+    tt(d, 'COGNITO_AT')['typ'] = 'at+jwt'
+    rej = copy.deepcopy(claim(d, 'C-email'))
+    rej.update(id='C-aud-not-in-cognito', name='aud')
+    d['claims']['claims'].append(rej)
+    got = [f for f in by(lint(tmp_path, d), 'L27', 'error') if f['target'] == 'token_type COGNITO_AT']
+    assert any('audience_claim client_id を aud の代わりにできない' in f['message'] and 'at+jwt' in f['message'] for f in got), got
+
+
+def test_l27_aud_stays_required_when_an_idp_with_aud_also_issues_the_type(tmp_path):
+    """Check of PR #70, B1: KC_AT listed under cognito as well does not lose aud."""
+    d = base()
+    t = tt(d, 'KC_AT')
+    t['audience_claim'] = 'client_id'
+    t['required_claims'].remove('aud')
+    t['required_claims'].append('client_id')
+    idp(d, 'cognito')['token_types'].append('KC_AT')
+    c = claim(d, 'C-client-id')
+    c['carried_in'].append('KC_AT')
+    c['issuers'].append('https://kc.corp.example.com/realms/corp')
+    claim(d, 'C-aud')['carried_in'].remove('KC_AT')
+    hop(d, 'H2')['custom_claims'].append('C-client-id')
+    res = lint(tmp_path, d)
+    got = [f['message'] for f in by(res, 'L27', 'error') if f['target'] == 'token_type KC_AT']
+    assert len(got) == 2 and any('keycloak' in m for m in got) and any('aud がない' in m for m in got)
+    assert not [f for f in by(res, 'L27', 'info') if f['target'] == 'token_type KC_AT']
+    assert any('KC_AT' in f['message'] and f['severity'] == 'warn' for f in by(res, 'R3'))  # an AT type under two IdPs
+
+
+def test_l27_cognito_token_with_aud_keeps_aud_required(tmp_path):
+    """A Cognito access token bound to a resource has aud: the design says so through the hop's aud or an aud row."""
+    d = base()
+    hop(d, 'H5')['aud'] = ['https://api.example.com']
+    got = [f for f in by(lint(tmp_path, d), 'L27', 'error') if f['target'] == 'token_type COGNITO_AT']
+    assert got and any('aud を持つ' in f['message'] for f in got)
+    d = base()
+    claim(d, 'C-aud')['carried_in'].append('COGNITO_AT')
+    got = [f for f in by(lint(tmp_path, d), 'L27', 'error') if f['target'] == 'token_type COGNITO_AT']
+    assert got and any('C-aud' in f['message'] for f in got)
 
 
 def test_l27_audience_claim_is_only_for_an_idp_whose_token_has_no_aud(tmp_path):
@@ -491,11 +634,13 @@ def test_l17_without_kind_discriminator_is_the_error_the_pilot_met(tmp_path):
     assert len(got) == 1 and 'kind_discriminator' not in got[0]['message']
 
 
-def test_l17_warns_when_the_declarations_do_not_prove_the_kinds_apart(tmp_path):
+def test_l17_stays_an_error_when_the_declarations_do_not_prove_the_kinds_apart(tmp_path):
     d = base()
     tt(d, 'ID_TOKEN')['aud'] = ['portal', 'orders']  # overlaps the aud of KC_AT
-    got = by(lint(tmp_path, d), 'L17', 'warn')
+    res = lint(tmp_path, d)
+    got = by(res, 'L17', 'error')  # not proven apart: the error stays an error (no downgrade)
     assert len(got) == 1 and 'KC_AT／ID_TOKEN' in got[0]['message'] and 'ENTRA_AT／ID_TOKEN' not in got[0]['message']
+    assert by(res, 'L17', 'info') == [] and by(res, 'L17', 'warn') == []
 
 
 @pytest.mark.parametrize('entry,word', [
@@ -507,6 +652,41 @@ def test_l17_discriminator_entries_are_checked(tmp_path, entry, word):
     tt(d, 'KC_AT')['kind_discriminator'].append(entry)
     got = [f for f in by(lint(tmp_path, d), 'L17', 'warn') if f['target'] == 'token_type KC_AT']
     assert got and word in got[0]['message']
+
+
+JWT_TYPES = ('KC_AT', 'ENTRA_AT', 'GRAPH_AT', 'ID_TOKEN', 'CLIENT_ASSERTION')
+
+
+@pytest.mark.parametrize('entries', [
+    [{'claim': 'foo'}],                    # says nothing
+    [{'claim': 'iss', 'value': 'same'}],   # the same value on every row
+    [{'claim': 'no_row', 'value': 'a'}],   # replaced per row below with different values, but no registry row
+])
+def test_l17_a_declaration_that_does_not_discriminate_keeps_the_error(tmp_path, entries):
+    """Check of PR #70, B2: a kind_discriminator on every row used to turn the error into warnings."""
+    d = base()
+    for i, t in enumerate(JWT_TYPES):
+        e = copy.deepcopy(entries)
+        if e[0].get('claim') == 'no_row':
+            e[0]['value'] = f'v{i}'
+        tt(d, t)['kind_discriminator'] = e
+    res = lint(tmp_path, d)
+    got = by(res, 'L17', 'error')
+    assert len(got) == 1 and '排他と言えない' in got[0]['message'] and by(res, 'L17', 'info') == []
+
+
+def test_l17_absent_that_contradicts_the_token_type_is_an_error(tmp_path):
+    """Check of PR #70, B3: aud declared absent on types that require aud."""
+    d = base()
+    for t in ('KC_AT', 'ENTRA_AT', 'GRAPH_AT'):
+        tt(d, t)['kind_discriminator'] = [{'claim': 'aud', 'absent': True}]
+    res = lint(tmp_path, d)
+    contra = [f['target'] for f in by(res, 'L17', 'error') if '矛盾' in f['message']]
+    assert contra == ['token_type KC_AT', 'token_type ENTRA_AT']  # required_claims / a registry row; GRAPH_AT has neither
+    assert any('排他と言えない' in f['message'] for f in by(res, 'L17', 'error')) and by(res, 'L17', 'info') == []
+    d = base()  # a row carried in the type, not in required_claims
+    tt(d, 'ID_TOKEN')['kind_discriminator'].append({'claim': 'nonce', 'absent': True})
+    assert [f['target'] for f in by(lint(tmp_path, d), 'L17', 'error') if '矛盾' in f['message']] == ['token_type ID_TOKEN']
 
 
 def test_l17_discriminator_claim_must_reject_when_missing(tmp_path):
@@ -554,6 +734,43 @@ def test_profile_exception_is_schema_checked_and_needs_a_declared_idp(tmp_path, 
     assert any('例外でない' in f['message'] for f in by(lint(tmp_path, d), 'L62', 'warn'))
 
 
+ALL_IDPS = ('keycloak', 'entra', 'okta', 'cognito', 'auth0')
+
+
+def test_profile_check_reads_the_effective_value_of_every_idp(tmp_path):
+    """Check of PR #70, B4: value satisfies the requirement, the exceptions do not."""
+    prof = lambda d: d['token_types']['issuance_profile']  # noqa: E731
+    d = base()  # (a) FAPI 2.0 needs a sender constraint: value dpop, okta none
+    prof(d)['conformance_profile']['value'] = 'fapi2_security'
+    prof(d)['sender_constraint']['value'] = 'dpop'
+    prof(d)['sender_constraint']['exceptions'] = [{'idp': 'okta', 'value': 'none', 'rationale': 'Okta では送信者制約を使わない'}]
+    assert [f for f in by(lint(tmp_path, d), 'L63', 'warn') if f['target'] == 'E-fapi2.1']
+    d = base()  # control: without the exception the requirement is met
+    prof(d)['conformance_profile']['value'] = 'fapi2_security'
+    prof(d)['sender_constraint']['value'] = 'dpop'
+    assert not [f for f in by(lint(tmp_path, d), 'L63') if f['target'] == 'E-fapi2.1']
+    d = base()  # (b) a public client needs PKCE: value has it, one IdP's exception drops it
+    prof(d)['client_type']['value'] = 'public'
+    prof(d)['grants']['exceptions'] = [{'idp': 'okta', 'value': ['refresh_token', 'device_code'], 'rationale': 'Okta では PKCE を使わない'}]
+    assert [f for f in by(lint(tmp_path, d), 'L62', 'warn') if f['target'] == 'E-public-pkce.1']
+    sec = render.sec_issuance_profile(render.load_design(str(tmp_path / 'design')))
+    req = next(r for e in sec['effects'] if e['id'] == 'E-public-pkce' for r in e['requires'] if r['id'] == 'E-public-pkce.1')
+    assert req['status'] == 'unsatisfied'
+
+
+def test_profile_exceptions_for_every_idp_are_not_exceptions(tmp_path):
+    d = base()
+    p = d['token_types']['issuance_profile']['sender_constraint']
+    p['value'] = 'dpop'
+    p['exceptions'] = [{'idp': n, 'value': 'none', 'rationale': 'この IdP では送信者制約を使わない'} for n in ALL_IDPS]
+    got = [f for f in by(lint(tmp_path, d), 'L62', 'error') if f['target'] == 'issuance_profile.sender_constraint']
+    assert len(got) == 1 and 'value を変える' in got[0]['message']
+    d = base()
+    d['token_types']['issuance_profile']['client_auth']['exceptions'].append(
+        {'idp': 'cognito', 'value': 'client_secret_post', 'rationale': '同じ IdP の例外を 2 回書く'})
+    assert any('2 回' in f['message'] for f in by(lint(tmp_path, d), 'L62', 'warn'))
+
+
 def test_profile_exception_makes_the_requirements_of_that_choice_apply(tmp_path, migrated):
     """E-dpop does not hold for the design (sender_constraint: none). With DPoP as the exception of one IdP it does."""
     assert not [f for f in by(migrated, 'L62') if str(f['target']).startswith('E-dpop')]
@@ -571,7 +788,7 @@ def test_profile_exception_makes_the_requirements_of_that_choice_apply(tmp_path,
 # ------------------------------------------------------------------ render and drift
 def test_render_marks_the_claims_the_reissue_adds():
     rows = {r['id']: r for r in render.sec_hop_table(render.load_design(FIXTURE))['tables'][0]['rows']}
-    assert any('（足す：社員台帳（人事））' in x for x in rows['H8']['custom_claims'])
+    assert any('（足す：社員台帳（人事システム））' in x for x in rows['H8']['custom_claims'])
     assert any('（足す：上流のクレームから導く）' in x for x in rows['H7']['custom_claims'])
     assert rows['H7']['upstream'] == ['H2', 'H3', 'H4', 'H5', 'H6'] and not any('足す' in x for x in rows['H2']['custom_claims'])
 

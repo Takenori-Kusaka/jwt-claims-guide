@@ -124,7 +124,7 @@ def _kc_tts(d):
     """Token types of the registry that the observed Keycloak issues. In a design with several IdPs (#58) the keycloak
     entry of catalog_answers.yaml `idp` names them (token_types); the token types of the other IdPs are not compared."""
     from . import coverage
-    mine = coverage.idp_token_types(d.get('catalog_answers') or {}, 'keycloak')
+    mine = coverage.idp_token_types(d.get('catalog_answers') or {}, 'keycloak')  # R3 reports a type no entry names
     return [t for t in render._tts(d) if t.get('decision') in CARRIED and t.get('kind') in KC_TOKEN
             and (mine is None or t.get('id') in mine)]
 

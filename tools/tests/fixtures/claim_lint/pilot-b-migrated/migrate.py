@@ -14,7 +14,7 @@ What changes (README.md of this directory has the before / after table):
   5  token_types.yaml      typ is the header value only; kind_discriminator says which payload value tells the kinds apart
   6  token_types.yaml      issuance_profile.client_auth: exceptions for Cognito
 Everything else is copied. The values are those of the pilot (written by an LLM, not verified by a person); facts added
-here are the ones tools/claim_lint/idp_claims.yaml cites.
+here are the ones tools/claim_lint/idp_claims.yaml cites, and the client authentication methods of Cognito's token endpoint.
 """
 import copy
 import os
@@ -148,7 +148,9 @@ def migrate_token_types(doc):
     # 6: per-IdP exception of the issuance profile (was: only in the rationale text)
     doc['issuance_profile']['client_auth']['exceptions'] = [
         {'idp': COGNITO, 'value': 'client_secret_basic',
-         'rationale': 'Cognito のアプリクライアントは private_key_jwt に対応していない（パイロットの記入のまま。この fixture では確かめていない）ので、クライアントの秘密で認証する'}]
+         'rationale': 'Cognito のトークンエンドポイントが対応するクライアント認証は client_secret_basic と client_secret_post（private_key_jwt は挙がっていない）ので、クライアントの秘密で認証する',
+         'refs': [{'kind': 'spec', 'id': 'Amazon Cognito Developer Guide「The token endpoint」',
+                   'url': 'https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html', 'verified_on': '2026-11-25'}]}]
     # 5: typ is the header value; the payload value that tells the kinds apart goes to kind_discriminator
     tt['KC_AT'].update({'typ': 'JWT', 'kind_discriminator': [{'claim': 'typ', 'value': 'Bearer', 'note': 'ペイロードの typ。ID トークンは ID'},
                                                              {'claim': 'aud'}]})
@@ -162,7 +164,7 @@ def migrate_token_types(doc):
     tt['COGNITO_AT'].update({'audience_claim': 'client_id',
                              'required_claims': ['iss', 'sub', 'exp', 'iat', 'jti', 'client_id', 'scope', 'token_use']})
     # 2: the IdP-defined claims the entry cannot do without
-    tt['KC_AT']['required_claims'] += ['scope', 'typ']
+    tt['KC_AT']['required_claims'] += ['typ']
     tt['ENTRA_AT']['required_claims'] += ['tid', 'oid', 'scp']
     tt['OKTA_AT']['required_claims'] += ['uid', 'cid', 'scp']
     for t in doc['token_types']:  # keep the columns in the order of the schema where the migration added one
@@ -185,9 +187,9 @@ def migrate_hops(doc):
     roles = {'claim': 'C-roles', 'source': 'upstream_claims',
              'from': ['C-kc-realm-access', 'C-groups', 'C-cognito-groups', 'C-auth0-roles'],
              'reason': 'IdP ごとのロール・グループのクレームを、入口が写しの表で組織のロールの語彙に替える（P5 の 1.）'}
-    for hid, extra, svc in (('H7', {'claim': 'C-department', 'source': 'external_source', 'system': '社員台帳（人事）',
+    for hid, extra, svc in (('H7', {'claim': 'C-department', 'source': 'external_source', 'system': '社員台帳（人事システム）',
                                     'reason': '部署は IdP の AT に無く、入口が sub で社員台帳から引く（IdP の部署の属性は却下した）'}, 'orders'),
-                            ('H8', {'claim': 'C-employee-id', 'source': 'external_source', 'system': '社員台帳（人事）',
+                            ('H8', {'claim': 'C-employee-id', 'source': 'external_source', 'system': '社員台帳（人事システム）',
                                     'reason': '社員番号は IdP の AT に無く、入口が sub で社員台帳から引く'}, 'invoices')):
         h = hops[hid]
         h.pop('note', None)  # the note said why upstream could not be written

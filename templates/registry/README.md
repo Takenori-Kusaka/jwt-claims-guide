@@ -319,14 +319,14 @@ idp:
     trigger_list: [{trigger: TokenGeneration_HostedAuth, events: [I01]}]
 ```
 
-- R3 は IdP ごとに契機の一覧を確かめます（指摘の対象は `idp[<name>]`。1 つの対応で書いた設計書では今までどおり `idp`）。
+- R3 は IdP ごとに契機の一覧を確かめます（指摘の対象は `idp[<name>]`。1 つの対応で書いた設計書では今までどおり `idp`）。採用した AT・ID トークンの種別は、どれかの IdP の `token_types` に書きます（どこにも無いと error。IdP ごとの検査がその種別を見なくなるため）。AT の種別は IdP ごとに分けます（2 つ以上の IdP に書くと warn）。
 - R3b と L2 は、IdP ごとに、その IdP の `token_types` に載るクレームだけを見ます。R3b の `hook_checked` は、IdP が複数なら IdP の名前を含む文か、`{auth0: "…"}` のような IdP ごとの対応で書きます（Keycloak について確かめた文は、Auth0 の確認にならない）。
 - Lite の既定の回答の引き継ぎ（`inherit: idp-default`）は、IdP が 1 つの設計書だけで使えます（止める設定が IdP ごとに違うため）。
 - `claim_lint drift`（Keycloak の設定との比較）は、`keycloak` の要素の `token_types` だけを比べます。
 
 #### 組織が自分で作る発行者（`kind: self_built`）
 
-製品ではない発行者（組織の STS、内部トークンを作る入口など）は、`idp` の要素に `kind: self_built` を書きます（パイロットのシナリオ C の迷い 5）。契機の一覧を決めるのは設計書なので、`trigger_list` に発行者が受ける grant・要求の全項目を書き、`trigger_list_source` には公開の URL の代わりに、一覧を定める文書（`document`：設計書の節・仕様書のパスか名前）と、決めた・確かめた日（`verified_on`）を書きます。まだ作っていない発行者は `planned: true` を足します。存在しない URL を書く必要はありません。R3b（フックが呼ばれるか）と L2（製品が書き換えを許さないクレーム）は、この発行者では見ません。
+製品ではない発行者（組織の STS、内部トークンを作る入口など）は、`idp` の要素に `kind: self_built` を書きます（パイロットのシナリオ C の迷い 5）。契機の一覧を決めるのは設計書なので、`trigger_list` に発行者が受ける grant・要求の全項目を書き、`trigger_list_source` には公開の URL の代わりに、一覧を定める文書（`document`：設計書の節・仕様書のパスか名前）と、決めた・確かめた日（`verified_on`）を書きます。まだ作っていない発行者は `planned: true` を足します。存在しない URL を書く必要はありません。R3b（フックが呼ばれるか）と L2（製品が書き換えを許さないクレーム）は、この発行者では見ません。製品の IdP を別の名前で self_built と書くと、その 2 つが黙るので、名前が製品の名前を含むと warn です。
 
 ```yaml
 idp:
@@ -348,7 +348,7 @@ L1b は、名前空間なしの未登録名を error にします。`idp_defined
 2. 名前が `tools/claim_lint/idp_claims.yaml` の、その IdP の一覧にある（一次資料で確かめた名前だけを、URL と確かめた日つきで固定している。一覧にない名前は、文書で確かめてから一覧に足す PR を出す。草案の名前の `draft_claims.yaml` と同じ扱い）
 3. `carried_in` が、その IdP が出す AT・ID トークンの種別だけである（内部トークンなど下流の種別に、IdP の名前のまま載せない）
 4. どのホップも、その IdP のトークン以外で運ばず、ヘッダーにも転記しない
-5. `consumers` が、その種別を受け取るホップの `to` である
+5. `consumers` のすべてが、その種別を入口のホップ（`kind: entry`）で受け取り、組織のトークンに作り直す入口（reissue・exchange のホップの `exchanger`）である。IdP のトークンを直接受け取るサービス（入口の無い設計の API）が IdP の名前を読む行は、この列では書けない（今までどおり、組織の名前空間に写す）
 
 同じ名前を 2 つの IdP が別の形で定めている場合（Entra の `scp` は空白区切りの文字列、Okta の `scp` は配列）は、IdP ごとに行を分けます。「同じ名前の行は型と意味をそろえる」の検査は、`idp_defined` の行では同じ IdP の中だけで行います。
 
@@ -358,13 +358,13 @@ L1b は、名前空間なしの未登録名を error にします。`idp_defined
 | --- | --- | --- |
 | entra | `tid`・`oid`・`scp`・`ver`・`idp`・`wids`・`hasgroups`・`uti`・`appid`・`appidacr`・`azpacr`・`acrs`・`xms_cc`・`aio`・`rh`・`unique_name` | Microsoft identity platform「Access token claims reference」 |
 | okta | `cid`・`uid`・`scp`・`ver` | Okta Developer「OpenID Connect & OAuth 2.0 API」の Access token |
-| cognito | `token_use`・`cognito:groups`・`username`・`device_key`・`version`・`origin_jti`・`event_id` | Amazon Cognito Developer Guide「Understanding the access token」 |
-| keycloak | `realm_access`・`resource_access`・`typ`（ペイロード） | 文書ではなく実測（26.8.0 の新しいレルムの既定のマッパーと発行したトークン）。`typ` の値（Bearer・ID）は Keycloak のソースの 26.4.0 のタグで読んだ。26.8 のタグでは未確認 |
-| auth0 | （なし） | 未確認。Auth0 の独自クレームは名前空間つきなので、この列は要らない |
+| cognito | `token_use`・`cognito:groups`・`username`・`device_key`・`version`・`origin_jti`・`event_id` | Amazon Cognito Developer Guide「Understanding the access token」（`version`・`event_id` は見本のペイロードにあるだけで、説明の項は無い） |
+| keycloak | `realm_access`・`resource_access`・`typ`（ペイロード） | 文書ではなく実測（26.8.0 の新しいレルムの既定のマッパーと発行したトークン）。`typ` の値（Bearer・ID）は Keycloak のソース（26.8.0 のタグの `TokenUtil.java`）で読んだ |
+| auth0 | `gty`・`permissions`・`org_id`・`org_name` | Auth0 Docs「Access Token Profiles」（https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles ）。Actions で足す独自クレームは名前空間つきなので、この列は要らない |
 
 Entra のグループの超過の印（`_claim_names`・`_claim_sources`）は IANA の登録名（OpenID Connect Core 1.0 §5.6.2）なので、`registered_ref` で書きます。
 
-L74（warn）は、ホップの `validates.checks` が、そのホップのトークンを出す IdP の一覧にある名前を名指ししているのに、台帳に行が無いことを拾います（パイロットの指摘 B-R1 F01・B-R2 R2-03 に当たる欠け）。拾えるのは、IdP を `token_types` つきで宣言していて、名前が一覧にあり、検証の文にその名前がそのまま書いてある場合だけです（`tools/claim_lint/RULES.md` の L74）。
+L74（warn）は、ホップの `validates.checks` が、そのホップのトークンを出す IdP の一覧にある名前を名指ししているのに、台帳に行が無いことを拾います（パイロットの指摘 B-R1 F01・B-R2 R2-03 に当たる欠け）。拾えるのは、IdP を `token_types` つきで宣言していて、名前が一覧にあり、検証の文にその名前がそのまま書いてある場合だけです。ふつうの語として出る idp・ver・version・username は探しません（`tools/claim_lint/RULES.md` の L74）。
 
 #### 入口で作り直すホップ（`upstream` の配列・`added_claims`・`aud_mapping`）
 
@@ -390,17 +390,18 @@ IdP ごとの AT を受けて 1 つの内部トークンを作るホップは、
 ```
 
 - `added_claims` を書けるのは、新しいトークンを作るホップ（`kind` が reissue・exchange で `exchanger` がある）だけです。書いたクレームは `custom_claims` にあり、台帳でそのホップの種別に載る行でなければなりません。`upstream_claims` の `from` は、上流のホップの `custom_claims` にある行です。どれかの上流が `from` を 1 つも運ばなければ warn です（その IdP の利用者では値の出どころが無い）。条件を欠くと、今までどおり「独自クレームが上流に無い」の error です。
+- `aud_mapping` で対応づけられるのは、ホップの行き先（`to`）と同じ aud だけです（1 つの上流の値で、いくつもの宛先を足せない）。対応づけは info に出ます。権限のクレーム（roles・groups・scope など）を `external_source` で足すと warn です。
 - `aud_mapping` は作り直しのホップだけで使えます。トークン交換のホップで aud を替えるときは、今までどおり `aud_replacement` と `narrowing_exception.aud` です。
 - 発行されたトークンで同じことを確かめる実行テスト（`tools/runtime_tests/narrowing.py`）は、上流が 1 つの前提のままです（この版では変えていない）。
 
 #### ヘッダーの typ が同じ種別（`kind_discriminator`）と、aud の無い AT（`audience_claim`）
 
-- **typ**：`typ` の列にはヘッダーの値だけを書きます。Keycloak と Entra は、AT と ID トークンのヘッダーの typ がどちらも `JWT` です（Entra は文書で「always JWT」。Keycloak は実測）。Cognito の AT のヘッダーには typ がありません（`(absent)` と書く）。L17 は、種類の違う種別が同じ typ を使うと error にします。同じ typ の種別のすべてに `kind_discriminator` があれば、L17 は種類の違う組ごとに、宣言から排他と言えるかを見ます：同じクレームに別の `value`、片方が `absent`、重ならない `aud`。言えれば info、言えない組があれば warn です（RFC 8725 §3.12 は、明示的な typ のほかに、必須クレームの値・aud・鍵・発行者を変える方法を挙げ、新しい用途には typ を勧めている）。`(absent)` どうしも同じ typ として扱います。typ の無い種別の検証が、typ のある別の種類のトークンを受けないことは、機械では見ていません。
-- **aud の無い AT**：Cognito の AT は、リソースの束縛を求めないかぎり aud を持たず、`client_id` を持ちます。その種別には `audience_claim: client_id` を書き、`required_claims` に `client_id` を入れます（`aud` は入れない）。L27 が aud の欠けを error にしないのは、その種別を出す IdP（`catalog_answers.yaml` の `idp` の `token_types`）について `idp_claims.yaml` の `audience_claim` に同じ名前があるときだけです。`typ: at+jwt` の種別では使えません（RFC 9068 §2.2 は aud を REQUIRED とする）。
+- **typ**：`typ` の列にはヘッダーの値だけを書きます。Keycloak と Entra は、AT と ID トークンのヘッダーの typ がどちらも `JWT` です（Entra は文書で「always JWT」。Keycloak は実測）。Cognito の AT のヘッダーには typ がありません（`(absent)` と書く）。L17 は、種類の違う種別が同じ typ を使うと error にします。同じ typ の種別のすべてに `kind_discriminator` があれば、L17 は種類の違う組ごとに、宣言から排他と言えるかを見ます：同じクレームに別の `value`（その種別に載る台帳の行があり、`on_missing` が拒否のもの）、片方が `absent`（その種別の `required_claims` にも台帳の行にも無いもの）、重ならない `aud`。すべての組で言えれば info、言えない組が 1 つでもあれば error のままです（列を書いただけでは下がりません）（RFC 8725 §3.12 は、明示的な typ のほかに、必須クレームの値・aud・鍵・発行者を変える方法を挙げ、新しい用途には typ を勧めている）。`(absent)` どうしも同じ typ として扱います。typ の無い種別の検証が、typ のある別の種類のトークンを受けないことは、機械では見ていません。
+- **aud の無い AT**：Cognito の AT は、リソースの束縛を求めないかぎり aud を持たず、`client_id` を持ちます。その種別には `audience_claim: client_id` を書き、`required_claims` に `client_id` を入れます（`aud` は入れない）。L27 が aud の欠けを error にしないのは、その種別を出す IdP（`catalog_answers.yaml` の `idp` の `token_types`）のすべてについて `idp_claims.yaml` の `audience_claim` に同じ名前があり、その種別に aud の台帳の行もホップの aud も無いときだけです（リソースの束縛を求めた Cognito の AT は aud を持つので、aud を必須にする）。`typ: at+jwt` の種別では使えません（RFC 9068 §2.2 は aud を REQUIRED とする）。
 
 #### 発行方式の値の、IdP ごとの例外（`exceptions`）
 
-`issuance_profile` の各項目の `value` は設計書の既定で、ある IdP だけ違う値は `exceptions` に書きます（理由は `rationale`）。L62〜L64・L15 と `render` は、`value` か、どれかの例外の値が条件に当たれば、その選択から導かれる要件（7.）が要るものとして読みます（1 つの IdP でも選んでいれば要件が生じる、という保守的な読み方）。`exceptions` の `idp` が `catalog_answers.yaml` の `idp` に無い、値が `value` と同じ、は L62 の warn です。IdP ごとに発行方式を丸ごと分ける書き方（`issuance_profile` を IdP の数だけ持つ）は採りませんでした。パイロットで違ったのは 1 項目だけで、丸ごと分けると同じ値と理由を IdP の数だけ書くことになるためです。
+`issuance_profile` の各項目の `value` は設計書の既定で、ある IdP だけ違う値は `exceptions` に書きます（理由は `rationale`）。L62〜L64・L15 と `render` は、`value` か、どれかの例外の値が条件に当たれば、その選択から導かれる要件（7.）が要るものとして読みます（1 つの IdP でも選んでいれば要件が生じる、という保守的な読み方）。要件のうち発行方式そのものを見るもの（FAPI 2.0 の送信者制約、公開クライアントの PKCE など）は、`value` と例外の値のすべてが満たすときだけ合格です。設計書の IdP のすべてに例外を書くと error です（`value` を使う IdP が無いので、`value` を変える）。`exceptions` の `idp` が `catalog_answers.yaml` の `idp` に無い、値が `value` と同じ、同じ IdP が 2 回ある、は L62 の warn です。IdP ごとに発行方式を丸ごと分ける書き方（`issuance_profile` を IdP の数だけ持つ）は採りませんでした。パイロットで違ったのは 1 項目だけで、丸ごと分けると同じ値と理由を IdP の数だけ書くことになるためです。
 
 #### 0.2.0 からの移行
 

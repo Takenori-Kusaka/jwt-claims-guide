@@ -217,7 +217,7 @@ hops:
     reason: IdP ごとのロール・グループのクレームを、入口が写しの表で組織のロールの語彙に替える（P5 の 1.）
   - claim: C-department
     source: external_source
-    system: 社員台帳（人事）
+    system: 社員台帳（人事システム）
     reason: 部署は IdP の AT に無く、入口が sub で社員台帳から引く（IdP の部署の属性は却下した）
   exchanger: gateway
   validates:
@@ -276,7 +276,7 @@ hops:
     reason: IdP ごとのロール・グループのクレームを、入口が写しの表で組織のロールの語彙に替える（P5 の 1.）
   - claim: C-employee-id
     source: external_source
-    system: 社員台帳（人事）
+    system: 社員台帳（人事システム）
     reason: 社員番号は IdP の AT に無く、入口が sub で社員台帳から引く
   exchanger: gateway
   validates:

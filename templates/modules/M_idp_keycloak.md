@@ -127,7 +127,7 @@
 | exp・iat・jti・iss・typ・azp・sid・scope・cnf | 軽量 AT からも外せない（プロトコルマッパーで消せない） | 文書 | 受け手が読むか（`consumers`）。読まないなら既定どおり・`consumers: []` | Keycloak Server Administration Guide（26.8.2）「Using lightweight access token」 |
 | sub・auth_time | `basic` のスコープが一緒に出す。外すには sub だけの独自のスコープが要る | 実測（26.8.0、シナリオ A） | ケーススタディの判定と違うなら `casestudy-deviations.yaml` に書く | templates/casestudy-deviations.yaml の CLM-0228 |
 | client_id | 認可コードで発行した AT に出なかった（azp で読む） | 実測（26.8.0、シナリオ A） | 呼び出し元のクライアントを何で確かめるか | templates/casestudy-deviations.yaml の CLM-0405 |
-| typ（ペイロード）・realm_access・resource_access | Keycloak が決めた名前（名前空間なし・IANA に未登録）。ヘッダーの typ は AT も ID トークンも既定で `JWT` で、ペイロードの typ（AT は Bearer、ID トークンは ID）が種類を分ける | 実測（26.8.0 の新しいレルムの既定のマッパーと発行したトークン）。typ の値は Keycloak のソース（26.4.0 のタグの TokenUtil）で読んだ。26.8 のタグでは未確認 | 入口・受け手がこの値を読むなら、`idp_defined: {idp: keycloak}` の行にして `on_missing` を書いたか（下流へは名前のまま渡さない）。AT と ID トークンの区別を `kind_discriminator` に書いたか | tools/claim_lint/idp_claims.yaml の keycloak、templates/registry/README.md の 3.5 |
+| typ（ペイロード）・realm_access・resource_access | Keycloak が決めた名前（名前空間なし・IANA に未登録）。ヘッダーの typ は AT も ID トークンも既定で `JWT` で、ペイロードの typ（AT は Bearer、ID トークンは ID）が種類を分ける | 実測（26.8.0 の新しいレルムの既定のマッパーと発行したトークン）。typ の値は Keycloak のソース（26.8.0 のタグの TokenUtil.java）で読んだ | 入口・受け手がこの値を読むなら、`idp_defined: {idp: keycloak}` の行にして `on_missing` を書いたか（下流へは名前のまま渡さない）。AT と ID トークンの区別を `kind_discriminator` に書いたか | tools/claim_lint/idp_claims.yaml の keycloak、templates/registry/README.md の 3.5 |
 
 記入欄：
 

@@ -280,15 +280,17 @@ def evaluate_check(d, check):
         found = parts[0] in profile
         if found and len(parts) > 1:
             v, found = _get(v, parts[1:])
+        # every effective value must pass: value and each per-IdP exception (#58, the same reading as L62's _check)
+        vs = _profile_values(profile, parts[0]) if found and len(parts) == 1 else [v]
         if op == 'present':
-            return ('satisfied' if found and not core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if found and all(not core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'absent':
-            return ('satisfied' if not found or core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if not found or all(core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'equals':
-            ok = v in value if isinstance(value, list) and not isinstance(v, list) else v == value
+            ok = all((v in value if isinstance(value, list) and not isinstance(v, list) else v == value) for v in vs)
             return ('satisfied' if ok else 'unsatisfied'), []
         if op == 'includes':
-            return ('satisfied' if isinstance(v, list) and value in v else 'unsatisfied'), []
+            return ('satisfied' if all(isinstance(v, list) and value in v for v in vs) else 'unsatisfied'), []
         return 'unknown', []
     m = SEL_RE.match(head)
     if not m:

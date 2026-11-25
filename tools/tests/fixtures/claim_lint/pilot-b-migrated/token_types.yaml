@@ -21,7 +21,12 @@ issuance_profile:
     exceptions:
     - idp: cognito
       value: client_secret_basic
-      rationale: Cognito のアプリクライアントは private_key_jwt に対応していない（パイロットの記入のまま。この fixture では確かめていない）ので、クライアントの秘密で認証する
+      rationale: Cognito のトークンエンドポイントが対応するクライアント認証は client_secret_basic と client_secret_post（private_key_jwt は挙がっていない）ので、クライアントの秘密で認証する
+      refs:
+      - kind: spec
+        id: Amazon Cognito Developer Guide「The token endpoint」
+        url: https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
+        verified_on: '2026-11-25'
   grants:
     value:
     - authorization_code_pkce
@@ -110,7 +115,6 @@ token_types:
   - iat
   - jti
   - azp
-  - scope
   - typ
   key_source:
     from: issuer_metadata_jwks_uri

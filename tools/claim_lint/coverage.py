@@ -216,6 +216,8 @@ def rule_r3(answers_doc, catalog_dir, token_types=None):
     if not entries:
         return out + [F('R3', ERROR, 'idp', 'catalog_answers.yaml に idp（設計書の IdP の name と version）がない')]
     known = {t.get('id') for t in token_types or []}
+    if is_list and token_types is not None:
+        out += _r3_token_type_owners(entries, token_types)
     for e in entries:
         if token_types is not None:
             for t in sorted((e['token_types'] or set()) - known):
@@ -224,6 +226,32 @@ def rule_r3(answers_doc, catalog_dir, token_types=None):
             out.append(F('R3', ERROR, e['target'], f"IdP {e['name']} の kind は product（製品。既定）か {SELF_BUILT}（組織が自分で作る発行者）"))
             continue
         out += (_r3_self_built if e['kind'] == SELF_BUILT else _r3_one)(doc, e, catalog_dir)
+    return out
+
+
+IDP_KINDS = ('access_token', 'id_token')
+PRODUCT_WORDS = tuple(ENUMERABLE) + ('azure', 'aad', 'pingfederate', 'pingone', 'onelogin')
+
+
+def _r3_token_type_owners(entries, token_types):
+    """The list form ties token types to IdPs, and R3b, L2, L27, L74 and drift look at a token type through the IdP that
+    names it (PR #70 check B5, B1). So every adopted access token and ID token type belongs to an entry, every entry of a
+    list names its token types, and an access token type belongs to one entry."""
+    out = []
+    multi = len(entries) > 1
+    unscoped = [e['name'] for e in entries if e['token_types'] is None]
+    if multi and unscoped:
+        out.append(F('R3', ERROR, 'idp', f"IdP が複数あるのに、{'・'.join(unscoped)} に token_types がない。IdP ごとに、出すトークン種別を書く"
+                                         '（書かない IdP は全種別を出すものとして読まれ、ほかの IdP の検査と重なる）'))
+    adopted = [t for t in token_types if t.get('decision') in ('採用', '既定どおり') and t.get('kind') in IDP_KINDS]
+    for t in adopted:
+        owners = [e['name'] for e in entries if e['token_types'] is not None and t.get('id') in e['token_types']]
+        if not owners and not unscoped:
+            out.append(F('R3', ERROR, 'idp', f"採用した種別 {t.get('id')}（{t.get('kind')}）が、どの IdP の token_types にもない。出す IdP の要素に書く"
+                                             '（組織が自分で作る発行者なら kind: self_built の要素。書かないと R3b・L2・L27・L74・drift がこの種別を見ない）'))
+        elif len(owners) > 1 and t.get('kind') == 'access_token':
+            out.append(F('R3', WARN, 'idp', f"AT の種別 {t.get('id')} を {'・'.join(owners)} の token_types に書いている。AT は発行者ごとに検証の規則が違うので、"
+                                            'IdP ごとに種別を分ける'))
     return out
 
 
@@ -270,10 +298,14 @@ def _r3_self_built(doc, entry, catalog_dir):
         out.append(F('R3', ERROR, target, f'発行者 {idp}（kind: {SELF_BUILT}）の trigger_list_source に、一覧を定める文書（document：設計書の'
                                           '節・仕様書のパスか名前。公開の URL があれば url）と、一覧を決めた・確かめた日（verified_on）がない'))
     out += _r3_trigger_list(tl, catalog_dir)
-    if not out:
+    like = [w for w in PRODUCT_WORDS if w in idp]
+    if like:
+        out.append(F('R3', WARN, target, f"発行者 {idp}（kind: {SELF_BUILT}）の名前が、製品の IdP（{'・'.join(like)}）を含む。製品を別の名前で {SELF_BUILT} と書くと、"
+                                         'R3b（フックが呼ばれるか）と L2（書き換えを許さないクレーム）がその IdP を見なくなる。製品なら製品の名前で書く'))
+    if not [f for f in out if f['severity'] == ERROR]:
         planned = '。まだ存在しない発行者（planned: true）なので、作った後に一覧を実装と突き合わせる' if src.get('planned') is True else ''
         out.append(F('R3', INFO, target, f'発行者 {idp} は組織が自分で作る（kind: {SELF_BUILT}）。契機の一覧 {len(tl)} 項目は設計書が決め、'
-                                         f'すべてカタログのイベントか対象外にひもづく{planned}'))
+                                         f'すべてカタログのイベントか対象外にひもづく{planned}。R3b と L2 は、この発行者を照合しない'))
     return out
 
 
