@@ -208,8 +208,10 @@ def fill_in_sections(name, profile='full'):
         if m:
             # the answer of this section is written in one place only, the one its mark names (00_core, the registry):
             # appendix D gets a pointer instead of a second table to fill in
-            out.append((item, title, [f'記入欄：ここには書かない。この項目の答えは、見出しの〔〕が示す場所（{m.group(1)}）に 1 回だけ書く。'
-                                      '問いと、答えを書く欄は、テンプレートのこの項目にある']))
+            place = ('設計書（`design.md`）の本体の節（00_core から写した節。どの節かは、テンプレートのこの項目の本文が示す）'
+                     if m.group(1).startswith('00_core') else f'設計書の台帳（`claims.yaml`）の、{m.group(1)[len("台帳の"):]}')
+            out.append((item, title, [f'記入欄：ここには書かない。この項目の答えは、{place}に 1 回だけ書く。'
+                                      '問いと候補は、テンプレートのこの項目で読む（テンプレートのファイルには書き込まない）']))
             continue
         out.append((item, title, [line, ''] + table))
     return out

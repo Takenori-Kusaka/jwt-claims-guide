@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'c7978da4056d';
+  const BUILD_ID = '5396e8760972';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -719,6 +719,58 @@
 
   // ---- the checklist
   function answerOf(rv, qid) { return rv && rv.answers[qid] ? rv.answers[qid].answer : ''; }
+  // The traits of the open design that the conditions of templates/review/triage.yaml name (#56): {condition: 'on' |
+  // 'off' | 'unknown'}. The same reading as read_traits() of tools/review_triage.py (tools/tests/test_claims_editor_ux.py
+  // compares the two): on when the registry shows it OR the author declared it (catalog_answers); unknown (shown, with
+  // a note) when the file it is read from is missing, so that a design does not get a shorter list silently.
+  function readTraits() {
+    const reg = H.registry() || {};
+    const adopted = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => isObj(r) && r.decision !== '却下');
+    const claims = adopted(reg.claims && reg.claims.claims); const types = adopted(reg.token_types && reg.token_types.token_types);
+    const noHops = !isObj(reg.hops);
+    const hops = (isObj(reg.hops) && Array.isArray(reg.hops.hops) ? reg.hops.hops : []).filter(isObj);
+    const cat = isObj(reg.catalog_answers) ? reg.catalog_answers : {};
+    const lite = isObj(cat.lite_criteria) ? cat.lite_criteria : {}; const asked = isObj(cat.questions) ? cat.questions : {};
+    const declared = (sec, key, field) => (isObj(sec[key]) && typeof sec[key][field] === 'boolean' ? sec[key][field] : null);
+    const names = new Set(claims.map((c) => String(c.name))); const kinds = new Set(hops.map((x) => x.kind));
+    const has = (v) => Array.isArray(v) ? v.length > 0 : isObj(v) ? Object.keys(v).length > 0 : !!v;
+    const host = (u) => { const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(u)); return m ? m[1] : ''; };
+    const t = { always: 'on' };
+    const put = (c, on, unknown) => { t[c] = on ? 'on' : unknown ? 'unknown' : 'off'; };
+    put('org_claims', claims.some((c) => has(c.namespace) || (!has(c.registered_ref) && (c.usage === 'authz' || c.usage === 'identifier'))));
+    put('pii', claims.some((c) => c.pii_category && c.pii_category !== '該当なし'));
+    const hosts = new Set(); types.forEach((x) => (Array.isArray(x.issuers) ? x.issuers : []).forEach((i) => { if (isObj(i) && host(i.iss)) hosts.add(host(i.iss)); }));
+    put('multi_idp', hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
+    put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
+    put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
+      declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null);
+    put('approval', names.has('authorization_details') || hops.some((x) => has(x.authorization_details)), noHops);
+    // the author's answer decides multitenant; tenant_binding is read only when there is no answer
+    const mt = declared(lite, 'multitenant', 'answer');
+    put('multitenant', mt !== null ? mt : types.some((x) => has(x.tenant_binding)));
+    put('data_layer', kinds.has('db_connection'), noHops);
+    put('auth_context', names.has('acr') || names.has('amr') || names.has('auth_time'));
+    put('sender_constrained', types.some((x) => x.sender_constraint === 'dpop' || x.sender_constraint === 'mtls') || declared(asked, 'q-holder', 'needed') === true);
+    put('sender_declined', types.some((x) => (x.kind === 'access_token' || x.kind === 'internal_token') && (x.sender_constraint === undefined || x.sender_constraint === null || x.sender_constraint === 'none')));
+    put('long_running', types.some((x) => has(x.long_running)) || kinds.has('broker_connection'), noHops);
+    return t;
+  }
+  function designTraits() { const t = readTraits(); return new Set(Object.keys(t).filter((c) => t[c] !== 'off')); }
+  // the short list of #56: class C, a default priority and a condition that holds, or a lint rule of show_on_lint that warned
+  function shortList() {
+    const C = (R.checklist && R.checklist.short) || null;
+    if (!C) return null;
+    const states = readTraits(); const traits = designTraits();
+    const warned = new Set(CE.diagnostics().filter((d) => d.source === 'claim_lint' && d.severity !== 'info').map((d) => d.rule));
+    const why = new Map();
+    R.questions.forEach((x) => {
+      if (x.triage !== 'C') return;
+      const byCond = C.priorities.includes(x.priority) && (x.show_when || []).some((c) => traits.has(c));
+      const byLint = (x.show_on_lint || []).filter((r) => warned.has(r));
+      if (byCond || byLint.length) why.set(x.id, byLint.length && !byCond ? `lint の ${byLint.join('・')} の warn` : '');
+    });
+    return { traits, states, why, prompts: (R.checklist.open_prompts || []).filter((p) => p.show_when.some((c) => traits.has(c))) };
+  }
   function viewChecklist(query) {
     const q = new URLSearchParams(query || '');
     const m = mine();
@@ -734,7 +786,12 @@
     // first is a change of perspectives.md, not of this screen
     const tri = Array.from(new Set(R.questions.map((x) => x.triage || 'all')));
     const tl = (R.checklist && R.checklist.triage_labels) || {};
-    const triSel = h('select', { id: 'rv-f-triage' }, h('option', { value: '' }, 'すべての問い'), tri.filter((t) => t !== 'all').map((t) => h('option', { value: t }, tl[t] || t)));
+    const short = shortList();
+    const triSel = h('select', { id: 'rv-f-triage' }, short ? h('option', { value: 'short' }, tl.short || '短い一覧') : null, h('option', { value: '' }, `すべての問い（${R.questions.length} 問）`),
+      tri.filter((t) => t !== 'all').sort().map((t) => h('option', { value: t }, (tl[t] || t) + `：${R.questions.filter((x) => (x.triage || 'all') === t).length} 問`)));
+    const inTriage = (x) => !triSel.value || (triSel.value === 'short' ? !!short && short.why.has(x.id) : (x.triage || 'all') === triSel.value);
+    const shortNote = h('div', { class: 'note', id: 'rv-short-note', hidden: true });
+    const promptBox = h('section', { class: 'rv-stage', id: 'rv-open-prompts', hidden: true });
     const def = (R.checklist && R.checklist.default) || {};
     const anyQuery = Array.from(q.keys()).length > 0;
     triSel.value = q.get('triage') || (!anyQuery && Array.isArray(def.triage) && def.triage.length === 1 ? def.triage[0] : '');
@@ -750,7 +807,7 @@
     });
     function apply() {
       const params = {};
-      if (triSel.value) params.triage = triSel.value;
+      if (triSel.value) params.triage = triSel.value; else if (short) params.triage = 'all';   // keeps "every question" across a re-render (the default is the short list)
       if (stageSel.value) params.stage = stageSel.value;
       if (roleSel.value) params.role = roleSel.value;
       if (ansSel.value) params.ans = ansSel.value;
@@ -759,7 +816,7 @@
       let n = 0;
       items.forEach(([x, el]) => {
         const a = answerOf(mine(), x.id);
-        const ok = (!triSel.value || (x.triage || 'all') === triSel.value) && (!stageSel.value || x.stage === stageSel.value) &&
+        const ok = inTriage(x) && (!stageSel.value || x.stage === stageSel.value) &&
           (!roleSel.value || (roleSel.value === 'none' ? !x.roles.length : x.roles.includes(roleSel.value))) &&
           (!ansSel.value || (ansSel.value === 'open' ? !a : a === ansSel.value)) &&
           (!t || (x.id + ' ' + x.text + ' ' + x.see).toLowerCase().includes(t));
@@ -771,17 +828,36 @@
       roleNote.hidden = !role;
       if (role) roleNote.textContent = `「${role.name}」で絞っています：観点書の 7. の索引で「${role.name}」に載っている問い ${role.questions.length} 問だけです。役割の索引が未整備の問い ${unindexed} 問にも、この役割に関わる問いがありえます（「役割の索引が未整備の問い」で絞ると見られます。全問に役割を付けるのは観点書の側の作業）。`;
       count.textContent = `${n} / ${R.questions.length} 問を表示（自分の回答 ${m ? Object.keys(m.answers).length : 0} 問）`;
+      const isShort = triSel.value === 'short' && !!short;
+      shortNote.hidden = !isShort; promptBox.hidden = !isShort;
+      if (isShort && !shortNote.dataset.done) {
+        shortNote.dataset.done = '1';
+        const by = (c) => R.questions.filter((x) => x.triage === c).length;
+        const word = { on: '当たる', off: '当たらない', unknown: '読めない（問いは出す）' };
+        const cond = (R.checklist.conditions || []).filter((c) => c.id !== 'always').map((c) => `${c.label}：${word[short.states[c.id]]}`);
+        const b = R.checklist.short.budget || {};
+        shortNote.append(h('p', null, h('strong', null, `全 ${R.questions.length} 問のうち、あなたが答える ${short.why.size} 問と、開いた問い ${short.prompts.length} 個を出しています。`),
+          b.questions ? ` 量の目安は ${b.questions[0]}〜${b.questions[1]} 問・${b.minutes[0]}〜${b.minutes[1]} 分です（筆者の提案。人による確かめは未実施）。優先 1 から答えてください。` : ''),
+          h('p', { class: 'small', id: 'rv-short-traits' }, 'この設計から読んだ性質（設計書が示すか、書き手が宣言していれば「当たる」）― ', cond.join('／'), '。図と要求に照らして確かめ、合わないときは、それ自体を指摘にして、「表示する問い」で全部の問いを開いてください。'),
+          h('p', { class: 'small', id: 'rv-short-rest' }, `出していない問い：lint が確かめる ${by('A')} 問、書き手が提出前に確かめる ${by('B')} 問、専門家に回す ${by('D')} 問、人の判断が要るがこの設計の性質に当たらない・優先 3 の ${by('C') - short.why.size} 問。「表示する問い」で開けます。分け方は `,
+            h('a', { href: gh(R.checklist.short.source) }, 'triage.yaml'), '、紙で読むなら ', h('a', { href: gh(R.checklist.short.doc) }, 'short_list.md'), '。'));
+        promptBox.append(h('h2', null, '開いた問い（要求と運用から辿る）'),
+          h('p', { class: 'muted small' }, 'Yes／No では答えません。要求の文と運用の場面から自分で辿り、気づいたことを指摘にします（出どころは「テンプレート外」）。1 つにつき 2〜3 分が目安です。'),
+          ...short.prompts.map((p) => h('article', { class: 'rv-prompt', 'data-prompt': p.id }, h('h3', null, code(p.id), ' ', p.ask), p.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', p.hint) : null,
+            h('button', { type: 'button', disabled: m ? null : true, onclick: () => newFinding({ questions: [], location: p.id, origin: 'テンプレート外', content: '' }) }, '気づきを指摘にする'))));
+      }
       const hash = P.route('review', 'checklist', params);
       if (location.hash !== hash) history.replaceState(null, '', hash);
     }
     const form = h('form', { class: 'filters', role: 'search', onsubmit: (e) => e.preventDefault(), oninput: apply, onchange: apply },
       tri.length > 1 ? h('label', null, '表示する問い', triSel) : null, h('label', null, '段（スライド 148 の 6 段）', stageSel), h('label', null, '役割（観点書の 7. の索引）', roleSel), h('label', null, '自分の回答', ansSel), h('label', { class: 'wide' }, '検索', text));
     setTimeout(apply, 0);
+    list.append(promptBox);
     return [h('h1', { tabindex: '-1' }, '観点のチェックリスト'),
       h('p', { class: 'lead' }, '問いはどれも Yes が「満たす」の向きです。見る欄が空で判定できないときは No にして、指摘にします（templates/review/procedure.md の段 3）。「見る欄」を押すと、その欄（台帳の列・設計書の節・25 問の回答）に移動します。'),
       m ? null : h('p', { class: 'note warn' }, '回答を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前（自己申告）を決めてください。'),
       h('p', { class: 'muted small' }, `役割の索引（perspectives.md の 7.）に載っている問いは ${indexed.size} 問です。残りの ${unindexed} 問は、役割の索引が未整備の問いで、どの役割にも関わりえます（「役割の索引が未整備の問い」で絞り込めます）。`),
-      form, roleNote, count, list];
+      form, shortNote, roleNote, count, list];
   }
   function questionItem(x, m) {
     const a = answerOf(m, x.id);
@@ -803,7 +879,10 @@
     const name = 'rv-a-' + x.id;
     const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
     const el = h('article', { class: 'rv-q', id: 'q-' + x.id, 'data-q': x.id, 'data-answer': a },
-      h('h3', null, code(x.id), ' ', H.inlineRepo(x.text)),
+      x.ask ? h('h3', null, code(x.id), ' ', h('span', { class: 'chip' }, '優先 ' + x.priority), ' ', x.ask) : h('h3', null, code(x.id), ' ', H.inlineRepo(x.text)),
+      x.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', x.hint) : null,
+      x.ask ? h('p', { class: 'muted small rv-orig' }, '観点書の問い：', H.inlineRepo(x.text)) : null,
+      x.triage_note ? h('p', { class: 'muted small rv-triage', 'data-triage': x.triage }, '区分：', H.inlineRepo(x.triage_note)) : null,
       x.roles.length ? h('p', { class: 'codes small' }, x.roles.map((r) => h('span', { class: 'chip' }, ROLE.get(r).name))) : null,
       h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る欄：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
       h('details', null, h('summary', null, 'No なら・つながり・根拠'), h('dl', { class: 'obj' }, h('dt', null, 'No なら'), h('dd', null, H.inlineRepo(x.no)), h('dt', null, 'つながり'), h('dd', null, H.inlineRepo(x.links)),
@@ -1524,6 +1603,8 @@
     reportText: (name, label) => { const rv = st.file.reviews.find((x) => x.reviewer.name === name) || visible()[0]; return rv ? reportText(st.file, rv, label, st.version) : null; },
     draw,
     visibleNames: () => visible().map((r) => r.reviewer.name),
+    // #56: the traits read from the open design and the questions of its short list (compared with tools/review_triage.py by the tests)
+    traits: () => readTraits(), shortList: () => { const x = shortList(); return x ? { questions: Array.from(x.why.keys()), prompts: x.prompts.map((p) => p.id) } : null; },
     importTexts: (list) => importFiles(list.map((x) => ({ name: x.name, text: () => Promise.resolve(x.text) }))),
     clock: null,
   };

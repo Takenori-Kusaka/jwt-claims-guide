@@ -292,10 +292,11 @@ def test_a_section_written_elsewhere_gets_a_pointer_not_a_second_table(tmp_path,
     d = tmp_path / 'design'
     assert new_design.main([str(d), '--profile', profile, '--use', 'M_data_layer,M_idp_keycloak']) == 0
     body = _appendix(d / 'design.md')
-    for item, place in (('template:modules/M_data_layer#connection-lifetime', '00_core に書く'),
-                        ('template:modules/M_idp_keycloak#immutable-claims', '台帳の既定どおりの行')):
+    for item, place in (('template:modules/M_data_layer#connection-lifetime', '設計書（`design.md`）の本体の節（00_core から写した節。'),
+                        ('template:modules/M_idp_keycloak#immutable-claims', '設計書の台帳（`claims.yaml`）の、既定どおりの行に 1 回だけ書く')):
         block = body.split(f'項目：`{item}`', 1)[1].split('#### ', 1)[0]
-        assert f'ここには書かない。この項目の答えは、見出しの〔〕が示す場所（{place}）に 1 回だけ書く' in block
+        assert 'ここには書かない。この項目の答えは、' + place in block
+        assert 'テンプレートのファイルには書き込まない' in block and '答えを書く欄は、テンプレート' not in block
         assert '|' not in block  # no table to fill in a second time
     # a section without such a mark keeps its table
     block = body.split('項目：`template:modules/M_idp_keycloak#catalog-defaults`', 1)[1].split('#### ', 1)[0]
