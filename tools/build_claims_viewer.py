@@ -234,6 +234,8 @@ def review_bundle():
         out = {'triage': t['class'], 'triage_note': review_triage.class_line(tri, t)[len('- 区分：'):]}
         if t['class'] == 'C':
             out.update(priority=t['priority'], unit=t['unit'], show_when=t['show_when'], show_on_lint=t.get('show_on_lint') or [], ask=t['ask'])
+            if t.get('hint'):   # optional (added after the independent check of PR #71): where to look, what else to check
+                out['hint'] = t['hint']
         return out
     qs = []
     for q in questions:
@@ -278,7 +280,8 @@ def review_bundle():
                                     'source': 'templates/review/triage.yaml', 'doc': 'templates/review/short_list.md'},
                           'conditions': [{'id': k, 'label': v['label'], 'read': v['read']} for k, v in tri['conditions'].items()],
                           'units': tri['units'], 'priorities': {str(k): v for k, v in tri['priorities'].items()},
-                          'open_prompts': [{'id': p['id'], 'ask': p['ask'], 'show_when': p['show_when']} for p in tri['open_prompts']]},
+                          'open_prompts': [dict({'id': p['id'], 'ask': p['ask'], 'show_when': p['show_when']}, **({'hint': p['hint']} if p.get('hint') else {}))
+                                           for p in tri['open_prompts']]},
             'template_heads': dict(sorted(heads.items())),
             'contrasts': contrasts,
             'decision_tree': {'file': dt_rel, 'sections': [{'id': a, 'title': h['title'], 'number': h['number']}

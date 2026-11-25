@@ -91,7 +91,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（受け手ごとに解釈が分かれる）
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L24`（未実装）
 - 根拠：slide:p04-design-checklist、slide:p04-type
-- 区分：A 機械。答えを決める規則はまだ無い（案：`lint:L24`（未実装）・N5）。規則ができるまでは、書き手の自己点検で確かめる
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：操作ごとの承認がある。機械で決まるが規則がまだ無いので（案：`lint:L24`（未実装）・N5）、規則ができるまでレビュアーが答える）
 
 **dc-06**　（形）複数の値を JSON の配列で運び、区切り文字の連結も JSON の文字列化も使っていない、と台帳の `shape` から言えるか
 - 見る欄：`registry:claims#shape`
@@ -119,7 +119,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major。`ap-1-6` も見る
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`
 - 根拠：slide:p04-design-checklist、slide:p04-immutable-identifiers
-- 区分：A 機械。lint の `lint:L3` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L3` が確かめる（レビュアーは答えない）。規則が見ない残りは、`q-value-vocabulary` でレビュアーが見る
 
 **dc-10**　（書き手）誰が値を書けるか（`authoritative_writer`）と出どころ（`provenance`）が決まり、本人・呼び出し側の申告の値と分かれているか
 - 見る欄：`registry:claims#authoritative_writer`、`registry:claims#provenance`、`registry:claims#modifiers`、`template:claim_request#q11`
@@ -238,7 +238,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`
 - 根拠：slide:p11-pre-add-questions-1、slide:p04-immutable-identifiers
-- 区分：A 機械。lint の `lint:L3` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L3` が確かめる（レビュアーは答えない）。規則が見ない残りは、`q-value-vocabulary` でレビュアーが見る
 
 **pa-13**　（問 13）上限（長さ・件数）と、超えたときに失敗か欠落かが書いてあり、受け手がそれを検知できるか
 - 見る欄：`template:claim_request#q13`、`registry:claims#max_items`、`registry:claims#overflow_strategy`
@@ -294,7 +294,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（個人情報のログ）
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L70`
 - 根拠：slide:p11-pre-add-questions-2、NIST IR 8587 §5.3.1.7
-- 区分：A 機械。lint の `lint:L70`・`lint:L6` が確かめる（レビュアーは答えない）
+- 区分：B 書き手の自己点検（提出前のチェックリストで、書き手が確かめる。レビュアーは答えない）
 
 **pa-21**　（問 21）委任のトークンに載るなら、`act`・承認 ID との関係（誰の値か、どちらで照合するか）が書いてあるか
 - 見る欄：`template:claim_request#q21`、`registry:questions#q-actor`、`template:profiles/P4_ai_agent_delegation#audit-correlation`
@@ -344,7 +344,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L72`
 - 根拠：slide:p11-pre-add-questions-2
 <!-- req:p11-pre-add-questions-1.R1 req:p11-pre-add-questions-1.R2 req:p11-pre-add-questions-1.R3 req:p11-pre-add-questions-1.R4 req:p11-pre-add-questions-1.R5 req:p11-pre-add-questions-1.R6 req:p11-pre-add-questions-1.R7 req:p11-pre-add-questions-1.R8 req:p11-pre-add-questions-1.R9 req:p11-pre-add-questions-1.R10 req:p11-pre-add-questions-1.R11 req:p11-pre-add-questions-1.R12 req:p11-pre-add-questions-1.R13 req:p11-pre-add-questions-2.R1 req:p11-pre-add-questions-2.R2 req:p11-pre-add-questions-2.R3 req:p11-pre-add-questions-2.R4 req:p11-pre-add-questions-2.R5 req:p11-pre-add-questions-2.R6 req:p11-pre-add-questions-2.R7 req:p11-pre-add-questions-2.R8 req:p11-pre-add-questions-2.R9 req:p11-pre-add-questions-2.R10 req:p11-pre-add-questions-2.R11 req:p11-pre-add-questions-2.R12 req:p11-pre-add-questions-2.R13 req:p11-pre-add-questions-2.R14 -->
-- 区分：A 機械。lint の `lint:L72` が確かめる（レビュアーは答えない）
+- 区分：B 書き手の自己点検（提出前のチェックリストで、書き手が確かめる。レビュアーは答えない）
 
 ### 1.3 既存のクレームと意味
 
@@ -376,7 +376,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
 - 根拠：slide:p02-registered-claims、slide:p02-auth-strength-session、slide:p08-reissue-triggers、OpenID Connect Core 1.0 §2
 <!-- req:p02-registered-claims.R4 req:p02-auth-strength-session.R2 req:p02-auth-strength-session.R3 req:p08-reissue-triggers.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：認証の強さ・新しさで判断する）
+- 区分：A 機械。答えを決める規則はまだ無い（案：N16）。規則ができるまでは、書き手の自己点検で確かめる
 
 <a id="q-scope-semantics"></a>
 
@@ -396,7 +396,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`
 - 根拠：slide:p02-roles-groups-entitlements、slide:p03-confusing-differences
 <!-- req:p02-roles-groups-entitlements.R3 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：発行者（IdP）が複数ある）
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
 
 <a id="q-role-explosion"></a>
 
@@ -418,7 +418,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/name-vs-identifier#misuse`／lint `lint:L3`・`lint:L28`（未実装）
 - 根拠：slide:p02-user-identifier、slide:p04-immutable-identifiers
 <!-- req:p02-user-identifier.R1 req:p02-user-identifier.R3 req:p02-user-identifier.R4 req:p02-user-identifier.R5 -->
-- 区分：A 機械。lint の `lint:L3` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：`lint:L28`（未実装）・N2）は、規則ができるまで書き手の自己点検で確かめる
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：発行者（IdP）が複数ある。機械で決まるが規則がまだ無いので（案：`lint:L28`（未実装）・N2）、規則ができるまでレビュアーが答える）
 
 <a id="ap-1-6"></a>
 
@@ -603,7 +603,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L70`
 - 根拠：slide:p06-issuance-hook
 <!-- req:p06-issuance-hook.R4 -->
-- 区分：A 機械。lint の `lint:L70` が確かめる（レビュアーは答えない）
+- 区分：A 機械。答えを決める規則はまだ無い（案：N14）。規則ができるまでは、書き手の自己点検で確かめる
 
 <a id="q-minimal-per-recipient"></a>
 
@@ -775,7 +775,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（交換で権限が広がる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L16`／実行 `test:negative_tests#exchange-narrowing`／事例 ケーススタディの Keycloak 26.8 の交換（元に無い orders 宛てが出た）
 - 根拠：slide:p06-narrow-downstream、slide:p10-token-exchange-not-narrowing、RFC 8693 §5
-- 区分：A 機械。lint の `lint:L16` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L16` が確かめる（レビュアーは答えない）。規則が見ない残りは、`q-no-passthrough` でレビュアーが見る
 
 <a id="q-hop-lifetime"></a>
 
@@ -795,7 +795,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／lint `lint:L56`（未実装）
 - 根拠：slide:p10-agent-checklist、RFC 8707 §2
 <!-- req:p10-agent-checklist.R3 -->
-- 区分：A 機械。答えを決める規則はまだ無い（案：`lint:L56`（未実装））。規則ができるまでは、書き手の自己点検で確かめる
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：トークンの交換・作り直しがある・委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L56`（未実装））、規則ができるまでレビュアーが答える）
 
 ### 3.3 渡し方
 
@@ -847,7 +847,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L46`（未実装）
 - 根拠：slide:p06-validation-split、slide:p06-header-forwarding
 <!-- req:p06-validation-split.R8 req:p06-header-forwarding.R5 -->
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：どの設計でも）
+- 区分：C 人の判断（`q-outside-catalog` にまとめた。レビュアーはそちらで答える。この問いは既定では出さない）
 
 <a id="q-step-up-path-coverage"></a>
 
@@ -1097,7 +1097,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Blocker〜Major
 - つながり：対比表 `review:contrasts/jws-vs-jwe#misuse`／lint `lint:L67`
 - 根拠：slide:p06-header-forwarding、slide:p07-trust-boundary
-- 区分：A 機械。lint の `lint:L67` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L67` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N15）は、規則ができるまで書き手の自己点検で確かめる
 
 ---
 
@@ -1212,7 +1212,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/scope-vs-role#misuse`／実行 `test:negative_tests#approval-mismatch`
 - 根拠：slide:p10-human-approval-evidence、slide:p10-agent-checklist、RFC 9396 §2
 <!-- req:p10-human-approval-evidence.R1 req:p10-agent-checklist.R7 -->
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：操作ごとの承認がある・委任がある（代理で動く主体がいる））
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：操作ごとの承認がある・委任がある（代理で動く主体がいる））
 
 <a id="q-cross-tenant-identity"></a>
 
@@ -1405,7 +1405,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Minor〜Major。書籍の「まず 30 分」のような根拠のない目安を規範として引いていたら Minor
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／判断の木 `review:decision_tree#lifetime-by-situation`／lint `lint:L23`
 - 根拠：slide:p08-choosing-lifetime、slide:p08-decision-table、NIST IR 8587 §5.3.1.1
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：どの設計でも）
+- 区分：C 人の判断（`q-revocation-delivery` にまとめた。レビュアーはそちらで答える。この問いは既定では出さない）
 
 <a id="q-session-rt-bounds"></a>
 
@@ -1461,7 +1461,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Major
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／実行 `test:negative_tests#disabled-subject-exchange`
 - 根拠：slide:p08-reissue-triggers、slide:p08-revocation-propagation
-- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：発行者（IdP）が複数ある）
+- 区分：C 人の判断（`q-revocation-delivery` にまとめた。レビュアーはそちらで答える。この問いは既定では出さない）
 
 <a id="q-relies-on-at-expiry"></a>
 
@@ -1471,7 +1471,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`
 - 根拠：slide:p08-choosing-lifetime
 <!-- req:p08-choosing-lifetime.R3 -->
-- 区分：B 書き手の自己点検（提出前のチェックリストで、書き手が確かめる。レビュアーは答えない）
+- 区分：C 人の判断（`q-revocation-delivery` にまとめた。レビュアーはそちらで答える。この問いは既定では出さない）
 
 <a id="q-long-running"></a>
 
@@ -1501,7 +1501,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L58`（未実装）
 - 根拠：slide:p10-agent-checklist、NIST IR 8587 §5.3.1.6
 <!-- req:p10-agent-checklist.R6 -->
-- 区分：A 機械。答えを決める規則はまだ無い（案：`lint:L58`（未実装））。規則ができるまでは、書き手の自己点検で確かめる
+- 区分：C 人の判断（レビュアーが答える。優先 1。出す条件：委任がある（代理で動く主体がいる）。機械で決まるが規則がまだ無いので（案：`lint:L58`（未実装））、規則ができるまでレビュアーが答える）
 
 <a id="q-copies-outlive"></a>
 
@@ -1641,7 +1641,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - No なら：Minor〜Major（前提の誤り・理由の不備。理由の採点の RR4）。較正で追加（B14。templates/examples/scenario-b/review-report.md の 9.）
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`
 - 根拠：templates/CONTRIBUTING.md の 1.、templates/review/rationale_rubric.md
-- 区分：C 人の判断（レビュアーが答える。優先 2。出す条件：どの設計でも）
+- 区分：C 人の判断（レビュアーが、手順の段 4 で確かめる。短い一覧には出さない）
 
 <a id="q-limit-consistency"></a>
 

@@ -83,11 +83,11 @@ python tools/review_check.py --report <レポート>                            
 <!-- triage-counts:begin -->
 | 区分 | 問いの数 | 行き先 |
 | --- | --- | --- |
-| A 機械 | 86（既存の規則が確かめる 51、規則が一部を確かめる 15、規則がまだ無い 20） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |
-| B 書き手の自己点検 | 35 | 提出前のチェックリスト（PR のテンプレート） |
-| C 人の判断 | 43（優先 1：15、優先 2：16、優先 3：12） | short_list.md（既定で出すのは優先 1・2 のうち、設計の性質に当たるもの） |
+| A 機械 | 81（既存の規則が確かめる 47、規則が一部を確かめる 15、規則がまだ無い 19） | claim_lint。規則が無い・足りない間は書き手の自己点検にも置く |
+| B 書き手の自己点検 | 36 | 提出前のチェックリスト（PR のテンプレート。規則待ちの A と合わせて 49 行） |
+| C 人の判断 | 47（優先 1：18、優先 2：12、優先 3：17。うち規則ができるまで人が答える機械の問い 4） | short_list.md（既定で出すのは優先 1・2 のうち、設計の性質に当たるもの） |
 | D 専門家 | 4 | escalation.md |
-| 計 | 168 | 開いた問いは、このほかに 8 個 |
+| 計 | 168 | 開いた問いは、このほかに 6 個 |
 <!-- triage-counts:end -->
 
 シナリオ B の較正（`../examples/scenario-b/review-report.md` の 9.）の後に 7 問を足しました（各問いの「No なら」に「較正で追加」と書いた）。PR #45 の独立点検の後に `q-pairwise-external` を 2 問に分けました（`q-pairwise-unguessable`）。定義の段が多いのは、設計のチェックリスト（13 問）と追加前の 25 問（27 問）を置いたためです。25 問の後半（問 13〜25）は発行・伝搬・運用に関わりますが、スライド 143 と issue #5 に合わせて同じ節で扱います。
@@ -96,7 +96,7 @@ python tools/review_check.py --report <レポート>                            
 
 1. [procedure.md](procedure.md) の段 0 で、CI・書き手の自己点検・Lite／Full を確かめる
 2. 設計書の 12.（自信のない点）と 6.（問い × 仕組み）を読み、[decision_tree.md](decision_tree.md) で仕組みを確かめる
-3. `python tools/review_triage.py --design <設計書のディレクトリ>` で、この設計に当たる問いを出し、[short_list.md](short_list.md) の問い（15〜25 問が目安）と開いた問いに答える。分からない語は対比表へ。問いの見る欄と根拠は [perspectives.md](perspectives.md) の同じ ID の問いにある
+3. `python tools/review_triage.py --design <設計書のディレクトリ>` で、この設計の 1 枚（性質の表と、当たる問い。15〜25 問が目安）を出し、性質の表を図と要求に照らしてから、問いと開いた問いに答える（全部の問いは [short_list.md](short_list.md)）。分からない語は対比表へ。問いの見る欄と根拠は [perspectives.md](perspectives.md) の同じ ID の問いにある
 4. [report_template.md](report_template.md) に記録し、[escalation.md](escalation.md) に当たる行を回す
 
 ## 検査
@@ -106,6 +106,7 @@ python tools/review_check.py           # 問い ID・見る欄・根拠・リン
 python tools/review_check.py --list    # 問い ID と段の一覧
 python tools/review_triage.py --check  # 振り分け（triage.yaml）が全問にあり、引いた lint の規則が実在し、作ったファイルと一致する（review_check.py も V14 として見る）
 python tools/review_triage.py --write  # triage.yaml から、短い一覧・区分の行・書き手の自己点検を作り直す
+python tools/review_triage_audit.py    # 「既存の規則が答えを決める」とした問いを、記入例の答えを No に書き換えて確かめる
 python tools/trace_check.py            # 対応表（review: の成果物を持つ要件）
 python tools/check_slide_refs.py templates
 ```

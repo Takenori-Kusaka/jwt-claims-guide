@@ -2,9 +2,10 @@
 label: "LLM による突き合わせ。人による検証ではない"
 date: 2026-11-25
 input: "research/pilot/reattribution.yaml（Major の 37 件の cited_id・triage・rationale）と templates/review/triage.yaml"
-caveat: "短い一覧の問いの文と、開いた問いは、この 37 件を見た後に書いた。同じ指摘で作って同じ指摘で測っているので、kind が fitted の件は「拾える」ことの証拠にならない（research/template-design/triage-evidence.md の 3.）"
+caveat: "短い一覧の問いの文・優先・出す条件と、開いた問いは、この 37 件を見た後に書いた。同じ指摘で作って同じ指摘で測っているので、kind が fitted の件は「拾える」ことの証拠にならない（research/template-design/triage-evidence.md の 3.）"
 kinds:
-  direct: "付け直しが引いた観点書の問いが、その設計の短い一覧（優先 1・2、条件に当たる）にある"
+  direct: "付け直しが引いた観点書の問いが、その設計の短い一覧（優先 1・2、条件に当たる）にある。前からあったのは問いの ID で、短い一覧の文・優先・出す条件は、指摘を見てから付けた"
+  returned: "機械で決まる問い（区分 A）だが規則がまだ無く、指摘を見てから、規則ができるまで人の短い一覧に戻した（until_rule）"
   fitted: "指摘を見てから書いた開いた問い、または指摘を見てから文を足した問いが当たる（作り込み）"
   machine: "いまの lint が既に出す"
   pending: "区分 A だが規則がまだ無い。規則ができるまで書き手の自己点検に置く。人の短い一覧は促さない"
@@ -12,19 +13,19 @@ kinds:
   expert: "区分 D。レビュアーは答えず、escalation の基準で回す"
 majors:
   B-R1:
-    F01: {class: A, kind: pending, by: N2, note: "引いた問い q-identifier-choice は L3 が一部を見る。IdP 固有のクレームに行が無いことは見ない"}
-    F02: {class: A, kind: pending, by: L56, note: "q-single-aud-resource。L56 は未実装"}
+    F01: {class: A, kind: returned, by: q-identifier-choice, note: "L3 は IdP 固有のクレームに行が無いことを見ない（案 N2）。発行者が複数の設計で人に戻した"}
+    F02: {class: A, kind: returned, by: q-single-aud-resource, note: "L56 は未実装。交換・委任のある設計で人に戻した"}
     F04: {class: C, kind: direct, by: q-revocation-delivery}
     F05: {class: D, kind: expert, by: unverified-idp-behavior, note: "q-refresh-reevaluated"}
     T1: {class: C, kind: fitted, by: op-clock}
     T2: {class: C, kind: fitted, by: op-source-change, note: "付け直しの出どころはテンプレート項目（範囲の図の検討の問い）。短い一覧には範囲の図の問いを置かず、開いた問いで書き込みの経路を辿らせる"}
-    T3: {class: C, kind: direct, by: q-outside-catalog, note: "開いた問い op-old-and-test-paths も当たる"}
+    T3: {class: C, kind: direct, by: q-outside-catalog, note: "旧経路・テストの経路の開いた問いは、この問いにまとめた"}
     T4: {class: C, kind: fitted, by: op-requirement-words}
     T5: {class: C, kind: fitted, by: op-key-custody}
   B-R2:
     R2-01: {class: B, kind: author, by: q-limit-consistency}
     R2-02: {class: C, kind: direct, by: q-authorize-service-and-user}
-    R2-03: {class: A, kind: pending, by: N2, note: "B-R1 F01 と同じ中身"}
+    R2-03: {class: A, kind: returned, by: q-identifier-choice, note: "B-R1 F01 と同じ中身"}
     R2-04: {class: C, kind: direct, by: q-value-vocabulary, note: "付け直しが先に引いたのは dc-10（区分 A。L31 は通っていた）で、q-value-vocabulary は副の引用。同じ欄を人の角度から問う ap-1-7 も短い一覧にある"}
     R2-05: {class: C, kind: fitted, by: q-value-vocabulary, note: "付け直しが引いた dc-09・pa-12 は区分 A（L3）。グループの値が名前であることは L3 が見ないので、q-value-vocabulary の文に「変わる名前でなく変わらない ID か」を足した"}
     R2-06: {class: C, kind: fitted, by: op-source-change}
@@ -34,7 +35,7 @@ majors:
     F01: {class: A, kind: machine, by: L73}
     F02: {class: C, kind: fitted, by: op-proof-holder, note: "付け直しの出どころはカタログ（U10 の回答）。カタログの回答を読む問いは短い一覧に無い"}
     F03: {class: C, kind: direct, by: q-no-passthrough}
-    F05: {class: A, kind: pending, by: L58, note: "q-agent-short-lived-no-rt。L58 は未実装"}
+    F05: {class: A, kind: returned, by: q-agent-short-lived-no-rt, note: "L58 は未実装。委任のある設計で人に戻した"}
     F08: {class: C, kind: fitted, by: op-one-time}
     F09: {class: C, kind: direct, by: ap-2-7}
     F10: {class: A, kind: pending, by: N4, note: "q-minimal-per-recipient。近い問い q-derived-value が短い一覧にある（同じ話題を C-R2 は F15 として q-derived-value から Minor で出した）が、直接には当たらない"}
@@ -44,17 +45,17 @@ majors:
     F01: {class: A, kind: machine, by: L73}
     F02: {class: C, kind: fitted, by: op-proof-holder}
     F03: {class: C, kind: fitted, by: op-one-time}
-    F04: {class: C, kind: fitted, by: op-consent-binding}
+    F04: {class: C, kind: fitted, by: q-approval-from-as, note: "開いた問い（同意と宛先の束縛）を、この問いの文と手がかりにまとめた"}
     F05: {class: C, kind: direct, by: q-no-passthrough}
     F06: {class: C, kind: direct, by: q-outside-catalog}
     F07: {class: C, kind: direct, by: q-revocation-delivery}
     F08: {class: C, kind: direct, by: q-dependency-outage}
     F09: {class: C, kind: direct, by: q-operator-act}
-    F10: {class: A, kind: pending, by: N5, note: "pa-08・dc-05。認可のオブジェクトの内側の型"}
+    F10: {class: A, kind: returned, by: dc-05, note: "pa-08・dc-05。認可のオブジェクトの内側の型（案 N5・L24）。承認のある設計で人に戻した"}
     F11: {class: D, kind: expert, by: unverified-idp-behavior, note: "q-idp-capability-verified"}
 # tools/tests/test_review_triage.py が、上の表から数え直して確かめる
 totals:
   major: 37
-  by_kind: {direct: 12, fitted: 12, machine: 3, pending: 6, author: 1, expert: 3}
+  by_kind: {direct: 12, returned: 5, fitted: 12, machine: 3, pending: 1, author: 1, expert: 3}
   human_judgement: {total: 24, direct: 12, fitted: 12}
-  prompted_by_short_list_and_prompts: 24
+  prompted_by_short_list_and_prompts: 29   # direct 12 + returned 5 + fitted 12

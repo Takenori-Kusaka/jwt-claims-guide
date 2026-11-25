@@ -3,10 +3,12 @@
 
 <!-- このファイルは python tools/review_triage.py --write が templates/review/triage.yaml から作る。手で直さない -->
 
-設計書の PR をレビューする人が答える問いは、ここにあるものだけです。観点書（[perspectives.md](perspectives.md)）の 168 問を 1 問ずつ振り分け（[triage.yaml](triage.yaml)）、人でなければ判断できない 43 問だけを残しました。そこから、設計の性質に当たるものを、優先の順に出します。
+設計書の PR をレビューする人が答える問いは、ここにあるものだけです。観点書（[perspectives.md](perspectives.md)）の 168 問を 1 問ずつ振り分け（[triage.yaml](triage.yaml)）、人が判断する 47 問を残しました。そこから、設計の性質に当たるものを、優先の順に出します。
 
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施
-- **1 回の量の目安**：15〜25 問、30〜60 分。筆者の提案です（追跡 #56）。人のレビュアーで確かめるのは #20 で、それまでは目安にとどめてください。条件に当たる問いが 25 を超えたら、優先 1 を先に答え、優先 2 は時間の中で上から答える。答えなかった問いはレポートに書く
+- **この文書は、問いの全部の一覧です。1 つの設計で答えるのは、このうち設計の性質に当たる分だけです。** レビュアーに渡す 1 枚は、`python tools/review_triage.py --design <設計書のディレクトリ>` が作ります（性質の表と、その設計に当たる問いだけ）
+- **量の目安**：問いは 15〜25 問。問いに答える時間（手順の段 3）と開いた問い（段 5）を合わせて 30〜60 分。**レビューの全体（段 0〜6）は 60〜100 分**の見積もりです。どれも筆者の提案と LLM の見積もりで、**人では測っていません**（追跡 #56。人が測るのは #20）。条件に当たる問いが 25 を超えたら、優先 1 を先に答え、優先 2 は時間の中で上から答える。答えなかった問いはレポートに書く
+- 問いは 1 文です。斜体の行は、見る場所と、あわせて確かめることの手がかりです（読まなくても答えられる問いは、読まずに進んでかまいません）
 - 区分・優先・出す条件は、どれも筆者の提案です（追跡 #56）。根拠にしたパイロット（#9）の数は [research/template-design/triage-evidence.md](../../research/template-design/triage-evidence.md) にあります
 - 「漏れゼロ」は約束しません。パイロットでは、人の判断が要る Major の指摘の半分が、問いの一覧の外から出ました。そのため、問いのほかに「開いた問い」（4.）を置いています
 
@@ -16,36 +18,39 @@
 
 | 区分 | 数 | 誰が確かめるか |
 | --- | --- | --- |
-| A 機械 | 86 | claim_lint（[RULES.md](../../tools/claim_lint/RULES.md)）。レビュアーは、設計書の 1. に貼られた結果で error が 0 であることだけを見る（手順の段 0）。うち 20 問は規則がまだ無く、15 問は規則が一部しか見ない。この分は、規則ができるまで書き手の自己点検にも置く（6.） |
-| B 書き手の自己点検 | 35 | 書き手が、提出前のチェックリスト（PR のテンプレート `.github/PULL_REQUEST_TEMPLATE/design_doc.md`）で確かめる。レビュアーは、チェックリストで印の無い行（書き手が「満たさない」「当てはまらない」とした行）だけを読む |
-| C 人の判断 | 43 | レビュアー。この文書（既定で出すのは優先 1・2 の 31 問のうち、設計の性質に当たるもの） |
+| A 機械 | 81 | claim_lint（[RULES.md](../../tools/claim_lint/RULES.md)）。レビュアーは、設計書の 1. に貼られた結果で error が 0 であることだけを見る（手順の段 0）。うち 19 問は規則がまだ無く、15 問は規則が一部しか見ない。この分は、規則ができるまで書き手の自己点検にも置く（6.） |
+| B 書き手の自己点検 | 36 | 書き手が、提出前のチェックリスト（PR のテンプレート `.github/PULL_REQUEST_TEMPLATE/design_doc.md`）で確かめる。レビュアーは、印の無い行（書き手が「満たさない」「当てはまらない」とした行）を読み、No なら Blocker の行から 3 件を抜き取って欄を開く（手順の段 0） |
+| C 人の判断 | 47 | レビュアー。この文書（既定で出すのは優先 1・2 の 30 問のうち、設計の性質に当たるもの）。うち 4 問は、機械で決まるが規則がまだ無いので、規則ができるまでレビュアーが答える |
 | D 専門家 | 4 | レビュアーは答えず、[escalation.md](escalation.md) の基準に当たる行を回す（5.） |
 
 <a id="traits"></a>
 
 ## 1. 先に、設計の性質を読む
 
-問いは、設計の性質に当たるものだけを出します。性質は、台帳・目録・ホップ・カタログへの回答から機械で読めます。
+問いは、設計の性質に当たるものだけを出します。性質は、台帳・目録・ホップと、書き手のカタログへの回答から機械で読みます。
 
 ```
-python tools/review_triage.py --design <設計書のディレクトリ>   # 性質と、出す問いの一覧
+python tools/review_triage.py --design <設計書のディレクトリ>   # 12 の性質（当たる／当たらない／読めない と、読んだ欄）と、出す問い
 ```
 
-エディターのレビューモード（`docs/claims/`）の「観点のチェックリスト」は、開いている設計書から同じ性質を読み、既定でこの一覧を出します。
+- 性質は、**台帳が示すか、書き手が宣言していれば**当たります（例：台帳に `act` の行が無くても、書き手が「誰が代理しているか」を要ると答えていれば、委任の問いを出す）
+- 読むためのファイルが無くて**読めない性質は、当たるものとして問いを出し**、その旨を書きます。黙って一覧を短くしません
+- **レビュアーは、手順の段 1 で、この表を図と要求に照らして確かめます**（1〜2 分）。「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答えます
+- エディターのレビューモード（`docs/claims/`）の「観点のチェックリスト」は、開いている設計書から同じ性質を読み、既定でこの一覧を出します
 
 | 性質 | 読み方 | 出る問い（優先 1・2） | 出る開いた問い |
 | --- | --- | --- | --- |
-| どの設計でも | 条件なし | 12 | 6 |
+| どの設計でも | 条件なし | 10 | 5 |
 | 組織独自のクレームがある | 採用の行に、名前空間つきの行、または登録名でない（registered_ref が無い）認可・識別子の行がある | 1 | 0 |
 | 個人情報を載せる | 採用の行の pii_category に「該当なし」以外がある | 1 | 0 |
-| 発行者（IdP）が複数ある | 採用の種別の issuers の iss が 2 種類以上、または upstream_issuer のある採用の行がある | 3 | 0 |
-| トークンの交換・作り直しがある | ホップに kind が exchange・reissue の行がある | 3 | 0 |
-| 委任がある（代理で動く主体がいる） | 採用の行に act・may_act がある、または採用の種別に max_delegation_depth がある | 6 | 1 |
-| 操作ごとの承認がある | 採用の行かホップに authorization_details がある | 1 | 1 |
+| 発行者（IdP）が複数ある | 採用の種別の issuers の iss のホストが 2 種類以上、または upstream_issuer のある採用の行がある（同じ IdP のレルム違いは数えない） | 2 | 0 |
+| トークンの交換・作り直しがある | ホップに kind が exchange・reissue の行がある、または catalog_answers の lite_criteria.delegation_or_exchange が Yes | 4 | 0 |
+| 委任がある（代理で動く主体がいる） | 採用の行に act・may_act がある、採用の種別に max_delegation_depth がある、または catalog_answers の questions.q-actor が「要る」 | 8 | 0 |
+| 操作ごとの承認がある | 採用の行かホップに authorization_details がある | 2 | 0 |
 | マルチテナント | catalog_answers の lite_criteria.multitenant が Yes。この回答が無いときだけ、採用の種別の tenant_binding の有無で読む | 2 | 0 |
 | トークンの値を DB の層まで運ぶ | ホップに kind が db_connection の行がある | 1 | 0 |
-| 認証の強さ・新しさで判断する | 採用の行に acr・amr・auth_time がある | 3 | 0 |
-| 送信者制約を選んだ | 採用の種別に sender_constraint が dpop・mtls の行がある | 0 | 1 |
+| 認証の強さ・新しさで判断する | 採用の行に acr・amr・auth_time がある | 2 | 0 |
+| 送信者制約を選んだ | 採用の種別に sender_constraint が dpop・mtls の行がある、または catalog_answers の questions.q-holder が「要る」 | 0 | 1 |
 | 送信者制約を見送った | 採用のアクセストークン・内部トークンに、sender_constraint が none か未記入の行がある | 1 | 0 |
 | 長時間・非同期の処理がある | 採用の種別に long_running がある、またはホップに kind が broker_connection の行がある | 1 | 0 |
 
@@ -55,59 +60,58 @@ python tools/review_triage.py --design <設計書のディレクトリ>   # 性�
 
 ## 2. 問い（読む単位ごと）
 
-どの問いも、Yes／No では足りません。**自分の言葉で答えを 1 行書けるか**を確かめ、書けない・設計書から読み取れないなら指摘にします。問い ID は観点書の ID で、No のときの重大度の目安・根拠は観点書にあります。「見る欄」は、答えを探すために開く設計書の節（`template:…`）と台帳の列（`registry:…`）です。
+問いごとに、**自分の言葉で答えを 1 行書けるか**を確かめます。書けない・設計書から読み取れないなら指摘にします。問い ID は観点書の ID で、No のときの重大度の目安・根拠は観点書にあります。「見る欄」は、答えを探すために開く設計書の節（`template:…`）と台帳の列（`registry:…`）です。
 
 <a id="unit-row"></a>
 
 ### クレームの行を読みながら（台帳の 1 行ごと）
 
-| 優先 | 問い ID | 問い | 見る欄 | 出す条件 |
-| --- | --- | --- | --- | --- |
-| 1 | `q-value-vocabulary` | ロール・グループの値は、どの発行者（IdP）の誰が付けた値か。別の IdP の同じ文字列（admin など）を、同じ意味として通していないか。照合に使う値は、変わる名前でなく変わらない ID か | `registry:claims#value_vocabulary`、`registry:claims#upstream_issuer` | 発行者（IdP）が複数ある |
-| 1 | `ap-1-7` | 権限・識別子の値ごとに、その値を書ける人を全部挙げる（IdP の管理者・テナントの管理者・本人・呼び出し側・外部の IdP の管理者）。その全員が、その権限を与えてよい人か | `registry:claims#provenance`、`registry:claims#modifiers`、`registry:claims#enforced_at` | どの設計でも |
-| 1 | `q-freshness-mitigation` | トークンの寿命の間に変わりうる値（ロール・所属・状態）ごとに、古い値のまま通ると何が起きるか。書いてある対策で、要求が許す遅れに収まるか。その対策を実際に行うのは誰か | `template:00_core#freshness`、`registry:claims#volatility`、`registry:claims#on_revoke`、`registry:claims#recompute_trigger` | どの設計でも |
-| 2 | `pa-01` | このクレームを読んで、どの受け手が何を決めるのか（許す・断る・絞る）を、受け手の名前つきで言えるか。使い道の無い値や、表示用の値で認可していないか | `template:claim_request#q01`、`registry:claims#usage`、`registry:claims#answers` | 組織独自のクレームがある |
-| 2 | `q-auth-context-semantics` | 認証の新しさを auth_time、強さを acr で判断しているか。iat・amr・sid を、その代わりに使っていないか | `registry:claims#not_meaning`、`registry:claims#usage`、`registry:questions#q-auth-strength`、`template:00_core#step-up` | 認証の強さ・新しさで判断する |
-| 2 | `q-derived-value` | この個人情報は、受け手が値そのものを要るのか。判定の結果（18 歳以上か）や参照の ID で足りないか。読まない受け手にも届くトークンに載っていないか | `registry:claims#usage`、`registry:claims#description`、`template:modules/M_privacy_minimization#derived-values` | 個人情報を載せる |
+| 優先 | 問い ID | 問い | 出す条件 |
+| --- | --- | --- | --- |
+| 1 | `dc-05` | **認可に使うオブジェクトの値の、内側の型と比べ方が決まっているか**<br>*authorization_details などオブジェクト型の行の type・value_normalization と、受け手のスキーマを見る。金額・ID は文字列か*<br>見る欄：`registry:claims#type`、`template:claim_request#q07`、`template:claim_request#q08`<br>（機械で決まる問い。lint の規則ができるまで） | 操作ごとの承認がある |
+| 1 | `q-value-vocabulary` | **ロール・グループの値を、名前でなく変わらない ID で照合しているか**<br>*value_vocabulary・upstream_issuer を見る。発行者が複数あるなら、別の発行者の同じ文字列（admin など）を同じ意味として通していないか、値を付けられるのは誰かも見る*<br>見る欄：`registry:claims#value_vocabulary`、`registry:claims#upstream_issuer` | どの設計でも |
+| 1 | `q-identifier-choice` | **利用者・テナントを決めるキーに使う IdP ごとの値が、台帳の行になっているか**<br>*hops の validates と upstream_issuer に出るクレームの名前（oid・tid・uid など）を、claims.yaml の行と照らす。行に identifier_properties と on_missing があるか*<br>見る欄：`registry:claims#usage`、`registry:claims#identifier_properties`、`registry:token_types#subject_type`、`template:00_core#principals`、`template:modules/M_multitenancy#tenant-determination`<br>（機械で決まる問い。lint の規則ができるまで） | 発行者（IdP）が複数ある |
+| 1 | `ap-1-7` | **権限・識別子の値を書ける人は、全員がその権限を与えてよい人か**<br>*authoritative_writer・modifiers の configurable_by と source_system を見る。トークンに書く発行者だけでなく、元のデータを書き換えられる人（IdP の管理者・テナントの管理者・本人・呼び出し側・外部の IdP の管理者）も数える*<br>見る欄：`registry:claims#provenance`、`registry:claims#modifiers`、`registry:claims#enforced_at` | どの設計でも |
+| 1 | `q-freshness-mitigation` | **寿命の間に変わりうる値は、古いまま通っても、要求が許す遅れに収まるか**<br>*volatility と対策（on_revoke・recompute_trigger）、設計書の鮮度の表を見る。要求に遅れの数値が無ければ、それ自体を指摘にする。対策を実際に行うのは誰か*<br>見る欄：`template:00_core#freshness`、`registry:claims#volatility`、`registry:claims#on_revoke`、`registry:claims#recompute_trigger` | どの設計でも |
+| 2 | `pa-01` | **このクレームを読んで、どの受け手が何を決めるかを言えるか**<br>*25 問の問 1 の回答と usage を見る。使い道の無い値、表示用の値での認可が無いか*<br>見る欄：`template:claim_request#q01`、`registry:claims#usage`、`registry:claims#answers` | 組織独自のクレームがある |
+| 2 | `q-derived-value` | **個人情報の値そのものを、届く相手のすべてが必要としているか**<br>*pii_category が「該当なし」でない行の consumers と carried_in を見る。判定の結果や参照の ID で足りないか、読まない受け手に届くトークンに載っていないか*<br>見る欄：`registry:claims#usage`、`registry:claims#description`、`template:modules/M_privacy_minimization#derived-values` | 個人情報を載せる |
 
 <a id="unit-hop"></a>
 
 ### 経路を読みながら（ホップの 1 行ごと・範囲の図）
 
-| 優先 | 問い ID | 問い | 見る欄 | 出す条件 |
-| --- | --- | --- | --- | --- |
-| 1 | `q-no-passthrough` | 交換・作り直しごとに、誰が交換を頼めるか・どの宛先とどの範囲を割り当てるかの規則があるか。その規則で、頼んではいけない相手や、広すぎる範囲が通らないか | `registry:hops#exchanger`、`template:profiles/P4_ai_agent_delegation#delegation-policy` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
-| 1 | `q-gateway-bypass-path` | 入口を通らずにサービスへ届く経路（サービス間の直接の呼び出し・管理用の口・メッセージ）を、図から挙げられるか。その経路でも、同じ検証をしているか | `template:00_core#scope-boundary`、`registry:hops#validates`、`template:00_core#sequence` | どの設計でも |
-| 1 | `ap-2-7` | 代理で動く主体（エージェントなど）が、本人のトークンをそのまま使える経路はないか。代理であることを示さない（act の無い）トークンを出してよい相手は限られているか | `registry:questions#q-actor`、`template:profiles/P4_ai_agent_delegation#delegation-mode` | 委任がある（代理で動く主体がいる） |
-| 1 | `q-tenant-data-match` | トークンのテナントを、保存されたデータのテナントと、どこで比べているか。比べない経路はないか | `template:modules/M_multitenancy#data-layer-filter`、`registry:claims#enforced_at` | マルチテナント |
-| 1 | `q-authorize-service-and-user` | 呼び出してきた直接の相手（サービス）が誰かを、通信の層（mTLS など）で確かめているか。利用者の権限とは別に、その相手を通してよいかを決めているか | `template:profiles/P5_internal_propagation#service-to-service`、`registry:questions#q-peer` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
-| 1 | `q-db-context-writers` | DB の「いまの利用者・テナント」を書き換えられるのは誰か。注入する部品のほかに、同じ接続で任意の SQL を流せる経路や、文脈を戻せる経路はないか | `template:modules/M_data_layer#db-context-setter`、`template:00_core#scope-boundary` | トークンの値を DB の層まで運ぶ |
-| 2 | `q-step-up-path-coverage` | 追加の認証が要る操作は、どの経路から呼ばれても（直接・代理・交換の後・非同期）、同じ条件で確かめられるか | `template:00_core#step-up`、`registry:hops#custom_claims`、`registry:hops#validates` | 認証の強さ・新しさで判断する |
-| 2 | `q-idp-diff-absorbed` | IdP ごとの差（利用者のキー・ロールの位置・宛先）は、入口で吸収しているか。内側のサービスが、特定の IdP の独自の値を直接読んでいないか | `template:profiles/P5_internal_propagation#edge-conversion`、`registry:claims#upstream_issuer`、`registry:claims#issuers` | 発行者（IdP）が複数ある |
-| 2 | `q-original-principal` | 内部の呼び出しでも、元の利用者の権限で判断しているか。間に入るサービスの広い権限で、下流に頼んでいないか | `registry:questions#q-sub`、`registry:hops#token_type`、`template:profiles/P5_internal_propagation#service-to-service` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
-| 2 | `q-audit-correlation` | 1 つの操作について、「誰の権限で・誰が代理で・どの承認で」を、ログから後で 1 本につなげられるか | `template:profiles/P4_ai_agent_delegation#audit-correlation`、`registry:claims#log_policy` | 委任がある（代理で動く主体がいる） |
+| 優先 | 問い ID | 問い | 出す条件 |
+| --- | --- | --- | --- |
+| 1 | `q-single-aud-resource` | **1 つのアクセストークンの宛先（aud）は 1 つか**<br>*種別とホップの aud を見る。2 つ以上なら、1 つのトークンが両方の経路で通る*<br>見る欄：`registry:token_types#aud`、`registry:hops#aud`、`template:profiles/P4_ai_agent_delegation#tool-scopes`<br>（機械で決まる問い。lint の規則ができるまで） | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
+| 1 | `q-no-passthrough` | **交換・作り直しを頼める相手と、割り当てる宛先・範囲が、規則として決まっているか**<br>*hops の exchanger と、交換の規則の節（P4 の delegation-policy）を見る。頼んではいけない相手や、広すぎる範囲が通らないか*<br>見る欄：`registry:hops#exchanger`、`template:profiles/P4_ai_agent_delegation#delegation-policy` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
+| 1 | `ap-2-7` | **代理の主体が、代理であることを示さない（act の無い）トークンを手に入れられる経路はないか**<br>*act の行の carried_in と、種別の holder を見る。本人のトークンをそのまま使える経路、act の無いトークンを出してよい相手の限り方*<br>見る欄：`registry:questions#q-actor`、`template:profiles/P4_ai_agent_delegation#delegation-mode` | 委任がある（代理で動く主体がいる） |
+| 1 | `q-tenant-data-match` | **トークンのテナントを、保存されたデータのテナントと比べない経路はないか**<br>*tenant_binding と、データ層の絞り込みの節を見る*<br>見る欄：`template:modules/M_multitenancy#data-layer-filter`、`registry:claims#enforced_at` | マルチテナント |
+| 1 | `q-authorize-service-and-user` | **呼び出してきた直接の相手（サービス）を、通信の層で確かめているか**<br>*catalog_answers の questions の q-peer と hops の validates を見る。mTLS など。利用者の権限とは別に、その相手を通してよいかを決めているか*<br>見る欄：`template:profiles/P5_internal_propagation#service-to-service`、`registry:questions#q-peer` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
+| 1 | `q-db-context-writers` | **DB の「いまの利用者・テナント」を書き換えられるのは、注入する部品だけか**<br>*db_connection のホップと、データ層の節を見る。同じ接続で任意の SQL を流せる経路、文脈を戻せる経路*<br>見る欄：`template:modules/M_data_layer#db-context-setter`、`template:00_core#scope-boundary` | トークンの値を DB の層まで運ぶ |
+| 1 | `q-agent-short-lived-no-rt` | **代理の主体（エージェント）に、リフレッシュトークンを出していないか**<br>*代理の主体が持つ種別の refresh・max_lifetime と、refresh_token の行の holder を見る*<br>見る欄：`registry:token_types#max_lifetime`、`registry:token_types#refresh`<br>（機械で決まる問い。lint の規則ができるまで） | 委任がある（代理で動く主体がいる） |
+| 2 | `q-step-up-path-coverage` | **追加の認証が要る操作は、どの経路から呼ばれても同じ条件で確かめられるか**<br>*設計書の追加認証の節と hops の validates・custom_claims を見る。直接・代理・交換の後・非同期の経路*<br>見る欄：`template:00_core#step-up`、`registry:hops#custom_claims`、`registry:hops#validates` | 認証の強さ・新しさで判断する |
+| 2 | `q-idp-diff-absorbed` | **内側のサービスが、特定の IdP の独自の値を直接読んでいないか**<br>*upstream_issuer と、入口の作り直しのホップを見る。IdP ごとの差（利用者のキー・ロールの位置・宛先）を入口で吸収しているか*<br>見る欄：`template:profiles/P5_internal_propagation#edge-conversion`、`registry:claims#upstream_issuer`、`registry:claims#issuers` | 発行者（IdP）が複数ある |
+| 2 | `q-original-principal` | **内部の呼び出しでも、元の利用者の権限で判断しているか**<br>*交換・作り直しの後のトークンの sub と scope を見る。間に入るサービスの広い権限で、下流に頼んでいないか*<br>見る欄：`registry:questions#q-sub`、`registry:hops#token_type`、`template:profiles/P5_internal_propagation#service-to-service` | トークンの交換・作り直しがある・委任がある（代理で動く主体がいる） |
+| 2 | `q-audit-correlation` | **1 つの操作の「誰の権限で・誰が代理で・どの承認で」を、ログから 1 本につなげられるか**<br>*log_policy と、監査の節を見る。経路の途中で値の作り方（ハッシュなど）が変わらないか*<br>見る欄：`template:profiles/P4_ai_agent_delegation#audit-correlation`、`registry:claims#log_policy` | 委任がある（代理で動く主体がいる） |
 
 <a id="unit-design"></a>
 
 ### 設計の全体を読んでから
 
-| 優先 | 問い ID | 問い | 見る欄 | 出す条件 |
-| --- | --- | --- | --- | --- |
-| 1 | `q-outside-catalog` | 図と経路から思いつく発行・利用の場面（管理画面からの発行・障害時の再送・テストの経路・移行期間の旧経路）は、設計書のどこかで答えられているか | `template:00_core#catalog-answers`、`template:00_core#sequence`、`template:00_core#scope-boundary` | どの設計でも |
-| 1 | `q-object-level-authz` | 利用者が ID を指定してデータを取る処理を 1 つ選ぶ。他人の ID を指定したとき、どこで・何と何を比べて止めるか。入口やトークンの値だけに任せていないか | `template:modules/M_authz_pdp#object-level`、`template:modules/M_multitenancy#data-layer-filter`、`registry:claims#enforced_at` | どの設計でも |
-| 1 | `q-operator-act` | 運用者・管理者が利用者の代わりに操作するとき、どのトークンで動くか。後から、運用者の操作と利用者の操作を見分けられるか | `template:00_core#system-privileges`、`registry:questions#q-actor` | どの設計でも |
-| 1 | `q-revocation-delivery` | 権限を外す・退職させる・端末を失くす、のそれぞれで、止めたい操作が実際に止まるまで最悪で何分か。すぐ止めたい操作は、その場で問い合わせて決めているか。却下した手段の代わりはあるか | `registry:token_types#revocation`、`template:00_core#lifecycle`、`template:00_core#lifecycle-db-connection`、`registry:claims#on_revoke` | どの設計でも |
-| 1 | `q-external-user-deprovision` | 外部の IdP・取引先の側で利用者を止めたとき、こちらが出したトークンとセッションは、どの経路で・何分で止まるか | `template:00_core#lifecycle`、`registry:claims#upstream_issuer`、`registry:claims#volatility`、`template:modules/M_idp_keycloak#broker-mapping` | 発行者（IdP）が複数ある |
-| 1 | `q-dependency-outage` | IdP・発行のサービス・鍵の取得先・その場で引く台帳（承認の記録など）が止まったとき、通すのか止めるのか。その倒し方は、業務の要求（止まってよい時間）と合うか | `registry:token_types#jwks_cache_ttl`、`registry:token_types#introspection_cache_ttl`、`template:modules/M_idp_keycloak#limits`、`template:00_core#uncertain`、`registry:claims#on_revoke` | どの設計でも |
-| 2 | `q-variant-comparison` | 既定から外した選択（送信者制約を見送る・寿命を延ばすなど）の理由は、それで開く攻撃と、代わりの守りを比べているか。比べた候補は足りているか | `template:00_core#deviations`、`template:00_core#issuance-profile`、`registry:token_types#size` | 送信者制約を見送った |
-| 2 | `q-step-up-by-rs` | 追加の認証を求めるかどうかを、操作を受ける側が決めているか（クライアントやトークンの値に任せていないか） | `template:00_core#step-up`、`registry:questions#q-auth-strength` | 認証の強さ・新しさで判断する |
-| 2 | `q-approval-from-as` | 機微な操作の承認があったかどうかを、頼む側（エージェント・クライアント）の申告でなく、本人に確かめた記録と照合しているか。承認は、その操作・その相手に結びついているか | `template:profiles/P4_ai_agent_delegation#human-approval`、`registry:claims#enforced_at` | 操作ごとの承認がある・委任がある（代理で動く主体がいる） |
-| 2 | `q-cross-tenant-identity` | テナントをまたいで、同じ人だと暗黙に決めていないか（メールアドレスでの突き合わせなど） | `template:modules/M_multitenancy#cross-tenant`、`registry:claims#usage` | マルチテナント |
-| 2 | `q-lifetime-rationale` | トークンの寿命の数字は、「権限を外してから何分で効かせたいか」から導かれているか。短くする代償（リフレッシュの負荷・IdP が止まったときの影響）と比べているか | `template:00_core#lifetime-policy`、`registry:token_types#lifetime_refs`、`registry:token_types#lifetime_exception` | どの設計でも |
-| 2 | `q-long-running` | 長い処理・後で動く処理は、利用者のトークンを持ち続けていないか。途中で権限が外れたら、その処理は止まるか | `registry:token_types#long_running`、`template:00_core#lifecycle`、`template:profiles/P5_internal_propagation#async-messaging` | 長時間・非同期の処理がある |
-| 2 | `q-copies-outlive` | トークンの値の写し（開いたままの接続・判断や結果のキャッシュ・分析用の複製）を挙げられるか。それぞれ、元のトークンが切れた後にいつまで残り、どう止めるか | `template:00_core#lifecycle`、`template:00_core#lifecycle-db-connection` | どの設計でも |
-| 2 | `q-lint-workaround` | 検査（lint）を通すために、設計の宣言の側を曲げた跡はないか（上流を外す・行にしない・名前を変える） | `template:00_core#ci-results`、`template:00_core#deviations`、`registry:hops#upstream` | どの設計でも |
-| 2 | `q-evidence-attribution` | 数値・製品の挙動に根拠を付けた行から 3 件を選び、引いた先が本当にそう述べているか。別の種類のクライアント・別の製品の根拠を引いていないか | `registry:claims#refs`、`registry:token_types#refs`、`template:00_core#uncertain` | どの設計でも |
+| 優先 | 問い ID | 問い | 出す条件 |
+| --- | --- | --- | --- |
+| 1 | `q-outside-catalog` | **図に無い入口や場面は、設計書のどこかで答えられているか**<br>*範囲の図・シーケンス図・catalog_answers の outside_enumeration を見る。挙げる場面：入口を通らない経路（サービス間の直接の呼び出し・メッセージ）、管理用の口、テスト用の口・時計・鍵・利用者、移行期間の旧経路、障害時の再送と手作業。本番で開いているなら、同じ守りが掛かるか、いつ誰が閉じるか*<br>見る欄：`template:00_core#catalog-answers`、`template:00_core#sequence`、`template:00_core#scope-boundary` | どの設計でも |
+| 1 | `q-object-level-authz` | **他人の ID を指定してデータを取ろうとしたとき、どこで止まるかを言えるか**<br>*enforced_at と、データの持ち主・テナントを照合する節を見る。入口やトークンの値だけに任せていないか*<br>見る欄：`template:modules/M_authz_pdp#object-level`、`template:modules/M_multitenancy#data-layer-filter`、`registry:claims#enforced_at` | どの設計でも |
+| 1 | `q-approval-from-as` | **承認・同意は、頼む側の申告でなく記録と照合され、その操作とその相手（宛先）に結びついているか**<br>*authorization_details の行の enforced_at と、承認・同意の節を見る。承認していない相手（信頼していないサーバー・別のツール・別の代理の主体）に向けて、同じ承認でトークンを出させたり使わせたりできないか。入力に紛れた指示で宛先を変えられたらどうなるか*<br>見る欄：`template:profiles/P4_ai_agent_delegation#human-approval`、`registry:claims#enforced_at` | 操作ごとの承認がある・委任がある（代理で動く主体がいる） |
+| 1 | `q-operator-act` | **運用者・管理者の操作を、後から利用者の操作と見分けられるか**<br>*設計書の主体の一覧と、システムの特権の節を見る。運用者が利用者の代わりに操作するとき、どのトークンで動くか*<br>見る欄：`template:00_core#system-privileges`、`registry:questions#q-actor` | どの設計でも |
+| 1 | `q-revocation-delivery` | **権限を外してから、止めたい操作が止まるまで、最悪で何分か**<br>*種別の revocation・max_lifetime と、ライフサイクルの表を見る。退職・鍵や端末の紛失・外部の IdP や取引先の側で止めた場合も同じか。すぐ止めたい操作は、その場で問い合わせて決めているか。却下した手段の代わりはあるか。「期限が切れれば効く」だけに頼っていないか。寿命の数字は、この分数から導かれているか*<br>見る欄：`registry:token_types#revocation`、`template:00_core#lifecycle`、`template:00_core#lifecycle-db-connection`、`registry:claims#on_revoke` | どの設計でも |
+| 1 | `q-dependency-outage` | **頼る先が止まったとき、通すのか止めるのかが決まっているか**<br>*種別の unknown_kid・jwks_cache_ttl・introspection_cache_ttl と on_revoke を見る。頼る先：IdP・発行のサービス・鍵の取得先・その場で引く記録（承認など）。その倒し方は、業務が許す停止の時間と合うか*<br>見る欄：`registry:token_types#jwks_cache_ttl`、`registry:token_types#introspection_cache_ttl`、`template:modules/M_idp_keycloak#limits`、`template:00_core#uncertain`、`registry:claims#on_revoke` | どの設計でも |
+| 2 | `q-variant-comparison` | **既定から外した選択の理由は、それで開く攻撃と代わりの守りを比べているか**<br>*設計書の 3.（既定から外した点）と issuance_profile の rationale を見る。送信者制約の見送り・寿命の延長など。比べた候補は足りているか*<br>見る欄：`template:00_core#deviations`、`template:00_core#issuance-profile`、`registry:token_types#size` | 送信者制約を見送った |
+| 2 | `q-step-up-by-rs` | **追加の認証を求めるかどうかを、操作を受ける側が決めているか**<br>*設計書の追加認証の節を見る。クライアントやトークンの値に任せていないか*<br>見る欄：`template:00_core#step-up`、`registry:questions#q-auth-strength` | 認証の強さ・新しさで判断する |
+| 2 | `q-cross-tenant-identity` | **テナントをまたいで、同じ人だと暗黙に決めていないか**<br>*利用者のキーの行を見る。メールアドレスでの突き合わせなど*<br>見る欄：`template:modules/M_multitenancy#cross-tenant`、`registry:claims#usage` | マルチテナント |
+| 2 | `q-long-running` | **後で動く処理は、途中で権限が外れたら止まるか**<br>*種別の long_running と、非同期の経路を見る。利用者のトークンを持ち続けていないか*<br>見る欄：`registry:token_types#long_running`、`template:00_core#lifecycle`、`template:profiles/P5_internal_propagation#async-messaging` | 長時間・非同期の処理がある |
+| 2 | `q-copies-outlive` | **トークンの値の写しは、元のトークンが切れた後に止められるか**<br>*integrity_until と、ライフサイクルの表を見る。開いたままの接続・判断や結果のキャッシュ・分析用の複製を挙げ、いつまで残るかを言う*<br>見る欄：`template:00_core#lifecycle`、`template:00_core#lifecycle-db-connection` | どの設計でも |
+| 2 | `q-lint-workaround` | **検査（lint）を通すために、設計の宣言の側を曲げた跡はないか**<br>*設計書の 1.（CI の結果）と 3.（既定から外した点）、hops の upstream を見る。上流を外す・行にしない・名前を変える・数値を上限に合わせる*<br>見る欄：`template:00_core#ci-results`、`template:00_core#deviations`、`registry:hops#upstream` | どの設計でも |
 
 <a id="on-lint"></a>
 
@@ -118,28 +122,27 @@ warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRI
 
 | lint の規則 | 問い ID | 問い |
 | --- | --- | --- |
-| `lint:L69` | `q-role-explosion` | ロールの名前に、テナント・対象・操作の組み合わせを詰めていないか |
-| `lint:L68` | `q-access-context-from-pep` | 「いまどこから来たか」（IP・端末）の判断に、トークンの値や偽装できるヘッダーを使っていないか |
+| `lint:L69` | `q-role-explosion` | **ロールの名前に、テナント・対象・操作の組み合わせを詰めていないか**<br>*value_vocabulary と max_items を見る*<br>見る欄：`registry:claims#value_vocabulary`、`registry:claims#max_items`、`template:modules/M_authz_pdp#model-choice` |
+| `lint:L68` | `q-access-context-from-pep` | **「いまどこから来たか」の判断に、トークンの値や偽装できるヘッダーを使っていないか**<br>*IP・端末の値を載せたクレームと enforced_at を見る*<br>見る欄：`template:modules/M_authz_pdp#pep-pdp-inputs`、`registry:claims#data_category` |
 
 <a id="open-prompts"></a>
 
 ## 4. 開いた問い（要求と運用から辿る）
 
-問いの一覧の内側だけを見ていると、見つからないものがあります。次の問いは Yes／No で答えず、要求の文と運用の場面から自分で辿って、気づいたことを指摘にします（出どころは「テンプレート外」か「カタログ外の質問」）。
-1 つにつき 2〜3 分、合わせて 15 分ほどを、2. の問いとは別に取ります（筆者の提案。追跡 #56）。
+問いの一覧の内側だけを見ていると、見つからないものがあります。次の問いは、設計書の決まった欄を開くだけでは答えられません。要求の文と運用の場面から自分で辿り、辿った範囲と気づいたことを書きます（指摘の出どころは「テンプレート外」）。
+1 つにつき 2〜4 分が目安で、2. の問いと合わせて上の時間の中に入れます（筆者の提案。追跡 #56。人では測っていません）。
 
 | ID | 辿ること | 出す条件 |
 | --- | --- | --- |
-| op-requirement-words | 要求の言葉を 1 つずつ取り出し（例：「社員」「管理者」「承認」）、その言葉に入る人・場合を全部挙げる（例：正社員・契約社員・派遣・休職中・退職の手続き中）。それぞれについて、設計のどの値が、その人を通す・止めるを決めているかを辿る。要求にあるのに設計に無い区分、設計にあるのに要求に無い操作はないか | どの設計でも |
-| op-source-change | 権限の元になるデータ（人事の台帳・グループ・ロールの割り当て）が変わる出来事を 1 つ選ぶ（例：異動でロールが外れる・退職）。元のデータを書き換えるのは誰で、どの経路か。変わってから、トークンの値と受け手の判断が変わるまでを、IdP の手前から順に辿る。途中に、図に無い書き込みの経路や、誰も時間を約束していない区間はないか | どの設計でも |
-| op-clock | 時刻を比べている箇所を全部挙げる（期限・発行時刻とログアウトや失効の時刻・台帳の更新時刻）。比べる 2 つの時刻は、同じ時計が書いたものか。別の発行者・別のサーバーの時計なら、ずれたときにどちらへ倒れるか（通すのか、止めるのか） | どの設計でも |
-| op-key-custody | トークンに署名する鍵ごとに、誰が持ち、どこに置き、誰が触れるかを言えるか。その鍵が漏れたと分かったとき、誰が・何分で・何をするか（鍵の差し替え・出したトークンの扱い）。新しく置いた発行者（入口・STS）の鍵も数えたか | どの設計でも |
-| op-one-time | 1 回だけ使えるはずの値（承認・認可コード・jti・ワンタイムの番号）ごとに、「確かめる」と「使用済みにする」の間に同じ値がもう 1 回届いたらどうなるかを辿る。並行の 2 件・通信が切れた後の再送・記録先の障害のそれぞれで、2 回通ることも、正しい 1 回が失われることもないか | どの設計でも |
-| op-consent-binding | 本人が承認・同意した内容（誰に・何を・どの相手に向けて）と、その結果のトークンで実際にできることを並べる。承認していない相手（信頼していないサーバー・別のツール）に向けて、同じ承認でトークンを出させたり使わせたりできないか。入力に紛れた指示（プロンプトインジェクション）で宛先を変えられたらどうなるか | 委任がある（代理で動く主体がいる）・操作ごとの承認がある |
-| op-proof-holder | 「鍵の持ち主であることを確かめる」（cnf・DPoP・mTLS）と書いた箇所ごとに、そのトークンを実際に持つのは誰で、鍵を持つのは誰かを辿る。確かめる側が見ている鍵は、トークンを持つ者の鍵か。証明書・鍵を更新したとき、束縛したトークンはどうなるか | 送信者制約を選んだ |
-| op-old-and-test-paths | 図に無い入口を探す。移行期間の旧経路（古い入口・古いトークンの形）、テスト用の口・時計・鍵・利用者、管理用の口、障害時の手作業の経路。それぞれ、本番で開いているか、開いているなら同じ守りが掛かるか、いつ誰が閉じるか | どの設計でも |
+| op-requirement-words | **要求の言葉に入る人・場合を全部挙げたとき、それぞれを通す・止める値が設計にあるか**<br>*要求の文から言葉を 2〜3 個選ぶ（例：「利用者」「管理者」「承認」「取り消し」）。その言葉に入る人・場合を挙げる（例：正社員・契約社員・派遣・休職中・退職の手続き中）。要求にあるのに設計に無い区分、設計にあるのに要求に無い操作を探す* | どの設計でも |
+| op-source-change | **権限の元データが変わる出来事を 1 つ選び、受け手の判断が変わるまでを、IdP の手前から辿れるか**<br>*出来事の例：異動でロールが外れる・退職。source_system の欄から、元のデータ（人事の台帳・グループ・ロールの割り当て）を書き換えるのは誰で、どの経路かを辿る。図に無い書き込みの経路、誰も時間を約束していない区間を探す* | どの設計でも |
+| op-clock | **時刻を比べている箇所で、比べる 2 つの時刻は同じ時計が書いたものか**<br>*期限、発行時刻とログアウト・失効の時刻、台帳の更新時刻。max_clock_skew と、時刻を使う enforced_at を見る。別の発行者・別のサーバーの時計なら、ずれたときに通すのか止めるのか* | どの設計でも |
+| op-key-custody | **署名の鍵ごとに、誰が持ち、漏れたとき誰が何分で何をするかを言えるか**<br>*種別の key_rotation・signing_key_scope・jwks_cache_ttl を見る。新しく置いた発行者（入口・STS）の鍵と、証明書を出す側の鍵も数える。受け手が古い鍵を使い続ける時間はどれだけか* | どの設計でも |
+| op-one-time | **1 回だけ使える値が、「確かめる」と「使用済みにする」の間にもう 1 回届いても、2 回通らないか**<br>*承認・認可コード・jti・ワンタイムの番号。並行の 2 件、通信が切れた後の再送、記録先の障害のそれぞれで辿る。正しい 1 回が失われることもないか* | どの設計でも |
+| op-proof-holder | **「鍵の持ち主を確かめる」箇所で、確かめる側が見ている鍵は、そのトークンを実際に持つ者の鍵か**<br>*cnf の行の enforced_at と、種別の holder・sender_constraint を見る。箇所ごとに「トークンを持つ者」と「鍵を持つ者」を並べる。証明書・鍵を更新したとき、束縛したトークンはどうなるか* | 送信者制約を選んだ |
 
 これらは、パイロット（#9）で問いの一覧の外から出た Major の指摘を元に作りました。同じ設計で作って同じ設計で確かめた問いなので、別の設計でも効くかは分かっていません（triage-evidence.md の 3.）。
+旧経路・テストの経路は `q-outside-catalog` に、同意と宛先の束縛は `q-approval-from-as` にまとめてあります。
 
 <a id="experts"></a>
 
@@ -159,15 +162,16 @@ warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRI
 ## 6. 機械が確かめること（レビュアーは答えない）
 
 次の問いは、lint の規則が答えを決めます。レビュアーは、設計書の 1. の結果で error が 0 であることと、warn に理由が付いていることだけを見ます。
+規則が決めるのは「宣言が矛盾していない」ことまでです（RULES.md）。既存の規則が答えを決めるとした問いは、記入例の答えを No に書き換えて、lint が指摘を出すことを 1 問ずつ確かめました（[research/template-design/triage-audit.md](../../research/template-design/triage-audit.md)）。
 
 | lint の規則 | 確かめる問い |
 | --- | --- |
 | `lint:L1a` | `dc-02`・`ap-2-3` |
 | `lint:L1b` | `dc-03`・`pa-04`・`ap-2-4` |
-| `lint:L3` | `dc-09`・`pa-12`・`q-identifier-choice`・`ap-1-6` |
+| `lint:L3` | `dc-09`・`pa-12`・`ap-1-6` |
 | `lint:L4` | `dc-10`・`dc-12`・`pa-15`・`q-single-issuer`・`cf-01` |
 | `lint:L5` | `dc-01`・`pa-02`・`ap-2-2`・`cf-01` |
-| `lint:L6` | `pa-20`・`q-payload-readable` |
+| `lint:L6` | `q-payload-readable` |
 | `lint:L7` | `dc-07`・`dc-12`・`pa-09`・`q-hook-failure`・`cf-02`・`q-txn-required-claims`・`q-required-rejected`・`q-consumer-expression` |
 | `lint:L8` | `pa-17`・`cf-08`・`ap-2-5` |
 | `lint:L9` | `ap-2-9`・`q-internal-delegation-token`・`ap-1-4` |
@@ -188,21 +192,20 @@ warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRI
 | `lint:L66` | `q-confidential-reaches-reader`・`q-nested-jwt-both-layers` |
 | `lint:L67` | `ap-2-5`・`q-unwrapped-value-authz` |
 | `lint:L69` | `ap-2-1` |
-| `lint:L70` | `pa-20`・`q-no-secret-or-raw-pii`・`q-hook-adds-raw-pii` |
+| `lint:L70` | `q-no-secret-or-raw-pii` |
 | `lint:L71` | `q-no-secret-or-raw-pii` |
-| `lint:L72` | `pa-gate`・`pa-trace` |
+| `lint:L72` | `pa-gate` |
 | `lint:R1` | `dc-11`・`dc-gate`・`pa-22`・`ap-2-9`・`q-internal-delegation-token`・`q-typ-distinguishes` |
 | `lint:R3b` | `q-hook-failure` |
 | `lint:R8` | `dc-11`・`pa-13`・`ap-2-1`・`q-size-limit` |
 
-規則がまだ無い問い・規則が一部しか見ない問い（35 問）は、規則ができるまで、書き手の提出前のチェックリストに置いています。規則の案は triage.yaml の `proposed_rules` と、その一覧の issue（#68）にあります。
+規則がまだ無い問い・規則が一部しか見ない問い（34 問）は、規則ができるまで、書き手の提出前のチェックリストに置いています。規則の案は triage.yaml の `proposed_rules` と、その一覧の issue（#68）にあります。
 
 | 問い ID | いまの規則 | 規則の案 |
 | --- | --- | --- |
 | `dc-02` | `lint:L1a` | N1 |
 | `dc-03` | `lint:L1b` | `lint:L34`（未実装） |
 | `dc-04` | 無い | N1 |
-| `dc-05` | 無い | `lint:L24`（未実装）・N5 |
 | `dc-06` | 無い | `lint:L36`（未実装） |
 | `dc-07` | `lint:L37`・`lint:L7` | N6 |
 | `dc-08` | 無い | N1 |
@@ -213,16 +216,16 @@ warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRI
 | `pa-14` | `lint:L16` | N3 |
 | `pa-22` | `lint:R1` | N7 |
 | `pa-gate` | `lint:L72` | N11 |
-| `q-identifier-choice` | `lint:L3` | `lint:L28`（未実装）・N2 |
+| `q-auth-context-semantics` | 無い | N16 |
 | `q-pairwise-external` | 無い | N10 |
 | `ap-2-3` | `lint:L1a` | `lint:L24`（未実装） |
 | `q-no-secret-or-raw-pii` | `lint:L70`・`lint:L71` | `lint:L51`（未実装） |
+| `q-hook-adds-raw-pii` | 無い | N14 |
 | `q-minimal-per-recipient` | `lint:L16` | N4 |
 | `cf-03` | 無い | `lint:L41`（未実装） |
 | `cf-04` | 無い | `lint:L41`（未実装） |
 | `cf-07` | 無い | `lint:L46`（未実装） |
 | `cf-10` | 無い | `lint:L45`（未実装） |
-| `q-single-aud-resource` | 無い | `lint:L56`（未実装） |
 | `ap-2-6` | 無い | `lint:L41`（未実装） |
 | `q-unverified-claim-extraction` | 無い | `lint:L46`（未実装） |
 | `q-txn-required-claims` | `lint:L7` | N8 |
@@ -230,30 +233,35 @@ warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRI
 | `ap-1-2` | 無い | `lint:L46`（未実装） |
 | `q-typ-distinguishes` | `lint:L27`・`lint:R1` | N9 |
 | `q-required-rejected` | `lint:L7` | N6 |
+| `q-unwrapped-value-authz` | `lint:L67` | N15 |
 | `cd-05` | 無い | `lint:L48`（未実装） |
 | `cd-08` | 無い | `lint:L49`（未実装） |
-| `q-agent-short-lived-no-rt` | 無い | `lint:L58`（未実装） |
 | `ap-2-8` | 無い | `lint:L45`（未実装） |
 
 <a id="more"></a>
 
-## 7. 詳しく見る（優先 3。既定では出さない 12 問）
+## 7. 詳しく見る（優先 3。既定では出さない 17 問）
 
-時間が残ったとき、または 2. の問いに答える中で気になったときに見ます。
+時間が残ったとき、または 2. の問いに答える中で気になったときに見ます。ほかの問いにまとめた問いと、手順の別の段で確かめる問いも、ここにあります。
 
 | 問い ID | 問い | 当たる設計 |
 | --- | --- | --- |
-| `pa-19` | このクレームを知らない受け手が無視しても安全か。制限を表す値なら、読まない受け手で制限が効かなくならないか | 組織独自のクレームがある |
-| `q-registered-synonym` | 同じ意味の値が、別の名前で 2 行に分かれていないか（登録名・既存の行と意味が重なる独自クレーム） | 組織独自のクレームがある |
-| `q-reuse-standard-structure` | この独自クレームの用途は、既にある構造（cnf・txn・verified_claims など。判断の木の対応表）で表せないか | 組織独自のクレームがある |
-| `q-scope-semantics` | scope を「クライアントに委ねた範囲」として扱い、利用者の全権限と読んでいないか | どの設計でも |
+| `pa-19` | このクレームを知らない受け手が無視しても安全か | 組織独自のクレームがある |
+| `q-registered-synonym` | 同じ意味の値が、別の名前で 2 行に分かれていないか | 組織独自のクレームがある |
+| `q-reuse-standard-structure` | この独自クレームの用途は、既にある構造で表せないか | 組織独自のクレームがある |
+| `q-scope-semantics` | scope を、利用者の全権限でなく「クライアントに委ねた範囲」として扱っているか | どの設計でも |
 | `q-role-explosion` | ロールの名前に、テナント・対象・操作の組み合わせを詰めていないか | どの設計でも |
 | `q-rar-per-audience` | 承認の内容（authorization_details）を、宛先ごとに、その宛先に要る分だけに絞っているか | 操作ごとの承認がある |
-| `q-validity-not-authz` | 「トークンが有効」というだけで通している操作はないか。操作・対象・その場の状況も見ているか | どの設計でも |
-| `q-scope-and-role` | 受け手は、クライアントに委ねた範囲（scope）と、利用者に許した範囲（role）の両方を確かめているか | どの設計でも |
-| `q-access-context-from-pep` | 「いまどこから来たか」（IP・端末）の判断に、トークンの値や偽装できるヘッダーを使っていないか | どの設計でも |
+| `q-gateway-bypass-path` | 入口を通らずにサービスへ届く経路でも、同じ検証をしているか（`q-outside-catalog` にまとめた） | どの設計でも |
+| `q-validity-not-authz` | 「トークンが有効」というだけで通している操作はないか | どの設計でも |
+| `q-scope-and-role` | 受け手は、scope と role の両方を確かめているか | どの設計でも |
+| `q-access-context-from-pep` | 「いまどこから来たか」の判断に、トークンの値や偽装できるヘッダーを使っていないか | どの設計でも |
 | `q-break-glass` | 緊急時の特権に、承認と短い期限があるか | どの設計でも |
+| `q-lifetime-rationale` | トークンの寿命の数字は、「権限を外してから何分で効かせたいか」から導かれているか（`q-revocation-delivery` にまとめた） | どの設計でも |
+| `q-external-user-deprovision` | 外部の IdP・取引先の側で利用者を止めたとき、こちらが出したトークンとセッションも止まるか（`q-revocation-delivery` にまとめた） | 発行者（IdP）が複数ある |
+| `q-relies-on-at-expiry` | 剥奪とキャッシュの寿命を、「期限が切れれば効く」だけに頼らずに決めているか（`q-revocation-delivery` にまとめた） | どの設計でも |
 | `q-system-actor-no-fake-sub` | サービス自身の権限で動かす処理は、利用者の文脈が要らない処理だけか | どの設計でも |
 | `q-scope-elevation-logged` | 代理の主体の範囲は最小限から始まり、広げたことが記録に残るか | 委任がある（代理で動く主体がいる） |
+| `q-evidence-attribution` | 数値・製品の挙動に付けた根拠は、引いた先が本当にそう述べているか（手順の段 4 で確かめる） | どの設計でも |
 
 根拠：筆者の提案：問いの区分・優先・出す条件・1 回の量の目安（追跡 #56）、templates/CONTRIBUTING.md の 2.・3.、research/template-design/pilot.md の 9.

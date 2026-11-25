@@ -105,11 +105,12 @@ python tools/claim_lint render designs/my-service --write    # design.md の生�
 | C 人の判断 | レビュアー（`review/short_list.md`） | 12.（自信のない点）に、見てほしい点を書く |
 | D 専門家 | 専門家（`review/escalation.md`） | 当たりそうな行を 12. に書く |
 
-- **チェックリストは、PR のテンプレートにあります**（リポジトリの `.github/PULL_REQUEST_TEMPLATE/design_doc.md`。PR を作る URL に `?template=design_doc.md` を付けると、本文に入ります）。区分 B の問いと、機械で確かめる規則がまだ無い・足りない区分 A の問いが並んでいます
-- 満たす問いに印を付けます。満たさない・当てはまらない問いは、印を付けずに、行の末尾に理由を書きます。レビュアーは、印の無い行だけを読みます
+- **チェックリストは、PR のテンプレートにあります**（このリポジトリの `.github/PULL_REQUEST_TEMPLATE/design_doc.md`。PR を作る URL に `?template=design_doc.md` を付けると、本文に入ります）。区分 B の問いと、機械で確かめる規則がまだ無い・足りない区分 A の問いが並んでいます
+- `templates/` だけを自分のリポジトリに写して使うときは、このファイルは付いてきません。上のパスから、自分のリポジトリの `.github/PULL_REQUEST_TEMPLATE/` に写してください
+- 満たす行に印を付けます。満たさない・当てはまらない行は、印を付けずに、行の末尾に理由を書きます。レビュアーは、印の無い行を読み、【No なら Blocker】の行から 3 件を抜き取って確かめます
 - 問いごとの見る欄は、`review/perspectives.md` の同じ ID の問いにあります
 - `python tools/review_triage.py --design designs/my-service` で、レビュアーに出る問い（この設計の性質に当たる、人の判断が要る問い）を先に見られます。答えにくい問いがあれば、設計書に書き足すか、12. に書きます
 
-チェックリストの量（いまは 70 問）と分け方は筆者の提案です（追跡 #56）。lint の規則ができるたびに減ります（#68）。
+チェックリストは、いま 49 行です（観点書の 70 問に当たる。同じ確かめで答えが決まる問いは 1 行にまとめた）。量と分け方は筆者の提案です（追跡 #56）。lint の規則ができるたびに減ります（#68）。
 
 根拠：templates/review/triage.yaml、筆者の提案：書き手の提出前の自己点検（追跡 #56）
