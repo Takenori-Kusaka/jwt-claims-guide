@@ -71,6 +71,27 @@ COLUMN_SECTIONS = [
     ('### 3.3 ', 'issuance_profile', 'templates/registry/token_types.schema.json', ('$defs', 'issuance_profile')),
     ('### 3.4 ', 'hops', 'templates/registry/hops.schema.json', ('$defs', 'hop')),
 ]
+# The claim detail screen (#67) shows a claim as an entity page of a data catalogue: six fields on top, the other
+# columns in tabs. Which column of claims.schema.json ($defs.claim) is in which tab is this table; a column it does not
+# name goes to the last tab (そのほか), a name that is not a column of the schema stops the build.
+CLAIM_TABS = [
+    ('overview', '概要', ['id', 'name', 'namespace', 'description', 'not_meaning', 'absent_semantics', 'usage', 'answers',
+                         'does_not_answer', 'registered_ref', 'catalog_refs', 'catalog_refs_reason', 'flat_alias', 'paired_id']),
+    ('value', '値と型', ['type', 'shape', 'allowed_values', 'value_vocabulary', 'composite_format', 'value_normalization',
+                        'max_bytes', 'max_items', 'typical_items', 'overflow_strategy', 'path', 'mandatory', 'sd', 'display']),
+    ('issue', '発行と元データ', ['issuers', 'upstream_issuer', 'authoritative_writer', 'modifiers', 'provenance', 'issue_events',
+                              'carried_in', 'source_system', 'verification_method', 'last_verified', 'source_max_length']),
+    ('lifetime', '有効期間と更新', ['volatility', 'recompute_trigger', 'propagation_delay', 'on_revoke', 'status', 'sunset_on']),
+    ('protect', '保護', ['confidential_from', 'confidentiality_measure', 'integrity_until', 'pii_category', 'data_category',
+                        'identifier_properties', 'recipients_external', 'cross_border', 'log_policy']),
+    ('consume', '使う側', ['consumers', 'consumer_access_path', 'consumers_migration', 'on_missing', 'enforced_at']),
+    ('history', '経緯', ['decision', 'rejection_kind', 'alt', 'rationale', 'assumption', 'revisit_trigger', 'refs',
+                        'prior_art_search', 'owner', 'change_controller', 'evidence', 'asvs_ids', 'spec_version', 'note']),
+    ('other', 'そのほか', []),
+]
+# the six fields on top of the claim detail screen: (label on screen, the columns it is made of)
+CLAIM_HEAD = [('名前', ['id', 'name', 'namespace']), ('意味', ['description']), ('型', ['type', 'shape']), ('発行元', ['issuers']),
+              ('入るトークン', ['carried_in']), ('状態', ['decision', 'status'])]
 ROW_RE = re.compile(r'^\|\s*`([a-z_]+)`\s*\|')
 REGISTRY_REF_RE = re.compile(r'`registry:(claims|token_types|hops)#([a-z_]+)`')
 REPO_BLOB = 'https://github.com/Takenori-Kusaka/jwt-claims-guide/blob/main/'
@@ -141,7 +162,7 @@ def columns():
         for p in props:
             if p not in by_key:
                 problems.append(f'{README}: {key}.{p} (a property of {rel}) has no row in the column table')
-        cols = [dict(by_key[p]) for p in props if p in by_key]
+        cols = [dict(by_key[p], label=ui_terms(by_key[p]['label']), lite=ui_terms(by_key[p]['lite'])) for p in props if p in by_key]
         for k, c in by_key.items():
             if k in props:
                 continue
@@ -149,9 +170,36 @@ def columns():
             if parent is None:
                 problems.append(f'{README}: {key}.{k} is in the column table but not a property of {rel}')
             else:
-                parent.setdefault('parts', []).append(c)
+                parent.setdefault('parts', []).append(dict(c, label=ui_terms(c['label'])))
         out[key] = cols
     return out, problems
+
+
+def claim_tabs(props=None, tabs=None):
+    """meta.claim_tabs: [{id, label, columns}] in the order of CLAIM_TABS; every property of $defs.claim is in exactly one
+    tab (the ones CLAIM_TABS does not name are added to the last tab, in schema order)."""
+    if props is None:
+        props, _ = schema_properties(*[(rel, pointer) for _, key, rel, pointer in COLUMN_SECTIONS if key == 'claims'][0])
+    tabs = CLAIM_TABS if tabs is None else tabs
+    problems, seen = [], {}
+    for tid, _, cols in tabs:
+        for c in cols:
+            if c not in props:
+                problems.append(f'CLAIM_TABS: {tid}.{c} is not a property of $defs.claim of claims.schema.json')
+            if c in seen:
+                problems.append(f'CLAIM_TABS: {c} is in two tabs ({seen[c]} and {tid})')
+            seen[c] = tid
+    for _, cols in CLAIM_HEAD:
+        for c in cols:
+            if c not in props:
+                problems.append(f'CLAIM_HEAD: {c} is not a property of $defs.claim of claims.schema.json')
+    if len({t[0] for t in tabs}) != len(tabs):
+        problems.append('CLAIM_TABS: a tab id is written twice')
+    if problems:
+        raise SystemExit('build_claims_viewer: ' + '\n  '.join(['the tabs of the claim detail screen do not match the schema:'] + problems))
+    out = [{'id': tid, 'label': label, 'columns': list(cols)} for tid, label, cols in tabs]
+    out[-1]['columns'] += [p for p in props if p not in seen]
+    return out
 
 
 def review_links():
@@ -169,6 +217,18 @@ def review_links():
                 if not any(x['id'] == q['id'] for x in lst):
                     lst.append({'id': q['id'], 'text': q['text'], 'file': rel, 'url': url})
     return dict(sorted(out.items()))
+
+
+# the words of the screens (#67): the column headings of templates/registry/README.md are shown with these words; the
+# README and the templates keep theirs (templates/glossary.md has the table)
+UI_TERMS = [('値の出どころ', '値の元データ'), ('出どころ', '元データ'), ('台帳の行', 'クレーム'), ('台帳', 'クレーム一覧'), ('ホップ', '経路'),
+            ('観点', '確認事項'), ('縮小 Lite', 'Lite'), ('載るトークン', '入るトークン')]
+
+
+def ui_terms(text):
+    for a, b in UI_TERMS:
+        text = text.replace(a, b)
+    return text
 
 
 REF_TICK = re.compile(r'`((?:review|template|registry|catalog|lint|test):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_][A-Za-z0-9_.-]*)?)`')
@@ -360,7 +420,9 @@ def schemas():
         with open(os.path.join(ROOT, 'templates', 'registry', name + '.schema.json'), encoding='utf-8') as f:
             out[name] = json.load(f)
     with open(os.path.join(ROOT, 'templates', 'review', 'review.schema.json'), encoding='utf-8') as f:
-        out['review'] = json.load(f)  # review.yaml (#50), checked when it is read in
+        out['review'] = json.load(f)  # review.yaml (#50, claims-review/2 of #67), checked when it is read in
+    with open(os.path.join(ROOT, 'templates', 'review', 'review.v1.schema.json'), encoding='utf-8') as f:
+        out['review_v1'] = json.load(f)  # a claims-review/1 file is checked with its own schema, then migrated
     return out
 
 
@@ -487,7 +549,7 @@ def js(name, obj):
 # (an index.html still in the cache, a file from the server) show a banner that asks for a reload instead of failing.
 HASH_LEN = 12
 BUILD_PLACEHOLDER = 'dev'
-HAND_WRITTEN = ('app.css', 'editor.js', 'preview.js', 'review.js', 'lint-worker.js')
+HAND_WRITTEN = ('app.css', 'editor.js', 'preview.js', 'review-format.js', 'review.js', 'lint-worker.js')
 # files that are part of the build but never rewritten (vendored, byte for byte)
 VENDOR_PARTS = ('vendor/editor-libs.js', 'vendor/pyodide/pyodide.js')
 # loaded after the page has started, by editor.js / review.js / the worker through asset(): their hash is in data/build.js
@@ -640,6 +702,7 @@ def expected():
             'columns': cols, 'review': review_links(), 'names': names(),
             'datasets': [{'id': i, 'design': rel, 'label': label, 'profile': prof} for i, rel, label, prof in DATASETS],
             'skeleton_dir': SKELETON_DIR,
+            'claim_tabs': claim_tabs(), 'claim_head': [{'label': label, 'columns': cols} for label, cols in CLAIM_HEAD],
             'lint_zip': {'file': 'data/claim_lint.zip', 'entries': lint_zip_entries()},
             'review_source': 'templates/review/*.md（見る欄の registry:<ファイル>#<列>）'}
     out = OrderedDict()
@@ -694,7 +757,7 @@ def check(want):
             k = next((j for j in range(min(len(cur), len(body))) if cur[j] != body[j]), min(len(cur), len(body)))
             problems.append(f'docs/claims/{n}: differs from the YAML at character {k}: '
                             f'committed {cur[max(0, k - 60):k + 60]!r} / generated {body[max(0, k - 60):k + 60]!r}')
-    for rel in ('editor.js', 'preview.js', 'review.js', 'lint-worker.js'):
+    for rel in ('editor.js', 'preview.js', 'review-format.js', 'review.js', 'lint-worker.js'):
         p = os.path.join(VIEWER_DIR, rel)
         if os.path.isfile(p):
             with open(p, encoding='utf-8') as f:

@@ -99,10 +99,14 @@ jobs:
           python tools/claim_lint tools/tests/fixtures/claim_lint/pilot-b-migrated
       - name: Pilot review records (#9) - the four review.yaml against the schema and the designs, the form of the four reports, the sha256 commitments
         # report --check is not run here: each report is the generated report plus a title label and a hand-written
-        # addendum of the reviewer, and the files are kept byte for byte (research/pilot/commitments.txt)
+        # addendum of the reviewer, and the files are kept byte for byte (research/pilot/commitments.txt).
+        # #67: the originals stay in the form they were handed in (claims-review/1, review.v1.schema.json): check reads
+        # that form. review.v2.yaml next to each is its migration to claims-review/2 (migrate --check), checked too.
         run: |
           for d in scenario-b scenario-c; do for r in R1 R2; do
             python tools/review_record.py check research/pilot/$d/reviews/$r/review.yaml --design research/pilot/$d --annotate
+            python tools/review_record.py migrate research/pilot/$d/reviews/$r/review.yaml --check research/pilot/$d/reviews/$r/review.v2.yaml
+            python tools/review_record.py check research/pilot/$d/reviews/$r/review.v2.yaml --design research/pilot/$d
             python tools/review_check.py --report research/pilot/$d/reviews/$r/review-report.md
           done; done
           python - <<'EOF'
@@ -138,21 +142,23 @@ jobs:
         run: python -m pytest -q -rs tools/tests/test_build_claims_viewer.py
       # #50: the review mode of the editor. data/review.js (the 168 questions of perspectives.md) is checked by the
       # build --check above; the recorded review of scenario B (review.yaml) and its report are checked here.
-      - name: Review records (#50) - review.yaml of scenario B against review.schema.json, questions, sampling seed; row approvals vs the current rows (tools/row_hash.py)
+      - name: Review records (#50, #67) - review.yaml of scenario B (claims-review/2) against review.schema.json, questions, comment states, submissions, sampling seed; viewed marks vs the current rows (tools/row_hash.py)
         run: |
           python - <<'EOF'
           import json, jsonschema
-          jsonschema.Draft202012Validator.check_schema(json.load(open('templates/review/review.schema.json', encoding='utf-8')))
-          print('valid schema: templates/review/review.schema.json')
+          for name in ('review.schema.json', 'review.v1.schema.json'):
+              jsonschema.Draft202012Validator.check_schema(json.load(open('templates/review/' + name, encoding='utf-8')))
+              print('valid schema: templates/review/' + name)
           EOF
-          # stale approvals (a row changed after it was approved) are listed as "stale" and shown as ::warning annotations on the
-          # PR; not fatal by default (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変えるとき); --fail-on-stale stops on them
+          # viewed marks of rows that changed afterwards are listed as "stale" and shown as ::warning annotations on the PR, as is
+          # an approval of rows that changed; not fatal by default (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変える
+          # とき); --fail-on-stale stops on them
           python tools/review_record.py check templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --annotate
       - name: Review report of scenario B is what review.yaml generates (fix with python tools/review_record.py report ... -o ...) and follows report_template.md
         run: |
           python tools/review_record.py report templates/examples/scenario-b/review.yaml --design templates/examples/scenario-b --check templates/examples/scenario-b/review-report-2026-11-23.md
           python tools/review_check.py --report templates/examples/scenario-b/review-report-2026-11-23.md
-      - name: review_record tests (schema, stale approvals after an edit, merge, sampling, report form RP1-RP10)
+      - name: review_record tests (schemas, viewed marks after an edit, comment states, submissions, migration from claims-review/1, merge, sampling, report form RP1-RP10)
         run: python -m pytest -q -rs tools/tests/test_review_record.py tools/tests/test_row_hash.py
       # The browser tests of the editor (tools/tests/test_claims_editor_ui.py: empty start, the six entry points,
       # diagnostics, claim_lint in Pyodide vs the CLI for scenarios A and B (full and lite), export round trip, network

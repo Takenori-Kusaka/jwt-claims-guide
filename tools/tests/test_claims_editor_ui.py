@@ -42,6 +42,24 @@ try:
 except ImportError:  # pragma: no cover
     sync_playwright = None
 
+def menu_open(pg):
+    """Open the menu 「ファイル」 of the top bar (#67: export, autosave, close and add-file live there)."""
+    if not pg.evaluate('() => document.querySelector("#ws-menu").open'):
+        pg.click('#ws-menu-btn')
+
+
+def menu_click(pg, sel):
+    menu_open(pg)
+    pg.click(sel)
+
+
+def menu_check(pg, on):
+    menu_open(pg)
+    (pg.check if on else pg.uncheck)('#chk-autosave')
+    if pg.evaluate('() => document.querySelector("#ws-menu").open && !document.querySelector("#confirm")'):
+        pg.keyboard.press('Escape')
+
+
 
 def load_yaml(rel):
     with open(os.path.join(ROOT, rel), encoding='utf-8') as f:
@@ -168,7 +186,7 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().files'), names[:4])
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().origin'), 'files')
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertEqual(pg.locator('table[data-table="claims"] tbody tr').count(), len(load_yaml('templates/examples/scenario-a/claims.yaml')['claims']))
         self.assertEqual(pg.problems, [])
 
@@ -212,7 +230,7 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertEqual(pg.evaluate('() => ClaimsEditor.state().files'), ['hops.yaml'])  # recognised from the content
         self.assertEqual(pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'), text.replace('\r\n', '\n'))
-        self.go(pg, '#/hops', 'ホップ')
+        self.go(pg, '#/hops', '経路')
         self.assertGreater(pg.locator('table[data-table="hops"] tbody tr').count(), 0)
         self.assertEqual(pg.problems, [])
 
@@ -237,7 +255,7 @@ class ClaimsEditor(unittest.TestCase):
         pg = self.open()
         pg.click('#btn-skeleton')
         self.poll(pg, '() => ClaimsEditor.state().open')
-        self.go(pg, '#/lint', '検査の結果')  # loads Pyodide and claim_lint
+        self.go(pg, '#/lint', '問題')  # loads Pyodide and claim_lint
         self.lint_fresh(pg)
         fresh = pg.evaluate('() => ClaimsEditor.diagnostics()')
         self.assertTrue([d for d in fresh if d['source'] == 'claim_lint' and d['rule'] == 'TODO'])
@@ -270,7 +288,7 @@ class ClaimsEditor(unittest.TestCase):
         for letter in ('a', 'b'):
             d, names = self.sample_files(letter)
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
             st = pg.evaluate('() => ClaimsEditor.state()')
@@ -285,11 +303,11 @@ class ClaimsEditor(unittest.TestCase):
     def test_every_screen_renders_and_every_column_is_shown(self):
         pg = self.open()
         self.sample(pg, 'b')
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.lint_fresh(pg)
-        screens = [('#/overview', 'シナリオ B'), ('#/claims', 'クレームの一覧'), ('#/ledger', '台帳'), ('#/claim/C-tenant-id', 'C-tenant-id'),
-                   ('#/tokens', 'トークン目録'), ('#/token/KC_AT', 'KC_AT'), ('#/profile', '発行方式'), ('#/hops', 'ホップの表'),
-                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '検査の結果'), ('#/tables', '判断の行・データ源・問いと仕組み'),
+        screens = [('#/overview', 'シナリオ B'), ('#/claims', 'クレーム一覧'), ('#/ledger', 'クレームを 1 件ずつ開く'), ('#/claim/C-tenant-id', 'C-tenant-id'),
+                   ('#/tokens', 'トークン目録'), ('#/token/KC_AT', 'KC_AT'), ('#/profile', '発行方式'), ('#/hops', '経路の一覧'),
+                   ('#/lifecycle', '寿命の 4 つの層'), ('#/catalog', 'カタログへの回答'), ('#/lint', '問題'), ('#/tables', '判断の行・データ源・問いと仕組み'),
                    ('#/trace', '対応表の進み具合')]
         for i, (h, title) in enumerate(screens):
             self.go(pg, h, title)
@@ -309,7 +327,7 @@ class ClaimsEditor(unittest.TestCase):
         self.go(pg, '#/claim/C-employee-id', '(C-employee-id)')
         self.assertIn('照合する場所', pg.inner_text('[data-col="enforced_at"] .lbl'))
         self.assertIn('L18', pg.inner_text('[data-lint-for="C-employee-id"]'))  # lint overlay on the row
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('warn', pg.inner_text('tr[data-row="C-employee-id"]'))
         # status is not shown by colour only
         for h in ('#/profile', '#/claims', '#/lint'):
@@ -333,6 +351,8 @@ class ClaimsEditor(unittest.TestCase):
             .map(a => [a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('rel')])""")
         self.assertTrue(leaving)
         self.assertEqual([x for x in leaving if x[1:] != ['_blank', 'noopener noreferrer']], [])
+        # the link is in one of the tabs of the claim detail screen (#67): its tab is selected first
+        pg.click('#ctab-' + link.evaluate('e => e.closest("[role=tabpanel]").dataset.tabpanel'))
         with pg.context.expect_page() as popup:
             link.click()
         slide = popup.value
@@ -353,7 +373,7 @@ class ClaimsEditor(unittest.TestCase):
         self.sample(pg2, 'a')
         pg2.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
         with pg2.expect_download():
-            pg2.click('#btn-export-zip')
+            menu_click(pg2, '#btn-export-zip')
         self.assertFalse(pg2.evaluate('() => ClaimsEditor.unsaved()'))
         self.assertFalse(pg2.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
 
@@ -377,14 +397,14 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => document.querySelector("#editor").shadowRoot.querySelectorAll(".cm-lint-marker-error").length > 0', timeout=5)
         self.assertIn('✖', pg.inner_text('#tab-claims\\.yaml'))
         # the preview shows them on the row
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('error', pg.inner_text('tr[data-row="C-iss"]'))
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         self.assertIn('bogus_column', pg.inner_text('[data-lint-for="C-iss"]'))
         self.assertIn('bogus_column', pg.inner_text('main [data-col="bogus_column"]'))  # shown as a column outside the schema
         self.shot(pg, '20_edit_schema')
         # claim_lint (Pyodide): the same findings as the CLI on the same edited files
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         res = self.lint_fresh(pg)['result']
         with tempfile.TemporaryDirectory(dir=os.path.join(ROOT, 'templates', 'examples')) as tmp:
             d = os.path.join(tmp, 'scenario-a')  # the same directory name: the payload schema $id and the targets
@@ -400,7 +420,7 @@ class ClaimsEditor(unittest.TestCase):
         lint_schema = [d for d in diags if d['source'] == 'claim_lint' and d['rule'] == 'SCHEMA']
         self.assertTrue(any(d['file'] == 'claims.yaml' and d['line'] == want_line for d in lint_schema), lint_schema)
         self.assertEqual([d for d in diags if d['source'] == 'schema'], [])  # replaced by claim_lint's SCHEMA once fresh
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.assertIn('bogus_column', pg.inner_text('table[data-table="diagnostics"]'))
         # clicking the line of a finding moves the editor there
         pg.locator('table[data-table="diagnostics"] [data-goto^="hops.yaml:"]').first.click()
@@ -429,10 +449,10 @@ class ClaimsEditor(unittest.TestCase):
         report = []
         for letter in ('a', 'b'):
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
-            self.go(pg, '#/lint', '検査の結果')
+            self.go(pg, '#/lint', '問題')
             for profile in ('full', 'lite'):
                 pg.select_option('#lint-profile', profile)
                 self.poll(pg, 'p => ClaimsEditor.state().lint === "fresh" && ClaimsEditor.lastLint.profile === p', arg=profile)
@@ -456,7 +476,7 @@ class ClaimsEditor(unittest.TestCase):
         self.sample(pg, 'b')
         d, names = self.sample_files('b')
         with pg.expect_download() as dl:
-            pg.click('#btn-export-zip')
+            menu_click(pg, '#btn-export-zip')
         data = pathlib.Path(dl.value.path()).read_bytes()
         self.assertEqual(dl.value.suggested_filename, 'scenario-b.zip')
         names = names + ['review.yaml']  # the review records of the example (#50) go into the zip with the design
@@ -466,7 +486,7 @@ class ClaimsEditor(unittest.TestCase):
                 self.assertEqual(z.read('scenario-b/' + n), read_lf(os.path.join(d, n)), n)
         pg.click('#tab-token_types\\.yaml')
         with pg.expect_download() as dl:
-            pg.click('#btn-export-one')
+            menu_click(pg, '#btn-export-one')
         self.assertEqual(dl.value.suggested_filename, 'token_types.yaml')
         self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), read_lf(os.path.join(d, 'token_types.yaml')))
         # a file with a BOM and CRLF comes back as it was; an edit is in the exported file
@@ -475,15 +495,15 @@ class ClaimsEditor(unittest.TestCase):
             raw = b'\xef\xbb\xbf' + read_lf(os.path.join(d, 'hops.yaml')).replace(b'\n', b'\r\n')
             with open(p, 'wb') as f:
                 f.write(raw)
-            pg.click('#btn-close')
+            menu_click(pg, '#btn-close')
             pg.set_input_files('#in-files', [p])
             self.poll(pg, '() => ClaimsEditor.state().open')
             with pg.expect_download() as dl:
-                pg.click('#btn-export-one')
+                menu_click(pg, '#btn-export-one')
             self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), raw)
             pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # edited")')
             with pg.expect_download() as dl:
-                pg.click('#btn-export-one')
+                menu_click(pg, '#btn-export-one')
             self.assertEqual(pathlib.Path(dl.value.path()).read_bytes(), raw.replace(b'hops:', b'hops:  # edited', 1))
         self.assertEqual(pg.problems, [])
 
@@ -493,7 +513,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # mine")')
         pg.wait_for_timeout(1500)
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage)'), [])  # nothing is stored unless enabled
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "# mine", "# mine2")')
         key = 'claims-editor:autosave:v2:templates/examples/scenario-a'
         self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("mine2")', arg=key, timeout=5)
@@ -504,14 +524,14 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => ClaimsEditor.state().open')
         self.assertIn('# mine2', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         # turning autosave off asks what to do with the saved copies (R3): cancel keeps it on, delete removes them
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('1 件', pg.inner_text('dialog#confirm'))
         pg.click('dialog#confirm [data-choice="cancel"]')
         self.poll(pg, '() => !document.querySelector("dialog#confirm")')
         self.assertTrue(pg.is_checked('#chk-autosave'))
         self.assertEqual(len(pg.evaluate('() => Object.keys(localStorage)')), 2)
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.click('dialog#confirm [data-choice="delete"]')
         self.poll(pg, '() => Object.keys(localStorage).length === 0', timeout=5)
         self.assertEqual(pg.problems, [])
@@ -523,26 +543,26 @@ class ClaimsEditor(unittest.TestCase):
         pg.fill('#paste-text', 'hops:\n  - id: MY-WORK\n')
         pg.click('#paste-open')
         self.poll(pg, '() => ClaimsEditor.state().open')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         self.assertEqual(pg.evaluate('() => Object.keys(localStorage).filter(k => k.includes("autosave:v2"))'), [])  # opening saves nothing
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "MY-WORK", "MY-WORK-2")')
         rel = pg.evaluate('() => ClaimsEditor.state().designRel')
         self.assertRegex(rel, r'^work/pasted-\d{8}-\d{6}-[0-9a-f]{6}$')  # a slot of its own (R4)
         mine = 'claims-editor:autosave:v2:' + rel
         self.poll(pg, 'k => (localStorage.getItem(k) || "").includes("MY-WORK-2")', arg=mine, timeout=5)
-        pg.click('#btn-close')  # autosave holds the edit: no question
+        menu_click(pg, '#btn-close')  # autosave holds the edit: no question
         self.poll(pg, '() => !ClaimsEditor.state().open')
         self.sample(pg, 'a')
         pg.wait_for_timeout(1500)
         self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))  # still there
         self.assertIsNone(pg.evaluate('() => localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a")'))
         # without autosave (turned off, the saved copies kept): an edit not written out is not replaced without asking
-        pg.uncheck('#chk-autosave')
+        menu_check(pg, False)
         pg.click('dialog#confirm [data-choice="keep"]')
         self.poll(pg, '() => !document.querySelector("dialog#confirm")')
         self.assertIn('MY-WORK-2', pg.evaluate('k => localStorage.getItem(k)', mine))
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # unsaved")')
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('書き出していない変更', pg.inner_text('dialog#confirm'))
         self.assertTrue(pg.evaluate('() => document.activeElement.closest("dialog") !== null'))  # focus is in the dialog
@@ -551,7 +571,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertTrue(pg.evaluate('() => ClaimsEditor.state().open'))
         self.assertIn('# unsaved', pg.evaluate('() => ClaimsEditor.fileText("hops.yaml")'))
         with pg.expect_download() as dl:
-            pg.click('#btn-close')
+            menu_click(pg, '#btn-close')
             pg.click('dialog#confirm [data-choice="export"]')
         self.assertEqual(dl.value.suggested_filename, 'scenario-a.zip')
         with zipfile.ZipFile(dl.value.path()) as z:
@@ -559,10 +579,10 @@ class ClaimsEditor(unittest.TestCase):
         self.poll(pg, '() => !ClaimsEditor.state().open')
         # an autosaved version of the design being opened is offered first
         self.sample(pg, 'a')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # saved-a")')
         self.poll(pg, '() => (localStorage.getItem("claims-editor:autosave:v2:templates/examples/scenario-a") || "").includes("saved-a")', timeout=5)
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         self.poll(pg, '() => !ClaimsEditor.state().open')
         pg.click('#btn-sample-a')
         pg.wait_for_selector('dialog#confirm[open]')
@@ -579,7 +599,7 @@ class ClaimsEditor(unittest.TestCase):
         # R1: localStorage refuses the save (quota): the edits stay unsaved, a warning stays, closing and leaving still ask
         pg = self.open()
         self.sample(pg, 'b')
-        pg.check('#chk-autosave')
+        menu_check(pg, True)
         pg.evaluate('''() => { Storage.prototype.setItem = function () { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); }; }''')
         pg.evaluate('() => ClaimsEditor.replaceText("hops.yaml", "hops:", "hops:  # not saved")')
         pg.wait_for_selector('#save-warn:not([hidden])', timeout=5000)
@@ -588,7 +608,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertEqual(pg.get_attribute('#save-warn', 'role'), 'alert')
         self.assertTrue(pg.evaluate('() => ClaimsEditor.unsaved()'))
         self.assertTrue(pg.evaluate('() => { const e = new Event("beforeunload", { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; }'))
-        pg.click('#btn-close')
+        menu_click(pg, '#btn-close')
         pg.wait_for_selector('dialog#confirm[open]')
         self.assertIn('保存できていません', pg.inner_text('dialog#confirm'))
         pg.click('dialog#confirm [data-choice="cancel"]')
@@ -646,7 +666,7 @@ class ClaimsEditor(unittest.TestCase):
     def test_folds_are_kept_in_the_url(self):
         pg = self.open()
         self.sample(pg, 'a')
-        self.go(pg, '#/ledger', '台帳')
+        self.go(pg, '#/ledger', 'クレームを 1 件ずつ開く')
         row = pg.locator('details[data-fold="claim~C-iss"]')
         self.assertFalse(row.evaluate('e => e.open'))
         row.locator('summary').first.click()
@@ -657,22 +677,25 @@ class ClaimsEditor(unittest.TestCase):
         h = pg.evaluate('() => location.hash')
         # the same URL opens the same folds
         self.go(pg, '#/overview', 'シナリオ A')
-        self.go(pg, h, '台帳')
+        self.go(pg, h, 'クレームを 1 件ずつ開く')
         self.assertTrue(pg.locator('details[data-fold="claim~C-iss"]').evaluate('e => e.open'))
         self.assertFalse(pg.locator('details[data-fold="sec~却下"]').evaluate('e => e.open'))
-        # column groups are keyed by their names (templates/registry/README.md 3.1), not by their position
-        groups = []
-        for c in pg.evaluate('() => window.CLAIMS_VIEWER_DATA.meta.columns.claims'):
-            if c.get('group') and c['group'] not in groups:
-                groups.append(c['group'])
+        # the claim detail screen (#67): one fold per tab that has columns not filled in, keyed by the tab (unfilled~<tab>)
+        row = next(c for c in load_yaml('templates/examples/scenario-a/claims.yaml')['claims'] if c['id'] == 'C-iss')
+        tabs = pg.evaluate('() => window.CLAIMS_VIEWER_DATA.meta.claim_tabs')
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         keys = pg.eval_on_selector_all('main details.fold', 'els => els.map(e => e.dataset.fold)')
-        self.assertEqual(keys, ['grp~' + g.replace(' ', '_') for g in groups])
+        self.assertEqual(keys, ['unfilled~' + t['id'] for t in tabs if any(k not in row for k in t['columns'])])
+        self.assertEqual(pg.locator('main details.fold[open]').count(), 0)  # folded by default
         second = keys[1]
+        pg.click('#ctab-' + second.split('~')[1])
         pg.locator(f'details[data-fold="{second}"] > summary').click()
         self.poll(pg, 'k => decodeURIComponent(decodeURIComponent(location.hash)).includes(k)', arg=second, timeout=5)
-        pg.click('text=すべて畳む')
-        self.assertEqual(pg.locator('main details.fold[open]').count(), 0)
+        h = pg.evaluate('() => location.hash')
+        self.go(pg, '#/overview', 'シナリオ A')
+        self.go(pg, h, '(C-iss)')
+        self.assertEqual(pg.eval_on_selector_all('main details.fold[open]', 'els => els.map(e => e.dataset.fold)'), [second])
+        self.assertTrue(pg.is_visible(f'details[data-fold="{second}"] .col.empty'))
         self.shot(pg, '30_folds')
         self.assertEqual(pg.problems, [])
 
@@ -684,7 +707,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.select_option('#paste-kind', 'claims.yaml')
         pg.click('#paste-open')
         self.poll(pg, '() => ClaimsEditor.state().open')
-        self.go(pg, '#/ledger', '台帳')
+        self.go(pg, '#/ledger', 'クレームを 1 件ずつ開く')
         pg.click('text=すべて開く')
         keys = pg.eval_on_selector_all('details.fold', 'els => els.map(e => e.dataset.fold)')
         self.assertEqual(len(keys), len(set(keys)), keys)
@@ -738,7 +761,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.keyboard.press('Shift+Tab')
         pg.keyboard.press('Shift+Tab')
         self.assertNotIn(pg.evaluate('() => document.activeElement.id'), ('in-add', 'in-files', 'in-folder'))
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         pg.locator('main h1').click()
         pg.keyboard.press('/')
         self.assertEqual(pg.evaluate('document.activeElement.id'), 'f-q')
@@ -768,7 +791,7 @@ class ClaimsEditor(unittest.TestCase):
         # a row panel (what #50 attaches review records with) appears on the rows of every screen
         pg.evaluate('''() => ClaimsEditor.registerRowPanel((anchor, row, kind, where) => {
             const s = document.createElement('span'); s.className = 'test-panel'; s.textContent = 'panel ' + anchor + ' ' + where; return s; })''')
-        self.go(pg, '#/claims', 'クレームの一覧')
+        self.go(pg, '#/claims', 'クレーム一覧')
         self.assertIn('panel claims:C-iss list', pg.inner_text('tr[data-anchor="claims:C-iss"]'))
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         self.assertIn('panel claims:C-iss detail', pg.inner_text('[data-panel-for="claims:C-iss"]'))
@@ -790,7 +813,7 @@ class ClaimsEditor(unittest.TestCase):
         report = []
         for letter in ('a', 'b'):
             if letter == 'b':
-                pg.click('#btn-close')
+                menu_click(pg, '#btn-close')
                 self.poll(pg, '() => !ClaimsEditor.state().open')
             self.sample(pg, letter)
             got = dict(pg.evaluate('() => ClaimsEditor.anchors().map(a => [a.anchor, ClaimsEditor.rowHash(a.anchor)])'))
@@ -839,14 +862,14 @@ class ClaimsEditor(unittest.TestCase):
             e => window.reportViolation({directive: e.violatedDirective, blocked: e.blockedURI}))''')
         steps = []
         self.sample(pg, 'b'); steps.append('open sample B')
-        self.go(pg, '#/lint', '検査の結果'); steps.append('open the lint screen (loads Pyodide and claim_lint)')
+        self.go(pg, '#/lint', '問題'); steps.append('open the lint screen (loads Pyodide and claim_lint)')
         self.lint_fresh(pg); steps.append('claim_lint ran')
         pg.evaluate('() => ClaimsEditor.replaceText("claims.yaml", "claims:", "claims:  # edited")')
         self.poll(pg, '() => ClaimsEditor.state().lint !== "fresh"', timeout=5)
         self.lint_fresh(pg); steps.append('edit claims.yaml; claim_lint ran again')
-        pg.check('#chk-autosave'); steps.append('enable autosave')
+        menu_check(pg, True); steps.append('enable autosave')
         with pg.expect_download():
-            pg.click('#btn-export-zip')
+            menu_click(pg, '#btn-export-zip')
         steps.append('export as zip')
         for h in ('#/claims', '#/ledger', '#/profile', '#/lifecycle', '#/catalog'):
             self.go(pg, h)
@@ -941,7 +964,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.wait_for_selector('#btn-sample-a')
         self.sample(pg, 'a')
         try:
-            self.go(pg, '#/lint', '検査の結果')
+            self.go(pg, '#/lint', '問題')
             end = time.time() + 40  # with the policy, Pyodide is ready in about 3 s here
             st = None
             while time.time() < end:
@@ -1023,7 +1046,7 @@ class ClaimsEditor(unittest.TestCase):
         pg.goto(pathlib.Path(DOCS, 'claims', 'index.html').as_uri())
         pg.click('#btn-sample-a')
         self.poll(pg, '() => ClaimsEditor.state().open', timeout=10)
-        self.go(pg, '#/lint', '検査の結果')
+        self.go(pg, '#/lint', '問題')
         self.poll(pg, '() => ClaimsEditor.state().lint === "unavailable"', timeout=5)
         self.assertEqual(problems, [])
 

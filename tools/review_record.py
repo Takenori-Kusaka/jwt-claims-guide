@@ -1,32 +1,49 @@
 # -*- coding: utf-8 -*-
-"""review.yaml, the review records of a design (#50): check, stale approvals, merge, sampling, report.
+"""review.yaml, the review records of a design (#50, #67): check, viewed marks that no longer hold, merge, migrate,
+sampling, report.
 
-  python tools/review_record.py check REVIEW_YAML [--design DIR] [--fail-on-stale]
+  python tools/review_record.py check REVIEW_YAML [--design DIR] [--fail-on-stale] [--annotate]
+  python tools/review_record.py migrate REVIEW_YAML [-o OUT.yaml | --check OUT.yaml]
   python tools/review_record.py merge A.yaml B.yaml [...] -o OUT.yaml
   python tools/review_record.py sample --seed SEED [--count 3] DIR
   python tools/review_record.py sample DIR --reseed --reason TEXT --file REVIEW_YAML --reviewer NAME
   python tools/review_record.py report REVIEW_YAML --design DIR [--reviewer NAME] [-o OUT.md | --check OUT.md]
   python tools/review_record.py diff BASE_DIR DIR
 
-The review mode of the design editor (docs/claims/) writes and reads review.yaml; this is the Python side of the same
-records, for CI.
+The design editor (docs/claims/) writes and reads review.yaml; this is the Python side of the same records, for CI.
 
-check: the file against templates/review/review.schema.json (JSON Schema 2020-12), then: the reviewer names are unique;
-  the finding IDs are unique within a review; the escalation criteria are IDs of escalation.md. Warnings (not errors):
-  an answer or a finding about a question that today's perspectives.md does not have (the materials changed after the
-  review); with --design, every row decision is compared with the row as it is now (tools/row_hash.py): the same hash
-  (current), another hash (stale: 再確認が要る) or a row that is not in the registry any more (missing); and the
-  population of the draw (sha256 of the rejected rows) against the recorded one: when it changed, the draw is reported,
-  not failed (sample --reseed draws again and keeps the old draw). The same population with other picked rows is an
-  error. Stale and missing decisions fail the check only with --fail-on-stale; --annotate prints the warnings as GitHub
-  Actions ::warning lines. The names are self-declared: the approval that counts is the GitHub pull request review.
+The form (claims-review/2, templates/review/review.schema.json) follows a pull request review (#67): per reviewer, the
+rows marked as viewed (viewed: a personal mark bound to the content hash of the row, not an approval), the comments
+(state pending until submitted, then unresolved or resolved; with the severity, kind and so on of report_template.md)
+and the submissions (each with one verdict for the whole review - approve, request_changes or comment - and the hashes
+of the rows viewed then). The earlier form (claims-review/1, review.v1.schema.json: a decision per row, findings) is
+still read: every command validates it against its own schema and works on its migration (migrate()); committed v1
+files need not be rewritten (research/pilot/**/reviews/*/review.yaml are kept byte for byte, commitments.txt).
+
+check: the file against its schema (JSON Schema 2020-12), then: the reviewer names are unique; the comment IDs are
+  unique within a review; submitted is null exactly when there is no submission, else the time of the latest one; a
+  comment named in a submission is not pending and a comment in no submission is; the sha256 of a snapshot is the hash
+  of its mark; the escalation criteria are IDs of escalation.md. Warnings (not errors): an answer or a comment about a
+  question that today's perspectives.md does not have (the materials changed after the review); with --design, every
+  viewed mark is compared with the row as it is now (tools/row_hash.py): the same hash (current), another hash (stale:
+  前回の確認から変更あり) or a row that is not in the registry any more (missing: 一覧に無い行); a latest submission
+  that approves rows which have changed since (古い承認); and the population of the draw (sha256 of the rejected rows)
+  against the recorded one: when it changed, the draw is reported, not failed (sample --reseed draws again and keeps
+  the old draw). The same population with other picked rows is an error. Stale and missing marks and an old approval
+  fail the check only with --fail-on-stale; --annotate prints the warnings as GitHub Actions ::warning lines. The names
+  are self-declared: the approval that counts is the GitHub pull request review.
+migrate: a claims-review/1 file as claims-review/2 (rows -> viewed with the old decision kept in migrated_from,
+  findings -> comments, one submission with the verdict comment when the review was submitted). --check OUT exits 1
+  when OUT is not the migration of the file (CI: the migrated copies of the pilot reviews).
 merge: the reviews of several files into one (same design); the same reviewer in two files must have the same records.
+  The result is claims-review/2.
 sample: the rejected rows of claims.yaml ranked by sha256(seed + ':' + anchor), the first COUNT (2 or 3), the same draw
-  as the editor's 「抜き取る」. --reseed draws again into a review.yaml with a --reason, keeping the earlier draw in
-  sampling.previous (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変えるとき).
-report: the review report in the form of templates/review/report_template.md, the same text as the editor's 「レポート
-  を作る」 (tools/tests/test_review_record.py checks the form with review_check.check_report; the browser test compares
-  the two generators).
+  as the editor's. --reseed draws again into a review.yaml with a --reason, keeping the earlier draw in
+  sampling.previous (templates/CONTRIBUTING.md 4., レビューの記録がある設計書を変えるとき); a v1 file is written
+  back as claims-review/2.
+report: the review report in the form of templates/review/report_template.md, the same text as the editor's
+  (ClaimsReviewFormat.reportText of docs/claims/review-format.js; tools/tests/test_review_record.py checks the form
+  with review_check.check_report; the browser test compares the two generators).
 diff: the rows whose content hash differs between two versions of a design (added, removed, changed): the rows a
   reviewer has to look at again. claim_lint diff (L10) checks whether a change breaks receivers; this lists every
   changed row, breaking or not.
@@ -35,6 +52,7 @@ The file is written in one canonical form (key order, every string in double quo
 editor writes, so that reading and writing it again gives the same bytes.
 """
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -50,20 +68,34 @@ import yaml  # noqa: E402
 import row_hash  # noqa: E402
 
 SCHEMA = os.path.join(ROOT, 'templates', 'review', 'review.schema.json')
-FORMAT = 'claims-review/1'
+SCHEMA_V1 = os.path.join(ROOT, 'templates', 'review', 'review.v1.schema.json')
+FORMAT = 'claims-review/2'
+FORMAT_V1 = 'claims-review/1'
+# The order of the keys in the canonical text. The keys of claims-review/2 (#67: column, suggestion, summary, state of a
+# comment, traits, viewed, comments, submissions, unresolved, migrated, resolved_at, snapshot, migrated_from) are put
+# between the keys of claims-review/1 without changing the order of those: a v1 file still dumps to the same bytes.
 KEY_ORDER = ['format', 'design', 'independent', 'reviews', 'reviewer', 'id', 'criterion', 'name', 'to', 'location', 'anchors',
-             'questions', 'content', 'severity', 'origin', 'kind', 'model', 'confused_question', 'verdict', 'verdict_reason',
+             'column', 'questions', 'content', 'suggestion', 'severity', 'origin', 'kind', 'model', 'confused_question',
+             'verdict', 'verdict_reason', 'summary',
              'response', 'owner', 'due', 'state', 'ref', 'conclusion', 'self_declared', 'started', 'updated', 'submitted',
              'independence', 'mode', 'broken_at', 'viewed_others_at', 'target', 'commit', 'materials', 'perspectives',
              'report_template', 'context', 'lite_full', 'steps', 'roles_order', 'ci', 'error', 'warn', 'info',
-             'profile', 'matches_design', 'human_check', 'answers', 'answer', 'memo', 'rows', 'decision', 'reviewer_kind',
-             'hash', 'comment', 'edited_after_viewing_others', 'at', 'findings', 'sampling', 'seed', 'count', 'picked',
+             'profile', 'matches_design', 'human_check', 'traits', 'answers', 'answer', 'memo', 'rows', 'viewed', 'decision',
+             'reviewer_kind', 'hash', 'comment', 'edited_after_viewing_others', 'at', 'resolved_at', 'snapshot', 'migrated_from',
+             'findings', 'comments', 'unresolved', 'migrated', 'submissions', 'sampling', 'seed', 'count', 'picked',
              'population', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7', 'pass', 'reason', 'previous',
              'replaced_at', 'escalations', 'applies', 'not_applicable', 'feedback', 'note']
-HEADER = ('# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。\n'
+HEADER_V1 = ('# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。\n'
+             '# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。\n')
+HEADER = ('# review.yaml: レビューの記録。設計書のエディター（docs/claims/）が書き出した形（claims-review/2）。\n'
           '# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。\n')
+STALE_NOTE = '前回の確認から変更あり'
+MISSING_NOTE = '一覧に無い行'
+OLD_APPROVAL_NOTE = '古い承認（内容が変更されました）'
 DECISION_JA = {'approve': '承認', 'request_changes': '修正を求める', 'hold': '保留'}
+VERDICT_JA = {'approve': '承認', 'request_changes': '変更を依頼', 'comment': 'コメントのみ'}
 ANSWER_JA = {'yes': 'Yes', 'no': 'No', 'na': '該当なし'}
+MIGRATED_SUMMARY = 'claims-review/1 の記録から移行した。v1 には全体の判定が無い（行ごとの判定は viewed の migrated_from に残した）'
 
 
 # ------------------------------------------------------------------ reading and writing
@@ -177,7 +209,56 @@ def dump(data, version=None):
     YAML under templates/ starts with it): the version given (a file read in keeps its own), else that of perspectives.md."""
     out = []
     _emit(data, 0, out)
-    return f'# template_version: {version or materials_version()}\n' + HEADER + '\n'.join(out) + '\n'
+    header = HEADER_V1 if is_v1(data) else HEADER
+    return f'# template_version: {version or materials_version()}\n' + header + '\n'.join(out) + '\n'
+
+
+# ------------------------------------------------------------------ claims-review/1 -> claims-review/2 (#67)
+def is_v1(data):
+    return isinstance(data, dict) and data.get('format') == FORMAT_V1
+
+
+def migrate(data):
+    """A claims-review/1 record as claims-review/2 (a new dict; a v2 record is returned as it is). Nothing is dropped:
+    the decision per row and its comment are kept in viewed[].migrated_from. The same steps as
+    ClaimsReviewFormat.migrate of docs/claims/review-format.js (the two give the same text).
+
+    rows -> viewed (the mark that the content was looked at); findings -> comments, with state unresolved when the
+    review was submitted and pending when not; feedback[].findings -> comments; a submitted review gets one submission
+    with the verdict comment (v1 had no verdict for the whole review) and the hashes of all its rows."""
+    if not is_v1(data):
+        return data
+    data = copy.deepcopy(data)
+    out = {k: (FORMAT if k == 'format' else v) for k, v in data.items() if k != 'reviews'}
+    out['reviews'] = []
+    for rv in data.get('reviews') or []:
+        submitted = rv.get('submitted')
+        new = {}
+        for k, v in rv.items():
+            if k == 'rows':
+                viewed = {}
+                for a, r in v.items():
+                    m = {'hash': r['hash'], 'at': r['at']}
+                    for x in ('reviewer_kind', 'edited_after_viewing_others'):
+                        if x in r:
+                            m[x] = r[x]
+                    m['migrated_from'] = {'decision': r['decision']}
+                    if 'comment' in r:
+                        m['migrated_from']['comment'] = r['comment']
+                    viewed[a] = m
+                new['viewed'] = viewed
+            elif k == 'findings':
+                new['comments'] = [dict(f, state='unresolved' if submitted else 'pending') for f in v]
+            elif k == 'feedback':
+                new['feedback'] = [{('comments' if x == 'findings' else x): y for x, y in fb.items()} for fb in v]
+            else:
+                new[k] = v
+        new['submissions'] = [] if not submitted else [{
+            'at': submitted, 'verdict': 'comment', 'summary': MIGRATED_SUMMARY,
+            'viewed': {a: r['hash'] for a, r in (rv.get('rows') or {}).items()},
+            'comments': [f['id'] for f in rv.get('findings') or []], 'migrated': True}]
+        out['reviews'].append(new)
+    return out
 
 
 # ------------------------------------------------------------------ checks
@@ -193,8 +274,9 @@ def _criteria():
 
 
 def schema_errors(data):
+    """Against review.schema.json (claims-review/2), or review.v1.schema.json for a claims-review/1 record."""
     import jsonschema
-    with open(SCHEMA, encoding='utf-8') as f:
+    with open(SCHEMA_V1 if is_v1(data) else SCHEMA, encoding='utf-8') as f:
         schema = json.load(f)
     v = jsonschema.Draft202012Validator(schema)
     return [f'schema: {"/".join(map(str, e.absolute_path)) or "(root)"}: {e.message}'
@@ -218,18 +300,30 @@ def population(docs, hashes):
 
 
 def row_states(review, hashes):
-    """{anchor: 'current' | 'stale' | 'missing'} of the row decisions of one review."""
+    """{anchor: 'current' | 'stale' | 'missing'} of the viewed marks of one review (claims-review/2)."""
     out = {}
-    for a, r in (review.get('rows') or {}).items():
+    for a, r in (review.get('viewed') or {}).items():
         out[a] = 'missing' if a not in hashes else 'current' if hashes[a] == r.get('hash') else 'stale'
     return out
 
 
+def stale_approval(review, hashes):
+    """The rows of the latest submission, when it is an approval, whose content is not what was approved (changed or
+    gone): the approval is old. [] when the latest submission is not an approval or every row is as it was."""
+    subs = review.get('submissions') or []
+    if not subs or subs[-1].get('verdict') != 'approve':
+        return []
+    return sorted(a for a, h in (subs[-1].get('viewed') or {}).items() if hashes.get(a) != h)
+
+
 def check(data, design=None):
-    """(errors, notes): errors fail the check; notes are the stale / missing decisions."""
+    """(errors, notes): errors fail the check; notes are the viewed marks that no longer hold (the row changed or is
+    gone), an approval that is old, and what changed in the materials. A claims-review/1 record is checked against its
+    own schema and then as its migration."""
     errs = schema_errors(data)
     if errs:
         return errs, []
+    data = migrate(data)
     qids = {x['id'] for x in _questions()}
     crit = _criteria()
     notes = []
@@ -248,22 +342,45 @@ def check(data, design=None):
         if gone:
             notes.append(f'{who}: 今の観点書に無い問いへの回答 {len(gone)} 件（{"・".join(gone[:5])}）。教材が記録の後に変わった'
                          f'（記録した時の版 {(rv.get("materials") or {}).get("perspectives", "不明")}・今の版 {materials_version()}）')
-        ids = [f['id'] for f in rv['findings']]
+        ids = [f['id'] for f in rv['comments']]
         for i in sorted({i for i in ids if ids.count(i) > 1}):
-            errs.append(f'{who}: finding {i} is written twice')
-        for f in rv['findings']:
+            errs.append(f'{who}: comment {i} is written twice')
+        for f in rv['comments']:
             for qid in f.get('questions') or []:
                 if qid not in qids:
-                    notes.append(f'{who}: finding {f["id"]}: {qid} は今の観点書に無い（教材が記録の後に変わった）')
+                    notes.append(f'{who}: comment {f["id"]}: {qid} は今の観点書に無い（教材が記録の後に変わった）')
+        # one verdict per submission; submitted is the time of the latest one
+        subs = rv['submissions']
+        if rv['submitted'] is None and subs:
+            errs.append(f'{who}: submitted is null but there are {len(subs)} submissions')
+        elif rv['submitted'] is not None and not subs:
+            errs.append(f'{who}: submitted is {rv["submitted"]} but there is no submission')
+        elif subs and subs[-1]['at'] != rv['submitted']:
+            errs.append(f'{who}: submitted ({rv["submitted"]}) is not the time of the latest submission ({subs[-1]["at"]})')
+        sent = set()
+        for k, sb in enumerate(subs):
+            for i in sb.get('comments') or []:
+                if i not in ids:
+                    errs.append(f'{who}: submission {k + 1} names comment {i}, which is not in comments')
+                sent.add(i)
+        # pending = not in a submission yet
+        for f in rv['comments']:
+            if f['id'] in sent and f['state'] == 'pending':
+                errs.append(f'{who}: comment {f["id"]} is in a submission but its state is pending')
+            elif f['id'] not in sent and f['state'] != 'pending':
+                errs.append(f'{who}: comment {f["id"]} is {f["state"]} but in no submission (a comment that was not submitted is pending)')
+        for a, m in rv['viewed'].items():
+            if 'snapshot' in m and hashlib.sha256(m['snapshot'].encode('utf-8')).hexdigest() != m['hash']:
+                errs.append(f'{who}: viewed {a}: the sha256 of snapshot is not hash')
         esc = rv.get('escalations') or {}
         for c in [x['criterion'] for x in esc.get('applies') or []] + list(esc.get('not_applicable') or []):
             if c not in crit:
                 errs.append(f'{who}: escalations: {c} is not a criterion of escalation.md')
         fids = set(ids)
         for fb in rv.get('feedback') or []:
-            for i in fb.get('findings') or []:
+            for i in fb.get('comments') or []:
                 if i not in fids:
-                    errs.append(f'{who}: feedback names finding {i}, which is not in findings')
+                    errs.append(f'{who}: feedback names comment {i}, which is not in comments')
         sm = rv.get('sampling')
         if sm:
             for a in (sm.get('scores') or {}):
@@ -285,14 +402,19 @@ def check(data, design=None):
         if hashes is not None:
             for a, st in row_states(rv, hashes).items():
                 if st != 'current':
-                    d = DECISION_JA[rv['rows'][a]['decision']]
-                    notes.append(f'{who}: {a} ({d}): ' + ('再確認が要る（行の内容が記録の後に変わった）' if st == 'stale'
-                                                          else '台帳に無い行の記録（行が消えたか ID が変わった）'))
+                    notes.append(f'{who}: {a} (確認済み): ' + (STALE_NOTE + '（行の内容が、確認済みの印の後に変わった）' if st == 'stale'
+                                                              else MISSING_NOTE + 'の記録（行が消えたか ID が変わった）'))
+            old = stale_approval(rv, hashes)
+            if old:
+                notes.append(f'{who}: {OLD_APPROVAL_NOTE}：{rv["submissions"][-1]["at"]} の承認の後に {len(old)} 行が変わった'
+                             f'（{"・".join(old[:5])}{" ほか" if len(old) > 5 else ""}）')
     return errs, notes
 
 
 def merge(datas):
-    """One file with the reviews of all; the same reviewer twice must have equal records."""
+    """One file with the reviews of all; the same reviewer twice must have equal records. claims-review/1 records are
+    migrated: the result is always claims-review/2."""
+    datas = [migrate(d) for d in datas]
     designs = sorted({d['design'] for d in datas})
     if len(designs) > 1:
         raise ValueError(f'the files are about different designs: {designs}')
@@ -349,6 +471,7 @@ def _short(anchor):
 def report(data, design, data_review, reviewer=None, label=None, version=None):
     """The Markdown report of one review. data_review: the dict of docs/claims/data/review.js (build_claims_viewer);
     version: the template_version of line 1 of review.yaml (the materials of the review when materials is not recorded)."""
+    data = migrate(data)
     rvs = data['reviews']
     rv = next((r for r in rvs if r['reviewer']['name'] == reviewer), None) if reviewer else (rvs[0] if rvs else None)
     if rv is None:
@@ -371,16 +494,17 @@ def independence_text(data, rv):
     if ind.get('viewed_others_at'):
         parts.append(f'ほかのレビュアーの記録を初めて見た日時 {ind["viewed_others_at"]}')
     n = sum(1 for x in (rv.get('answers') or {}).values() if x.get('edited_after_viewing_others')) + \
-        sum(1 for x in (rv.get('rows') or {}).values() if x.get('edited_after_viewing_others')) + \
-        sum(1 for x in rv.get('findings') or [] if x.get('edited_after_viewing_others'))
+        sum(1 for x in (rv.get('viewed') or {}).values() if x.get('edited_after_viewing_others')) + \
+        sum(1 for x in rv.get('comments') or [] if x.get('edited_after_viewing_others'))
     if n:
-        parts.append(f'その後に直した記録 {n} 件（回答・判定・指摘の edited_after_viewing_others）')
+        parts.append(f'その後に直した記録 {n} 件（回答・確認済みの印・コメントの edited_after_viewing_others）')
     if rv.get('submitted') and rv.get('updated') and str(rv['updated']) > str(rv['submitted']):
         parts.append(f'提出（{rv["submitted"]}）の後に更新した（{rv["updated"]}）')
     return '。'.join(parts)
 
 
 def report_text(data, rv, R, hashes, docs, label=None, version=None):
+    """rv: a review of a claims-review/2 record (migrate() a v1 record first)."""
     form = R['report']
     heads = {s['heading'][:2]: s for s in form['sections']}
     stage_name = {s['id']: s['name'] for s in R['stages']}
@@ -390,7 +514,7 @@ def report_text(data, rv, R, hashes, docs, label=None, version=None):
     who = rv['reviewer']
     llm = who['kind'] == 'llm'
     lines = [f'# レビューレポート：{md(label or data["design"])}', '',
-             '> 設計書のエディターのレビューモード（#50）が `review.yaml` から生成した。レビュアーの名前は自己申告で、'
+             '> 設計書のエディターが `review.yaml` から生成した。レビュアーの名前は自己申告で、'
              '本当の承認は GitHub の PR のレビューで行う。' + ('レビュアーは LLM で、人による点検は未実施。' if llm else ''), '']
 
     def head(k):
@@ -465,7 +589,7 @@ def report_text(data, rv, R, hashes, docs, label=None, version=None):
     head('1.')
     table('1.', [[k, _cell(values.get(k))] for k in heads['1.']['items']])
     # 2. / 3.
-    fs = rv.get('findings') or []
+    fs = rv.get('comments') or []
     head('2.')
     table('2.', [[_cell(f['id']), _cell(f['location']), _cell(f['content'] + (f'（判定の理由：{f["verdict_reason"]}）' if f.get('verdict_reason') else '')),
                   _cell(f['severity']), _cell(f['origin']), _cell(f['kind']), _cell(f.get('confused_question') if f['kind'] == '目的と仕組みの不一致' else None),
@@ -483,7 +607,7 @@ def report_text(data, rv, R, hashes, docs, label=None, version=None):
     lines.append('')
     # 5.
     head('5.')
-    table('5.', [[_cell(x['to']), _cell(x['content']), _cell('・'.join(x.get('findings') or [])), _cell(x.get('ref'))]
+    table('5.', [[_cell(x['to']), _cell(x['content']), _cell('・'.join(x.get('comments') or [])), _cell(x.get('ref'))]
                  for x in rv.get('feedback') or []])
     # 6.
     head('6.')
@@ -515,28 +639,47 @@ def report_text(data, rv, R, hashes, docs, label=None, version=None):
     if gone:
         lines.append(f'今の観点書に無い問いへの回答：{len(gone)} 件（' + '・'.join(md(q) for q in gone) + '）')
         lines.append('')
-    # 9. the row decisions (not in the form; the form allows sections after 8.)
-    lines.append('## 9. 行ごとの記録（エディターのレビューモード、#50。生成した時の台帳と比べた状態）')
+    # 9. the viewed marks and the submissions (not in the form; the form allows sections after 8.)
+    lines.append('## 9. 確認済みの行と提出の記録')
     lines.append('')
-    lines.append('行の内容のハッシュ（RFC 8785 JCS の SHA-256、`tools/row_hash.py`）に結びつけた判定です。記録の後に行が変わると「再確認が要る」になります。'
-                 'ハッシュはその行の値だけを見ます（参照するトークン種別・ホップの行、25 問の回答、design.md の本文を変えても再確認にはなりません）。')
+    lines.append('「確認済み」は、レビュアーがその行の内容を見たという印で、承認ではありません。判定（承認／変更を依頼／コメントのみ）は、提出ごとにレビュー全体に 1 つ付けます。'
+                 '印と判定は、行の内容のハッシュ（RFC 8785 JCS の SHA-256、`tools/row_hash.py`）に結びつきます。記録の後に行が変わると「前回の確認から変更あり」になり、承認は古い承認になります。'
+                 'ハッシュはその行の値だけを見ます（参照するトークン種別・経路の行、25 問の回答、design.md の本文を変えても変わりません）。下の「今の行との対応」は、このレポートを生成した時のクレーム一覧と比べた状態です。')
     lines.append('')
-    rows = rv.get('rows') or {}
-    st = row_states(rv, hashes)
-    lines.append(_row(['行', '判定', '日時', '今の行との対応', 'コメント']))
+    subs = rv.get('submissions') or []
+    old = stale_approval(rv, hashes)
+    lines.append(_row(['日時', '判定', '総評', '確認済みの行数', 'コメント数']))
     lines.append(_row(['---'] * 5))
-    label_of = {'current': '一致（記録のときのまま）', 'stale': '再確認が要る（行が変わった）', 'missing': '台帳に無い行'}
-    for a in sorted(rows):
-        r = rows[a]
-        kind = r.get('reviewer_kind') or who['kind']
-        lines.append(_row([_cell(a), DECISION_JA[r['decision']] + ('（LLM）' if kind == 'llm' else ''), _cell(r['at']),
-                           label_of[st[a]] + f'（{r["hash"][:12]}）', _cell(r.get('comment'))]))
-    if not rows:
+    for k, sb in enumerate(subs):
+        v = VERDICT_JA[sb['verdict']] + ('（移行）' if sb.get('migrated') else '')
+        if old and k == len(subs) - 1:
+            v += f'（古い承認：内容が変更されました。{len(old)} 行）'
+        lines.append(_row([_cell(sb['at']), v, _cell(sb.get('summary')), str(len(sb.get('viewed') or {})), str(len(sb.get('comments') or []))]))
+    if not subs:
         lines.append('|' + ' |' * 5)
-    c = {k: sum(1 for a in rows if rows[a]['decision'] == k) for k in DECISION_JA}
     lines.append('')
-    lines.append(f'計 {len(rows)} 行：' + '・'.join(f'{DECISION_JA[k]} {c[k]}' for k in DECISION_JA)
-                 + f'。再確認が要る {sum(1 for v in st.values() if v == "stale")}・台帳に無い {sum(1 for v in st.values() if v == "missing")}')
+    if not subs:
+        lines.append('未提出（判定はまだ無い）。')
+        lines.append('')
+    cs = {k: sum(1 for f in fs if f['state'] == k) for k in ('pending', 'unresolved', 'resolved')}
+    lines.append(f'コメントの状態：未提出 {cs["pending"]}・未解決 {cs["unresolved"]}・解決済み {cs["resolved"]}')
+    lines.append('')
+    viewed = rv.get('viewed') or {}
+    st = row_states(rv, hashes)
+    lines.append(_row(['行', '確認した日時', '今の行との対応', '移行前の判定とコメント']))
+    lines.append(_row(['---'] * 4))
+    label_of = {'current': '一致（確認したときのまま）', 'stale': '前回の確認から変更あり', 'missing': '一覧に無い行'}
+    for a in sorted(viewed):
+        r = viewed[a]
+        kind = r.get('reviewer_kind') or who['kind']
+        mf = r.get('migrated_from')
+        lines.append(_row([_cell(a), _cell(r['at']) + ('（LLM）' if kind == 'llm' else ''), label_of[st[a]] + f'（{r["hash"][:12]}）',
+                           (DECISION_JA[mf['decision']] + (f'：{md(mf["comment"])}' if mf.get('comment') else '')) if mf else '—']))
+    if not viewed:
+        lines.append('|' + ' |' * 4)
+    lines.append('')
+    lines.append(f'計 {len(viewed)} 行：一致 {sum(1 for v in st.values() if v == "current")}'
+                 f'・前回の確認から変更あり {sum(1 for v in st.values() if v == "stale")}・一覧に無い {sum(1 for v in st.values() if v == "missing")}')
     return '\n'.join(lines) + '\n'
 
 
@@ -555,7 +698,7 @@ def _write(text, path):
 
 
 def is_row_note(n):
-    return '再確認が要る' in n or '台帳に無い行' in n
+    return STALE_NOTE in n or MISSING_NOTE in n or OLD_APPROVAL_NOTE in n
 
 
 def reseed(data, design, reviewer, reason, seed=None, count=None, when=None):
@@ -589,8 +732,13 @@ def main(argv=None):
     c = sub.add_parser('check')
     c.add_argument('file')
     c.add_argument('--design')
-    c.add_argument('--fail-on-stale', action='store_true', help='exit 1 when a row decision is stale or about a row that is gone')
+    c.add_argument('--fail-on-stale', action='store_true', help='exit 1 when a viewed mark is of older content or of a row that is gone, or an approval is old')
     c.add_argument('--annotate', action='store_true', help='print the notes as GitHub Actions ::warning annotations too')
+    g = sub.add_parser('migrate')
+    g.add_argument('file')
+    gg = g.add_mutually_exclusive_group()
+    gg.add_argument('-o', '--output')
+    gg.add_argument('--check', metavar='OUT_YAML', help='exit 1 when OUT_YAML differs from the migration of the file')
     m = sub.add_parser('merge')
     m.add_argument('files', nargs='+')
     m.add_argument('-o', '--output')
@@ -617,11 +765,15 @@ def main(argv=None):
     out = sys.stdout
     if a.cmd == 'check':
         data = load(a.file)
+        v1 = is_v1(data)
         errs, notes = check(data, a.design)
         with open(a.file, encoding='utf-8') as f:
             raw = f.read().replace('\r\n', '\n')
         if not errs and raw != dump(data, version_of(raw)):
             errs.append('the file is not in the canonical form the editor writes (python tools/review_record.py merge FILE -o FILE rewrites it)')
+        if v1:
+            print(f'info {a.file} は前の形（{FORMAT_V1}）。{FORMAT} に移行して確かめた（ファイルは変えない）。新しい形にするなら：'
+                  f'python tools/review_record.py migrate {a.file} -o <出力>', file=out)
         for e in errs:
             print('error ' + e, file=out)
         for n in notes:
@@ -629,12 +781,34 @@ def main(argv=None):
             if a.annotate:
                 print(f'::warning file={a.file},title=review_record::' + n.replace('%', '%25').replace('\n', '%0A'), file=out)
         rows_n = [n for n in notes if is_row_note(n)]
-        n_rows = sum(len(rv['rows']) for rv in data.get('reviews') or []) if not schema_errors(data) else 0
+        ok_schema = isinstance(data, dict) and not schema_errors(data)
+        now = migrate(data) if ok_schema else {}
+        n_rows = sum(len(rv['viewed']) for rv in now.get('reviews') or [])
+        n_subs = sum(len(rv['submissions']) for rv in now.get('reviews') or [])
         fail = bool(errs) or (bool(rows_n) and a.fail_on_stale)
-        print(f'review_record check: {len(data.get("reviews") or [])} reviews, {n_rows} row decisions, '
+        print(f'review_record check: {len(now.get("reviews") or [])} reviews, {n_rows} viewed marks, {n_subs} submissions, '
               f'{len(rows_n)} need a new look, {len(notes) - len(rows_n)} other warnings' + (f', {len(errs)} errors' if errs else '')
               + ' ->' + (' FAIL' if fail else ' OK'), file=out)
         return 1 if fail else 0
+    if a.cmd == 'migrate':
+        with open(a.file, encoding='utf-8') as f:
+            ver = version_of(f.read())
+        data = load(a.file)
+        errs = schema_errors(data)
+        if errs:
+            for e in errs:
+                print('error ' + e, file=out)
+            return 1
+        text = dump(migrate(data), ver)
+        if a.check:
+            with open(a.check, encoding='utf-8') as f:
+                cur = f.read().replace('\r\n', '\n')
+            ok = cur == text
+            print(f'review_record migrate --check {a.check}: ' + ('OK' if ok else f'FAIL (differs from the migration of {a.file}; '
+                  f'run: python tools/review_record.py migrate {a.file} -o {a.check})'), file=out)
+            return 0 if ok else 1
+        _write(text, a.output)
+        return 0
     if a.cmd == 'merge':
         with open(a.files[0], encoding='utf-8') as f:
             ver = version_of(f.read())
@@ -646,7 +820,7 @@ def main(argv=None):
                 ap.error('sample --reseed needs --file, --reviewer and --reason')
             with open(a.file, encoding='utf-8') as f:
                 ver = version_of(f.read())
-            data = reseed(load(a.file), a.design, a.reviewer, a.reason, a.seed, a.count)
+            data = reseed(migrate(load(a.file)), a.design, a.reviewer, a.reason, a.seed, a.count)
             _write(dump(data, ver), a.file)
             print('drawn again: ' + ' '.join(next(r for r in data['reviews'] if r['reviewer']['name'] == a.reviewer)['sampling']['picked'])
                   + '（新しい行は採点し直す）', file=out)

@@ -22,7 +22,8 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 | [escalation.md](escalation.md) | 専門家に回す基準（9 つ） |
 | [rationale_rubric.md](rationale_rubric.md) | 理由の採点基準（RR1〜RR7。各観点に合格と不合格の例。採点の範囲と迷いやすい点の決まり） |
 | [report_template.md](report_template.md) | レビューレポートの様式（出どころ 5 種・種別 5 種） |
-| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50。設計書のエディターのレビューが書き出す。レビュアーの名前は自己申告） |
+| [review.schema.json](review.schema.json) | レビューの記録 `review.yaml` の JSON Schema（#50、#67。形の名前は `claims-review/2`。設計書のエディターのレビューが書き出す。レビュアーの名前は自己申告）。レビュアーごとに、確認済みの印（`viewed`。行の内容のハッシュに結びつく。承認ではない）、コメント（`comments`。未提出・未解決・解決済み）、提出ごとの判定（`submissions`。承認・変更を依頼・コメントのみ）を持つ |
+| [review.v1.schema.json](review.v1.schema.json) | 前の形（`claims-review/1`。行ごとの判定と指摘）の JSON Schema。前の形のファイルも読める（`tools/review_record.py` とエディターが、読むときに新しい形へ移す）。書き直すなら `python tools/review_record.py migrate` |
 | [escaped_defects.md](escaped_defects.md) | レビュー後に見つかった欠陥の記録 |
 | [metrics.md](metrics.md) | レビューの指標（目標にしない観察の記録） |
 
@@ -43,18 +44,19 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳）をレビ�
 
 ## エディターでレビューする（#50）
 
-設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）で、上のバーを「レビュー」に切り替えると、この教材を使ってレビューを記録できます（最初の画面の「設計書をレビューする」からも始められる）。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします（Git の履歴が監査の記録になる）。
+設計書のエディター（`docs/claims/`、https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）で、上のバーの「レビューを開始」を押すと、この教材を使ってレビューを記録できます（最初の画面の「設計書をレビューする」からも始められる）。流れはプルリクエストのレビューと同じです（#67）：行を見て「確認済み」を付ける → コメントをためる → 最後に 1 回だけ、判定を付けて提出する。サーバーは使わず、記録は `review.yaml` として書き出し、PR で台帳と一緒にコミットします。
 
-- 観点のチェックリスト：既定で、開いている設計書の性質に当たる、人の判断が要る問い（short_list.md と同じ選び方）と、開いた問いだけを出す（#56）。「表示する問い」で、観点書の 168 問の全部や、区分ごとの問いに切り替えられる（`python tools/build_claims_viewer.py` が観点書と triage.yaml から作る。CI の `--check` が食い違いを見る）。6 段と役割（7. の索引）でも絞り込める。問いごとに Yes／No／該当なし とメモを記録する。「見る欄」から、その欄（台帳の列・設計書の節・25 問の回答）に移る。画面の作り直しは #67
-- 行ごとの判定：承認／修正を求める／保留 を、レビュアー・日時・コメントとともに記録する。判定は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると「再確認が要る」になる
-- 指摘は report_template.md の欄で記録する。分析の画面（網羅・lint との重ね合わせ・前の版との差分・25 問の回答・却下の理由の抜き取り）と、report_template.md の形のレポートの生成がある
+- 確認事項：既定で、開いた設計書の性質に当たる、人の判断が要る問いのうち優先 1 のものと、開いた問い（既定は 3 つ）だけを出す（[short_list.md](short_list.md) と同じ選び方。#56）。優先 2 の問いと残りの開いた問いは「時間があれば」。出さなかった問いは件数と理由を見せ、観点書の 168 問の全部や、区分ごとの問いも開ける（`python tools/build_claims_viewer.py` が観点書と [triage.yaml](triage.yaml) から作る。CI の `--check` が食い違いを見る）。問いごとに Yes／No／該当なし（画面では 問題なし／直す必要あり／対象外）と理由を記録する。「見る場所」から、その欄（台帳の列・設計書の節・25 問の回答）に移る
+- 確認済み：行ごとの見た印（承認ではない）を、レビュアー・日時とともに記録する。印は行の内容のハッシュ（`tools/row_hash.py`）に結びつき、行を変えると外れて「前回の確認から変更あり」になる
+- 指摘は、画面ではコメント（未提出／未解決／解決済み）として書き、重大度と種別を report_template.md の語で選ぶ。提出のときに、総評と、レビュー全体に 1 つの判定（承認／変更を依頼／コメントのみ）を付ける。report_template.md の形のレポートの生成がある
 - **レビュアーの名前は自己申告です。** 本当の承認は GitHub の PR のレビューで行います
 - 独立レビュー：提出するまで、ほかのレビュアーの記録を隠す設定がある（[procedure.md](procedure.md)）。画面で隠すだけで、review.yaml を開けば見える。提出の前に隠すのをやめる操作は確かめて、外れたことを review.yaml に記録する（`independence`）。守ったかは自己申告で、手順で守る
-- 行の判定のハッシュは、その行の値だけを見る。参照する行・25 問の回答・design.md の本文を変えても「再確認が要る」にならない
+- 確認済みの印のハッシュは、その行の値だけを見る。参照する行・25 問の回答・design.md の本文を変えても、印は外れない
 - 記録がある設計書を変える PR の手順（承認した行・却下の行・教材を変えたとき）は [../CONTRIBUTING.md](../CONTRIBUTING.md) の「レビューの記録がある設計書を変えるとき」
 
 ```
-python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・抜き取り・古くなった承認
+python tools/review_record.py check <dir>/review.yaml --design <dir> [--fail-on-stale] [--annotate]   # スキーマ・問い ID・コメントの状態・提出・抜き取り・行が変わった確認済みの印と古い承認
+python tools/review_record.py migrate <dir>/review.yaml -o <dir>/review.yaml   # 前の形（claims-review/1）を新しい形にする（--check <ファイル> で、移した結果と同じかを確かめる）
 python tools/review_record.py sample <dir> --reseed --reason "<理由>" --file <dir>/review.yaml --reviewer "<名前>"   # 母集団が変わった抜き取りを引き直す
 python tools/review_record.py report <dir>/review.yaml --design <dir> -o <dir>/review-report-<日付>.md
 python tools/review_check.py --report <レポート>                                          # report_template.md の様式どおりか

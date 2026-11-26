@@ -1,0 +1,1842 @@
+# template_version: 0.4.0
+# review.yaml: レビューの記録。設計書のエディター（docs/claims/）が書き出した形（claims-review/2）。
+# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。
+format: "claims-review/2"
+design: "research/pilot/scenario-c"
+independent: true
+reviews:
+  - reviewer:
+      name: "R2"
+      kind: "llm"
+      model: "claude-opus-5-5（Claude Code のサブエージェントのセッション。パイロット #9 のブラインドのレビュアー R2）"
+      note: "LLM によるレビュー。人による検証ではない。攻撃者と本番の運用の失敗から先に読み、その後で標準の手順を行った"
+    self_declared: true
+    started: "2026-11-24T06:57:14+09:00"
+    updated: "2026-11-24T07:10:42+09:00"
+    submitted: "2026-11-24T07:10:42+09:00"
+    independence:
+      mode: "kept"
+    target:
+      commit: "f8c26c7"
+      note: "research/pilot/scenario-c（worktree agent-a9f5b6ad37dc24c26、読み取りだけ）。LLM によるレビュー。人による検証ではない"
+    materials:
+      questions: 168
+      perspectives: "0.4.0"
+      report_template: "0.4.0"
+    context:
+      materials: "templates/review（perspectives 0.4.0・report_template 0.4.0・procedure 0.4.0・rationale_rubric 0.5.0・escalation 0.4.0）、decision_tree、contrasts、tools/claim_lint、tools/review_record.py。worktree のコミット f8c26c7"
+      lite_full: "設計書は 5 問で Full と判定し、パイロットの指示で Lite の欄で書いた。レビュアーの確認：Full が正しい（委任・交換 Yes、新しい発行者 Yes）。F01"
+      steps: "0〜7（8 は書き手の対応の後。段 0 は error 53 で返却の条件に当たるが、パイロットの指示で続けた）"
+      roles_order: "1 名（LLM）の役割の切り替え：攻撃者 → 運用 → 受け手 → 発行者 → 個人情報 → クライアント（本番の失敗から読む指示のため、運用を 2 番目に上げた）。同じセッションの中で切り替え、日は分けていない"
+      ci:
+        error: 53
+        warn: 1
+        info: 9
+        profile: "full"
+        matches_design: true
+        note: "設計書の 1. と同じ（worktree f8c26c7 と main 1a24390 の lint で同じ件数）。--profile lite では error 0・warn 3（L15、L73 が 2 件）。render --check は OK"
+      human_check: "LLM によるレビュー。人による検証ではない。人による点検は未実施"
+    answers:
+      ap-1-1:
+        answer: "yes"
+        memo: "alg_allowlist ES256、header_key_params reject"
+      ap-1-2:
+        answer: "yes"
+        memo: "validates が local（署名を検証）"
+      ap-1-3:
+        answer: "yes"
+        memo: "aud は required_claims にあり、自分の正規の URI と一致"
+      ap-1-4:
+        answer: "yes"
+        memo: "iss は許可リストの 1 つと完全一致"
+      ap-1-5:
+        answer: "yes"
+        memo: "key_source は issuer_metadata_jwks_uri"
+      ap-1-6:
+        answer: "yes"
+        memo: "email を却下し、照合は sub"
+      ap-1-7:
+        answer: "yes"
+        memo: "全行の書き手が STS（platform）。本文の承認 ID を信じない（C7）"
+      ap-1-8:
+        answer: "yes"
+        memo: "exp 必須、ずれ 30 秒"
+      ap-2-1:
+        answer: "na"
+        memo: "グループ・ロールを載せない"
+      ap-2-2:
+        answer: "yes"
+        memo: "scope は委任の取り消しで RT 失効＋交換の拒否、authorization_details は支払いのたびの DB の照合"
+      ap-2-3:
+        answer: "no"
+        memo: "受け手のスキーマ（TOOL_AT.consumer.schema.json）の authorization_details の items が {type: object} だけで、内側の型が固定されていない。F10"
+      ap-2-4:
+        answer: "na"
+        memo: "独自クレームが無い"
+      ap-2-5:
+        answer: "na"
+        memo: "クレームをヘッダーに写さない"
+      ap-2-6:
+        answer: "yes"
+        memo: "ツールは受け取った AGENT_AT を上流に渡さず交換する"
+      ap-2-7:
+        answer: "yes"
+        memo: "エージェントは利用者のトークンを受け取らず、cnf と act で借用を拒否（C12）"
+      ap-2-8:
+        answer: "yes"
+        memo: "U14 にトークンの全文を残さないとある"
+      ap-2-9:
+        answer: "yes"
+        memo: "TOOL_AT は署名（ES256）・失効（交換の拒否＋exp）・iss の束縛・監査ログ（U14）がある"
+      cd-01:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-02:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-03:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-04:
+        answer: "yes"
+        memo: "持ち主（DB の行）と STS が書いた sub だけで認可する"
+      cd-05:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-06:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-07:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-08:
+        answer: "na"
+        memo: "DB の文脈・RLS・DB のロールをトークンで設定しない。請求書の API がサービスの資格情報で接続し、持ち主の条件で照会する（lifecycle-db-connection）"
+      cd-09:
+        answer: "yes"
+        memo: "利用者単位の監査は請求書の API と STS の監査ログ（sub のハッシュ・jti）で行う"
+      cd-10:
+        answer: "yes"
+        memo: "on_missing 拒否、持ち主の条件が合わなければ 404"
+      cd-11:
+        answer: "yes"
+        memo: "DB の層は無いと設計書に書き、C3 は C2〜C15 の拒否の試験の計画に入る（12.）"
+      cf-01:
+        answer: "yes"
+        memo: "台帳の authoritative_writer に段階（①②③⑥）ごとの書き手がある"
+      cf-02:
+        answer: "yes"
+        memo: "フックは無く、on_missing は拒否"
+      cf-03:
+        answer: "na"
+        memo: "外部のトークンが無い（単一の発行者）"
+      cf-04:
+        answer: "yes"
+        memo: "H2 で交換し aud を替える"
+      cf-05:
+        answer: "yes"
+        memo: "H2 は aud を narrowing_exception つきで替え、scope は同じ、寿命は 60≦300"
+      cf-06:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      cf-07:
+        answer: "yes"
+        memo: "H1〜H3 の validates が local で中身がある"
+      cf-08:
+        answer: "na"
+        memo: "クレームをヘッダーに写さない"
+      cf-09:
+        answer: "na"
+        memo: "IP・端末を認可に使わない。直接の相手は mTLS の主体で要求ごとに確かめる"
+      cf-10:
+        answer: "no"
+        memo: "C-authorization-details の log_policy は「記録しない」だが、U14 の回答は approval_id を記録すると書く。目録の log_policy（Full の列）が無い。F14"
+      dc-01:
+        answer: "na"
+        memo: "新しい独自クレームの採用行が無い。authorization_details は登録名で、volatility 0 は 9.2 の DB の照合で扱う（q-freshness-mitigation）"
+      dc-02:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      dc-03:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      dc-04:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      dc-05:
+        answer: "no"
+        memo: "authorization_details の内側（instructedAmount.amount・currency・creditorAccount・invoice_id）の型が台帳にも受け手のスキーマ（items は object だけ）にも無い。F10"
+      dc-06:
+        answer: "na"
+        memo: "登録名だけ。scope は RFC の space_delimited、authorization_details は配列"
+      dc-07:
+        answer: "no"
+        memo: "C-authorization-details と C-act の on_missing が「拒否」だが、読む操作の AGENT_AT・TOOL_AT は authorization_details を持たず、PORTAL_AT は act を持たない。absent_semantics（Full の列）が空。F13"
+      dc-08:
+        answer: "no"
+        memo: "完全一致で照合すると書くが、金額の表記（120000 と \"120000.00\"）・口座の ID の大文字小文字と空白の正規化が無い。F10"
+      dc-09:
+        answer: "yes"
+        memo: "sub は STS の変わらない ID（identifier_properties）。表示名・メールを載せない"
+      dc-10:
+        answer: "yes"
+        memo: "すべての採用行に authoritative_writer があり、STS（platform）だけが書く。authorization_details は承認の記録から写し、エージェントの申告から作らない"
+      dc-11:
+        answer: "yes"
+        memo: "authorization_details は max_items 1・max_bytes 400・overflow 発行を失敗。scope は max_items 3"
+      dc-12:
+        answer: "yes"
+        memo: "代替：claims の issuers（Full の列）は空だが、目録の issuers が STS 1 つ。on_missing は拒否"
+      dc-gate:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-01:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-02:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-03:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-04:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-05:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-06:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-07:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-08:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-09:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-10:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-11:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-12:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-13:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-14:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-15:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-16:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-17:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-18:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-19:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-20:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-21:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-22:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-23:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-24:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-25:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      pa-gate:
+        answer: "yes"
+        memo: "答えられない問いが残る組織のクレーム（task_id・approval_id）は載せずに却下した"
+      pa-trace:
+        answer: "na"
+        memo: "該当なし：組織の独自の共有クレームを足していない（C-org-task-id・C-org-approval-id は却下。claim_request_*.md が無い）"
+      q-access-context-from-pep:
+        answer: "na"
+        memo: "IP・端末を判断に使わない"
+      q-agent-delegation-claims:
+        answer: "yes"
+        memo: "sub＝利用者、act.sub・client_id＝エージェント（AGENT_AT）、ツール（TOOL_AT）"
+      q-agent-own-identity:
+        answer: "yes"
+        memo: "エージェントごとに別の証明書と client_id（2.1）"
+      q-agent-short-lived-no-rt:
+        answer: "no"
+        memo: "AGENT_AT は 300 秒だが AGENT_RT（8 時間）を出す。タスク単位の再同意と比べた理由はある（9.1）が、問いの基準は RT を出さないこと。F21"
+      q-approval-from-as:
+        answer: "yes"
+        memo: "承認は承認の記録から STS が写し、請求書の API が DB で状態を引く。トークンと台帳の両方を使う理由が C-org-approval-id と 3.1 にある（消費の原子性は F03）"
+      q-audit-correlation:
+        answer: "yes"
+        memo: "sub（ハッシュ）・act の連鎖・jti・approval_id を STS と請求書の API の監査ログで結ぶ（txn は使わない理由あり）"
+      q-audit-log-protected:
+        answer: "no"
+        memo: "監査ログの閲覧者（監査の担当）は integrity_until にあるが、保存期間と方針が無い。F14"
+      q-auth-context-semantics:
+        answer: "yes"
+        memo: "acr を却下し、C-iat の not_meaning に「利用者が認証した時刻ではない」とある"
+      q-authorize-service-and-user:
+        answer: "yes"
+        memo: "mTLS の相手と act の最も外側、sub と持ち主をそれぞれ照合"
+      q-baseline-kept:
+        answer: "yes"
+        memo: "3.2 で全基準を満たすと宣言。受け入れの検証は目録の alg_allowlist・issuers・required_claims・typ にある"
+      q-break-glass:
+        answer: "no"
+        memo: "緊急時の特権の経路と承認・期限が書いていない（2.2 が空）。F09"
+      q-change-order:
+        answer: "no"
+        memo: "9.3（Full）が空で、authorization_details の payment の型を変えるときの手順が無い。F01"
+      q-claim-earliest-hop:
+        answer: "yes"
+        memo: "authorization_details を H1 の AGENT_AT から載せ、H2 はその部分集合"
+      q-confidential-reaches-reader:
+        answer: "yes"
+        memo: "confidential_from を持つ行が無い。JWE を使わない判断は 12. に保留として書いてある"
+      q-consumer-expression:
+        answer: "no"
+        memo: "on_missing が拒否の行で、無いのが正規のトークン（読む操作の authorization_details、PORTAL_AT の act）がある。式が拒否に倒れると C1・ポータルが落ちる。F13"
+      q-copies-outlive:
+        answer: "yes"
+        memo: "SSE は exp で閉じ（U23）、判断のキャッシュをしない（U21）、分析基盤に複製しない（U28）"
+      q-cross-tenant-identity:
+        answer: "na"
+        memo: "テナントをまたがない"
+      q-db-context-parameterized:
+        answer: "na"
+        memo: "DB の文脈を使わない"
+      q-db-context-writers:
+        answer: "na"
+        memo: "DB の文脈を使わない"
+      q-ddm-rls-only:
+        answer: "na"
+        memo: "DDM・RLS を使わない"
+      q-delegation-depth-and-revocation:
+        answer: "yes"
+        memo: "max_delegation_depth 2、委任の取り消しで RT の系列の失効と交換の拒否。深さ 2 なので専門家に回す（escalation delegation-depth）"
+      q-dependency-outage:
+        answer: "no"
+        memo: "STS（呼び出しのたびの交換）・承認の記録の DB・委任の状態の DB の障害のとき、閉じる側に倒すかと、上流の可用性の目標が無い。JWKS だけ use_last_known がある。F08"
+      q-deprecated-deadline:
+        answer: "na"
+        memo: "廃止予定の行が無い"
+      q-derived-value:
+        answer: "no"
+        memo: "受け手が要るのは「承認どおりの相手先か」の判定で、口座そのものではない。参照 ID か拇印で足りるかを比べていない。F15"
+      q-evidence-attribution:
+        answer: "yes"
+        memo: "3 件を抜き取った：rt_strategy の RFC 9700 §4.14.2（公開クライアントへの要求で、この行の状況に合わない。F16）、C-authorization-details の RFC 9396 §9.1（JWT の AT に載せる節で合う）、AGENT_AT の NIST IR 8587 §5.3.1.1（1 時間以内で合う）。引用元は開いておらず、名前と主張の対応だけを見た"
+      q-external-user-deprovision:
+        answer: "na"
+        memo: "外部の IdP・取引先の利用者がいない"
+      q-four-lifetimes-written:
+        answer: "na"
+        memo: "独自クレームが無い。登録名の 4 層は 9. の生成の表にある"
+      q-freshness-mitigation:
+        answer: "yes"
+        memo: "「超える」の authorization_details に、請求書の API の支払いのたびの DB の照合（担い手つき）"
+      q-gateway-bypass-path:
+        answer: "no"
+        memo: "請求書の API を呼ぶ他の経路（console:admin、移行前のツールの広い ID の経路）が範囲の図に矢印として無い。F09・F06"
+      q-hook-adds-raw-pii:
+        answer: "na"
+        memo: "発行時フックが無い"
+      q-hook-failure:
+        answer: "na"
+        memo: "発行時フックを使わない（組織の STS が直接書く）"
+      q-hop-lifetime:
+        answer: "yes"
+        memo: "TOOL_AT 60 秒 ≦ AGENT_AT 300 秒。exp は subject_token を超えない（C-exp の enforced_at）"
+      q-hop-narrowing:
+        answer: "yes"
+        memo: "H2 は aud 1 つ、scope・authorization_details は subject_token の部分集合と書いてある（STS の実装で強制するかは F11）"
+      q-identifier-choice:
+        answer: "yes"
+        memo: "利用者のキーは iss（1 つ）＋sub。テナントは持たない（C-tenant 却下、単一の組織）"
+      q-idp-capability-verified:
+        answer: "no"
+        memo: "STS は組織がこれから作るもので、resource の拒否・交換での深さと取り消しの確認・RT の再利用の検知・取り直しでの再評価のどれも実測も仕様書も無い（12. に記載）。F11"
+      q-idp-diff-absorbed:
+        answer: "na"
+        memo: "発行者は STS の 1 つで IdP の差が無い"
+      q-internal-delegation-token:
+        answer: "no"
+        memo: "目録の log_policy（Full の列）が TOOL_AT・AGENT_AT に無く、ログの扱いは U14 の文だけ。F14"
+      q-key-rotation:
+        answer: "yes"
+        memo: "JWKS から取り、未知の kid は 60 秒の最短間隔と負のキャッシュ、使う 1 日前に公開・1 日残す（通常のローテーション。緊急の失効は F25）"
+      q-lifetime-rationale:
+        answer: "no"
+        memo: "5.1（Full）が空で、AGENT_AT 300・TOOL_AT 60・RT 8 時間は書き手の判断（12.）。取り消しの目標 120 秒から導く式と、交換の負荷の代償の比較が無い。F17"
+      q-limit-consistency:
+        answer: "no"
+        memo: "U10 の「cnf が actor の証明書と同じ」が AGENT_AT の holder・H1 の checks（cnf はエージェントの証明書）と食い違う。log_policy と U14 も食い違う。F02・F14"
+      q-lint-workaround:
+        answer: "yes"
+        memo: "lint を通すための宣言の変更は見当たらない（Lite で書いたのはパイロットの指示と 12. に書いてある）"
+      q-long-running:
+        answer: "yes"
+        memo: "エージェントは自分の ID の委任の RT で取り直し、可否は取り直しのたびに STS が決める。ツールは交換で分単位のトークン"
+      q-minimal-per-recipient:
+        answer: "yes"
+        memo: "authorization_details は支払いのときだけ AGENT_AT に載り、交換の STS と請求書の API が読む。PORTAL_AT には載せない"
+      q-nested-jwt-both-layers:
+        answer: "na"
+        memo: "JWE を使わない"
+      q-no-passthrough:
+        answer: "no"
+        memo: "交換を許す行為者・受け付ける subject_token の宛先・割り当てる宛先・範囲の規則の表が無い（P4 の delegation-policy が未記入）。U10 の「cnf が actor の証明書と同じ」は AGENT_AT の cnf（エージェントの証明書）と矛盾する。F05・F02"
+      q-no-secret-or-raw-pii:
+        answer: "no"
+        memo: "authorization_details の creditorAccount（振込先の口座）が平文で AGENT_AT・TOOL_AT に載り、エージェント（LLM）・ツールが読める。口座の参照 ID だけにできるか未検討。F15"
+      q-no-unverified-passthrough-mode:
+        answer: "no"
+        memo: "検証の無効化・デバッグのモードを持たないと書いていない。F18"
+      q-object-level-authz:
+        answer: "yes"
+        memo: "請求書の API が sub と請求書の持ち主（DB）を照合し 404（C3・C15）。承認の持ち主も sub と照合"
+      q-operational-metrics:
+        answer: "no"
+        memo: "付録 A が空。aud・cnf の不一致（C2・C13 の試み）、交換の拒否、深さ超過の件数を誰が測るかが無い。F20"
+      q-operator-act:
+        answer: "no"
+        memo: "console:admin（読む・支払う・返金する）がどのトークンで請求書の API を呼ぶかが無い。2.2（Full）が空で、請求書の API は act の無いトークンを client_id と相手の一致だけで受ける。F09"
+      q-original-principal:
+        answer: "yes"
+        memo: "ツールは交換で sub＝利用者のトークンを得る。client credentials の広い ID を作らない"
+      q-outside-catalog:
+        answer: "no"
+        memo: "outside_enumeration に探した範囲と 3 件はある。しかしレビュアーが思いつく「移行期間の旧経路」（現状のツールの広い ID・本文の承認 ID）と「障害時の再送」（支払いの再試行）が範囲の中で答えられていない。F06・F03"
+      q-pairwise-external:
+        answer: "na"
+        memo: "外部の受け手が無い（組織は 1 つ、crosses_boundary No）"
+      q-pairwise-unguessable:
+        answer: "na"
+        memo: "ペアワイズの sub を使わない"
+      q-payload-readable:
+        answer: "yes"
+        memo: "形式上は Yes（confidential_from が全行で空）。ただし振込先の口座が信頼しない MCP サーバーに届きうる点は F04・F15"
+      q-rar-per-audience:
+        answer: "yes"
+        memo: "H1・H2 の authorization_details は payment の type だけ"
+      q-refresh-reevaluated:
+        answer: "no"
+        memo: "取り直しで委任・方針・承認の状態を再評価する前提を、STS の実測も文書も無く置いている。F11"
+      q-registered-synonym:
+        answer: "yes"
+        memo: "独自クレームが無い。azp は client_id と同じ意味として却下し、2 つ載せていない"
+      q-relies-on-at-expiry:
+        answer: "no"
+        memo: "委任の取り消しの請求書への反映が TOOL_AT の exp（60＋30 秒）に依存する。支払いについて F07"
+      q-required-rejected:
+        answer: "yes"
+        memo: "required_claims と on_missing 拒否"
+      q-reuse-standard-structure:
+        answer: "yes"
+        memo: "鍵への結び付けは cnf、承認は authorization_details、行為者は act と既存の構造を使った"
+      q-revocation-delivery:
+        answer: "no"
+        memo: "種別ごとの最悪の秒数はある。しかし支払いは「すぐ止めたい操作」なのに、請求書の API は承認の状態だけを引き、委任の状態を引かない。取り消しの後も最大 90 秒、手元の TOOL_AT で未使用の承認を支払える。F07"
+      q-role-explosion:
+        answer: "na"
+        memo: "ロールを載せない"
+      q-rt-policy-by-client:
+        answer: "no"
+        memo: "機密クライアントに対し、RFC 9700 §4.14.2（公開クライアントへの要求）を根拠に引き、送信者制約なのにローテーションも行い再利用の検知は unverified。E-rt-sender-constrained.1（ローテーション不要）とも食い違う。F16"
+      q-scope-and-role:
+        answer: "yes"
+        memo: "role の代わりに、行為者の方針の表と持ち主の照合。scope と両方を確かめる"
+      q-scope-elevation-logged:
+        answer: "no"
+        memo: "C14 のような範囲の引き上げの要求を STS が拒否すると書くが、その試みを相関 ID つきで記録・通知すると書いていない。F20"
+      q-scope-semantics:
+        answer: "yes"
+        memo: "C-scope・C-authorization-details の not_meaning に分担（操作の範囲と、どの請求書・金額か）が書いてある"
+      q-session-rt-bounds:
+        answer: "yes"
+        memo: "AGENT_RT idle 3600／最大 28800、SESSION 1800／28800。24 時間以下"
+      q-shared-validator:
+        answer: "no"
+        memo: "受け手（ツール・請求書の API・STS の交換）が共通の検証部品を使うと書いていない（M_token_validation の欄が無い）。F18"
+      q-single-aud-resource:
+        answer: "yes"
+        memo: "resource で 1 つに絞り、2 つ以上を拒否（MCP の必須チェック 1）"
+      q-single-issuer:
+        answer: "yes"
+        memo: "発行者は STS の 1 つで、ツール・請求書の API はクレームを足さない"
+      q-size-limit:
+        answer: "yes"
+        memo: "R8 で最悪 1739／8192 バイト"
+      q-sql-tenant-predicate:
+        answer: "no"
+        memo: "サービスの ID で DB に接続し、持ち主の条件だけで利用者を分けるのに、全 SQL（一覧・検索・支払い・返金）に持ち主の条件を付ける規約と検査が無い。F19"
+      q-step-up-by-rs:
+        answer: "na"
+        memo: "追加認証ではなく人の承認の記録で確かめる設計（C-acr の却下に理由と崩れる条件）"
+      q-step-up-path-coverage:
+        answer: "na"
+        memo: "追加認証を使わず、支払いは承認の記録で確かめる（acr 却下）"
+      q-system-actor-no-fake-sub:
+        answer: "yes"
+        memo: "client credentials を作らず、サービスの ID で利用者の sub を作らない"
+      q-tenant-data-match:
+        answer: "na"
+        memo: "テナントを持たない（単一の組織）"
+      q-token-logging:
+        answer: "no"
+        memo: "記録する HTTP ヘッダーの許可リストと、HAR・ログからトークンを除く手順が無い。F14"
+      q-token-not-in-url:
+        answer: "yes"
+        memo: "AT は Authorization ヘッダーだけ、クエリの access_token を拒否（必須チェック 8）。SSE もヘッダー"
+      q-trace-id-trust:
+        answer: "yes"
+        memo: "相関には署名されたトークンの jti を使い、traceparent を監査に使わない"
+      q-txn-required-claims:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      q-txn-scope-fixed:
+        answer: "na"
+        memo: "Txn-Token を使わない"
+      q-typ-distinguishes:
+        answer: "yes"
+        memo: "ID トークンを出さず、AT は at+jwt。請求書の API は TOOL_AT と PORTAL_AT を act の有無と client_id で分ける（F05 で許可の一覧を求める）"
+      q-unverified-claim-extraction:
+        answer: "yes"
+        memo: "どのホップも local で署名を検証する"
+      q-unwrapped-value-authz:
+        answer: "yes"
+        memo: "署名の外に写した値（監査ログ）を認可に使わない（integrity_until は log だけ）"
+      q-validate-before-read:
+        answer: "yes"
+        memo: "act・authorization_details の照合は受け入れの検証の後と hops の checks の順で読める"
+      q-validity-not-authz:
+        answer: "yes"
+        memo: "操作（scope）・行為者の方針・持ち主・承認の内容を照合する"
+      q-value-vocabulary:
+        answer: "na"
+        memo: "roles・groups を載せない（C-roles 却下）。authorization_details の type の語彙は value_vocabulary にある"
+      q-variant-comparison:
+        answer: "yes"
+        memo: "3. と 4. で mTLS と DPoP、tls_client_auth と private_key_jwt を、開く攻撃（C2・C12・C13）とサイズ（R8・other_headers_bytes）で比べている"
+      q-writer-distinguished:
+        answer: "yes"
+        memo: "値はすべて STS が書き、本人・呼び出し側の値（本文の承認 ID）を認可に使わない"
+    viewed:
+      "catalog_answers:I01":
+        reviewer_kind: "llm"
+        hash: "fe18bbdbff09c9291d0ecc63e6fd1bc1f7fbeb4dbd13c5bf62e369ca4b732883"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I02":
+        reviewer_kind: "llm"
+        hash: "ebfe3a04e9166673029ca1a0551e93f589693eb5ee741ee8fb712f18c419b31f"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I03":
+        reviewer_kind: "llm"
+        hash: "279be1b2b69745d44ffd64329cfb62173a8c8ce013f501edb4bdb02c46692c89"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I04":
+        reviewer_kind: "llm"
+        hash: "7888f7e88f9e4329ae7ce565acdd478b195623ba4575b76abfec1dd89520df0e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I05":
+        reviewer_kind: "llm"
+        hash: "479c439417725fdbeaff0f84cafcf61af7a3b74d577381540c243e0ba063b97b"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "移行の旧経路は F06"
+      "catalog_answers:I06":
+        reviewer_kind: "llm"
+        hash: "60a34610381b8dccb23084cfa92afb9da7b98f11a3d217ad3c2519b94ab8ea9f"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I07":
+        reviewer_kind: "llm"
+        hash: "8937bf5991085a06a83f203f0793a97c9fbc049a57236afb80e88505b6f7dba8"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I08":
+        reviewer_kind: "llm"
+        hash: "cd6678918f1de052fa130a12a007952156b100b6ead2677735d7bd9c61acb035"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I09":
+        reviewer_kind: "llm"
+        hash: "df516118fbc59e14316422f828c17a769bedac2cf31e408214b554229835368d"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I10":
+        reviewer_kind: "llm"
+        hash: "a347a78c5ea41c74c8ca9afa5a9b15e15f5a178b63c65b62a8819ce8b6825389"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I11":
+        reviewer_kind: "llm"
+        hash: "5ce7883f6997b67f8daa86a239b85a0d657716298dc4a39fc7fc7f3685285db0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I12":
+        reviewer_kind: "llm"
+        hash: "873d0040bf344bb712ca338f2a7f41cade307a8825fb34bcae496829a3a0b230"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I13":
+        reviewer_kind: "llm"
+        hash: "803cc655e28006aa3cfd190029a9503a2fba1c512dbf717d1371deccfb87167e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I14":
+        reviewer_kind: "llm"
+        hash: "2f8cb16bc466e604f68181dcd248c4c1c94e4d7b0ff6222a12f51fd7076a364e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I15":
+        reviewer_kind: "llm"
+        hash: "f1f2ac4cd228633a434e6a69bb621d0340d07965a1a29712048a121bcdaacebf"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I16":
+        reviewer_kind: "llm"
+        hash: "6318ec19ae94b509610de7cb49ae0683a489bcdfeec7801223ad76402d45aeda"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I17":
+        reviewer_kind: "llm"
+        hash: "4cf5ba277a0d24aa2990509685cad87c2af001143aec11c67799b4280c1caa32"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I18":
+        reviewer_kind: "llm"
+        hash: "a61d031d43b9d5af359800c8292738c251e9a621b2a5a4742d367762703ded3b"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I19":
+        reviewer_kind: "llm"
+        hash: "b2ccdb62b7965d559ded78c37672b2c8f42255b4abe108fd299299dd4a086317"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F09（管理コンソールの経路）"
+      "catalog_answers:I20":
+        reviewer_kind: "llm"
+        hash: "061cdcc9d7a5e33d155fcda825d4c2192ecb30afc9fb51e210b737160a0dde58"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I21":
+        reviewer_kind: "llm"
+        hash: "a284529a38e48bbe4e6f1d5c39b425ae886a1da181282d06abfb53a9a51f8439"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I22":
+        reviewer_kind: "llm"
+        hash: "ac3aad661effac4019377ded82e11a9814a7e606f92ae5df83d29321e1012824"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I23":
+        reviewer_kind: "llm"
+        hash: "dd7782f53365a7210cb53e43619b385156e9eb0d4c400e1e11dd7c0ff6b79ef0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I24":
+        reviewer_kind: "llm"
+        hash: "392e9bfd80e4e12e19f05dbf5b18d0736e9737c8a864aa6b77485f7d2061fd25"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I25":
+        reviewer_kind: "llm"
+        hash: "49fbfaff08874876817c97c09e3e1d54f0a6eefe940f3a91791760af195d93ee"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I26":
+        reviewer_kind: "llm"
+        hash: "533a695b77f8c773cec7bcf7764caada2d7b07f0f7aa6073751e5d1ece85d2c4"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I27":
+        reviewer_kind: "llm"
+        hash: "d9e77fe967a148874f875f8098eabf564813029786aa7d6f7a679a53b137da85"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I28":
+        reviewer_kind: "llm"
+        hash: "91a406761e408a25893b999dc8512b03d3c8a3e44a1c5a010042edd345e03b05"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I29":
+        reviewer_kind: "llm"
+        hash: "097f31f0d4cc1b546fcad82ec348f896de4c8f3b321bcb5f79fd6fe2cf39136e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I30":
+        reviewer_kind: "llm"
+        hash: "3ed5018596ad7293f6d3677aba5dfc392776929acfb0daf25845263bcb6fc8ca"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I31":
+        reviewer_kind: "llm"
+        hash: "6c99d9af8b91830021a2e080fd0da4adc5351924add0d8be1a8e3e6896146575"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I32":
+        reviewer_kind: "llm"
+        hash: "c2a39ba7c656ec9d12418993a7d8c595186b4e3e61ec44b8720f403c0cb4396a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I33":
+        reviewer_kind: "llm"
+        hash: "f15a24c07134f53151615d7e5d5cd880a4474849ce9cbe53fe887dbcf59e0a6e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:I34":
+        reviewer_kind: "llm"
+        hash: "94933ed18477f23d8a130940fea634248dc34946d6b4cc27500f6908895b0ac4"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U01":
+        reviewer_kind: "llm"
+        hash: "59af16e462547191185694fe760b4a94d6ec3d60cf6f5ac978be8dfce80763c9"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U02":
+        reviewer_kind: "llm"
+        hash: "45adcc6d6457286f8d5b5e77b0c349340aff33eb00cbada73a8cb2229e78f4b9"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U03":
+        reviewer_kind: "llm"
+        hash: "2812f3661fd8aceae5a35a90b6e07360c242b29372c0dcf8a8cffc2aa05c3cfc"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U04":
+        reviewer_kind: "llm"
+        hash: "6e28e34a299609def19cae01a78b98ad1c9625a807d10044241c259af0b2f4c0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U05":
+        reviewer_kind: "llm"
+        hash: "42cc1ba7a5b6d2b118ac65b03d76d87f64c03d3a33702372b7253bda198b56d2"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U06":
+        reviewer_kind: "llm"
+        hash: "93cef2c2905dbe8189742d01e0a6829936a5bad06b9de1a30aca6eb917d64b52"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U07":
+        reviewer_kind: "llm"
+        hash: "d7cbecc9e78cf3d6fe470ae5fc20d167b2ab46b9641b01a08a351876166485bc"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U08":
+        reviewer_kind: "llm"
+        hash: "3ba34694584b7a3897408f6a1c4195e2725e091721efd6b219a36b467323bcf5"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U09":
+        reviewer_kind: "llm"
+        hash: "f73a3335eadbe61388d816f61afc40a1ff0b5aeed23a4ce3011eef54ac31fb52"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U10":
+        reviewer_kind: "llm"
+        hash: "4f227902bc649073c35501e84d0a1883283c2caab4403b6cdc0960c0e3abc2d5"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F02（cnf の照合が AGENT_AT と矛盾）"
+      "catalog_answers:U11":
+        reviewer_kind: "llm"
+        hash: "0680e35a018c6794d96f7a3fac71f1dbcb96700745a3ee324c1b6817383985cc"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U12":
+        reviewer_kind: "llm"
+        hash: "5ef3866482554261b2fe935e7cc81daed1ba0e6f4a09925993c1437475ca2613"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U13":
+        reviewer_kind: "llm"
+        hash: "34c1d6af362552d53a5b0a6a26b836347c58f86fc97dbb142e6d63ae6e2aa322"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U14":
+        reviewer_kind: "llm"
+        hash: "c1b44943718e6efec192070ea8ae8e3251c460a33aa89d8a4897bef7f4dd0fc0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F14（log_policy と食い違う）"
+      "catalog_answers:U15":
+        reviewer_kind: "llm"
+        hash: "23966ce7fb3a1b29c470da713cb78051f23f62786730d5d1712062e8d9ef6729"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U16":
+        reviewer_kind: "llm"
+        hash: "802791b1ae0545709b24aa6b17cdb7b0c5539f2c95e4810a2f4b08045b36ad1d"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U17":
+        reviewer_kind: "llm"
+        hash: "b18da96c80d167cc5397fa09d484e368cf763d99fa3c509c736f93836e0dd693"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U18":
+        reviewer_kind: "llm"
+        hash: "2d7138d4ad0056595360be29a77a2bc9d22fa589da799fcf674c4e794305bd75"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U19":
+        reviewer_kind: "llm"
+        hash: "f8c21c7af455928bb974461cce5e2b6950fe565a042958260bd575537960d1d7"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U20":
+        reviewer_kind: "llm"
+        hash: "7b5f7ce289beab9f888320f34e9e5505a3dd7e6001985a3d4dbe064a65c6e813"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U21":
+        reviewer_kind: "llm"
+        hash: "3154738d01fff89c0b50df7dbd13bcdbf8a3f727c89a479d78cd582d2a75fa8b"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U22":
+        reviewer_kind: "llm"
+        hash: "e82ba11b5faa6ad75b5eaba0cc8ea0aae7a768d2ab40ee2656273569c5ea2c3a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U23":
+        reviewer_kind: "llm"
+        hash: "49887af8151c81294741415f86477ecee568a7ea560b4c9d65b63d347f0bb202"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U24":
+        reviewer_kind: "llm"
+        hash: "3e93d7ee3a6c25c6616ade2b529eb17b16675b9e34e913de4e24391adfb601a5"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U25":
+        reviewer_kind: "llm"
+        hash: "7ebb6c002c0e0a98c3fefcde16b412e2faa7140cf70e6d3f829172bca9aea714"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U26":
+        reviewer_kind: "llm"
+        hash: "ad9a383f943826ff60446e7b554401a2dcf0f7217b031b27e0d5dd828c31679b"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U27":
+        reviewer_kind: "llm"
+        hash: "dc76a2049debbff8f9e3296f8ee57fe9b26f526196dcb2541d9b1962c700c7b2"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "catalog_answers:U28":
+        reviewer_kind: "llm"
+        hash: "db232aeefb6abe8fbb9731a1e9616ef77f1e04569aee0c8a0e60c80b307a3639"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-acr":
+        reviewer_kind: "llm"
+        hash: "d732203cc436b18e1a22242e5f810fed30840b4a75ca4a6d46b8bd8ef172eb3f"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-act":
+        reviewer_kind: "llm"
+        hash: "99eb255407294306b49b2506403de1d093980e2dcbd7bbe58006e4a5ea9430d4"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "hold"
+          comment: "F12（深さの数え方、専門家へ）・F13"
+      "claims:C-aud":
+        reviewer_kind: "llm"
+        hash: "6165409433ff15e485098f3f910f47581665c922054b01c11da682aaf41819b2"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-authorization-details":
+        reviewer_kind: "llm"
+        hash: "736f75fa199de6528b775b0b98342be0e174a52edd06e67050ad110bd037719a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F03・F07・F10・F13・F14・F15"
+      "claims:C-azp":
+        reviewer_kind: "llm"
+        hash: "fcc339285e3706a8068258b1c20a779de275707e08e2fbc50751f21e31b26d28"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F26（RR2）"
+      "claims:C-client-id":
+        reviewer_kind: "llm"
+        hash: "fbf2768b6b1aeb374cde94ae9b1ac16152c9a22d28f9ebe11aeb4179ce381aa1"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F05（act の無いトークンの許可の一覧）"
+      "claims:C-cnf":
+        reviewer_kind: "llm"
+        hash: "6bf93cbda6538e4f79cf7abcfc97e055143f6a7d1fce17ad8b20bbabb58e0850"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "照合の仕組みは妥当。証明書の更新は F24"
+      "claims:C-email":
+        reviewer_kind: "llm"
+        hash: "ae5848f9c405efe9b5f6fb6bbd96cf6cbd1c8ade830237ee6d470b06ac87d11d"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-exp":
+        reviewer_kind: "llm"
+        hash: "5535342776ea91ae872376bc0b12f0615293ef53cd6f0929f09d3ad4848d02bd"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F26 の抜き取り外）"
+      "claims:C-iat":
+        reviewer_kind: "llm"
+        hash: "3b84cf5927a9eace8456e61387af7d4c3544f4634d77efbcef2596a6a0aa6b48"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F26 の抜き取り外）"
+      "claims:C-iss":
+        reviewer_kind: "llm"
+        hash: "8ffe325752d19e1108a07226650d3acd247d712a5448a1c19ae39acd428766cb"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-jti":
+        reviewer_kind: "llm"
+        hash: "0992eed3312c0597f4e010d31013df33e4c0adedd4cc834eb2392e1f32228b35"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "revisit_trigger が無い（F26 の抜き取り外）"
+      "claims:C-may-act":
+        reviewer_kind: "llm"
+        hash: "1e44c36989c170e48073e8e53ad578bc6cb6d509c09d95d3056dadb4cc497d9e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-nbf":
+        reviewer_kind: "llm"
+        hash: "1d1914b08d8394c42909eba6213bf40974e1e4b2d35cbc65ef9488dc7a7b719d"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-org-approval-id":
+        reviewer_kind: "llm"
+        hash: "ab09efd672aa018e0cceac9e1a757e4e947ea175a7495ee0ce383924df8836d6"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F26（RR2）"
+      "claims:C-org-task-id":
+        reviewer_kind: "llm"
+        hash: "2b2af546ebfc32e2f5649a726bcf29487c5248a4dfda32968ee205eaedf746aa"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-roles":
+        reviewer_kind: "llm"
+        hash: "c5ea2dd7d1ad68c76df7ddfd34993fbae45e13dad8094d9e16684fb06749aac8"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F26（RR2）"
+      "claims:C-scope":
+        reviewer_kind: "llm"
+        hash: "73f4595c74a93186b6d12423ad0df61bb71c7fdae73a5a67ab8c027265af6b5a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F26（代償）"
+      "claims:C-sub":
+        reviewer_kind: "llm"
+        hash: "466ec1eff55bfa51436a5f4b5031733f8ba2062e2d6e5ca8c17b341ac30bae05"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "ログのハッシュは F14"
+      "claims:C-tenant":
+        reviewer_kind: "llm"
+        hash: "a0d758138f4120c0b9c4d68cd5f390c484dc7cba8217ea610065fae740185fbd"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "claims:C-txn":
+        reviewer_kind: "llm"
+        hash: "195a2cc2caa1df6a8d10aab09b8eb5ff808833490a292036a3abbcdd0b05b4dc"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "hops:H1":
+        reviewer_kind: "llm"
+        hash: "b0eae68b2f07ed190d71ae474d3eea366a929c7bf7b40628f553474e70106015"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "to の名前は F22"
+      "hops:H2":
+        reviewer_kind: "llm"
+        hash: "f8db20d92c905cd397ae36c65bebf4471da08f29ad6b196311717f2f9fadb600"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F02・F05（交換の規則と照合）"
+      "hops:H3":
+        reviewer_kind: "llm"
+        hash: "e1189b538d019fca2f10a1c4dfb2c72073ec14dcfe687ac854a1b13411030952"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "to の名前は F22"
+      "issuance_profile:at_format":
+        reviewer_kind: "llm"
+        hash: "929e2ceb58220cbf34ae0c6f92f39805bcd41a65be97560972be1a1afdd2058e"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "issuance_profile:client_auth":
+        reviewer_kind: "llm"
+        hash: "df502cd5feaf215c8cb53468dc8a6168897e390c65e3cd021cc701f943688e05"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "issuance_profile:client_type":
+        reviewer_kind: "llm"
+        hash: "f68b943443356b371070e0b8192034591b7190fa6053e586c8b00ea72ab10bc0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "issuance_profile:conformance_profile":
+        reviewer_kind: "llm"
+        hash: "48bec996e4b7e34350d135c4915c5a32fd870962d93781c1a4561a9e9b2b6734"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "issuance_profile:grants":
+        reviewer_kind: "llm"
+        hash: "d028f0d7537eb867e7fc39afb924f1b5087b1b1a3ce2a225f775252e51838046"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "hold"
+          comment: "F11（STS の挙動は未実測、専門家へ）"
+      "issuance_profile:request_protection":
+        reviewer_kind: "llm"
+        hash: "12c7ee72586a935608092d465c2cc6eb147c492c995e9d84c8e7e62044e7ec58"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F04"
+      "issuance_profile:rt_strategy":
+        reviewer_kind: "llm"
+        hash: "ca55e66cbd3b89d2497f1134eb31e61103e4812ed41e5071830cdb9df2bdf5b1"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F16（RR5）"
+      "issuance_profile:sender_constraint":
+        reviewer_kind: "llm"
+        hash: "96cdcebf380faa9d84c1bba2e98c673771f559c0ce12c985d26f443f990812ca"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "issuance_profile:tls_termination":
+        reviewer_kind: "llm"
+        hash: "6287cc706f7148975e84c120333ed54f2710bcc8ea0db8e172d8b3107ae76bd0"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:AGENT_AT":
+        reviewer_kind: "llm"
+        hash: "856fe91a85d79c7a40340014018a9fe61a65eb0aad5f3ea510169565633f30fa"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F04（同意が resource を束縛しない）・F17"
+      "token_types:AGENT_RT":
+        reviewer_kind: "llm"
+        hash: "ac109c6e9c97f8241b233a067f359dc38dc6d96bd07e6367c1d451ce430ebe41"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "hold"
+          comment: "F16・F21・F24"
+      "token_types:AUTHORIZATION_CODE":
+        reviewer_kind: "llm"
+        hash: "cb2f24bc9ed7997605457caa30633d45cb47dfa6187671a303904b954acc22a4"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:CLIENT_ASSERTION":
+        reviewer_kind: "llm"
+        hash: "cf144213ba16fa1618929148f9194ff6b85750c481d446cec417643605eea63a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:DPOP_PROOF":
+        reviewer_kind: "llm"
+        hash: "c8a289fc1043ec91c860b785f6c139251eb08377088b99563096dbb87b779435"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:ID_JAG":
+        reviewer_kind: "llm"
+        hash: "63e2fb53d2377b2c0ae2324f78a00170ae80a8e9850f00310c3ca229d9a4e5cd"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:ID_TOKEN":
+        reviewer_kind: "llm"
+        hash: "1bb85f61c440143f491924718c4d63bca0a9640f080311e58a6df35f2a05ebb8"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:INTERNAL_TOKEN":
+        reviewer_kind: "llm"
+        hash: "6c507d27be4eff868ea26536aa0886fd250de3f382c4c3ea6d9cc40d971ab895"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:INTROSPECTION_RESPONSE_JWT":
+        reviewer_kind: "llm"
+        hash: "e8384c6e15fd33dbbda6955760faa1b22155df10f33d41af01aac83a95a4d507"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:JARM_RESPONSE":
+        reviewer_kind: "llm"
+        hash: "2994ef7bf866049c09ea2c596bbc77c2e1d16c52c81c959a797709d36ab322c7"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:JAR_REQUEST_OBJECT":
+        reviewer_kind: "llm"
+        hash: "031b9ea58ec32347e7b637ff49eea57263f00472c11d437254a2da410d4dc414"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:JWT":
+        reviewer_kind: "llm"
+        hash: "b0bf798c142f0b66be492c0169cb1e3f0f52758c1f541cae5710bf6be7c593a4"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:LOGOUT_TOKEN":
+        reviewer_kind: "llm"
+        hash: "fd97de2037a3ce6461d876e896bc7f434e0c570861a7336f7b91d804b7f6e3f8"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:PORTAL_AT":
+        reviewer_kind: "llm"
+        hash: "271c374b38e0caf94a6434a9f061abbd5f6ac9fbfa610d980b187d40f7266b9a"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "request_changes"
+          comment: "F05（act の無いトークンの許可の一覧）"
+      "token_types:SECURITY_EVENT_TOKEN":
+        reviewer_kind: "llm"
+        hash: "34bf0d17e87da78bb73875470342fb6be77ec94da98450e01d098d59f6d35882"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:SESSION":
+        reviewer_kind: "llm"
+        hash: "2afb279494c8a9c38143f6a3a8e59000ecc690fb1688fc540bda8ff09620a484"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:STATUS_LIST_TOKEN":
+        reviewer_kind: "llm"
+        hash: "3aacf7d50c74bdf0892615f85f2061f2c9b831cbc9896c3cd61f93911895889f"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+      "token_types:TOOL_AT":
+        reviewer_kind: "llm"
+        hash: "d0410c2701be280e07d724381ff4c79b3f7edce41142cce65ab92e0dae131a80"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+          comment: "寿命と交換は妥当。支払いの取り消しの遅れは請求書の API の側（F07）"
+      "token_types:TXN_TOKEN":
+        reviewer_kind: "llm"
+        hash: "fb928f649dd3e0b3bcd6b722352bd42a7f27e0c77ad135605c78b25824a77880"
+        at: "2026-11-24T07:20:00+09:00"
+        migrated_from:
+          decision: "approve"
+    comments:
+      - id: "F01"
+        location: "template:00_core（冒頭の Lite／Full）、template:00_core#ci-results、2.2・5.1・7.・9.3・付録 A〜C"
+        questions: ["q-change-order"]
+        content: "設計書自身が README の 5 問で Full と判定（委任・交換 Yes、新しい発行者 Yes）しながら Lite の欄で書いた。claim_lint の既定（profile full）で error 53（R1：issuers・issue_events・overflow_strategy・propagation_delay・status が空）。procedure.md の段 0 の 1.（error が 0 でなければ返す）と 2.（シナリオ A の A17）に当たる。Lite の profile では error 0・warn 3（L73 が 2 件）。Full だけの 2.2 システムの権限・5.1 寿命の上限・7. シーケンス図・9.3・付録が空で、console:admin・寿命の方針・変更の手順の判断が抜けている（F09・F17）"
+        severity: "Major"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "保留"
+        verdict_reason: "パイロットの指示で Lite にしたと冒頭と 12. に明記。手順の上は返却に当たるが、指示との関係を #9 で決める"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F02"
+        location: "catalog_answers:U10.note、token_types:AGENT_AT.holder、hops:H1.validates"
+        anchors: ["catalog_answers:U10", "token_types:AGENT_AT", "hops:H1"]
+        questions: ["q-limit-consistency"]
+        content: "U10 の回答は「STS は subject_token の cnf が actor（ツールサーバー）の証明書と同じことを確かめる」と書く。しかし AGENT_AT の cnf は要求したエージェントの証明書の拇印で（AGENT_AT の holder、H1 の checks）、ツールの証明書と一致することはない。書いたとおりに作ると正規の C1・C8・C11 の交換がすべて失敗し、運用で「cnf の確認を外す」直しが入りやすい。交換で確かめるべきは「subject_token の aud が actor の登録した resource と一致する」こと（と、必要なら subject_token の cnf が呼び出し元のエージェントの証明書だったこと）で、どの照合を STS が行うかを台帳の enforced_at（sts-token-exchange）に書く"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "同じ事実が 2 か所で食い違う。攻撃の側から交換の束縛を辿って見つけた"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F03"
+        location: "claims:C-authorization-details.enforced_at（invoices-api）、token_types:TOOL_AT.revocation（db_lookup）"
+        anchors: ["claims:C-authorization-details", "token_types:TOOL_AT"]
+        questions: ["q-outside-catalog", "q-approval-from-as"]
+        content: "請求書の API は「承認の記録が承認済み・未使用であることを確かめてから消費する」と書くが、確かめと消費を 1 つの原子的な条件つき更新（未使用なら使用済みにする）で行うと書いていない。TOOL_AT の 60 秒の間に同じ承認で並行に 2 件の支払いを送ると、どちらも「未使用」を読んで二重に払える（TOCTOU）。また応答が失われた支払いの再試行で、二重払いか「使用済み」の誤った拒否になる。冪等キー（approval_id を支払いの冪等キーにする）と、再試行で前の結果を返す扱いを決める"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "要求の C5〜C8 の外の、本番の並行と再送の失敗の型。カタログ外の場面「障害時の再送」にも当たる"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F04"
+        location: "token_types:AGENT_AT（aud・visible_to）、issuance_profile:request_protection、template:00_core#scope-boundary（MB）"
+        anchors: ["token_types:AGENT_AT", "issuance_profile:request_protection"]
+        content: "同意（委任）が「どの MCP サーバー向けにトークンを得てよいか」を束縛していない。STS は resource が 1 つであることだけを確かめるので、エージェント（LLM。プロンプトインジェクションで誘導されうる）が悪意ある MCP サーバー B の resource で AGENT_AT を求めれば、B に sub・scope（読む・支払う）・authorization_details（振込先の口座・approval_id）が届く。cnf で B は使えないが、個人情報と承認の内容は漏れ、B が交換の行為者として登録されていれば交換も試せる。さらに、エージェントが読んだ u1 の請求書の内容をツールの引数で B に渡す漏えいはトークンでは止まらない。委任の記録に許す resource の一覧を持ち STS が照合すること、トークンをモデルの文脈に入れないこと、B への引数の流出を範囲の外と明記するか対策を書く"
+        severity: "Major"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "要求 C13 は再送だけを挙げるが、悪意ある MCP サーバーへの発行そのものが別の脅威"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F05"
+        location: "hops:H2.exchanger、claims:C-act.enforced_at（sts-token-exchange）、claims:C-client-id.enforced_at（invoices-api）、template:profiles/P4_ai_agent_delegation#delegation-policy"
+        anchors: ["hops:H2", "claims:C-act", "claims:C-client-id", "claims:C-may-act", "token_types:PORTAL_AT"]
+        questions: ["q-no-passthrough", "q-typ-distinguishes"]
+        content: "交換の規則が表になっていない：どの行為者（mTLS の主体）が、どの宛先の subject_token を、どの宛先（resource）へ、どの範囲で交換してよいか。may_act の却下の理由は「STS の方針の表で決める」とするが、その表の中身が無い。また請求書の API は「act の無いトークンは client_id と mTLS の相手が一致すれば受ける」だけで、act の無いトークンを出してよいクライアントの許可の一覧（portal だけ）が無い。STS がエージェントの認可コードの経路で act を付け忘れた・resource=invoices を許した場合に、エージェントが利用者のトークン相当で直接請求書の API を呼べる（C12 の型）"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-no-passthrough の「交換を許すクライアント・割り当てる宛先・範囲を組織の規則として」に当たる"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F06"
+        location: "catalog_answers.outside_enumeration、template:00_core#scope-boundary"
+        anchors: ["catalog_answers:I05"]
+        questions: ["q-outside-catalog", "q-gateway-bypass-path"]
+        content: "要求の概要の補足に「現状の実装では、交換をしないときツールは自分の広い ID で上流を読む」「承認の ID は本文のものを信じる」とある。設計はどちらも禁じるが、移行の期間の旧経路（ツールの広い ID の資格情報、本文の承認 ID を読む支払いの口）をいつ・どう閉じるか、請求書の API が旧経路のトークン・資格情報を拒否し始める順序、閉じたことの確かめ方が無い。旧経路が残る限り C2・C7 は防げない"
+        severity: "Major"
+        origin: "カタログ外の質問"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-outside-catalog の例「移行期間の旧経路」に当たる"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F07"
+        location: "claims:C-authorization-details.enforced_at、token_types:TOOL_AT.revocation、template:00_core#lifecycle"
+        anchors: ["claims:C-authorization-details", "token_types:TOOL_AT", "token_types:SECURITY_EVENT_TOKEN"]
+        questions: ["q-revocation-delivery", "q-relies-on-at-expiry"]
+        content: "委任の取り消しの後も、ツールが手元に持つ TOOL_AT（最大 60＋30 秒）で、未使用の承認の支払いが通る。請求書の API は支払いのたびに承認の記録を DB で引くのに、委任（タスク）の状態は引かない。要求は「取り消した後は、エージェントが続けて使えてはいけない」。支払いは即時に止めたい操作なので、承認の照会と同じ往復で委任の状態も確かめる（または取り消しで、その委任に結んだ未使用の承認を無効にする）"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "要求 §3 に照らすと剥奪の遅れ。C9（9 分後の読む）はこの設計で防げるが、取り消し直後の支払いは防げない"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F08"
+        location: "template:00_core#priorities-deferrals、token_types:TOOL_AT.refresh、claims:C-authorization-details.on_revoke"
+        anchors: ["token_types:TOOL_AT", "claims:C-authorization-details"]
+        questions: ["q-dependency-outage"]
+        content: "ツールは呼び出しのたびに STS で交換し、請求書の API は支払いのたびに承認の DB を引き、STS は交換・取り直しのたびに委任の DB を引く。これらの障害のときに閉じる側に倒す（拒否する）こと、STS の可用性と応答時間の目標、交換の結果の再利用（60 秒の TOOL_AT を同じタスクで使い回すか）が書いていない。9.1 の「呼び出しのたびに交換」と「タスクをまたいで使い回さない」が両立する読み方（タスクの中では使い回すのか）も曖昧。STS が単一障害点になり、障害時に「照会を飛ばして通す」直しが入りやすい"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-dependency-outage の No"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F09"
+        location: "template:00_core#system-privileges（空）、catalog_answers:I19、template:00_core#principals（console:admin）"
+        anchors: ["catalog_answers:I19", "token_types:PORTAL_AT"]
+        questions: ["q-operator-act", "q-break-glass", "q-gateway-bypass-path"]
+        content: "要求の表で console:admin は「読む・支払う・返金する」行為者だが、どのトークンで請求書の API を呼ぶか（運用者の代理は sub＝利用者・act＝運用者か、自分の ID か）が無い。I19 は「委任の行為者として許さない」で閉じるが、管理コンソール自身の経路は 2.2（Full）が空のまま。請求書の API は act の無いトークンを client_id と mTLS の一致で受けるので、管理コンソールが利用者の sub で act なしのトークンを得る構成なら、監査で運用者の操作と見分けられない。緊急時の特権（承認・短い期限）も無い"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-operator-act・q-break-glass の No"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F10"
+        location: "claims:C-authorization-details（type・description・value_vocabulary）、schemas/TOOL_AT.consumer.schema.json"
+        anchors: ["claims:C-authorization-details"]
+        questions: ["dc-05", "dc-08", "ap-2-3"]
+        content: "C5・C6 の防御は「請求書・金額・通貨・振込先の完全一致」だが、authorization_details の内側の項目の型と正規化が台帳にも受け手のスキーマにも無い（items は {type: object} だけ）。金額を数値で比べるか文字列で比べるか（120000 と 120000.0、\"120000\"）、通貨の大文字小文字、口座 ID の空白・大文字小文字が受け手ごとに分かれると、誤拒否か、緩い比較での通過が起きる。金額は文字列の 10 進（RFC 9396 の例と同じ）、通貨は ISO 4217 の大文字、口座は参照 ID の完全一致と決め、受け手のスキーマの properties と required に書く"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "dc-05・dc-08・ap-2-3 を authorization_details の内側に当てた"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F11"
+        location: "template:00_core#uncertain（STS の実装）、issuance_profile:grants、token_types:AGENT_RT.rt_rotation"
+        anchors: ["issuance_profile:grants", "token_types:AGENT_RT"]
+        questions: ["q-idp-capability-verified", "q-refresh-reevaluated"]
+        content: "守りの中心（resource の 2 つ以上の拒否、交換での深さ・取り消し・部分集合の確認、sub の差し替えの拒否、RT の再利用の検知、取り直しでの再評価）が、これから作る組織の STS の挙動に依存し、実測も仕様書も無い。12. に書いてあり、確かめ方の案（C2〜C15 の拒否の試験）もあるが、受け入れの条件（どの試験が通れば本番に出すか）が無い"
+        severity: "Major"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "保留"
+        verdict_reason: "escalation の unverified-idp-behavior に回す"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F12"
+        location: "claims:C-act（description「深さは 2 まで」）、token_types:TOOL_AT.max_delegation_depth、template:00_core#uncertain（深さの数え方）"
+        anchors: ["claims:C-act", "token_types:TOOL_AT", "token_types:AGENT_AT"]
+        questions: ["q-delegation-depth-and-revocation"]
+        content: "要求は「2 段は正規（C11）、5 段は拒否（C10）」。設計は act の数で 2 まで（エージェント・ツール）とし、それは C1 の経路そのもの。要求が C1 と別に C11 を「2 段の連鎖」として挙げることから、C11 は C1 より長い連鎖（エージェント → ツール → 別のツール）の可能性があり、その読み方なら上限 2 は C11 を誤って拒否する。C10・C11 の具体的な act の形（例のトークン）を要求の出し手に確かめ、上限の値と 3・4 段の扱いを決める"
+        severity: "Minor"
+        origin: "テンプレート項目"
+        kind: "前提の誤り"
+        verdict: "保留"
+        verdict_reason: "書き手も 12. に挙げた。escalation の delegation-depth に回す"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F13"
+        location: "claims:C-authorization-details.on_missing、claims:C-act.on_missing"
+        anchors: ["claims:C-authorization-details", "claims:C-act"]
+        questions: ["dc-07", "q-consumer-expression"]
+        content: "on_missing が「拒否」だが、無いのが正規のトークンがある：読む操作の AGENT_AT・TOOL_AT には authorization_details が無く（「支払いのときだけ載せる」）、PORTAL_AT には act が無い。受け手が台帳どおりに実装すると C1・ポータルの利用を落とす。逆に、受け手が「無ければ読む操作として通す」を実装すると、支払いの端点で authorization_details の無いトークンを通す誤りが起きうる。操作ごと（支払いでは必須、読むでは無くてよい）・種別ごとの意味を absent_semantics に書く"
+        severity: "Minor"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "dc-07・q-consumer-expression"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F14"
+        location: "claims:C-authorization-details.log_policy、catalog_answers:U14、token_types（log_policy の列が無い）"
+        anchors: ["claims:C-authorization-details", "catalog_answers:U14", "claims:C-sub"]
+        questions: ["cf-10", "q-token-logging", "q-audit-log-protected", "q-internal-delegation-token", "q-limit-consistency"]
+        content: "authorization_details の log_policy は「記録しない」だが、U14 は approval_id を監査ログに残すと書く（q-txn の仕組みも approval_id で結ぶ）。項目単位の扱い（approval_id は記録、creditorAccount は記録しない）を書き分ける。目録の log_policy（Full の列）、記録する HTTP ヘッダーの許可リスト、HAR・ログからトークンを除く手順、監査ログの保存期間も無い。sub のハッシュは ID の空間が小さいので、塩なしなら総当たりで戻せる（鍵つきのハッシュにする）"
+        severity: "Minor"
+        origin: "観点"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "cf-10・q-token-logging・q-audit-log-protected・q-internal-delegation-token"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F15"
+        location: "claims:C-authorization-details（data_category user.financial.bank_account）"
+        anchors: ["claims:C-authorization-details"]
+        questions: ["q-no-secret-or-raw-pii", "q-derived-value"]
+        content: "振込先の口座を平文で AGENT_AT・TOOL_AT に載せ、エージェント（LLM）・ツール・（F04 の経路では）信頼しない MCP サーバーが読める。受け手が要るのは「承認どおりの相手先か」の判定で、要求の例の振込先も B-019 という参照 ID。口座の番号ではなく承認の記録の相手先の参照 ID（か拇印）だけを載せれば、C6 の照合を保ったまま個人情報を減らせる。12. の「JWE にするか決めていない」より先に、載せない案を比べる"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-no-secret-or-raw-pii・q-derived-value"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F16"
+        location: "issuance_profile:rt_strategy、token_types:AGENT_RT（rt_rotation）、template:00_core#deviations（RT の方式）"
+        anchors: ["issuance_profile:rt_strategy", "token_types:AGENT_RT"]
+        questions: ["q-rt-policy-by-client", "q-evidence-attribution"]
+        content: "RT の方式の理由が「RFC 9700 §4.14.2 が挙げる 2 つの手段の 1 つ」だが、その節の 2 つの手段は公開クライアントへの要求で、エージェントは機密クライアント（tls_client_auth）。さらに送信者制約なのにローテーションも行い、再利用の検知は unverified。render の E-rt-sender-constrained.1（送信者制約ならローテーション不要）とも食い違う。ローテーションをやめるか、行う理由（証明書の漏えいへの備えなど）を書く"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "q-rt-policy-by-client。理由の採点の RR5・RR7"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F17"
+        location: "template:00_core#lifetime-policy（空）、token_types:AGENT_AT・TOOL_AT・AGENT_RT（lifetime_refs）"
+        anchors: ["token_types:AGENT_AT", "token_types:TOOL_AT", "token_types:AGENT_RT"]
+        questions: ["q-lifetime-rationale"]
+        content: "寿命の数値（300・60・28800 秒）が組織の上限の表（5.1）の中に無く、取り消しの目標 120 秒（3.1）から 60＋30＝90 秒を導く式は暗黙。AGENT_AT の lifetime_refs が slide:p10-per-tool-scopes（範囲の節）を引いており、寿命の根拠に当たるか疑わしい。目標（要求には数値が無い。§7 の 2）を業務の持ち主に確かめ、式と代償（交換の回数）を書く"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "q-lifetime-rationale。書き手も 12. に挙げた"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F18"
+        location: "template:modules/M_token_validation（欄が無い）、hops:H1〜H3.validates"
+        anchors: ["hops:H1", "hops:H2", "hops:H3"]
+        questions: ["q-shared-validator", "q-no-unverified-passthrough-mode"]
+        content: "受け手は 3 つ（ツール・請求書の API・STS の交換）で、act の最も外側と mTLS の照合、深さ、行為者の方針の積など独自の照合が多いのに、共通の検証部品で提供すること、検証の無効化・デバッグのモードを持たないことが書いていない。受け手ごとの実装の差が C4・C10 の取りこぼしになる"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-shared-validator・q-no-unverified-passthrough-mode"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F19"
+        location: "claims:C-sub.enforced_at（invoices-api）、template:00_core#lifecycle-db-connection"
+        anchors: ["claims:C-sub"]
+        questions: ["q-sql-tenant-predicate"]
+        content: "請求書の DB へはサービスの資格情報で接続し、持ち主の条件で利用者を分ける。C3・C15 の防御はこの条件に懸かるのに、全 SQL（一覧・検索・支払い・返金・書き出し）に持ち主の条件を付ける規約と、それを確かめる検査（コードの検査・試験）が無い。新しい端点で条件を付け忘れると他人の請求書が読める"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-sql-tenant-predicate（テナントを持ち主に読み替えた）"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F20"
+        location: "template:00_core#operational-metrics（空）"
+        questions: ["q-operational-metrics", "q-scope-elevation-logged"]
+        content: "攻撃の試みを運用で見る指標が無い：aud・cnf の不一致（C2・C13）、act の最も外側と相手の不一致（C12）、深さ超過（C10）、範囲の引き上げの要求（C14）、sub の差し替えの要求（C15）、承認の不一致（C5〜C7）の件数と、しきい値・通知先。どれも「正しく署名された、期限内のトークン」での攻撃（要求の §6）なので、拒否のログが唯一の検知の手段"
+        severity: "Minor"
+        origin: "観点"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "q-operational-metrics・q-scope-elevation-logged"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F21"
+        location: "token_types:AGENT_RT"
+        anchors: ["token_types:AGENT_RT"]
+        questions: ["q-agent-short-lived-no-rt"]
+        content: "観点書はエージェントのトークンをタスク単位の短命にし RT を出さない形を求めるが、設計は AGENT_RT（idle 1 時間・最大 8 時間）を出す。取り消しの起点を STS に集める理由（AGENT_RT の rationale）はあるが、タスクごとの再同意・交換だけで足りない理由（8 時間のタスクの実例）が無い"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "保留"
+        verdict_reason: "q-agent-short-lived-no-rt。RT を出す判断自体は妥当な余地があり、業務のタスクの長さを確かめて決める"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F22"
+        location: "template:00_core#hop-table（render:arrow-table）、hops:H1〜H3.to、claims:*.enforced_at.service"
+        anchors: ["hops:H1", "hops:H2", "hops:H3"]
+        content: "矢印ごとの表の「確かめるクレーム」がすべて「—」。hops の to が URI（https://invoices.example.com など）で、台帳の enforced_at の service が名前（invoices-api・tool:invoice-mcp）なので、render が受け手を結べない。生成の表で受け手の照合の漏れを確かめられない。to を台帳の service の名前にそろえる（か対応を宣言する）"
+        severity: "Minor"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "採用"
+        verdict_reason: "lint が警告しないので、lint にも戻す（5.）"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F23"
+        location: "template:00_core#ci-results（L15 warn）、token_types:AGENT_RT"
+        anchors: ["token_types:AGENT_RT"]
+        content: "L15 が「AGENT_RT は mtls なのに cnf の行がない」と warn を出す。AGENT_RT は opaque で、束縛は STS の DB にありクレームの cnf は載らない。lint の誤検知の候補だが、設計書は warn に行ごとの理由を書いていない（templates/CONTRIBUTING.md の 2.）"
+        severity: "Minor"
+        origin: "テンプレート項目"
+        kind: "実装とのずれ"
+        verdict: "保留"
+        verdict_reason: "設計の誤りではなく lint の規則の候補。#6 に渡す"
+        response:
+          owner: "lint の持ち主（#6）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F24"
+        location: "claims:C-cnf、token_types:AGENT_RT（sender_constraint mtls）"
+        anchors: ["claims:C-cnf", "token_types:AGENT_RT"]
+        content: "ワークロードの証明書の更新（組織の PKI の有効期間・更新の周期が書いていない）と cnf の束縛の関係が無い。RT を証明書の拇印に束縛すると、証明書の更新で進行中のタスクの RT（最大 8 時間）がすべて使えなくなり、利用者の再同意が一斉に要る。運用で「拇印でなく主体名で束縛」に緩める直しが入りやすい。証明書の寿命と RT の寿命の関係、更新のときの扱い（RT はクライアントに束縛し、AT だけ拇印に束縛するなど）を決める"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "本番の運用（証明書の更新）から辿った"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F25"
+        location: "token_types:AGENT_AT・TOOL_AT・PORTAL_AT（key_rotation・signing_key_scope shared）"
+        anchors: ["token_types:AGENT_AT", "token_types:TOOL_AT", "token_types:PORTAL_AT"]
+        content: "署名鍵は 3 種類の AT で共有（signing_key_scope shared）で、ローテーションは 90 日の通常の手順だけ。鍵の漏えいのときの緊急の手順（新しい鍵への即時の切り替え、古い kid の JWKS からの削除と受け手のキャッシュ 3600 秒・use_last_known の扱い）が無い。use_last_known は、JWKS を取れない受け手が外した鍵を使い続ける経路にもなる"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "本番の失敗の型（鍵の漏えい）から辿った"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F26"
+        location: "claims:C-azp・C-roles・C-org-approval-id（revisit_trigger）、claims:C-scope（代償）"
+        anchors: ["claims:C-azp", "claims:C-roles", "claims:C-org-approval-id", "claims:C-scope"]
+        content: "理由の抜き取りで不合格：C-azp・C-roles・C-org-approval-id は assumption はあるが revisit_trigger が無い（RR2）。採用の C-scope は代償（交換のたびの部分集合の計算、方針の表の保守）が行にも 3.1 にも無い（RR3）。抜き取りの外でも C-exp・C-iat・C-jti に revisit_trigger が無い"
+        severity: "Minor"
+        origin: "観点"
+        kind: "理由の不備"
+        verdict: "採用"
+        verdict_reason: "rationale_rubric の RR2・RR3"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+      - id: "F27"
+        location: "template:00_core#scope-boundary（STS）、要求の概要 §2「時刻を進めて試すための模擬」"
+        anchors: ["issuance_profile:grants"]
+        content: "要求の発行サービスは仮想の時計で時刻を進められる模擬。組織の STS を本番に出すとき、時刻を進める口・試験用の鍵・試験用の行為者が本番に残らないこと（と、試験の STS の鍵を本番の受け手の JWKS に載せないこと）が書いていない。残れば、期限と取り消しの守り（C9）が全部崩れる"
+        severity: "Minor"
+        origin: "テンプレート外"
+        kind: "候補の漏れ"
+        verdict: "採用"
+        verdict_reason: "カタログ外の場面「テストの経路」から辿った"
+        response:
+          owner: "書き手（パイロット #9 のシナリオ C）"
+          state: "未着手"
+        state: "unresolved"
+        at: "2026-11-24T07:20:00+09:00"
+    submissions:
+      - verdict: "comment"
+        summary: "claims-review/1 の記録から移行した。v1 には全体の判定が無い（行ごとの判定は viewed の migrated_from に残した）"
+        viewed:
+          "catalog_answers:I01": "fe18bbdbff09c9291d0ecc63e6fd1bc1f7fbeb4dbd13c5bf62e369ca4b732883"
+          "catalog_answers:I02": "ebfe3a04e9166673029ca1a0551e93f589693eb5ee741ee8fb712f18c419b31f"
+          "catalog_answers:I03": "279be1b2b69745d44ffd64329cfb62173a8c8ce013f501edb4bdb02c46692c89"
+          "catalog_answers:I04": "7888f7e88f9e4329ae7ce565acdd478b195623ba4575b76abfec1dd89520df0e"
+          "catalog_answers:I05": "479c439417725fdbeaff0f84cafcf61af7a3b74d577381540c243e0ba063b97b"
+          "catalog_answers:I06": "60a34610381b8dccb23084cfa92afb9da7b98f11a3d217ad3c2519b94ab8ea9f"
+          "catalog_answers:I07": "8937bf5991085a06a83f203f0793a97c9fbc049a57236afb80e88505b6f7dba8"
+          "catalog_answers:I08": "cd6678918f1de052fa130a12a007952156b100b6ead2677735d7bd9c61acb035"
+          "catalog_answers:I09": "df516118fbc59e14316422f828c17a769bedac2cf31e408214b554229835368d"
+          "catalog_answers:I10": "a347a78c5ea41c74c8ca9afa5a9b15e15f5a178b63c65b62a8819ce8b6825389"
+          "catalog_answers:I11": "5ce7883f6997b67f8daa86a239b85a0d657716298dc4a39fc7fc7f3685285db0"
+          "catalog_answers:I12": "873d0040bf344bb712ca338f2a7f41cade307a8825fb34bcae496829a3a0b230"
+          "catalog_answers:I13": "803cc655e28006aa3cfd190029a9503a2fba1c512dbf717d1371deccfb87167e"
+          "catalog_answers:I14": "2f8cb16bc466e604f68181dcd248c4c1c94e4d7b0ff6222a12f51fd7076a364e"
+          "catalog_answers:I15": "f1f2ac4cd228633a434e6a69bb621d0340d07965a1a29712048a121bcdaacebf"
+          "catalog_answers:I16": "6318ec19ae94b509610de7cb49ae0683a489bcdfeec7801223ad76402d45aeda"
+          "catalog_answers:I17": "4cf5ba277a0d24aa2990509685cad87c2af001143aec11c67799b4280c1caa32"
+          "catalog_answers:I18": "a61d031d43b9d5af359800c8292738c251e9a621b2a5a4742d367762703ded3b"
+          "catalog_answers:I19": "b2ccdb62b7965d559ded78c37672b2c8f42255b4abe108fd299299dd4a086317"
+          "catalog_answers:I20": "061cdcc9d7a5e33d155fcda825d4c2192ecb30afc9fb51e210b737160a0dde58"
+          "catalog_answers:I21": "a284529a38e48bbe4e6f1d5c39b425ae886a1da181282d06abfb53a9a51f8439"
+          "catalog_answers:I22": "ac3aad661effac4019377ded82e11a9814a7e606f92ae5df83d29321e1012824"
+          "catalog_answers:I23": "dd7782f53365a7210cb53e43619b385156e9eb0d4c400e1e11dd7c0ff6b79ef0"
+          "catalog_answers:I24": "392e9bfd80e4e12e19f05dbf5b18d0736e9737c8a864aa6b77485f7d2061fd25"
+          "catalog_answers:I25": "49fbfaff08874876817c97c09e3e1d54f0a6eefe940f3a91791760af195d93ee"
+          "catalog_answers:I26": "533a695b77f8c773cec7bcf7764caada2d7b07f0f7aa6073751e5d1ece85d2c4"
+          "catalog_answers:I27": "d9e77fe967a148874f875f8098eabf564813029786aa7d6f7a679a53b137da85"
+          "catalog_answers:I28": "91a406761e408a25893b999dc8512b03d3c8a3e44a1c5a010042edd345e03b05"
+          "catalog_answers:I29": "097f31f0d4cc1b546fcad82ec348f896de4c8f3b321bcb5f79fd6fe2cf39136e"
+          "catalog_answers:I30": "3ed5018596ad7293f6d3677aba5dfc392776929acfb0daf25845263bcb6fc8ca"
+          "catalog_answers:I31": "6c99d9af8b91830021a2e080fd0da4adc5351924add0d8be1a8e3e6896146575"
+          "catalog_answers:I32": "c2a39ba7c656ec9d12418993a7d8c595186b4e3e61ec44b8720f403c0cb4396a"
+          "catalog_answers:I33": "f15a24c07134f53151615d7e5d5cd880a4474849ce9cbe53fe887dbcf59e0a6e"
+          "catalog_answers:I34": "94933ed18477f23d8a130940fea634248dc34946d6b4cc27500f6908895b0ac4"
+          "catalog_answers:U01": "59af16e462547191185694fe760b4a94d6ec3d60cf6f5ac978be8dfce80763c9"
+          "catalog_answers:U02": "45adcc6d6457286f8d5b5e77b0c349340aff33eb00cbada73a8cb2229e78f4b9"
+          "catalog_answers:U03": "2812f3661fd8aceae5a35a90b6e07360c242b29372c0dcf8a8cffc2aa05c3cfc"
+          "catalog_answers:U04": "6e28e34a299609def19cae01a78b98ad1c9625a807d10044241c259af0b2f4c0"
+          "catalog_answers:U05": "42cc1ba7a5b6d2b118ac65b03d76d87f64c03d3a33702372b7253bda198b56d2"
+          "catalog_answers:U06": "93cef2c2905dbe8189742d01e0a6829936a5bad06b9de1a30aca6eb917d64b52"
+          "catalog_answers:U07": "d7cbecc9e78cf3d6fe470ae5fc20d167b2ab46b9641b01a08a351876166485bc"
+          "catalog_answers:U08": "3ba34694584b7a3897408f6a1c4195e2725e091721efd6b219a36b467323bcf5"
+          "catalog_answers:U09": "f73a3335eadbe61388d816f61afc40a1ff0b5aeed23a4ce3011eef54ac31fb52"
+          "catalog_answers:U10": "4f227902bc649073c35501e84d0a1883283c2caab4403b6cdc0960c0e3abc2d5"
+          "catalog_answers:U11": "0680e35a018c6794d96f7a3fac71f1dbcb96700745a3ee324c1b6817383985cc"
+          "catalog_answers:U12": "5ef3866482554261b2fe935e7cc81daed1ba0e6f4a09925993c1437475ca2613"
+          "catalog_answers:U13": "34c1d6af362552d53a5b0a6a26b836347c58f86fc97dbb142e6d63ae6e2aa322"
+          "catalog_answers:U14": "c1b44943718e6efec192070ea8ae8e3251c460a33aa89d8a4897bef7f4dd0fc0"
+          "catalog_answers:U15": "23966ce7fb3a1b29c470da713cb78051f23f62786730d5d1712062e8d9ef6729"
+          "catalog_answers:U16": "802791b1ae0545709b24aa6b17cdb7b0c5539f2c95e4810a2f4b08045b36ad1d"
+          "catalog_answers:U17": "b18da96c80d167cc5397fa09d484e368cf763d99fa3c509c736f93836e0dd693"
+          "catalog_answers:U18": "2d7138d4ad0056595360be29a77a2bc9d22fa589da799fcf674c4e794305bd75"
+          "catalog_answers:U19": "f8c21c7af455928bb974461cce5e2b6950fe565a042958260bd575537960d1d7"
+          "catalog_answers:U20": "7b5f7ce289beab9f888320f34e9e5505a3dd7e6001985a3d4dbe064a65c6e813"
+          "catalog_answers:U21": "3154738d01fff89c0b50df7dbd13bcdbf8a3f727c89a479d78cd582d2a75fa8b"
+          "catalog_answers:U22": "e82ba11b5faa6ad75b5eaba0cc8ea0aae7a768d2ab40ee2656273569c5ea2c3a"
+          "catalog_answers:U23": "49887af8151c81294741415f86477ecee568a7ea560b4c9d65b63d347f0bb202"
+          "catalog_answers:U24": "3e93d7ee3a6c25c6616ade2b529eb17b16675b9e34e913de4e24391adfb601a5"
+          "catalog_answers:U25": "7ebb6c002c0e0a98c3fefcde16b412e2faa7140cf70e6d3f829172bca9aea714"
+          "catalog_answers:U26": "ad9a383f943826ff60446e7b554401a2dcf0f7217b031b27e0d5dd828c31679b"
+          "catalog_answers:U27": "dc76a2049debbff8f9e3296f8ee57fe9b26f526196dcb2541d9b1962c700c7b2"
+          "catalog_answers:U28": "db232aeefb6abe8fbb9731a1e9616ef77f1e04569aee0c8a0e60c80b307a3639"
+          "claims:C-acr": "d732203cc436b18e1a22242e5f810fed30840b4a75ca4a6d46b8bd8ef172eb3f"
+          "claims:C-act": "99eb255407294306b49b2506403de1d093980e2dcbd7bbe58006e4a5ea9430d4"
+          "claims:C-aud": "6165409433ff15e485098f3f910f47581665c922054b01c11da682aaf41819b2"
+          "claims:C-authorization-details": "736f75fa199de6528b775b0b98342be0e174a52edd06e67050ad110bd037719a"
+          "claims:C-azp": "fcc339285e3706a8068258b1c20a779de275707e08e2fbc50751f21e31b26d28"
+          "claims:C-client-id": "fbf2768b6b1aeb374cde94ae9b1ac16152c9a22d28f9ebe11aeb4179ce381aa1"
+          "claims:C-cnf": "6bf93cbda6538e4f79cf7abcfc97e055143f6a7d1fce17ad8b20bbabb58e0850"
+          "claims:C-email": "ae5848f9c405efe9b5f6fb6bbd96cf6cbd1c8ade830237ee6d470b06ac87d11d"
+          "claims:C-exp": "5535342776ea91ae872376bc0b12f0615293ef53cd6f0929f09d3ad4848d02bd"
+          "claims:C-iat": "3b84cf5927a9eace8456e61387af7d4c3544f4634d77efbcef2596a6a0aa6b48"
+          "claims:C-iss": "8ffe325752d19e1108a07226650d3acd247d712a5448a1c19ae39acd428766cb"
+          "claims:C-jti": "0992eed3312c0597f4e010d31013df33e4c0adedd4cc834eb2392e1f32228b35"
+          "claims:C-may-act": "1e44c36989c170e48073e8e53ad578bc6cb6d509c09d95d3056dadb4cc497d9e"
+          "claims:C-nbf": "1d1914b08d8394c42909eba6213bf40974e1e4b2d35cbc65ef9488dc7a7b719d"
+          "claims:C-org-approval-id": "ab09efd672aa018e0cceac9e1a757e4e947ea175a7495ee0ce383924df8836d6"
+          "claims:C-org-task-id": "2b2af546ebfc32e2f5649a726bcf29487c5248a4dfda32968ee205eaedf746aa"
+          "claims:C-roles": "c5ea2dd7d1ad68c76df7ddfd34993fbae45e13dad8094d9e16684fb06749aac8"
+          "claims:C-scope": "73f4595c74a93186b6d12423ad0df61bb71c7fdae73a5a67ab8c027265af6b5a"
+          "claims:C-sub": "466ec1eff55bfa51436a5f4b5031733f8ba2062e2d6e5ca8c17b341ac30bae05"
+          "claims:C-tenant": "a0d758138f4120c0b9c4d68cd5f390c484dc7cba8217ea610065fae740185fbd"
+          "claims:C-txn": "195a2cc2caa1df6a8d10aab09b8eb5ff808833490a292036a3abbcdd0b05b4dc"
+          "hops:H1": "b0eae68b2f07ed190d71ae474d3eea366a929c7bf7b40628f553474e70106015"
+          "hops:H2": "f8db20d92c905cd397ae36c65bebf4471da08f29ad6b196311717f2f9fadb600"
+          "hops:H3": "e1189b538d019fca2f10a1c4dfb2c72073ec14dcfe687ac854a1b13411030952"
+          "issuance_profile:at_format": "929e2ceb58220cbf34ae0c6f92f39805bcd41a65be97560972be1a1afdd2058e"
+          "issuance_profile:client_auth": "df502cd5feaf215c8cb53468dc8a6168897e390c65e3cd021cc701f943688e05"
+          "issuance_profile:client_type": "f68b943443356b371070e0b8192034591b7190fa6053e586c8b00ea72ab10bc0"
+          "issuance_profile:conformance_profile": "48bec996e4b7e34350d135c4915c5a32fd870962d93781c1a4561a9e9b2b6734"
+          "issuance_profile:grants": "d028f0d7537eb867e7fc39afb924f1b5087b1b1a3ce2a225f775252e51838046"
+          "issuance_profile:request_protection": "12c7ee72586a935608092d465c2cc6eb147c492c995e9d84c8e7e62044e7ec58"
+          "issuance_profile:rt_strategy": "ca55e66cbd3b89d2497f1134eb31e61103e4812ed41e5071830cdb9df2bdf5b1"
+          "issuance_profile:sender_constraint": "96cdcebf380faa9d84c1bba2e98c673771f559c0ce12c985d26f443f990812ca"
+          "issuance_profile:tls_termination": "6287cc706f7148975e84c120333ed54f2710bcc8ea0db8e172d8b3107ae76bd0"
+          "token_types:AGENT_AT": "856fe91a85d79c7a40340014018a9fe61a65eb0aad5f3ea510169565633f30fa"
+          "token_types:AGENT_RT": "ac109c6e9c97f8241b233a067f359dc38dc6d96bd07e6367c1d451ce430ebe41"
+          "token_types:AUTHORIZATION_CODE": "cb2f24bc9ed7997605457caa30633d45cb47dfa6187671a303904b954acc22a4"
+          "token_types:CLIENT_ASSERTION": "cf144213ba16fa1618929148f9194ff6b85750c481d446cec417643605eea63a"
+          "token_types:DPOP_PROOF": "c8a289fc1043ec91c860b785f6c139251eb08377088b99563096dbb87b779435"
+          "token_types:ID_JAG": "63e2fb53d2377b2c0ae2324f78a00170ae80a8e9850f00310c3ca229d9a4e5cd"
+          "token_types:ID_TOKEN": "1bb85f61c440143f491924718c4d63bca0a9640f080311e58a6df35f2a05ebb8"
+          "token_types:INTERNAL_TOKEN": "6c507d27be4eff868ea26536aa0886fd250de3f382c4c3ea6d9cc40d971ab895"
+          "token_types:INTROSPECTION_RESPONSE_JWT": "e8384c6e15fd33dbbda6955760faa1b22155df10f33d41af01aac83a95a4d507"
+          "token_types:JARM_RESPONSE": "2994ef7bf866049c09ea2c596bbc77c2e1d16c52c81c959a797709d36ab322c7"
+          "token_types:JAR_REQUEST_OBJECT": "031b9ea58ec32347e7b637ff49eea57263f00472c11d437254a2da410d4dc414"
+          "token_types:JWT": "b0bf798c142f0b66be492c0169cb1e3f0f52758c1f541cae5710bf6be7c593a4"
+          "token_types:LOGOUT_TOKEN": "fd97de2037a3ce6461d876e896bc7f434e0c570861a7336f7b91d804b7f6e3f8"
+          "token_types:PORTAL_AT": "271c374b38e0caf94a6434a9f061abbd5f6ac9fbfa610d980b187d40f7266b9a"
+          "token_types:SECURITY_EVENT_TOKEN": "34bf0d17e87da78bb73875470342fb6be77ec94da98450e01d098d59f6d35882"
+          "token_types:SESSION": "2afb279494c8a9c38143f6a3a8e59000ecc690fb1688fc540bda8ff09620a484"
+          "token_types:STATUS_LIST_TOKEN": "3aacf7d50c74bdf0892615f85f2061f2c9b831cbc9896c3cd61f93911895889f"
+          "token_types:TOOL_AT": "d0410c2701be280e07d724381ff4c79b3f7edce41142cce65ab92e0dae131a80"
+          "token_types:TXN_TOKEN": "fb928f649dd3e0b3bcd6b722352bd42a7f27e0c77ad135605c78b25824a77880"
+        at: "2026-11-24T07:10:42+09:00"
+        comments: ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "F25", "F26", "F27"]
+        migrated: true
+    sampling:
+      seed: "R2-scenario-c-2026-11-24"
+      count: 3
+      picked: ["claims:C-azp", "claims:C-email", "claims:C-roles"]
+      population: "875159251aed6c3ce5b91a105112de158585a391046e373433ea36f40c8e3b4f"
+      scores:
+        "claims:C-azp":
+          RR1: "満"
+          RR2: "否"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: false
+          note: "revisit_trigger が無い（ID トークンを出すことになったとき、が書ける）。RFC 9068 §2.2 は開いていない"
+        "claims:C-email":
+          RR1: "満"
+          RR2: "満"
+          RR3: "満"
+          RR4: "対象外"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: true
+          note: "根拠を引かない行（数値・製品の挙動の主張が無い）"
+        "claims:C-roles":
+          RR1: "満"
+          RR2: "否"
+          RR3: "満"
+          RR4: "満"
+          RR5: "満"
+          RR6: "満"
+          RR7: "満"
+          pass: false
+          note: "revisit_trigger が無い。slide:p10-agent-identity は開いておらず、名前と主張の対応だけを見た"
+    escalations:
+      applies:
+        - criterion: "delegation-depth"
+          to: "組織の認証基盤の担当"
+          location: "token_types:TOOL_AT.max_delegation_depth（2）、claims:C-act（入れ子の act を削る照合に使う）"
+          conclusion: "未（F12）"
+        - criterion: "unverified-idp-behavior"
+          to: "STS（IdP）の運用の担当"
+          location: "template:00_core#uncertain（STS の実装）、issuance_profile:grants、token_types:AGENT_RT.rt_rotation"
+          conclusion: "未（F11）"
+      not_applicable: ["draft-spec", "custom-crypto", "cross-tenant-exchange", "baseline-unmet", "jwe-key-management", "regulated-data", "new-token-type"]
+    feedback:
+      - to: "lint（tools/claim_lint、#6）"
+        content: "hops の to が台帳の consumers・enforced_at の service のどれとも一致しないときに警告する（矢印の表が空になるのを機械で拾う）"
+        comments: ["F22"]
+      - to: "lint（tools/claim_lint、#6）"
+        content: "L15 を opaque の RT（cnf のクレームを持たない）で出さない、または「束縛は STS の側」と宣言する列を設ける"
+        comments: ["F23"]
+      - to: "観点書（perspectives.md）"
+        content: "交換の照合の中身を問う問いが無い：「交換の STS は subject_token のどの値（aud・cnf・act）を actor のどの値と照合するか」。F02 は q-limit-consistency でしか拾えなかった"
+        comments: ["F02"]
+      - to: "観点書（perspectives.md）"
+        content: "承認・一回限りの値の消費の原子性と冪等（並行と再送）を問う問いを足す（q-approval-from-as の下）"
+        comments: ["F03"]
+      - to: "観点書（perspectives.md）"
+        content: "エージェントが求めてよい resource を委任（同意）で束縛するか、信頼しない MCP サーバーへの発行を問う問いを足す（q-single-aud-resource は 1 つかだけを問う）"
+        comments: ["F04"]
+      - to: "観点書（perspectives.md）"
+        content: "q-revocation-delivery に「取り消しの後に、手元の下流のトークンで高リスクの操作が通る時間」を明示する"
+        comments: ["F07"]
+      - to: "カタログ（templates/catalog/）"
+        content: "利用のイベントに「送信者制約の鍵・証明書の更新（cnf の束縛の切り替え）」と「署名鍵の緊急の失効」を足す"
+        comments: ["F24", "F25"]
+note: "LLM によるレビュー。人による検証ではない。パイロット #9 のシナリオ C（Lite）のブラインドのレビュー。ほかのレビュアーの記録は見ていない"

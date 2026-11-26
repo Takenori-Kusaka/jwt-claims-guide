@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = 'f8622f72ddd2';
+  const BUILD_ID = '3aa849987540';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;
@@ -41,7 +41,7 @@
   const STATUS = { satisfied: ['ok', '✓', '満たす'], unsatisfied: ['ng', '✖', '満たさない'], unknown: ['warn', '?', '判定できない'] };
   const DECISION = { '採用': ['ok', '●'], '既定どおり': ['neutral', '○'], '却下': ['ng', '✖'] };
   // kinds of rows of templates/registry/README.md 2. (縮小 Lite の印). Not the trace tier (core/full).
-  const ROW_KIND = { read: '受け手が読む行', unread: '受け手のない採用の行', idle: '縮小の行（既定どおり・受け手なし）', rejected: '却下の行' };
+  const ROW_KIND = { read: '受け手が読む行', unread: '受け手のない採用の行', idle: '省ける行（既定どおり・受け手なし）', rejected: '却下の行' };
   const own = (o, k) => o !== null && o !== undefined && Object.prototype.hasOwnProperty.call(o, k);
   const lookup = (o, k) => (own(o, k) ? o[k] : undefined);
 
@@ -76,6 +76,10 @@
     el.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   function code(t) { return h('code', null, String(t)); }
+  // the words of the screens (#67) in the headings that come from the generated tables (tools/claim_lint render keeps the
+  // words of the templates; templates/glossary.md 5.1 has the table)
+  const UI_TERMS = [['値の出どころ', '値の元データ'], ['出どころ', '元データ'], ['台帳の行', 'クレーム'], ['台帳', 'クレーム一覧'], ['ホップ', '経路'], ['観点', '確認事項'], ['縮小 Lite', 'Lite'], ['載るトークン', '入るトークン']];
+  function ui(s) { let t = String(s === null || s === undefined ? '' : s); UI_TERMS.forEach(([a, b]) => { t = t.split(a).join(b); }); return t; }
   function badge(kind, symbol, text, title) {
     return h('span', { class: 'badge ' + kind, title: title || null }, h('span', { 'aria-hidden': 'true' }, symbol), text);
   }
@@ -106,7 +110,7 @@
     d.append(h('summary', null, summary));
     let built = false;
     const build = () => { if (built) return; built = true; add(d, typeof content === 'function' ? content() : content); };
-    if (d.open) build();
+    if (d.open || opts.eager) build();  // eager: the content is in the page while the fold is closed (a jump can land in it)
     d.addEventListener('toggle', () => {
       if (d.open) build();
       const differs = d.open === closedByDefault;  // the state that is not the default is written in the URL
@@ -205,7 +209,7 @@
   // diagnostics by target (claim id, token type id, hop id, event id), from editor.js: JSON Schema (in the browser) and
   // claim_lint (Pyodide). Each has source 'schema' | 'claim_lint' | 'yaml'.
   function lintIndex() { return state.diag.byTarget; }
-  const SOURCE = { schema: 'Schema', claim_lint: 'lint', yaml: 'YAML', editor: 'エディター' };
+  const SOURCE = { schema: 'Schema', claim_lint: '設計の規則', yaml: 'YAML', editor: 'エディター' };
   function lintBadges(id) {
     const fs = lintIndex().get(id) || [];
     if (!fs.length) return null;
@@ -214,10 +218,10 @@
     return h('span', { class: 'codes', 'data-diag-for': id }, Object.keys(SEVERITY).filter((k) => by[k]).map((k) =>
       badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k]}`, fs.filter((f) => f.severity === k).map((f) => `[${SOURCE[f.source] || f.source}] ${f.rule} ${f.message}`).join('\n'))));
   }
-  function lintList(id) {
+  function lintList(id, title) {
     const fs = lintIndex().get(id) || [];
     if (!fs.length) return null;
-    return h('div', { class: 'note warn', 'data-lint-for': id }, h('strong', null, '検査の指摘（JSON Schema・claim_lint）'),
+    return h('div', { class: 'note warn', 'data-lint-for': id }, h('strong', null, title || '問題（自動の検査）'),
       h('ul', null, fs.map((f) => h('li', null, sevBadge(f.severity), ' ', h('span', { class: 'src' }, SOURCE[f.source] || f.source), ' ', code(f.rule), ' ',
         f.line ? h('button', { type: 'button', class: 'link', onclick: () => state.hooks.goto && state.hooks.goto(f.file, f.line) }, `${f.file}:${f.line}`) : null, ' ', inline(f.message)))));
   }
@@ -341,7 +345,7 @@
     const extra = Object.keys(obj).filter((k) => !known.has(k));
     if (extra.length && !(opts && opts.noExtra)) {
       out.push(h('h2', null, 'スキーマにない列'));
-      out.push(h('p', { class: 'muted' }, '台帳のスキーマ（templates/registry/*.schema.json）に無い列です。スキーマの検査（claim_lint）で落ちます。'));
+      out.push(h('p', { class: 'muted' }, 'クレーム一覧のスキーマ（templates/registry/*.schema.json）に無い列です。スキーマの検査（claim_lint）で落ちます。'));
       out.push(h('div', { class: 'cols' }, extra.map((k) => column(coll, { key: k, label: k, lite: '' }, obj))));
     }
     return out;
@@ -356,7 +360,7 @@
     const qs = (META.review || {})[coll + '.' + c.key] || [];
     return h('div', { class: 'col' + (has ? '' : ' empty'), 'data-col': c.key },
       h('div', { class: 'ch' }, h('span', { class: 'lbl' }, c.label), h('code', { class: 'key' }, c.key),
-        c.lite ? h('span', { class: 'lite' }, '縮小 Lite：' + c.lite) : null,
+        c.lite ? h('span', { class: 'lite' }, 'Lite：' + c.lite) : null,
         c.meaning ? h('details', null, h('summary', null, '列の意味'), h('p', null, inline(c.meaning))) : null,
         qs.length ? h('details', { 'data-review': c.key }, h('summary', null, `レビューの問い ${qs.length} 件`),
           h('ul', null, qs.map((q) => h('li', null, h('a', { href: q.url }, q.id), ' ', q.text)))) : null),
@@ -402,8 +406,8 @@
     const cols = t.columns.slice();
     const withLint = opts.lint !== false && lintIndex();
     return h('div', { class: 'tablewrap' }, h('table', { 'data-table': t.id },
-      t.title ? h('caption', null, t.title) : null,
-      h('thead', null, h('tr', null, cols.map((c) => h('th', { scope: 'col' }, c.label)), withLint ? h('th', { scope: 'col' }, 'lint') : null)),
+      t.title ? h('caption', null, ui(t.title)) : null,
+      h('thead', null, h('tr', null, cols.map((c) => h('th', { scope: 'col' }, ui(c.label))), withLint ? h('th', { scope: 'col' }, '問題') : null)),
       h('tbody', null, t.rows.map((r) => {
         const target = rowTarget(r);
         const kind = target ? anchorKind(target) : null;
@@ -415,18 +419,18 @@
   }
   function sectionBlock(s, level) {
     if (!s) return null;
-    return [h(level || 'h2', null, s.title), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)];
+    return [h(level || 'h2', null, ui(s.title)), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)];
   }
   // ------------------------------------------------------------ views
   const VIEWS = [
-    ['dashboard', 'ダッシュボード'], ['claims', 'クレームの一覧'], ['ledger', '台帳を行ごとに開く'], ['tokens', 'トークン目録'], ['profile', '発行方式と、導かれる要件'],
-    ['hops', 'ホップの表'], ['lifecycle', '寿命の 4 つの層'], ['catalog', 'カタログへの回答'], ['lint', '検査の結果'],
+    ['dashboard', 'ダッシュボード'], ['claims', 'クレーム一覧'], ['ledger', 'クレームを 1 件ずつ開く'], ['tokens', 'トークン目録'], ['profile', '発行方式と、導かれる要件'],
+    ['hops', '経路の一覧'], ['lifecycle', '寿命の 4 つの層'], ['catalog', 'カタログへの回答'], ['lint', '問題'],
     ['tables', '判断の行・データ源・問いと仕組み'],
   ];
   // the file each screen is made from (#53): without it the menu shows the screen dimmed and the screen offers to add it
   const VIEW_FILE = { claims: 'claims.yaml', ledger: 'claims.yaml', tables: 'claims.yaml', tokens: 'token_types.yaml', profile: 'token_types.yaml',
     lifecycle: 'token_types.yaml', hops: 'hops.yaml', catalog: 'catalog_answers.yaml' };
-  const FILE_WHAT = { 'claims.yaml': '台帳', 'token_types.yaml': 'トークン目録と発行方式の選択', 'hops.yaml': 'ホップの表', 'catalog_answers.yaml': 'カタログへの回答' };
+  const FILE_WHAT = { 'claims.yaml': 'クレーム一覧', 'token_types.yaml': 'トークン目録と発行方式の選択', 'hops.yaml': '経路の一覧', 'catalog_answers.yaml': 'カタログへの回答' };
   const DETAIL = { claim: 'claims', token: 'tokens', hop: 'hops' };
   function hasFile(name) { const f = B().files; return !name || !f || f.includes(name); }
   const PY_TITLE = 'Python で計算する画面（claim_lint をブラウザの中で動かす。初めて開くと読み込みに数秒）';
@@ -436,7 +440,7 @@
     const all = state.diag.list || [];
     const cur2 = parseHash().parts;
     const design = () => {
-      ul.append(h('li', { class: 'sep' }, mode === 'review' ? '設計書の画面（行の判定はここで）' : '設計書の画面'));
+      ul.append(h('li', { class: 'sep' }, '設計書の画面'));
       VIEWS.forEach(([v, label]) => {
         const missing = !hasFile(VIEW_FILE[v]);
         ul.append(h('li', null, h('a', { href: route(v), 'aria-current': cur === v ? 'page' : null, 'data-view': v, class: missing ? 'nofile' : null,
@@ -452,16 +456,8 @@
       v.nav().forEach((it) => ul.append(h('li', null, h('a', { href: route(name, it.sub || null), 'data-view': name + (it.sub ? '/' + it.sub : ''),
         'aria-current': cur === name && (cur2[1] || '') === (it.sub || '') ? 'page' : null }, it.label, it.count ? h('span', { class: 'cnt' }, ' ', it.count) : null))));
     });
-    // 編集: the screens of the design; レビュー: the review screens first, then the screens of the design (the rows are
-    // decided on them). In 編集 the review is one entry (the top bar switches the mode)
-    if (mode === 'review') { extras(); design(); } else {
-      design();
-      Object.keys(state.views).forEach((name) => {
-        const v = state.views[name];
-        ul.append(h('li', { class: 'sep' }, v.group));
-        ul.append(h('li', null, h('a', { href: route(name), 'data-view': name }, v.entry || v.group)));
-      });
-    }
+    // while a review is going on, its screens come first; otherwise the screens of the design come first (#67)
+    if (mode === 'review') { extras(); design(); } else { design(); extras(); }
     ul.append(h('li', { class: 'sep' }, 'ガイド全体'));
     ul.append(h('li', null, h('a', { href: '#/trace', 'aria-current': cur === 'trace' ? 'page' : null }, 'スライドと成果物の対応')));
     ul.append(h('li', { class: 'legend', id: 'nav-legend' }, h('span', { class: 'py', 'aria-hidden': 'true' }, 'Py'), '：Python で計算する画面（初めて開くと読み込みに数秒）。',
@@ -491,15 +487,15 @@
     diag.forEach((f) => { dc[f.severity] = (dc[f.severity] || 0) + 1; });
     const st = state.hooks.lintState ? state.hooks.lintState() : 'off';
     const counts = [
-      ['claims.yaml', '台帳の行', cs.length, Object.keys(dec).map((k) => `${k} ${dec[k]}`).join('・'), 'claims'],
+      ['claims.yaml', 'クレーム', cs.length, Object.keys(dec).map((k) => `${k} ${dec[k]}`).join('・'), 'claims'],
       ['token_types.yaml', 'トークンの種類', tokenTypes().length, null, 'tokens'],
-      ['hops.yaml', 'ホップ', hops().length, null, 'hops'],
+      ['hops.yaml', '経路', hops().length, null, 'hops'],
       ['catalog_answers.yaml', 'カタログへの回答', answers().length, cat && cat.counts ? `対象外 ${cat.counts.out_of_scope}（${cat.counts.out_of_scope_pct}%）` : null, 'catalog'],
     ];
     const open = counts.filter((x) => files.includes(x[0]));
     const closed = counts.filter((x) => !files.includes(x[0]));
     const out = [h('h1', { tabindex: '-1' }, 'ダッシュボード', ' ', h('span', { class: 'muted small' }, b.label || '')),
-      h('p', { class: 'lead' }, '開いた設計書の件数・検査の結果・レビューの進み具合と、要対応の項目です。どれも押すと、その画面に移ります。', h('span', { class: 'muted small' }, ' 保存先：', code(b.design || '（ローカル）'))),
+      h('p', { class: 'lead' }, '開いた設計書の件数・問題・レビューの進み具合と、要対応の項目です。どれも押すと、その画面に移ります。', h('span', { class: 'muted small' }, ' 保存先：', code(b.design || '（ローカル）'))),
       open.length ? h('div', { class: 'cards', id: 'dash-counts' }, open.map(([file, k, v, sub, view]) =>
         h('a', { class: 'card', href: route(view), 'data-dash': view, title: file }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v)), sub ? h('div', { class: 'muted' }, sub) : null))) : null,
       closed.length ? h('p', { class: 'muted', id: 'dash-closed' }, 'まだ開いていないファイル：', closed.map(([file, k], i) => [i ? '・' : '', k, ' ', h('span', { class: 'small' }, '(' + file + ')')]), ' ',
@@ -511,7 +507,7 @@
         : f.line ? h('button', { type: 'button', class: 'link', 'data-goto': f.file + ':' + f.line, onclick: () => state.hooks.goto && state.hooks.goto(f.file, f.line) }, `${f.file} の ${f.line} 行`) : null;
       todos.push(h('li', { 'data-todo-kind': 'error' }, sevBadge('error'), where, h('span', null, inline(String(f.message).slice(0, 140)))));
     });
-    if (dc.error > 8) todos.push(h('li', { 'data-todo-kind': 'error' }, h('a', { href: route('lint', null, { sev: 'error' }) }, `error をすべて見る（${dc.error} 件）`)));
+    if (dc.error > 8) todos.push(h('li', { 'data-todo-kind': 'error' }, h('a', { href: route('lint', null, { sev: 'error' }) }, `エラーをすべて見る（${dc.error} 件）`)));
     const sums = Object.keys(state.views).map((name) => { try { return state.views[name].summary ? state.views[name].summary() : null; } catch (e) { return null; } }).filter(Boolean);
     sums.forEach((x) => (x.todos || []).forEach((t) => todos.push(h('li', { 'data-todo-kind': t.kind }, h('strong', null, t.label), h('a', { href: t.href, 'data-todo-link': t.kind }, t.text)))));
     if (cat && cat.counts && (cat.counts.missing || []).length) {
@@ -522,7 +518,7 @@
     const rules = Object.create(null);
     diag.forEach((f) => { rules[f.rule] = (rules[f.rule] || 0) + 1; });
     const top = Object.keys(rules).sort((x, y) => rules[y] - rules[x]).slice(0, 5);
-    const lintSec = h('section', { id: 'dash-lint', 'aria-labelledby': 'dash-lint-h' }, h('h2', { id: 'dash-lint-h' }, h('a', { href: route('lint') }, '検査の結果')),
+    const lintSec = h('section', { id: 'dash-lint', 'aria-labelledby': 'dash-lint-h' }, h('h2', { id: 'dash-lint-h' }, h('a', { href: route('lint') }, '問題')),
       h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${dc[k] || 0}`), ' '])),
       top.length ? h('ul', null, top.map((r) => h('li', null, code(r), ` ${rules[r]} 件`))) : h('p', { class: 'muted' }, '指摘はありません。'),
       h('p', { class: 'muted small' }, '書式の検査（JSON Schema）は入力のたびに行います。設計の規則の検査（claim_lint）：',
@@ -540,10 +536,10 @@
   function card(k, v, sub) { return h('div', { class: 'card' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v)), sub ? h('div', { class: 'muted' }, sub) : null); }
 
   const FILTERS = [
-    ['token', '載るトークン', (c) => arr(c.carried_in).map(String)],
+    ['token', '入るトークン', (c) => arr(c.carried_in).map(String)],
     ['stage', '段階（書き手）', (c) => stages(c)],
     ['decision', '採否', (c) => [String(c.decision || '（未記入）')]],
-    ['row_kind', '行の種類（縮小 Lite）', (c) => [ROW_KIND[rowKind(c)]]],
+    ['row_kind', '行の種類', (c) => [ROW_KIND[rowKind(c)]]],
     ['data_category', '何のデータか（data_category）', (c) => arr(c.data_category).map(String)],
     ['pii_category', '個人情報の区分', (c) => [String(c.pii_category || '（未記入）')]],
   ];
@@ -560,8 +556,8 @@
     });
     const count = h('p', { class: 'count', id: 'f-count', 'aria-live': 'polite' });
     const tbody = h('tbody');
-    const tbl = h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'claims' }, h('caption', null, '台帳の行（クリックかキーボードで詳細を開く）'),
-      h('thead', null, h('tr', null, ['ID', '名前', '型', '採否', '行の種類（縮小 Lite）', '載るトークン', 'data_category', 'pii_category', '状態', '段階', 'lint'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
+    const tbl = h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'claims' }, h('caption', null, 'クレーム（クリックかキーボードで詳細を開く）'),
+      h('thead', null, h('tr', null, ['ID', '名前', '型', '採否', '行の種類', '入るトークン', 'data_category', 'pii_category', '状態', '段階', '問題'].map((x) => h('th', { scope: 'col' }, x)))), tbody));
     function apply() {
       const params = {};
       const text = search.value.trim().toLowerCase();
@@ -599,30 +595,143 @@
       h('label', { class: 'wide' }, '検索', search, h('span', { id: 'f-hint' }, '/ キーでここに移ります')), selects,
       h('div', null, h('button', { type: 'button', onclick: () => { search.value = ''; FILTERS.forEach(([k]) => { $('#f-' + k).value = ''; }); apply(); } }, '絞り込みを解く')));
     setTimeout(apply, 0);
-    return [h('h1', { tabindex: '-1' }, 'クレームの一覧'),
-      h('p', { class: 'lead' }, '台帳（claims.yaml）の全部の行。「行の種類（縮小 Lite）」は、台帳の README の 2.（縮小 Lite の印）の区分です（対応表の tier（core・full）とは別）。'),
+    return [h('h1', { tabindex: '-1' }, 'クレーム一覧'),
+      h('p', { class: 'lead' }, 'クレーム一覧（claims.yaml）の全部の行。「行の種類」は、クレーム一覧の README の 2.（Lite の印）の区分です（対応表の tier（core・full）とは別）。'),
       form, count, tbl];
   }
 
-  function viewClaim(id) {
-    const c = claimById(id);
-    if (!c) return notFound('台帳の行 ' + id);
+  // ---- one claim, as an entity page of a data catalogue (#67): six fields on top, the other columns in tabs.
+  // Which column is in which tab is data (meta.claim_tabs, tools/build_claims_viewer.py CLAIM_TABS); a column of the
+  // schema that the table does not name is in the last tab, and so are the keys of the row that the schema does not have.
+  const CLAIM_TAB_DEFAULT = 'overview';
+  function claimTabs(c) {
+    const cols = META.columns.claims || [];
+    const by = new Map(cols.map((x) => [x.key, x]));
+    const extra = Object.keys(c).filter((k) => !by.has(k));
+    const tabs = (META.claim_tabs && META.claim_tabs.length ? META.claim_tabs : [{ id: 'other', label: 'そのほか', columns: cols.map((x) => x.key) }]);
+    return tabs.map((t, i) => ({ id: t.id, label: t.label, cols: t.columns.map((k) => by.get(k)).filter(Boolean), extra: i === tabs.length - 1 ? extra : [] }));
+  }
+  function claimTabOf(c, column) {
+    const t = claimTabs(c).find((x) => x.cols.some((k) => k.key === column) || x.extra.includes(column));
+    return t ? t.id : null;
+  }
+  function claimColumn(c, obj) {
+    const has = own(obj, c.key);
+    const qs = (META.review || {})['claims.' + c.key] || [];
+    return h('div', { class: 'col' + (has ? '' : ' empty'), 'data-col': c.key },
+      h('div', { class: 'ch' }, h('span', { class: 'lbl' }, c.label), h('code', { class: 'key' }, c.key),
+        has && c.meaning ? h('details', null, h('summary', null, '列の意味'), h('p', null, inline(c.meaning))) : null,
+        qs.length ? h('details', { 'data-review': c.key }, h('summary', null, `確認事項 ${qs.length} 件`),
+          h('ul', null, qs.map((q) => h('li', null, h('a', { href: q.url }, q.id), ' ', q.text)))) : null),
+      h('div', { class: 'cv' }, has ? columnValue('claims', c.key, obj[c.key], c) : [h('span', null, '（未記入）'), c.meaning ? h('p', { class: 'small' }, inline(c.meaning)) : null]));
+  }
+  function claimHead(c) {
     const d = lookup(DECISION, c.decision) || ['neutral', '•'];
+    const blank = () => h('span', { class: 'muted' }, '（未記入）');
+    const col = (k) => (own(c, k) ? columnValue('claims', k, c[k], (META.columns.claims || []).find((x) => x.key === k)) : blank());
+    const item = (key, label, body) => h('div', { class: 'chi', 'data-head': key }, h('dt', null, label), h('dd', null, body));
+    return h('dl', { class: 'chead', 'data-claim-head': c.id },
+      item('name', '名前', [c.namespace ? h('span', { class: 'muted' }, String(c.namespace)) : null, h('strong', null, String(c.name || '')), ' ', code(c.id)]),
+      item('description', '意味', col('description')),
+      item('type', '型', [own(c, 'type') ? code(String(c.type)) : blank(), own(c, 'shape') && typeof c.shape === 'string' ? h('span', { class: 'muted' }, `（${c.shape}）`) : null]),
+      item('issuers', '発行元', col('issuers')),
+      item('carried_in', '入るトークン', col('carried_in')),
+      item('status', '状態', [badge(d[0], d[1], String(c.decision || '—')), own(c, 'status') ? [' ', text(String(c.status))] : null]));
+  }
+  function viewClaim(id, query) {
+    const c = claimById(id);
+    if (!c) return notFound('クレーム ' + id);
     const onHops = hops().filter((x) => arr(x.custom_claims).includes(c.id));
     const prof = section('issuance-profile');
     const effects = [];
     if (prof && prof.effects) prof.effects.forEach((e) => (e.requires || []).forEach((r) => { if ((r.rows || []).includes(c.id)) effects.push([e, r]); }));
+    const tabs = claimTabs(c);
+    const want = new URLSearchParams(query || '').get('tab');
+    const first = tabs.some((t) => t.id === want) ? want : (tabs.some((t) => t.id === CLAIM_TAB_DEFAULT) ? CLAIM_TAB_DEFAULT : tabs[0].id);
+    const related = { consume: onHops.length ? h('p', { class: 'note', 'data-related': 'hops' }, 'このクレームを運ぶ経路：', h('span', { class: 'codes' }, onHops.map((x) => hopLink(x.id)))) : null,
+      issue: effects.length ? h('p', { class: 'note', 'data-related': 'effects' }, '発行方式から導かれる要件のうち、このクレームが満たすもの：', h('span', { class: 'codes' },
+        effects.map(([e, r]) => h('a', { href: route('profile') + '', title: r.text }, r.id)))) : null };
+    const buttons = []; const panels = [];
+    const mark = (tid) => {
+      buttons.forEach((b) => { const on = b.dataset.tab === tid; b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
+      panels.forEach((p) => { p.hidden = p.dataset.tabpanel !== tid; });
+    };
+    // the selected tab is kept in the query (?tab=), so that a reload and the back button come back to it
+    const select = (tid, focus) => {
+      mark(tid);
+      if (focus) buttons.find((b) => b.dataset.tab === tid).focus();
+      const p = parseHash();
+      const q = new URLSearchParams(p.query);
+      if (tid === CLAIM_TAB_DEFAULT) q.delete('tab'); else q.set('tab', tid);
+      const qs = q.toString();
+      const hash = '#/' + p.parts.map(encodeURIComponent).join('/') + (qs ? '?' + qs : '');
+      if (location.hash !== hash) history.replaceState(null, '', hash);
+    };
+    tabs.forEach((t, i) => {
+      const filled = t.cols.filter((x) => own(c, x.key));
+      const empty = t.cols.filter((x) => !own(c, x.key));
+      const total = t.cols.length + t.extra.length;
+      const n = filled.length + t.extra.length;
+      const b = h('button', { type: 'button', role: 'tab', id: 'ctab-' + t.id, 'data-tab': t.id, 'aria-controls': 'cpanel-' + t.id, class: n ? null : 'none',
+        'aria-selected': 'false', tabindex: '-1', onclick: () => select(t.id) },
+      t.label, ' ', h('span', { class: 'cnt', 'aria-hidden': 'true' }, `${n}/${total}`), h('span', { class: 'vh' }, `（${total} 項目のうち ${n} 項目を記入）`));
+      b.addEventListener('keydown', (e) => {
+        const keys = { ArrowRight: i + 1, ArrowLeft: i - 1 + tabs.length, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        select(tabs[keys[e.key] % tabs.length].id, true);
+      });
+      buttons.push(b);
+      panels.push(h('div', { role: 'tabpanel', id: 'cpanel-' + t.id, 'data-tabpanel': t.id, 'aria-labelledby': 'ctab-' + t.id, tabindex: '0', hidden: true },
+        lookup(related, t.id) || null,
+        filled.length ? h('div', { class: 'cols' }, filled.map((x) => claimColumn(x, c))) : null,
+        t.extra.length ? [h('h2', null, 'スキーマにない列'), h('p', { class: 'muted' }, 'クレーム一覧のスキーマ（templates/registry/claims.schema.json）に無い列です。問題として報告されます。'),
+          h('div', { class: 'cols' }, t.extra.map((k) => claimColumn({ key: k, label: k }, c)))] : null,
+        !n ? h('p', { class: 'muted', 'data-tab-empty': t.id }, total ? 'このタブの項目は、まだ記入されていません。' : 'このタブに入る項目はありません。') : null,
+        empty.length ? foldable(foldKey('unfilled', t.id), h('span', { 'data-unfilled': String(empty.length) }, `未記入 ${empty.length} 件を表示`), () => h('div', { class: 'cols' }, empty.map((x) => claimColumn(x, c))),
+          { closed: true, eager: true, cls: 'unfilled' }) : null));
+    });
+    mark(first);
+    const pii = typeof c.pii_category === 'string' && c.pii_category !== '該当なし' ? badge('info', '◆', '個人情報：' + c.pii_category) : null;
     return [h('p', null, h('a', { href: route('claims') }, '← クレームの一覧')),
       h('h1', { tabindex: '-1', 'data-anchor': anchorOf('claims', c.id) }, c.namespace ? h('span', { class: 'muted' }, String(c.namespace)) : null, String(c.name || ''), ' ', h('span', { class: 'muted' }, '(' + c.id + ')')),
-      h('p', null, badge(d[0], d[1], String(c.decision || '—')), ' ', ROW_KIND[rowKind(c)], c.description ? ['：', inline(c.description)] : null, ' ', revealLink('claims', c.id)),
-      h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('claims', c.id) }, rowExtras('claims', c.id, c, 'detail')),
-      lintList(c.id),
-      onHops.length || effects.length ? h('div', { class: 'note' },
-        onHops.length ? h('p', null, 'この行を運ぶホップ：', h('span', { class: 'codes' }, onHops.map((x) => hopLink(x.id)))) : null,
-        effects.length ? h('p', null, '発行方式から導かれる要件のうち、この行が満たすもの：', h('span', { class: 'codes' },
-          effects.map(([e, r]) => h('a', { href: route('profile') + '', title: r.text }, r.id)))) : null) : null,
-      h('p', { class: 'muted' }, `台帳の全列（${META.columns.claims.length} 列）を、templates/registry/README.md の見出しで表示します。書いていない列は「（未記入）」です。`),
-      foldButtons(() => $('#main')), record('claims', c)];
+      h('p', { class: 'cbadges' }, pii, ' ', lintBadges(c.id), ' ', revealLink('claims', c.id)),
+      claimHead(c),
+      lintList(c.id, 'このクレームの問題'),
+      h('div', { class: 'ctabs', role: 'tablist', 'aria-label': 'クレームの項目', id: 'claim-tabs' }, buttons),
+      panels,
+      // what other parts add to the row (the review of #50 and #67): after the columns, where the reader has read them
+      h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('claims', c.id) }, rowExtras('claims', c.id, c, 'detail'))];
+  }
+  // a problem lands on its field (#67): the detail screen of the row, for a claim the tab that holds the column, the
+  // fold of the unfilled columns opened when the column is in it; the row of the column gets the focus and a mark
+  function focusColumn(kind, id, column) {
+    const view = lookup({ claims: 'claim', token_types: 'token', hops: 'hop' }, kind);
+    const row = lookup({ claims: claimById, token_types: tokenById, hops: hopById }, kind);
+    if (!view || !row(id)) return false;
+    const col = column === null || column === undefined || column === '' ? null : String(column).split(/[.[/]/)[0];
+    const q = {};
+    if (kind === 'claims' && col) { const t = claimTabOf(row(id), col); if (t && t !== CLAIM_TAB_DEFAULT) q.tab = t; }
+    state.pendingCol = col;
+    const r = route(view, id, q);
+    if (location.hash === r) render(); else location.hash = r;
+    return true;
+  }
+  function landOnColumn() {
+    const col = state.pendingCol;
+    state.pendingCol = null;
+    if (!col) return;
+    const el = Array.from(document.querySelectorAll('#main [data-col]')).find((x) => x.dataset.col === col);
+    if (!el) return;
+    const panel = el.closest('[role="tabpanel"]');
+    if (panel && panel.hidden) { const b = document.getElementById('ctab-' + panel.dataset.tabpanel); if (b) b.click(); }
+    const fold = el.closest('details.fold');
+    if (fold && !fold.open) { fold.open = true; fold.dispatchEvent(new Event('toggle')); }
+    el.tabIndex = -1;
+    el.classList.add('flash');
+    el.scrollIntoView({ block: 'center' });
+    el.focus({ preventScroll: true });
+    setTimeout(() => el.classList.remove('flash'), 2500);
   }
 
   function viewTokens() {
@@ -642,7 +751,7 @@
       h('h1', { tabindex: '-1', 'data-anchor': anchorOf('token_types', id) }, id, ' ', h('span', { class: 'muted' }, String(lookup(META.names.token_kinds, t.kind) || t.kind || ''))),
       h('p', null, badge(d[0], d[1], String(t.decision || '—')), ' ', revealLink('token_types', id)),
       h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('token_types', id) }, rowExtras('token_types', id, t, 'detail')), lintList(id),
-      carried.length ? h('p', null, '載る台帳の行：', h('span', { class: 'codes' }, carried.map((c) => h('a', { href: route('claim', c.id), title: c.id }, fullName(c))))) : null,
+      carried.length ? h('p', null, '含まれるクレーム：', h('span', { class: 'codes' }, carried.map((c) => h('a', { href: route('claim', c.id), title: c.id }, fullName(c))))) : null,
       record('token_types', t)];
   }
   // a table built in the browser from the YAML (before claim_lint has run, or when render has no such table)
@@ -671,7 +780,7 @@
     const rest = (s.effects || []).filter((e) => !e.holds);
     out.push(h('h2', null, '選択から導かれる要件'),
       h('p', { class: 'muted small' }, '要件の出典：templates/registry/issuance_effects.yaml'),
-      h('div', { class: 'note warn' }, h('p', null, h('strong', null, 'これは検査ではありません。'), '表を作るときの簡易な読み取りです。正しい判定は、検査の結果の規則 L62〜L64 を見てください。', h('span', { class: 'muted small' }, '（tools/claim_lint/RENDER.md の 5.）'))));
+      h('div', { class: 'note warn' }, h('p', null, h('strong', null, 'これは検査ではありません。'), '表を作るときの簡易な読み取りです。正しい判定は、問題の規則 L62〜L64 を見てください。', h('span', { class: 'muted small' }, '（tools/claim_lint/RENDER.md の 5.）'))));
     const tally = Object.assign(Object.create(null), { satisfied: 0, unsatisfied: 0, unknown: 0 });
     holds.forEach((e) => (e.requires || []).forEach((r) => { tally[r.status] = (tally[r.status] || 0) + 1; }));
     out.push(h('p', null, `成り立つ条件 ${holds.length} 件、要件 `, Object.keys(STATUS).map((k) => [badge(STATUS[k][0], STATUS[k][1], `${STATUS[k][2]} ${tally[k] || 0}`), ' '])));
@@ -685,7 +794,7 @@
               h('td', null, badge(st[0], st[1], st[2]), r.check ? h('div', { class: 'muted' }, code(r.check.path + ' ' + r.check.op)) : null),
               h('td', null, (r.rows || []).length ? h('span', { class: 'codes' }, r.rows.map((x) => claimById(x) ? claimLink(x) : tokenLink(x))) : '—'));
           })))),
-        h('p', { class: 'muted' }, '根拠：'), refs(e.refs || []), e.lint && e.lint.length ? h('p', { class: 'muted' }, 'lint：', e.lint.join('・')) : null));
+        h('p', { class: 'muted' }, '根拠：'), refs(e.refs || []), e.lint && e.lint.length ? h('p', { class: 'muted' }, '検査の規則：', e.lint.join('・')) : null));
     });
     if (rest.length) out.push(h('details', null, h('summary', null, `この選択では成り立たない条件 ${rest.length} 件`),
       h('ul', null, rest.map((e) => h('li', null, code(e.id), ' ', (e.when || []).map((w) => code(w.field + ' = ' + JSON.stringify(w.equals !== undefined ? w.equals : w))))))));
@@ -694,8 +803,8 @@
   }
 
   function viewHops() {
-    const out = [h('h1', { tabindex: '-1' }, 'ホップの表'),
-      h('p', { class: 'lead' }, inline('下流に進むほど、aud・scope・寿命・独自クレームが絞られていく様子を、上流のホップと並べて示します（slide:p06-narrow-downstream）。'))];
+    const out = [h('h1', { tabindex: '-1' }, '経路の一覧'),
+      h('p', { class: 'lead' }, inline('下流に進むほど、aud・scope・寿命・独自クレームが絞られていく様子を、上流の経路と並べて示します（slide:p06-narrow-downstream）。'))];
     const s = section('hop-table');
     const a = section('arrow-table');
     if (s) out.push(sectionBlock(s, 'h2')); else out.push(registryTable('hops', hops(), ['id', 'from', 'to', 'kind', 'upstream', 'token_type', 'aud', 'scope', 'max_lifetime', 'custom_claims'], 'hop'));
@@ -711,7 +820,7 @@
     const diff = (a, b) => arr(a).filter((x) => !arr(b).includes(x));
     return [h('h2', null, '上流との比較（絞り込み）'),
       h('p', { class: 'muted' }, '「減った」は上流にあって下流に無いもの、「増えた」は下流で足されたもの（増えたら理由が要る。検査の正は claim_lint の L16）。'),
-      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'narrowing' }, h('thead', null, h('tr', null, ['ホップ', '上流', 'aud', 'scope', '寿命', '独自クレーム'].map((x) => h('th', { scope: 'col' }, x)))),
+      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'narrowing' }, h('thead', null, h('tr', null, ['経路', '上流', 'aud', 'scope', '寿命', '独自クレーム'].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, hs.map(([x, up]) => {
           const u = hopById(up) || {};
           const cmp = (k) => {
@@ -728,8 +837,8 @@
   }
   function viewHop(id) {
     const x = hopById(id);
-    if (!x) return notFound('ホップ ' + id);
-    return [h('p', null, h('a', { href: route('hops') }, '← ホップの表')),
+    if (!x) return notFound('経路 ' + id);
+    return [h('p', null, h('a', { href: route('hops') }, '← 経路の一覧')),
       h('h1', { tabindex: '-1', 'data-anchor': anchorOf('hops', id) }, id, ' ', h('span', { class: 'muted' }, `${x.from} → ${x.to}`)), h('p', null, revealLink('hops', id)),
       h('aside', { class: 'rowpanel', 'data-panel-for': anchorOf('hops', id) }, rowExtras('hops', id, x, 'detail')), lintList(id), record('hops', x)];
   }
@@ -762,7 +871,7 @@
     const all = state.diag.list || [];
     const st = state.hooks.lintState ? state.hooks.lintState() : 'off';
     const prof = state.hooks.profile ? state.hooks.profile() : null;
-    const out = [h('h1', { tabindex: '-1' }, '検査の結果'),
+    const out = [h('h1', { tabindex: '-1' }, '問題'),
       h('p', { class: 'lead' }, '書式の検査（JSON Schema）と、設計の規則の検査（claim_lint、Python でブラウザの中で動かす）の指摘です。行の番号を押すと、エディターのその行に移ります。')];
     const by = { error: 0, warn: 0, info: 0 };
     all.forEach((f) => { by[f.severity] = (by[f.severity] || 0) + 1; });
@@ -770,7 +879,7 @@
       h('span', { 'data-lint-state': st }, 'claim_lint：', { off: '未読み込み', loading: '読み込み中', running: '検査中', fresh: '最新の内容で検査済み', stale: '編集後に未検査', error: '失敗', unavailable: '使えない（file://）' }[st] || st)));
     if (state.hooks.setProfile) {
       const sel = h('select', { id: 'lint-profile', onchange: (e) => state.hooks.setProfile(e.target.value) },
-        h('option', { value: 'full' }, 'full（既定）'), h('option', { value: 'lite' }, 'lite（縮小 Lite。R2・R4 を warn に下げ、必須の列が減る）'));
+        h('option', { value: 'full' }, 'full（既定）'), h('option', { value: 'lite' }, 'lite（Lite。R2・R4 を warn に下げ、必須の列が減る）'));
       sel.value = prof || 'full';
       out.push(h('p', null, h('label', { for: 'lint-profile' }, 'claim_lint の profile：'), sel, ' ',
         h('span', { class: 'muted' }, 'CLI の ', code('python tools/claim_lint <dir> --profile <profile> --also-scan <dir>/design.md'), ' と同じ検査です。')));
@@ -795,8 +904,8 @@
     fsel.value = q0.get('src') || ''; ssel.value = q0.get('sev') || '';
     fsel.addEventListener('change', apply); ssel.addEventListener('change', apply);
     apply();
-    out.push(h('form', { class: 'filters', onsubmit: (e) => e.preventDefault() }, h('label', null, '出どころ', fsel), h('label', null, '重大度', ssel)),
-      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'diagnostics' }, h('thead', null, h('tr', null, ['規則', '重大度', '出どころ', '対象', '行', '内容'].map((x) => h('th', { scope: 'col' }, x)))), tbody)));
+    out.push(h('form', { class: 'filters', onsubmit: (e) => e.preventDefault() }, h('label', null, '検査の種類', fsel), h('label', null, '重大度', ssel)),
+      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'diagnostics' }, h('thead', null, h('tr', null, ['規則', '重大度', '検査の種類', '対象', '行', '内容'].map((x) => h('th', { scope: 'col' }, x)))), tbody)));
     if (s) out.push(h('h2', null, '設計の規則の検査の要約'), h('p', { class: 'muted small' }, '設計書（design.md）の「CI の結果」の節と同じ内容'), paras(s.notes), paras(s.after));
     return out;
   }
@@ -805,8 +914,8 @@
     const out = [h('h1', { tabindex: '-1' }, '判断の行・データ源・問いと仕組み'), h('p', { class: 'lead' }, '設計書（design.md）の生成の区間と同じ表です（tools/claim_lint/RENDER.md の 1.）。')];
     const ss = ids.map((i) => section(i)).filter(Boolean);
     if (!ss.length) return out.concat(needBundle('判断の行・データ源・問い × 仕組み'));
-    out.push(h('nav', { class: 'toc', 'aria-label': '表' }, ss.map((s) => h('a', { href: '#t-' + s.id, onclick: jump }, s.title))));
-    ss.forEach((s) => out.push(h('h2', { id: 't-' + s.id, tabindex: '-1' }, s.title), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)));
+    out.push(h('nav', { class: 'toc', 'aria-label': '表' }, ss.map((s) => h('a', { href: '#t-' + s.id, onclick: jump }, ui(s.title)))));
+    ss.forEach((s) => out.push(h('h2', { id: 't-' + s.id, tabindex: '-1' }, ui(s.title)), paras(s.notes), s.tables.map((t) => table(t)), paras(s.after)));
     return out;
   }
 
@@ -852,9 +961,9 @@
             record('claims', c, { foldPrefix: ['claim', c.id] })], { closed: true, cls: 'row' });
         })));
     });
-    return [h('h1', { tabindex: '-1' }, '台帳を行ごとに開く'),
-      h('p', { class: 'lead' }, '台帳の行を採否ごとの節にまとめ、行と列のまとまり（templates/registry/README.md の 3.1 の見出し）ごとに開閉できます。開閉の状態は URL に残ります（そのまま共有できます）。'),
-      foldButtons(() => body), cs.length ? body : h('p', { class: 'muted' }, '台帳の行がありません。')];
+    return [h('h1', { tabindex: '-1' }, 'クレームを 1 件ずつ開く'),
+      h('p', { class: 'lead' }, 'クレームを採否ごとの節にまとめ、行と列のまとまり（templates/registry/README.md の 3.1 の見出し）ごとに開閉できます。開閉の状態は URL に残ります（そのまま共有できます）。'),
+      foldButtons(() => body), cs.length ? body : h('p', { class: 'muted' }, 'クレームがありません。')];
   }
 
   // ------------------------------------------------------------ screens that need claim_lint (Pyodide)
@@ -892,12 +1001,13 @@
     if (view === 'lint' && state.hooks.onLintView) state.hooks.onLintView();
     const base = lookup(DETAIL, view) || view;
     const noFile = own(VIEW_FILE, base) && !hasFile(VIEW_FILE[base]) ? () => viewNoFile(base) : null;
-    const fn = noFile || lookup({ dashboard: viewDashboard, claims: () => viewClaims(query), claim: () => viewClaim(id), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
+    const fn = noFile || lookup({ dashboard: viewDashboard, claims: () => viewClaims(query), claim: () => viewClaim(id, query), ledger: viewLedger, tokens: viewTokens, token: () => viewToken(id),
       profile: viewProfile, hops: viewHops, hop: () => viewHop(id), lifecycle: viewLifecycle, catalog: viewCatalog, lint: () => viewLint(query), tables: viewTables,
       trace: viewTrace }, view);
     const navView = lookup({ claim: 'claims', token: 'tokens', hop: 'hops' }, view) || view;
     const extra = !fn && own(state.views, view) ? () => state.views[view].render(parts.slice(1), query) : null;
     show(navView, fn || extra || (() => notFound('画面 ' + view)), PYTHON_VIEWS[view]);
+    landOnColumn();
   }
   function show(navView, fn, python) {
     nav(navView);
@@ -942,6 +1052,8 @@
     helpers: { value: (v, col) => value(v, col), columnValue: (coll, key, v) => columnValue(coll, key, v, (META.columns[coll] || []).find((c) => c.key === key)),
       inline, inlineRepo, badge, lintBadges, foldable, foldKey, slideLink, revealLink, claimLink, tokenLink, hopLink, columns: (coll) => META.columns[coll] || [],
       registry: () => reg(), keepScroll: () => { render.keepScroll = true; render.focus = false; } },
+    // focusColumn(kind, id, column) -> bool: go to the detail screen of the row and land on the column (#67)
+    focusColumn,
     anchorOf,
     route,
     parseHash,

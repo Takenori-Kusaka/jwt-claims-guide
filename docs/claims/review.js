@@ -1,15 +1,15 @@
-// Review mode of the design editor (#50). MIT (LICENSE of the repository).
-// The reviewer answers the 168 questions of templates/review/perspectives.md (data/review.js, built from it by
-// tools/build_claims_viewer.py), decides each row (承認・修正を求める・保留, bound to the row's content hash), records
-// findings in the vocabulary of report_template.md, looks at the analysis (coverage, lint x review, the rows changed
-// since a base version, the 25 answers, a seeded draw of rejection rationales) and writes review.yaml and the report.
+// The review flow of the design editor (#50, redesigned in #67 on the pattern of a pull request review). MIT (LICENSE).
+// 「レビューを開始」 -> the reviewer looks at each row and marks it 「確認済み」 (a personal mark bound to the row's content
+// hash, not an approval) -> comments are kept as 未提出 -> 「レビューを提出」 once, with a summary and one verdict
+// (承認 / 変更を依頼 / コメントのみ) and the hashes of the rows viewed. A later review shows the rows that changed since.
+// 確認事項 are the questions of templates/review/perspectives.md (data/review.js) that apply to this design.
 // Nothing is sent: review.yaml is read with the File API and written with a download link, like the design files.
 // The reviewer's name is self-declared (there is no login); the approval that counts is the GitHub pull request review.
 'use strict';
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'f8622f72ddd2';
+  const BUILD_ID = '3aa849987540';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -50,32 +50,28 @@
     return loading;
   }
   const H = P.helpers;
+  const F = window.ClaimsReviewFormat;  // review-format.js: the canonical text of review.yaml, v1 -> v2, the report
+  if (!F) return;
   const $ = (s, r) => (r || document).querySelector(s);
   const own = (o, k) => o !== null && o !== undefined && Object.prototype.hasOwnProperty.call(o, k);
+  const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 
-  const FORMAT = 'claims-review/1';
-  const SLOT = 'claims-editor:review:v1:';
-  const DEC = { approve: ['ok', '✓', '承認'], request_changes: ['ng', '✎', '修正を求める'], hold: ['warn', '⏸', '保留'] };
-  const STALE = ['warn', '⟳', '再確認が要る'];
-  const MISSING = ['neutral', '?', '台帳に無い行'];
-  const ANS = { yes: ['ok', '✓', 'Yes'], no: ['ng', '✖', 'No'], na: ['neutral', '–', '該当なし'] };
-  const KIND_LABEL = { claims: '台帳の行', token_types: 'トークン種別', hops: 'ホップ', catalog_answers: 'カタログへの回答', issuance_profile: '発行方式の項目' };
+  const FORMAT = F.FORMAT;
+  const SLOT = 'claims-editor:review:v1:';  // the slot of this browser (a v1 text kept there is read and migrated)
+  const VERDICT = { approve: ['ok', '✓', '承認', 'この内容でよい'], request_changes: ['ng', '✎', '変更を依頼', '直してほしい点がある'], comment: ['neutral', '…', 'コメントのみ', '判定はしない'] };
+  const CSTATE = { pending: ['warn', '✎', '未提出'], unresolved: ['ng', '!', '未解決'], resolved: ['ok', '✓', '解決済み'] };
+  const VIEWED = ['ok', '✓', '確認済み'];
+  const CHANGED = ['warn', '⟳', '前回の確認から変更あり'];
+  const MISSING = ['neutral', '?', '一覧に無い行'];
+  const ANS = { yes: ['ok', '✓', '問題なし'], no: ['ng', '✖', '直す必要あり'], na: ['neutral', '–', '対象外'] };
+  const SEV_HELP = { Blocker: 'このままでは進められない', Major: '直すべき', Minor: '直したほうがよい' };
+  const KIND_LABEL = { claims: 'クレーム', token_types: 'トークン', hops: '経路', catalog_answers: 'カタログへの回答', issuance_profile: '発行方式の項目' };
   const KIND_VIEW = { claims: 'claim', token_types: 'token', hops: 'hop' };
+  const ROWS_KEY = { claims: 'claims', token_types: 'token_types', hops: 'hops', catalog_answers: 'answers' };
   let QBY = new Map(); let ROLE = new Map();
   function index() { QBY = new Map(R.questions.map((x) => [x.id, x])); ROLE = new Map(R.roles.map((x) => [x.id, x])); }
   if (R) index();
   const MISMATCH = '目的と仕組みの不一致';
-  const KEY_ORDER = ['format', 'design', 'independent', 'reviews', 'reviewer', 'id', 'criterion', 'name', 'to', 'location', 'anchors',
-    'questions', 'content', 'severity', 'origin', 'kind', 'model', 'confused_question', 'verdict', 'verdict_reason',
-    'response', 'owner', 'due', 'state', 'ref', 'conclusion', 'self_declared', 'started', 'updated', 'submitted',
-    'independence', 'mode', 'broken_at', 'viewed_others_at', 'target', 'commit', 'materials', 'perspectives',
-    'report_template', 'context', 'lite_full', 'steps', 'roles_order', 'ci', 'error', 'warn', 'info',
-    'profile', 'matches_design', 'human_check', 'answers', 'answer', 'memo', 'rows', 'decision', 'reviewer_kind',
-    'hash', 'comment', 'edited_after_viewing_others', 'at', 'findings', 'sampling', 'seed', 'count', 'picked',
-    'population', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7', 'pass', 'reason', 'previous',
-    'replaced_at', 'escalations', 'applies', 'not_applicable', 'feedback', 'note'];
-  const HEADER = '# review.yaml: レビューの記録（#50）。設計書のエディター（docs/claims/）のレビューモードが書き出した形。\n' +
-    '# レビュアーの名前は自己申告です。本当の承認は GitHub の PR のレビューで行います。\n';
 
   // ------------------------------------------------------------ DOM helper (text only)
   function h(tag, attrs) {
@@ -103,64 +99,16 @@
   function badge(x, text, title) { return H.badge(x[0], x[1], text || x[2], title); }
   function gh(path, anchor) { return R.repo_blob + path + (anchor ? '#' + anchor : ''); }
 
-  // ------------------------------------------------------------ review.yaml: the canonical text (tools/review_record.py dump)
-  const ESCAPE = /[\x7f-\x9f\u2028\u2029\ufeff\ufffe\uffff]/g;
-  function yq(s) { return JSON.stringify(String(s)).replace(ESCAPE, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')); }
-  function ykey(k) { return /^[A-Za-z][A-Za-z0-9_-]*$/.test(k) && !/^(?:y|n|yes|no|on|off|true|false|null)$/i.test(k) ? k : yq(k); }
-  function order(d) {
-    const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
-    return Object.keys(d).sort((a, b) => {
-      const ra = rank.has(a) ? rank.get(a) : KEY_ORDER.length; const rb = rank.has(b) ? rank.get(b) : KEY_ORDER.length;
-      if (ra !== rb) return ra - rb;
-      if (rank.has(a)) return 0;
-      return a < b ? -1 : a > b ? 1 : 0;
-    });
-  }
-  function scalar(v) {
-    if (v === null || v === undefined) return 'null';
-    if (v === true) return 'true';
-    if (v === false) return 'false';
-    if (typeof v === 'number') return JSON.stringify(v);
-    return yq(v);
-  }
-  const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
-  function inline(x) {
-    if (isObj(x)) return '{}';
-    if (Array.isArray(x)) return '[' + x.map(scalar).join(', ') + ']';
-    return scalar(x);
-  }
-  function emit(v, ind, out) {
-    const pad = ' '.repeat(ind);
-    if (isObj(v)) {
-      order(v).forEach((k) => {
-        const x = v[k];
-        if ((isObj(x) && Object.keys(x).length) || (Array.isArray(x) && x.length && x.some((i) => i !== null && typeof i === 'object'))) {
-          out.push(`${pad}${ykey(k)}:`);
-          emit(x, ind + 2, out);
-        } else out.push(`${pad}${ykey(k)}: ${inline(x)}`);
-      });
-    } else {
-      v.forEach((x) => {
-        if (isObj(x) && Object.keys(x).length) {
-          const sub = [];
-          emit(x, ind + 2, sub);
-          out.push(pad + '- ' + sub[0].slice(ind + 2));
-          sub.slice(1).forEach((l) => out.push(l));
-        } else out.push(`${pad}- ${inline(x)}`);
-      });
-    }
-  }
-  // line 1 is the template_version of the review materials the records were made with (templates/CONTRIBUTING.md 4.:
-  // every YAML under templates/ starts with it); a file read in keeps its own version
-  function versionOf(text) { const m = /^# template_version: (\d+\.\d+\.\d+)/.exec(String(text || '')); return m ? m[1] : null; }
-  function dump(data, version) {
-    const out = []; emit(data, 0, out);
-    return `# template_version: ${version || st.version || (R && R.template_version) || '0.0.0'}\n` + HEADER + out.join('\n') + '\n';
-  }
+  function dump(data, version) { return F.dump(data, version || st.version || (R && R.template_version) || '0.0.0'); }
+  const versionOf = F.versionOf;
 
   // ------------------------------------------------------------ state
-  // file: the records (review.yaml); me: the name of the reviewer who records in this tab (self-declared)
-  const st = { file: emptyFile(''), savedText: '', me: null, base: null, designRel: '', open: false, timer: null, focus: null, editFinding: null, wizard: 1 };
+  // file: the records (review.yaml, claims-review/2); me: the name of the reviewer who records in this tab (self-declared);
+  // bar: a review is going on (the bar with the progress and 「レビューを提出」 is shown); shown: the rows listed on the
+  // rows screen (kept while the reviewer works, so that a row does not vanish when it is marked); openRow: the row that
+  // is unfolded; form: the comment being written ({anchor, column, question, general, edit})
+  const st = { file: emptyFile(''), savedText: '', me: null, designRel: '', open: false, timer: null, focus: null, version: null,
+    bar: false, filter: null, kind: '', shown: null, openRow: null, form: null, allQ: false, moreQ: false, rowSeed: null, justSubmitted: false, migrated: false };
   function emptyFile(design) { return { format: FORMAT, design, independent: false, reviews: [] }; }
   function now() { return (RV.clock ? RV.clock() : new Date()).toISOString().slice(0, 19) + 'Z'; }
   function mine() { return st.me ? st.file.reviews.find((r) => r.reviewer.name === st.me) || null : null; }
@@ -187,7 +135,7 @@
   function noteViewing() {
     const m = mine();
     if (!m || hiding() || !(st.file.independent || m.independence) || (m.independence && m.independence.viewed_others_at)) return;
-    const others = st.file.reviews.filter((r) => r !== m && (Object.keys(r.answers).length || Object.keys(r.rows).length || r.findings.length));
+    const others = st.file.reviews.filter((r) => r !== m && (Object.keys(r.answers).length || Object.keys(r.viewed).length || r.comments.length));
     if (!others.length) return;
     m.independence = Object.assign({ mode: 'kept' }, m.independence || {}, { viewed_others_at: now() });
     autosaveSoon();
@@ -198,126 +146,570 @@
     return item;
   }
   function unsaved() { return st.open && dump(st.file) !== st.savedText; }
-  function changed(rerender) {
+  function changed(rerender, keepUpdated) {
     const m = mine();
-    if (m) m.updated = now();
+    if (m && !keepUpdated) m.updated = now();
     autosaveSoon();
     refreshCounts();
+    renderBar();
     if (rerender) { H.keepScroll(); P.render(); restoreFocus(); }
   }
   function restoreFocus() { if (st.focus) { const el = document.getElementById(st.focus); if (el) el.focus(); st.focus = null; } }
+  function sid(anchor) { return String(anchor).replace(/[^A-Za-z0-9_-]/g, '_'); }
 
-  // ------------------------------------------------------------ rows: anchors, hashes, states
+  // ------------------------------------------------------------ rows: anchors, hashes, the viewed marks
+  // 「確認済み」 is the reviewer's own mark that they have looked at this content of the row (like Viewed of a pull request
+  // review): it is not an approval. It is bound to the hash of the row; when the row changes, the mark does not count
+  // any more and the row says 「前回の確認から変更あり」. The approval is one verdict for the whole review, at the submission.
+  const hmemo = new WeakMap();
+  function hashOfRow(anchor, row) {
+    if (row && typeof row === 'object') { if (!hmemo.has(row)) hmemo.set(row, CE.rowHash(anchor)); return hmemo.get(row); }
+    return CE.rowHash(anchor);
+  }
+  function rowHash(anchor) { const r = CE.rowOf(anchor); return r ? hashOfRow(anchor, r.row) : null; }
+  function rowsNow() { return CE.anchors().map((a) => ({ anchor: a.anchor, kind: a.kind, id: a.id, row: a.row, hash: hashOfRow(a.anchor, a.row) })); }
   function anchorSet() { return new Set(CE.anchors().map((a) => a.anchor)); }
-  function rowState(rec, anchor, set) {
-    const cur = CE.rowHash(anchor);
+  function markState(rec, anchor, set) {
+    const cur = rowHash(anchor);
     if (!(set || anchorSet()).has(anchor) || cur === null) return 'missing';
-    return cur === rec.hash ? 'current' : 'stale';
+    return cur === rec.hash ? 'current' : 'changed';
   }
-  // the badge of a decision always names the reviewer; an LLM's decision says that no person has checked it. The
-  // details (when, the hashes) are in the text for screen readers too, not only in the title
-  function stateBadge(rec, anchor, rv, set, shown) {
-    const detail = (t) => h('span', { class: shown ? 'muted small rv-detail' : 'vh' }, shown ? ' ' + t : t);
-    const s = rowState(rec, anchor, set);
-    const d = DEC[rec.decision];
-    const kind = rec.reviewer_kind || rv.reviewer.kind;
-    const who = `（${rv.reviewer.name}` + (kind === 'llm' ? '・LLM、人による点検は未実施' : '・名前は自己申告') + '）';
-    const attrs = (state) => ({ class: 'rvb', 'data-review-for': anchor, 'data-review-state': state, 'data-review-by': rv.reviewer.name, 'data-review-kind': kind });
-    if (s === 'stale') {
-      const why = `${d[2]} を記録した後に、行の内容が変わった（記録 ${rec.hash.slice(0, 12)}…、今 ${String(CE.rowHash(anchor)).slice(0, 12)}…）`;
-      return h('span', attrs('stale'), badge(STALE, '再確認が要る' + who, why), detail(why));
-    }
-    if (s === 'missing') return h('span', attrs('missing'), badge(MISSING, '台帳に無い行' + who));
-    const why = `${rec.at}${rec.comment ? '：' + rec.comment : ''}`;
-    return h('span', attrs(rec.decision), badge(d, d[2] + who, why), detail(why));
-  }
-  function record(anchor, decision, comment) {
+  function myMark(anchor) { const m = mine(); return m && own(m.viewed, anchor) ? m.viewed[anchor] : null; }
+  function isViewed(anchor, set) { const r = myMark(anchor); return !!r && markState(r, anchor, set) === 'current'; }
+  const SNAPSHOT_MAX = 200000;
+  function setViewed(anchor, on) {
     const m = mine();
     if (!m) return false;
-    const hash = CE.rowHash(anchor);
+    if (!on) { delete m.viewed[anchor]; changed(false); return true; }
+    const hash = rowHash(anchor);
     if (!hash) return false;
-    if (!decision) { delete m.rows[anchor]; changed(true); return true; }
-    const rec = flagEdit({ decision, reviewer_kind: m.reviewer.kind, hash, at: now() });
-    const c = comment !== undefined ? comment : (m.rows[anchor] && m.rows[anchor].comment) || '';
-    if (c) rec.comment = c;
-    m.rows[anchor] = rec;
-    changed(true);
+    const rec = flagEdit({ hash, at: now(), reviewer_kind: m.reviewer.kind });
+    // the row as it is now (its RFC 8785 text, whose SHA-256 is the hash): the next review shows old and new side by side
+    const snap = CE.rowJcs(anchor);
+    if (snap !== null && snap.length <= SNAPSHOT_MAX) rec.snapshot = snap;
+    m.viewed[anchor] = rec;
+    changed(false);
     return true;
   }
-  function findingsOf(anchor) {
+  function progress() {
+    const m = mine();
+    const all = rowsNow();
+    let viewed = 0; let chg = 0;
+    all.forEach((a) => { const r = m && own(m.viewed, a.anchor) ? m.viewed[a.anchor] : null; if (!r || a.hash === null) return; if (r.hash === a.hash) viewed++; else chg++; });
+    const cs = m ? m.comments : [];
+    return { total: all.length, viewed, changed: chg, comments: cs.length, pending: cs.filter((c) => c.state === 'pending').length,
+      unresolved: cs.filter((c) => c.state === 'unresolved').length };
+  }
+  // the badge of a mark names the reviewer; an LLM's mark says that no person has checked it
+  function markBadge(rec, anchor, rv, set) {
+    const s = markState(rec, anchor, set);
+    const kind = rec.reviewer_kind || rv.reviewer.kind;
+    const who = `（${rv.reviewer.name}` + (kind === 'llm' ? '・LLM、人による点検は未実施' : '・名前は自己申告') + '）';
+    const x = s === 'current' ? VIEWED : s === 'changed' ? CHANGED : MISSING;
+    return h('span', { class: 'rvb', 'data-review-for': anchor, 'data-review-state': s === 'current' ? 'viewed' : s, 'data-review-by': rv.reviewer.name, 'data-review-kind': kind },
+      badge(x, x[2] + who, s === 'changed' ? `${rec.at} に確認した後で、行の内容が変わった` : rec.at));
+  }
+  function commentsOf(anchor) {
     const out = [];
-    visible().forEach((rv) => rv.findings.forEach((f) => { if ((f.anchors || []).includes(anchor)) out.push([rv, f]); }));
+    visible().forEach((rv) => rv.comments.forEach((c) => { if ((c.anchors || []).includes(anchor)) out.push([rv, c]); }));
     return out;
+  }
+  function allComments() { const out = []; visible().forEach((rv) => rv.comments.forEach((c) => out.push([rv, c]))); return out; }
+  function nextId(rv) { for (let i = 1; ; i++) { const id = 'C' + String(i).padStart(2, '0'); if (!rv.comments.some((c) => c.id === id)) return id; } }
+  function colLabel(kind, key) { const c = H.columns(kind).find((x) => x.key === key); return c ? c.label : key; }
+  function kindOf(anchor) { return String(anchor).slice(0, String(anchor).indexOf(':')); }
+  function idOf(anchor) { return String(anchor).slice(String(anchor).indexOf(':') + 1); }
+  function rowTitle(a) {
+    const r = a.row;
+    if (a.kind === 'claims' && isObj(r)) return [h('strong', null, (r.namespace || '') + (r.name || a.id)), ' ', h('span', { class: 'muted' }, '(' + a.id + ')')];
+    return h('strong', null, a.id);
   }
 
   // the badges on every row of every screen, and the panel of the detail screens (registerRowPanel of #49)
   CE.registerRowPanel((anchor, row, kind, where) => {
     if (!st.open || !R) return null;
+    const m = mine();
     const set = anchorSet();
-    const recs = visible().filter((rv) => own(rv.rows, anchor)).map((rv) => [rv, rv.rows[anchor]]);
-    const fs = findingsOf(anchor);
-    if (recs.some(([rv]) => rv !== mine())) noteViewing();
+    const cs = commentsOf(anchor);
+    const marks = visible().filter((rv) => own(rv.viewed, anchor));
+    if (marks.some((rv) => rv !== m)) noteViewing();
     if (where !== 'detail') {
-      if (!recs.length && !fs.length) return null;
-      const list = fs.map(([, f]) => `${f.id} ${f.severity} ${f.content}`).join('／');
-      return h('span', { class: 'codes rvbadges' }, recs.map(([rv, r]) => stateBadge(r, anchor, rv, set)),
-        fs.length ? [badge(['info', '!', ''], `指摘 ${fs.length}`, list), h('span', { class: 'vh' }, '：' + list)] : null);
+      if (!marks.length && !cs.length) return null;
+      const open = cs.filter(([, c]) => c.state !== 'resolved').length;
+      const list = cs.map(([, c]) => `${c.id} ${c.severity} ${c.content}`).join('／');
+      return h('span', { class: 'codes rvbadges' }, marks.map((rv) => markBadge(rv.viewed[anchor], anchor, rv, set)),
+        cs.length ? [badge(['info', '!', ''], `コメント ${cs.length}` + (open ? `（未解決・未提出 ${open}）` : ''), list), h('span', { class: 'vh' }, '：' + list)] : null);
     }
-    return rowPanel(anchor, recs, fs, set);
+    return h('section', { class: 'rv-panel', 'aria-labelledby': 'rvp-h', 'data-review-panel': anchor },
+      h('h2', { id: 'rvp-h' }, 'この行のレビュー'),
+      m ? rowHead(anchor, set, true) : h('p', null, '「確認済み」の印とコメントを付けるには、上の「レビューを開始」を押します。'),
+      rowBody(anchor, true, set));
   });
-  // rows the decision does not cover: the hash is of this row only (PR #52 check)
-  function dependents(anchor) {
-    const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
-    const out = [];
+  // the head of a row: the 「確認済み」 checkbox and what stands out (changed since the last look, comments)
+  function rowHead(anchor, set, detail) {
+    const m = mine();
+    const mark = myMark(anchor);
+    const s = mark ? markState(mark, anchor, set) : null;
+    const hash = rowHash(anchor);
+    const cid = 'rv-v-' + sid(anchor);
+    const cb = h('input', { type: 'checkbox', id: cid, 'data-viewed': anchor, checked: s === 'current' ? true : null, disabled: m && hash ? null : true,
+      onchange: (e) => {
+        st.focus = cid;
+        if (e.target.checked && st.openRow === anchor) st.openRow = null;  // a row marked as viewed folds
+        if (e.target.checked && st.form && st.form.anchor === anchor) st.form = null;
+        setViewed(anchor, e.target.checked);
+        changed(true, true);
+      } });
+    return h('span', { class: 'rv-viewed', 'data-row-state': s === 'current' ? 'viewed' : s || 'open' },
+      h('label', { class: 'chk', for: cid, title: '「確認済み」は、この内容を見たという自分の印です（承認ではありません）。行の内容が変わると外れます。' }, cb, ' 確認済み'),
+      s === 'changed' ? [' ', h('span', { 'data-changed': anchor }, badge(CHANGED))] : null,
+      s === 'missing' ? [' ', badge(MISSING)] : null,
+      !hash && detail ? h('span', { class: 'muted small' }, ' この行は内容を照合できないので、印を付けられません（ID が 2 行以上にある、など）。') : null);
+  }
+  // old and new, side by side, of the columns that changed since the reviewer's mark
+  function changeBlock(anchor, mark) {
     const r = CE.rowOf(anchor);
-    if (!r || !r.row) return out;
-    if (kind === 'claims') {
-      (Array.isArray(r.row.carried_in) ? r.row.carried_in : []).forEach((t) => out.push(['token_types:' + t, '載るトークン種別']));
-      CE.anchors().filter((a) => a.kind === 'hops' && a.row && Array.isArray(a.row.custom_claims) && a.row.custom_claims.includes(id)).forEach((a) => out.push([a.anchor, 'この行を運ぶホップ']));
-      paFiles().filter((f) => f.target === id).forEach((f) => out.push([f.name, '追加前の 25 問の回答']));
+    const box = h('div', { class: 'note warn rv-changed', 'data-changed-row': anchor },
+      h('p', null, h('strong', null, '前回の確認から変更あり。'), `${mark.at} に確認した後で、この行の内容が変わりました。変わった所を見て、よければ「確認済み」を付け直します。`));
+    let old = null; let have = false;
+    if (typeof mark.snapshot === 'string') { try { old = JSON.parse(mark.snapshot); have = true; } catch (e) { have = false; } }
+    if (!have || !r) {
+      box.append(h('p', { class: 'muted small', 'data-no-snapshot': '1' }, '前回の値は、この記録にありません（古い形の記録か、値を含めずに提出した記録）。行の全体を見直してください。'));
+      return box;
     }
-    if (kind === 'hops') {
-      if (r.row.token_type) out.push(['token_types:' + r.row.token_type, 'ホップのトークン種別']);
-      [].concat(r.row.upstream || []).forEach((u) => out.push(['hops:' + u, '上流のホップ']));  // one ID or a list (#58)
+    const kind = r.kind; const cur = r.row;
+    const val = (v, k) => (H.columns(kind).length && k ? H.columnValue(kind, k, v) : H.value(v));
+    const none = () => h('span', { class: 'muted' }, '（無し）');
+    let keys;
+    if (isObj(old) && isObj(cur)) {
+      const order = H.columns(kind).map((c) => c.key);
+      keys = Array.from(new Set(Object.keys(old).concat(Object.keys(cur)))).filter((k) => own(old, k) !== own(cur, k) || CE.canonicalJson(old[k]) !== CE.canonicalJson(cur[k]))
+        .sort((a, b) => (order.indexOf(a) < 0 ? 999 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 999 : order.indexOf(b)));
+    } else keys = [null];
+    box.append(h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'row-diff' }, h('caption', null, `変わった列 ${keys.length} 件（前回の確認 → 今）`),
+      h('thead', null, h('tr', null, ['列', '前回の確認のとき', '今'].map((x) => h('th', { scope: 'col' }, x)))),
+      h('tbody', null, keys.map((k) => h('tr', { 'data-diff-col': k || '' }, h('th', { scope: 'row' }, k ? [colLabel(kind, k), ' ', h('span', { class: 'muted small' }, k)] : '値'),
+        h('td', { class: 'rv-old' }, k === null ? val(old) : own(old, k) ? val(old[k], k) : none()), h('td', { class: 'rv-new' }, k === null ? val(cur) : own(cur, k) ? val(cur[k], k) : none())))))));
+    return box;
+  }
+  // the filled columns of a row, each with a button that adds a comment on that column
+  function valuesBlock(anchor) {
+    const r = CE.rowOf(anchor);
+    if (!r) return null;
+    const m = mine();
+    const kind = r.kind; const row = r.row;
+    const cols = H.columns(kind);
+    if (!isObj(row)) return h('div', { class: 'cols rv-values' }, h('div', { class: 'col' }, h('div', { class: 'ch' }, code(r.id)), h('div', { class: 'cv' }, H.value(row))));
+    const known = new Set(cols.map((c) => c.key));
+    const keys = cols.filter((c) => own(row, c.key)).map((c) => [c.key, c.label]).concat(Object.keys(row).filter((k) => !known.has(k)).map((k) => [k, k]));
+    const empty = cols.filter((c) => !own(row, c.key)).length;
+    const qn = (k) => applicable().filter((x) => x.see_refs.some((s) => s.kind === 'registry' && s.path === kind && s.anchor === k)).length;
+    return [h('div', { class: 'cols rv-values' }, keys.map(([k, label]) => {
+      const n = known.has(k) ? qn(k) : 0;
+      return h('div', { class: 'col', 'data-col': k }, h('div', { class: 'ch' }, h('span', { class: 'lbl' }, label), label !== k ? h('span', { class: 'key muted' }, k) : null,
+        h('span', { class: 'rv-coltools small' }, h('button', { type: 'button', class: 'link', 'data-add-comment-col': anchor + '#' + k, 'aria-label': `${label} にコメントを追加`, disabled: m ? null : true,
+          onclick: () => openForm({ anchor, column: k }) }, 'コメント'),
+        n ? [' ・ ', h('a', { href: P.route('review', 'col') + '/' + kind + '/' + encodeURIComponent(k), title: 'この欄を見る確認事項' }, `確認事項 ${n}`)] : null)),
+      h('div', { class: 'cv' }, known.has(k) ? H.columnValue(kind, k, row[k]) : H.value(row[k]),
+        m && st.form && st.form.anchor === anchor && st.form.column === k ? commentForm(st.form) : null));
+    })), empty ? h('p', { class: 'muted small' }, `未記入の欄 ${empty} 件は、ここには出していません（詳細の画面で見られます）。`) : null];
+  }
+  function rowBody(anchor, detail, set) {
+    const m = mine();
+    const mark = myMark(anchor);
+    const out = [];
+    if (mark && markState(mark, anchor, set) === 'changed') out.push(changeBlock(anchor, mark));
+    if (!detail) out.push(valuesBlock(anchor));
+    const others = visible().filter((rv) => rv !== m && own(rv.viewed, anchor));
+    if (others.length) out.push(h('p', { class: 'small' }, 'ほかのレビュアー：', h('span', { class: 'codes' }, others.map((rv) => markBadge(rv.viewed[anchor], anchor, rv, set)))));
+    if (hiding() && hiddenCount()) out.push(h('p', { class: 'muted small', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の記録を隠しています。`));
+    const cs = commentsOf(anchor);
+    if (cs.length) out.push(h('div', { class: 'rv-comments', 'data-comments-for': anchor }, cs.map(([rv, c]) => commentItem(rv, c))));
+    const inCol = !detail && st.form && st.form.column && isObj((CE.rowOf(anchor) || {}).row) && own(CE.rowOf(anchor).row, st.form.column);
+    if (st.form && st.form.anchor === anchor && m && !inCol) out.push(commentForm(st.form));
+    else {
+      out.push(h('p', { class: 'buttons' },
+        h('button', { type: 'button', id: 'rv-addc-' + sid(anchor), 'data-add-comment': anchor, disabled: m ? null : true, onclick: () => openForm({ anchor }) }, 'コメントを追加'),
+        detail ? null : (KIND_VIEW[kindOf(anchor)] ? h('a', { href: rowHref(anchor) }, '詳細の画面') : null), H.revealLink(kindOf(anchor), idOf(anchor)),
+        detail ? null : h('button', { type: 'button', class: 'link', 'data-next-from': anchor, onclick: () => nextUnviewed(anchor) }, '次の未確認へ →')));
     }
-    if (kind === 'token_types') CE.anchors().filter((a) => a.kind === 'claims' && a.row && Array.isArray(a.row.carried_in) && a.row.carried_in.includes(id)).slice(0, 40).forEach((a) => out.push([a.anchor, '載る台帳の行']));
+    const rel = relatedQuestions(anchor);
+    if (rel) out.push(rel);
     return out;
   }
-  function rowPanel(anchor, recs, fs, set) {
+
+  // ------------------------------------------------------------ comments (kept as 未提出 until the review is submitted)
+  function openForm(f) {
+    if (!mine()) { openStart(); return; }
+    st.form = f;
+    if (f.anchor && !f.general) st.openRow = f.anchor;
+    H.keepScroll(); P.render();
+    const el = $('#rvc-content');
+    if (el) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }
+  }
+  function commentItem(rv, c, withRow) {
     const m = mine();
-    const hash = CE.rowHash(anchor);
-    const cur = m && m.rows[anchor];
-    const deps = dependents(anchor);
-    const box = h('section', { class: 'rv-panel', 'aria-labelledby': 'rvp-h', 'data-review-panel': anchor },
-      h('h2', { id: 'rvp-h' }, 'この行のレビュー'),
-      h('p', { class: 'muted small' }, '判定は、記録した時のこの行の中身に結びつきます。行を変えると「再確認が要る」になります。', h('span', { title: '行の中身のハッシュ（RFC 8785 で正規化した JSON の SHA-256）' }, '（照合に使う値：', code(hash ? hash.slice(0, 16) + '…' : 'なし'), '）')),
-      deps.length ? h('details', { class: 'small', 'data-dependents': anchor }, h('summary', null, `依存する行 ${deps.length} 件（変えても、この判定は「再確認が要る」にならない）`),
-        h('ul', null, deps.map(([a, why]) => h('li', null, /^claim_request_/.test(a) ? code(a) : rowLink(a), `：${why}`)))) : null);
-    if (!hash) box.append(h('p', { class: 'note warn' }, 'この行にはハッシュが無い（ID が 2 行以上にある、またはハッシュにできない値がある）ので、判定を記録できません。'));
-    else if (!m) box.append(h('p', null, '判定を記録するには、', h('a', { href: P.route('review') }, 'レビューを始める'), 'でレビュアーの名前を決めてください。'));
-    else {
-      const fid = 'rvp-' + anchor.replace(/[^A-Za-z0-9_-]/g, '_');
-      const comment = h('textarea', { id: fid + '-c', rows: '2', class: 'rv-comment', 'aria-label': 'コメント' }, cur && cur.comment ? cur.comment : '');
-      const radios = h('fieldset', { class: 'rv-dec' }, h('legend', null, `判定（${m.reviewer.name}）`),
-        Object.keys(DEC).map((k) => h('label', null, h('input', { type: 'radio', name: fid, value: k, checked: cur && cur.decision === k ? true : null, 'data-decide': anchor }), ' ', DEC[k][1], ' ', DEC[k][2])));
-      box.append(h('form', { class: 'rv-form', onsubmit: (e) => {
-        e.preventDefault();
-        const sel = radios.querySelector('input:checked');
-        if (!sel) return;
-        st.focus = fid + '-save';
-        record(anchor, sel.value, comment.value.trim());
-      } }, radios, h('label', { for: fid + '-c' }, 'コメント（修正を求めるなら、指摘の ID も）'), comment,
-      h('p', null, h('button', { type: 'submit', class: 'primary', id: fid + '-save', 'data-record': anchor }, '記録する'), ' ',
-        cur ? h('button', { type: 'button', 'data-unrecord': anchor, onclick: () => CE.ask('判定を消す', `${anchor} の、${m.reviewer.name} の判定を消します。`, [['delete', '消す'], ['cancel', 'やめる']])
-          .then((c) => { if (c === 'delete') record(anchor, null); }) }, '判定を消す') : null, ' ',
-        h('button', { type: 'button', onclick: () => { newFinding({ anchors: [anchor], location: anchor.replace(/^claims:/, '') }); } }, '指摘を足す'))));
+    const a0 = (c.anchors || [])[0];
+    const old = !!(c.hash && a0 && rowHash(a0) !== c.hash);
+    const act = (label, attrs, fn) => h('button', Object.assign({ type: 'button', onclick: fn }, attrs), label);
+    return h('article', { class: 'rv-c', 'data-comment': c.id, 'data-comment-state': c.state, 'data-comment-by': rv.reviewer.name },
+      h('p', { class: 'rv-c-head' }, badge(CSTATE[c.state]), ' ', code(c.id), ' ', h('span', { class: 'chip', title: SEV_HELP[c.severity] || '' }, c.severity), ' ', h('span', { class: 'chip' }, c.kind),
+        c.column && a0 ? [' ', h('span', { class: 'chip' }, '列：' + colLabel(kindOf(a0), c.column))] : null,
+        ' ', h('span', { class: 'muted small' }, rv.reviewer.name + (rv.reviewer.kind === 'llm' ? '（LLM、人による点検は未実施）' : '')),
+        old ? [' ', badge(['neutral', '⟲', '古い内容へのコメント'], null, 'コメントを書いた後で、行の内容が変わりました')] : null,
+        withRow ? [' ', (c.anchors || []).length ? h('span', { class: 'codes' }, c.anchors.map(rowLink)) : h('span', { class: 'muted small' }, H.inline(c.location))] : null),
+      h('p', { class: 'rv-c-body' }, H.inline(c.content)),
+      c.suggestion ? h('p', { class: 'small' }, '修正の提案：', code(c.suggestion)) : null,
+      c.kind === MISMATCH && c.confused_question ? h('p', { class: 'small muted' }, '取り違えた問い：', H.inline(c.confused_question)) : null,
+      c.verdict_reason ? h('p', { class: 'small muted' }, '採否の理由：', c.verdict_reason) : null,
+      rv === m ? h('p', { class: 'buttons small' },
+        c.state === 'pending' ? [act('直す', { 'data-edit-comment': c.id }, () => openForm({ anchor: a0, column: c.column, question: (c.questions || [])[0], general: !a0 && !(c.questions || []).length, edit: c.id })),
+          act('消す', { 'data-delete-comment': c.id }, () => CE.ask('コメントを消す', `未提出のコメント ${c.id} を消します。`, [['delete', '消す'], ['cancel', 'やめる']]).then((x) => { if (x === 'delete') { m.comments.splice(m.comments.indexOf(c), 1); changed(true); } }))]
+          : c.state === 'unresolved' ? act('解決済みにする', { 'data-resolve': c.id }, () => { c.state = 'resolved'; c.resolved_at = now(); flagEdit(c); changed(true); })
+            : act('未解決に戻す', { 'data-unresolve': c.id }, () => { c.state = 'unresolved'; delete c.resolved_at; flagEdit(c); changed(true); })) : null);
+  }
+  // The form asks only what the report needs: the text, the severity and the kind (report_template.md 2.). Where it came
+  // from (origin) follows from where it was written, and the author's decision on it (採用・却下・保留) starts as 保留.
+  function commentForm(f) {
+    const m = mine();
+    const ex = f.edit ? m.comments.find((c) => c.id === f.edit) : null;
+    const v = ex || {};
+    const content = h('textarea', { id: 'rvc-content', rows: '3', 'aria-describedby': 'rvc-hint' }, v.content || f.content || '');
+    const sev = h('select', { id: 'rvc-severity' }, R.report.severities.map((x) => h('option', { value: x, selected: x === (v.severity || 'Major') ? true : null }, `${x}（${SEV_HELP[x] || ''}）`)));
+    const confused = h('input', { type: 'text', id: 'rvc-confused', value: v.confused_question || '' });
+    const cbox = h('label', { class: 'wide', id: 'rvc-confused-box', hidden: (v.kind || '') !== MISMATCH ? true : null }, '取り違えた問い（どの問いに、別の問いのための仕組みで答えているか）', confused);
+    const kind = h('select', { id: 'rvc-kind', onchange: (e) => { cbox.hidden = e.target.value !== MISMATCH; } }, R.report.kinds.map((x) => h('option', { value: x, selected: x === (v.kind || R.report.kinds[0]) ? true : null }, x)));
+    const sugg = f.column ? h('input', { type: 'text', id: 'rvc-suggestion', value: v.suggestion || '' }) : null;
+    const msg = h('p', { class: 'err', id: 'rvc-msg', role: 'alert' });
+    const where = f.anchor ? (f.column ? `${f.anchor} の「${colLabel(kindOf(f.anchor), f.column)}」` : f.anchor) : f.question ? `確認事項 ${f.question}` : '設計書の全体';
+    return h('form', { class: 'filters rv-cform', id: 'rv-comment-form', 'data-comment-form': f.anchor || f.question || 'general', onsubmit: (e) => {
+      e.preventDefault();
+      const text = content.value.trim();
+      if (!text) { msg.textContent = 'コメントの文を書いてください。'; content.focus(); return; }
+      if (kind.value === MISMATCH && !confused.value.trim()) { msg.textContent = '種別が「目的と仕組みの不一致」のときは、取り違えた問いを書いてください。'; confused.focus(); return; }
+      const c = ex || { id: nextId(m), state: 'pending', verdict: '保留' };
+      c.location = ex ? ex.location : (f.anchor ? idOf(f.anchor) + (f.column ? ` の ${f.column}` : '') : f.question ? f.question : '設計書の全体');
+      c.content = text; c.severity = sev.value; c.kind = kind.value;
+      if (!ex) c.origin = m.reviewer.kind === 'llm' ? 'LLM' : f.question ? '観点' : 'テンプレート項目';
+      if (kind.value === MISMATCH) c.confused_question = confused.value.trim(); else delete c.confused_question;
+      if (f.anchor) { c.anchors = [f.anchor]; const hh = rowHash(f.anchor); if (hh) c.hash = hh; }
+      if (f.column) c.column = f.column;
+      if (f.question) c.questions = [f.question];
+      if (sugg && sugg.value.trim()) c.suggestion = sugg.value.trim(); else delete c.suggestion;
+      c.at = now();
+      flagEdit(c);
+      if (!ex) m.comments.push(c);
+      st.form = null;
+      st.focus = f.anchor ? 'rv-addc-' + sid(f.anchor) : null;
+      changed(true);
+    } },
+    h('h3', { class: 'wide' }, ex ? `コメント ${ex.id} を直す` : 'コメントを追加', ' ', h('span', { class: 'muted small' }, where)),
+    h('label', { class: 'wide' }, 'コメント', content),
+    h('label', null, '重大度', sev), h('label', null, '種別', kind), cbox,
+    sugg ? h('label', { class: 'wide' }, '修正の提案（任意。この列をどう書けばよいか）', sugg) : null,
+    h('p', { class: 'wide muted small', id: 'rvc-hint' }, '提出するまでは「未提出」で、自分にだけ見え、直せます。重大度と種別は、レポートに載ります。'),
+    h('div', { class: 'wide buttons' }, msg, h('button', { type: 'submit', class: 'primary', id: 'rvc-save' }, ex ? '直した内容で保存' : 'コメントを追加（未提出）'),
+      h('button', { type: 'button', id: 'rvc-cancel', onclick: () => { st.form = null; st.focus = f.anchor ? 'rv-addc-' + sid(f.anchor) : null; H.keepScroll(); P.render(); restoreFocus(); } }, 'やめる')));
+  }
+
+  // ------------------------------------------------------------ 確認事項: the questions that apply to this design
+  // The questions come from data/review.js (perspectives.md). Which of them a reviewer answers is data too
+  // (templates/review/triage.yaml, #56): the class of each question (A the checks, B the author, C a person's judgement,
+  // D an expert), and for class C a priority, the unit it is read with (row / hop / design), the conditions under which
+  // it is shown (show_when: properties of the design) and a plain wording (ask). The properties are read from the
+  // design (readTraits); a condition that cannot be read carries a question (ask) and is asked of the reviewer, the
+  // answer kept in review.yaml (traits).
+  // the words of the screens (#67) in texts that come from the templates (the templates keep their own words)
+  const UI_TERMS = [['値の出どころ', '値の元データ'], ['出どころ', '元データ'], ['台帳の行', 'クレーム'], ['台帳', 'クレーム一覧'], ['ホップ', '経路'], ['観点書', '確認事項の一覧'], ['観点', '確認事項'],
+    ['縮小 Lite', 'Lite'], ['lint の', '自動の検査の'], ['lint', '自動の検査']];
+  function ui(s) { let t = String(s === null || s === undefined ? '' : s); UI_TERMS.forEach(([a, b]) => { t = t.split(a).join(b); }); return t; }
+  // The traits of the open design that the conditions of templates/review/triage.yaml name (#56): {condition: 'on' |
+  // 'off' | 'unknown'}. The same reading as read_traits() of tools/review_triage.py (tools/tests/test_claims_editor_ux.py
+  // compares the two): on when the registry shows it OR the author declared it (catalog_answers); unknown (shown, with
+  // a note) when the file it is read from is missing, so that a design does not get a shorter list silently.
+  function readTraits() {
+    const reg = H.registry() || {};
+    const adopted = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => isObj(r) && r.decision !== '却下');
+    const claims = adopted(reg.claims && reg.claims.claims); const types = adopted(reg.token_types && reg.token_types.token_types);
+    const noHops = !isObj(reg.hops);
+    const hops = (isObj(reg.hops) && Array.isArray(reg.hops.hops) ? reg.hops.hops : []).filter(isObj);
+    const cat = isObj(reg.catalog_answers) ? reg.catalog_answers : {};
+    const lite = isObj(cat.lite_criteria) ? cat.lite_criteria : {}; const asked = isObj(cat.questions) ? cat.questions : {};
+    const declared = (sec, key, field) => (isObj(sec[key]) && typeof sec[key][field] === 'boolean' ? sec[key][field] : null);
+    const names = new Set(claims.map((c) => String(c.name))); const kinds = new Set(hops.map((x) => x.kind));
+    const has = (v) => (Array.isArray(v) ? v.length > 0 : isObj(v) ? Object.keys(v).length > 0 : !!v);
+    const host = (u) => { const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(u)); return m ? m[1] : ''; };
+    const t = { always: 'on' };
+    const put = (c, on, unknown) => { t[c] = on ? 'on' : unknown ? 'unknown' : 'off'; };
+    put('org_claims', claims.some((c) => has(c.namespace) || (!has(c.registered_ref) && (c.usage === 'authz' || c.usage === 'identifier'))));
+    put('pii', claims.some((c) => c.pii_category && c.pii_category !== '該当なし'));
+    const hosts = new Set(); types.forEach((x) => (Array.isArray(x.issuers) ? x.issuers : []).forEach((i) => { if (isObj(i) && host(i.iss)) hosts.add(host(i.iss)); }));
+    // #58: an idp array of catalog_answers.yaml (registry 0.3.0) that names two or more IdPs (names compared in lower case)
+    const idps = new Set(); (Array.isArray(cat.idp) ? cat.idp : []).forEach((i) => { if (isObj(i) && typeof i.name === 'string' && i.name.trim()) idps.add(i.name.trim().toLowerCase()); });
+    put('multi_idp', idps.size > 1 || hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
+    put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
+    put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
+      declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null || declared(lite, 'delegation_or_exchange', 'answer') === true);
+    put('approval', names.has('authorization_details') || hops.some((x) => has(x.authorization_details)), noHops);
+    // the author's answer decides multitenant; tenant_binding is read only when there is no answer
+    const mt = declared(lite, 'multitenant', 'answer');
+    put('multitenant', mt !== null ? mt : types.some((x) => has(x.tenant_binding)));
+    put('data_layer', kinds.has('db_connection'), noHops);
+    put('auth_context', names.has('acr') || names.has('amr') || names.has('auth_time'));
+    put('sender_constrained', types.some((x) => x.sender_constraint === 'dpop' || x.sender_constraint === 'mtls') || declared(asked, 'q-holder', 'needed') === true);
+    put('sender_declined', types.some((x) => (x.kind === 'access_token' || x.kind === 'internal_token') && (x.sender_constraint === undefined || x.sender_constraint === null || x.sender_constraint === 'none')));
+    put('long_running', types.some((x) => has(x.long_running)) || kinds.has('broker_connection'), noHops);
+    return t;
+  }
+  function conditions() { return (R.checklist && R.checklist.conditions) || []; }
+  // {id: true | false | null}: read from the design (on / off / unknown), or (a condition with `ask`) answered by the
+  // reviewer; null = not known yet (its questions are shown, with a note)
+  function traits() {
+    const read = readTraits();
+    const m = mine();
+    const out = { always: true };
+    conditions().forEach((c) => {
+      if (c.ask) { out[c.id] = m && m.traits && own(m.traits, c.id) ? m.traits[c.id] : null; return; }
+      out[c.id] = read[c.id] === 'on' ? true : read[c.id] === 'off' ? false : null;
+    });
+    return out;
+  }
+  const CLASS_WHY = { A: '自動の検査で確かめる（画面の下の「問題」に出る。レビュアーは答えない）', B: '書き手が、提出の前に自分で確かめる', D: '専門家に回す基準で見る（レポートの画面の「専門家に回した項目」）' };
+  // -> {show, more, why}: shown by default (class C of a default priority whose condition holds or cannot be read, or a
+  // lint rule of show_on_lint that warned), "if time remains" (more: class C of an optional priority whose condition
+  // holds), or not shown, with the reason
+  function triage(x, tr, warned) {
+    const cls = x.triage && x.triage !== 'all' ? x.triage : 'C';
+    if (cls !== 'C') return { show: false, why: CLASS_WHY[cls] || cls };
+    const label = (id) => { const c = conditions().find((y) => y.id === id); return c ? ui(c.label) : id; };
+    const byLint = (x.show_on_lint || []).filter((r) => warned.has(r));
+    if (byLint.length) return { show: true, why: `「問題」に、規則 ${byLint.join('・')} の警告が出ているため` };
+    const short = (R.checklist && R.checklist.short) || {};
+    const when = (x.show_when || []).length ? x.show_when : ['always'];
+    const hit = when.filter((id) => tr[id] === true);
+    const unknown = when.filter((id) => tr[id] === null || tr[id] === undefined);
+    const prio = x.priority !== undefined && x.priority !== null;
+    if (prio && Array.isArray(short.priorities) && !short.priorities.includes(x.priority)) {
+      if ((short.optional_priorities || []).includes(x.priority) && (hit.length || unknown.length)) {
+        return { show: false, more: true, why: `時間があれば（優先 ${x.priority}。この設計書に当てはまるが、先に優先 ${short.priorities.join('・')} の問いに答える）` };
+      }
+      return { show: false, why: `優先 ${x.priority}（当てはまる設計が限られる、またはほかの問いに答える中で見える）` };
     }
-    if (recs.length) {
-      box.append(h('h3', null, '記録'), h('ul', { class: 'rv-recs' }, recs.map(([rv, r]) => h('li', null, stateBadge(r, anchor, rv, set, true)))));
-    }
-    if (hiding() && hiddenCount()) box.append(h('p', { class: 'muted small', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の記録を隠しています。`));
-    if (fs.length) box.append(h('h3', null, 'この行の指摘'), h('ul', null, fs.map(([rv, f]) => h('li', null, code(f.id), ' ', f.severity, '・', f.kind, '：', H.inline(f.content), st.file.reviews.length > 1 ? h('span', { class: 'muted' }, `（${rv.reviewer.name}）`) : null))));
+    if (hit.length) return { show: true, why: hit.includes('always') ? 'どの設計書でも確かめる' : hit.map(label).join('・') + '（設計書から読んだ性質）' };
+    if (unknown.length) return { show: true, why: unknown.map(label).join('・') + ' かどうかを、まだ読めない（分からない）ため' };
+    return { show: false, why: 'この設計書に当てはまらない（' + when.map(label).join('・') + ' に当たらない）' };
+  }
+  function warnedRules() { return new Set(CE.diagnostics().filter((d) => d.source === 'claim_lint' && d.severity !== 'info').map((d) => d.rule)); }
+  function triageAll() {
+    const tr = traits();
+    const warned = warnedRules();
+    return R.questions.map((x) => [x, triage(x, tr, warned)]);
+  }
+  function applicable() { return triageAll().filter(([, t]) => t.show).map(([x]) => x); }
+  // the open prompts of #56 whose condition holds (or cannot be read): those of a condition other than always first,
+  // then those whose prefer_when names a trait that holds (当たる, not 読めない), then the order of the data. The first
+  // max_prompts are shown, the rest are "if time remains"
+  function openPrompts(tr) {
+    const all = ((R.checklist && R.checklist.open_prompts) || []).filter((p) => (p.show_when || ['always']).some((c) => tr[c] !== false));
+    const rank = (p) => ((p.show_when || []).some((c) => c !== 'always' && tr[c] !== false) ? 0 : (p.prefer_when || []).some((c) => tr[c] === true) ? 1 : 2);
+    const ranked = all.map((p, i) => [rank(p), i, p]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+    const max = ((R.checklist && R.checklist.short) || {}).max_prompts || ranked.length;
+    return { shown: ranked.slice(0, max), more: ranked.slice(max) };
+  }
+  // the short list for the tests and tools/review_triage.py: the questions shown by default, the optional ones, the prompts
+  function shortList() {
+    if (!R || !R.checklist || !R.checklist.short) return null;
+    const all = triageAll(); const p = openPrompts(traits());
+    return { questions: all.filter(([, t]) => t.show).map(([x]) => x.id), optional: all.filter(([, t]) => t.more).map(([x]) => x.id),
+      prompts: p.shown.map((x) => x.id), morePrompts: p.more.map((x) => x.id) };
+  }
+  function answerOf(rv, qid) { return rv && rv.answers[qid] ? rv.answers[qid].answer : ''; }
+  function relatedQuestions(anchor) {
+    const kind = kindOf(anchor);
+    const m = mine();
+    const unit = { claims: 'row', hops: 'hop' }[kind];
+    const qs = applicable().filter((x) => (x.unit ? x.unit === unit : x.see_refs.some((s) => s.kind === 'registry' && s.path === kind)));
+    if (!qs.length) return null;
+    const open = qs.filter((x) => !answerOf(m, x.id)).length;
+    // a plain <details> (not a fold kept in the URL): the questions are rendered when it is first opened
+    const box = h('details', { class: 'rv-related' }, h('summary', { 'data-related-questions': String(qs.length) }, `この行を見ながら確かめる確認事項 ${qs.length} 件` + (m ? `（未回答 ${open} 件）` : '')));
+    box.addEventListener('toggle', () => {
+      if (!box.open || box.dataset.filled) return;
+      box.dataset.filled = '1';
+      add(box, [h('p', { class: 'muted small' }, '確認事項の答えは、設計書の全体に 1 つです（行ごとではありません）。'), qs.map((x) => questionItem(x, m, null, 'r-' + sid(anchor) + '-'))]);
+    });
     return box;
+  }
+  // the rows a per-row question is answered for (#56, the same draw as row_sample() of tools/review_triage.py):
+  // budget.row_sample adopted claims used for authorization or as an identifier, ranked by sha256(seed + ':' + id),
+  // with one row of the organisation's own authorization claims (a namespace and usage authz) always in it. The seed is
+  // the reviewer's; without one, it is made from the claims and today's date (the CLI makes its own the same way, so
+  // only a seed that is written down gives the same rows there: --seed)
+  function rowSample(seed) {
+    const reg = H.registry() || {};
+    const claims = (reg.claims && Array.isArray(reg.claims.claims) ? reg.claims.claims : []).filter((c) => isObj(c) && c.decision !== '却下' && (c.usage === 'authz' || c.usage === 'identifier'));
+    const b = (R.checklist && R.checklist.short && R.checklist.short.budget) || {};
+    const n = b.row_sample || 3;
+    const ranked = (rows) => rows.map((c) => String(c.id)).map((i) => [CE.sha256(seed + ':' + i), i]).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)).map((x) => x[1]);
+    const own = ranked(claims.filter((c) => hasValue(c.namespace) && c.usage === 'authz')).slice(0, 1);
+    return { rows: own.concat(ranked(claims).filter((i) => !own.includes(i))).slice(0, n), population: claims.length, own: own[0] || null };
+  }
+  function hasValue(v) { return Array.isArray(v) ? v.length > 0 : isObj(v) ? Object.keys(v).length > 0 : !!v; }
+  function defaultRowSeed() {
+    const reg = H.registry() || {};
+    let text = '';
+    try { text = CE.canonicalJson((reg.claims && reg.claims.claims) || null); } catch (e) { text = ''; }
+    return CE.sha256(text).slice(0, 8) + '-' + new Date().toISOString().slice(0, 10);
+  }
+  function rowSampleBox() {
+    const b = (R.checklist && R.checklist.short && R.checklist.short.budget) || {};
+    if (!b.row_sample) return null;
+    const seed = h('input', { type: 'text', id: 'rv-row-seed', value: st.rowSeed || defaultRowSeed(), 'aria-describedby': 'rv-row-seed-hint' });
+    const out = h('p', { id: 'rv-row-sample', 'aria-live': 'polite' });
+    const draw = () => {
+      const v = seed.value.trim() || defaultRowSeed();
+      st.rowSeed = seed.value.trim() || null;
+      const r = rowSample(v);
+      out.replaceChildren(r.rows.length ? ['答える行（認可・識別子に使う ', String(r.population), ' 行から ', String(r.rows.length), ' 行）：', r.rows.map((i, k) => [k ? '・' : '', h('a', { href: P.route('claim', i), 'data-sample-row': i }, i)]),
+        r.own ? `。${r.own} は、組織独自の認可の行として必ず入れた 1 行です。` : '。組織独自の認可の行（名前空間つき）はありません。'] : '認可・識別子に使う行がありません。');
+      out.dataset.rows = r.rows.join(' ');
+    };
+    seed.addEventListener('input', draw);
+    draw();
+    return h('div', { class: 'rv-sample small', id: 'rv-row-sample-box' },
+      h('p', { class: 'muted', id: 'rv-row-seed-hint' }, `クレームの行を読みながら答える問いは、全部の行でなく、認可・識別子に使う行から ${b.row_sample} 行を抜き取って答えます。抜き取りは種で決まり、同じ種なら誰がやっても同じ行です。種はレビュアーが決めて（書き手が先に行を知れないように）、コメントか総評に書きます。`),
+      h('label', null, '抜き取りの種 ', seed), out);
+  }
+  function promptItem(p, m, more) {
+    return h('li', { 'data-prompt': p.id, 'data-more': more ? '1' : null }, more ? h('span', { class: 'chip' }, '時間があれば') : null, more ? ' ' : null, H.inlineRepo(ui(p.ask)), ' ',
+      h('button', { type: 'button', class: 'link', disabled: m ? null : true, onclick: () => { location.hash = P.route('review', 'comments'); openForm({ general: true }); } }, '気づいたことをコメントにする'),
+      p.hint ? h('details', { class: 'rv-hint small' }, h('summary', null, '補足'), h('p', { class: 'muted' }, H.inlineRepo(ui(p.hint)))) : null);
+  }
+  function viewChecklist(query) {
+    const q = new URLSearchParams(query || '');
+    const m = mine();
+    const tr = traits();
+    const all = triageAll();
+    const shownN = all.filter(([, t]) => t.show).length;
+    const total = all.length;
+    const reasons = new Map();
+    all.forEach(([, t]) => { if (!t.show) reasons.set(t.why, (reasons.get(t.why) || 0) + 1); });
+    const ansSel = h('select', { id: 'rv-f-ans' }, h('option', { value: '' }, 'すべて'), h('option', { value: 'open' }, '未回答'), Object.keys(ANS).map((k) => h('option', { value: k }, ANS[k][2])));
+    const text = h('input', { type: 'search', id: 'rv-f-q', placeholder: '問いの文・ID で探す' });
+    ansSel.value = q.get('ans') || ''; text.value = q.get('q') || '';
+    if (q.get('all') === '1') st.allQ = true;
+    if (q.get('more') === '1') st.moreQ = true;
+    const count = h('p', { class: 'count', id: 'rv-count', 'aria-live': 'polite' });
+    const list = h('div', { id: 'rv-questions' });
+    const items = [];
+    const units = (R.checklist && R.checklist.units) || null;
+    const groups = units && all.some(([x]) => x.unit) ? Object.keys(units).map((k) => ({ id: k, title: ui(units[k]), has: (x) => x.unit === k })).concat([{ id: 'other', title: 'そのほか（レビュアーが答えない問いを含む）', has: (x) => !x.unit }])
+      : R.stages.map((s) => ({ id: s.id, title: s.title, has: (x) => x.stage === s.id }));
+    groups.forEach((s) => {
+      const qs = all.filter(([x, t]) => s.has(x) && (st.allQ || t.show)).sort((a, b) => (a[0].priority || 9) - (b[0].priority || 9));
+      if (!qs.length) return;
+      const sec = h('section', { class: 'rv-stage', 'data-stage': s.id }, h('h2', null, s.title));
+      qs.forEach(([x, t]) => { const el = questionItem(x, m, t); items.push([x, el]); sec.append(el); });
+      list.append(sec);
+    });
+    // "if time remains" (#56): the questions of an optional priority, in a group of their own after the others
+    const moreQs = all.filter(([, t]) => t.more);
+    if (st.moreQ && !st.allQ && moreQs.length) {
+      const sec = h('section', { class: 'rv-stage', 'data-stage': 'more' }, h('h2', null, `時間があれば（優先 ${((R.checklist.short || {}).optional_priorities || []).join('・')} の問い）`));
+      moreQs.forEach(([x, t]) => { const el = questionItem(x, m, t); items.push([x, el]); sec.append(el); });
+      list.append(sec);
+    }
+    function apply() {
+      const t = text.value.trim().toLowerCase();
+      let n = 0;
+      items.forEach(([x, el]) => {
+        const a = answerOf(mine(), x.id);
+        const ok = (!ansSel.value || (ansSel.value === 'open' ? !a : a === ansSel.value)) && (!t || (x.id + ' ' + x.text + ' ' + (x.ask || '') + ' ' + x.see).toLowerCase().includes(t));
+        el.hidden = !ok;
+        if (ok) n++;
+      });
+      list.querySelectorAll('.rv-stage').forEach((sec) => { sec.hidden = !sec.querySelector('.rv-q:not([hidden])'); });
+      const done = m ? items.filter(([x]) => answerOf(m, x.id)).length : 0;
+      count.textContent = `${n} 件を表示` + (m ? `（回答済み ${done} / ${items.length} 件）` : '');
+      const params = {};
+      if (ansSel.value) params.ans = ansSel.value;
+      if (t) params.q = text.value.trim();
+      if (st.allQ) params.all = '1';
+      if (st.moreQ) params.more = '1';
+      const hash = P.route('review', 'checklist', params);
+      if (location.hash !== hash) history.replaceState(null, '', hash);
+    }
+    setTimeout(apply, 0);
+    const conds = conditions().filter((c) => c.id !== 'always');
+    const auto = conds.filter((c) => !c.ask);
+    const asked = conds.filter((c) => c.ask);
+    const mark = (v) => (v === true ? badge(['info', '●', '当たる']) : v === false ? badge(['neutral', '○', '当たらない']) : badge(['warn', '?', '読めない'], null, 'この性質を読むファイルを、まだ開いていない（または、まだ答えていない）。関係する問いは、出したままにします'));
+    const prompts = openPrompts(tr);
+    const budget = ((R.checklist && R.checklist.short) || {}).budget || {};
+    const moreN = moreQs.length + prompts.more.length;
+    const moreBtn = moreN ? h('button', { type: 'button', id: 'rv-q-more', 'aria-pressed': st.moreQ ? 'true' : 'false',
+      onclick: () => { st.moreQ = !st.moreQ; st.focus = 'rv-q-more'; const ps = {}; if (st.allQ) ps.all = '1'; if (st.moreQ) ps.more = '1'; history.replaceState(null, '', P.route('review', 'checklist', ps)); H.keepScroll(); P.render(); restoreFocus(); } },
+      st.moreQ ? '「時間があれば」を畳む' : `時間があれば：問い ${moreQs.length} 件と、答えの決まっていない問い ${prompts.more.length} 件も出す`) : null;
+    return [h('h1', { tabindex: '-1' }, '確認事項'),
+      h('p', { class: 'lead' }, 'この設計書に当てはまり、人が判断しないと決まらない問いだけを出します。問いは、どれも「はい」なら問題なしの向きです。自動の検査で確かめられることは、画面の下の「問題」に出ます。'),
+      h('section', { class: 'rv-traits', id: 'rv-traits', 'aria-labelledby': 'rv-traits-h' }, h('h2', { id: 'rv-traits-h' }, 'この設計書の性質'),
+        h('p', { class: 'muted small' }, '設計書から読んだもの（違っていたら、設計書を直します）：'),
+        h('ul', { class: 'rv-traitlist' }, auto.map((t) => h('li', { 'data-trait': t.id, 'data-trait-value': String(tr[t.id]), title: t.read ? ui(t.read) : null }, mark(tr[t.id]), ' ', ui(t.label)))),
+        asked.length ? [h('p', { class: 'muted small', id: 'rv-asked', 'data-asked': String(asked.length) }, `設計書からは読めないこと（${asked.length} 問。答えで、出す問いが変わります）：`),
+          asked.map((t) => h('fieldset', { class: 'rv-ans rv-ask', 'data-trait': t.id, 'data-trait-value': String(tr[t.id]), disabled: m ? null : true }, h('legend', null, ui(t.ask)),
+            [[null, 'まだ分からない'], [true, 'はい'], [false, 'いいえ']].map(([v, label]) => h('label', null, h('input', { type: 'radio', name: 'rv-trait-' + t.id, value: String(v), checked: tr[t.id] === v ? true : null, 'data-trait-answer': t.id,
+              onchange: () => { const me = mine(); if (!me) return; me.traits = me.traits || {}; if (v === null) delete me.traits[t.id]; else me.traits[t.id] = v; if (!Object.keys(me.traits).length) delete me.traits; st.focus = null; changed(true); } }), ' ', label)))),
+          m ? null : h('p', { class: 'muted small' }, '答えるには、上の「レビューを開始」を押します。')] : null),
+      h('p', { id: 'rv-q-count', class: 'count', 'data-shown': String(shownN), 'data-total': String(total) }, `全 ${total} 件のうち ${shownN} 件を表示`, st.allQ ? '（いまは、全件を表示しています）' : '', ' ',
+        h('button', { type: 'button', id: 'rv-q-all', 'aria-pressed': st.allQ ? 'true' : 'false', onclick: () => { st.allQ = !st.allQ; st.focus = 'rv-q-all'; history.replaceState(null, '', P.route('review', 'checklist', st.allQ ? { all: '1' } : null)); H.keepScroll(); P.render(); restoreFocus(); } }, st.allQ ? '当てはまる問いだけに戻す' : `すべての確認事項を見る（${total} 件）`)),
+      reasons.size ? h('details', { id: 'rv-q-why' }, h('summary', null, `出していない ${total - shownN} 件の理由`),
+        h('table', { 'data-table': 'hidden-reasons' }, h('thead', null, h('tr', null, h('th', { scope: 'col' }, '理由'), h('th', { scope: 'col', class: 'num' }, '件数'))),
+          h('tbody', null, Array.from(reasons.entries()).sort((a, b) => b[1] - a[1]).map(([why, n]) => h('tr', null, h('td', null, why), h('td', { class: 'num' }, String(n))))))) : null,
+      h('p', { class: 'muted small', id: 'rv-short-note' }, `あなたが答える問い ${shownN} 件と、答えの決まっていない問い ${prompts.shown.length} 件を出しています。`,
+        budget.minutes ? `答える時間の目安は ${budget.minutes[0]}〜${budget.minutes[1]} 分です（見積もり。人では測っていません）。` : '', moreBtn ? ' ' : '', moreBtn),
+      m ? null : h('p', { class: 'note warn' }, '答えを記録するには、上の「レビューを開始」を押して、名前（自己申告）を決めます。'),
+      h('form', { class: 'filters', role: 'search', onsubmit: (e) => e.preventDefault(), oninput: apply, onchange: apply }, h('label', null, '自分の答え', ansSel), h('label', { class: 'wide' }, '検索', text)),
+      all.some(([x, t]) => (t.show || (st.moreQ && t.more)) && x.unit === 'row') ? rowSampleBox() : null,
+      count, list,
+      prompts.shown.length || (st.moreQ && prompts.more.length) ? h('section', { id: 'rv-prompts', 'data-prompts': String(prompts.shown.length) }, h('h2', null, `答えの決まっていない問い ${prompts.shown.length + (st.moreQ ? prompts.more.length : 0)} 件`),
+        h('p', { class: 'muted small' }, '「はい」「いいえ」では答えません。要求と運用の場面から設計書を辿って、気づいたことをコメントにします。1 つにつき 2〜3 分が目安です。'),
+        h('ul', null, prompts.shown.map((p) => promptItem(p, m, false)), st.moreQ ? prompts.more.map((p) => promptItem(p, m, true)) : null)) : null];
+  }
+  function questionItem(x, m, t, prefix) {
+    const p = prefix || '';
+    const a = answerOf(m, x.id);
+    const memo = h('textarea', { id: p + 'rv-memo-' + x.id, rows: '1', class: 'rv-memo', 'aria-label': `${x.id} の理由（1 行）`, disabled: m ? null : true }, m && m.answers[x.id] && m.answers[x.id].memo ? m.answers[x.id].memo : '');
+    const setAns = (v) => {
+      const me = mine();
+      if (!me) return;
+      if (!v) delete me.answers[x.id];
+      else { const e = flagEdit({ answer: v, at: now() }); const mm = memo.value.trim(); if (mm) e.memo = mm; me.answers[x.id] = e; }
+      el.dataset.answer = v;
+      el.querySelector('.rv-findbtn').hidden = v !== 'no';
+      changed(false);
+    };
+    let timer = null;
+    memo.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { const me = mine(); if (me && me.answers[x.id]) { const mm = memo.value.trim(); if (mm) me.answers[x.id].memo = mm; else delete me.answers[x.id].memo; flagEdit(me.answers[x.id]); changed(false); } }, 250);
+    });
+    const name = p + 'rv-a-' + x.id;
+    const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
+    const el = h('article', { class: 'rv-q', id: p + 'q-' + x.id, 'data-q': x.id, 'data-answer': a, 'data-shown': t ? (t.show ? '1' : '0') : null },
+      h('h3', null, H.inlineRepo(ui(x.ask || x.text)), ' ', h('span', { class: 'muted small' }, x.id), x.priority ? h('span', { class: 'chip', title: ((R.checklist.priorities || {})[String(x.priority)]) || '' }, '優先 ' + x.priority) : null),
+      x.hint ? h('details', { class: 'rv-hint small' }, h('summary', null, '補足'), h('p', { class: 'muted' }, H.inlineRepo(ui(x.hint)))) : null,
+      t ? h('p', { class: 'rv-why small', 'data-why': '1' }, h('span', { class: 'muted' }, t.show ? 'なぜ出たか：' : '出していない理由：'), t.why) : null,
+      h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る場所：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
+      h('details', null, h('summary', null, '「いいえ」のとき・関連する資料・根拠'), h('dl', { class: 'obj' }, x.ask ? [h('dt', null, '元の問い'), h('dd', null, H.inlineRepo(ui(x.text)))] : null, h('dt', null, '「いいえ」なら'), h('dd', null, H.inlineRepo(ui(x.no))), h('dt', null, '関連'), h('dd', null, H.inlineRepo(ui(x.links))),
+        h('dt', null, '根拠'), h('dd', null, H.inlineRepo(x.evidence)), x.triage_note ? [h('dt', null, '区分'), h('dd', { class: 'rv-triage', 'data-triage': x.triage }, H.inlineRepo(ui(x.triage_note)))] : null, h('dt', null, '原文'), h('dd', null, h('a', { href: x.url }, x.id + ' の原文')))),
+      h('fieldset', { class: 'rv-ans', disabled: m ? null : true }, h('legend', null, m ? `答え（${m.reviewer.name}）` : '答え'),
+        [['', '未回答']].concat(Object.keys(ANS).map((k) => [k, ANS[k][2]])).map(([v, label]) => h('label', null,
+          h('input', { type: 'radio', name, value: v, checked: a === v ? true : null, 'data-answer-for': x.id, onchange: () => setAns(v) }), ' ', v ? ANS[v][1] + ' ' : '', label)),
+        h('label', { class: 'rv-memo-l', for: p + 'rv-memo-' + x.id }, '理由（「直す必要あり」「対象外」では書く）'), memo,
+        h('button', { type: 'button', class: 'rv-findbtn', hidden: a !== 'no' ? true : null, onclick: () => { location.hash = P.route('review', 'checklist', { q: x.id }); openForm({ question: x.id, content: memo.value.trim() }); } }, 'コメントにする')),
+      !p && st.form && st.form.question === x.id && !st.form.anchor && m ? commentForm(st.form) : null,
+      others.length ? h('ul', { class: 'rv-others small' }, others.map((rv) => h('li', null, badge(ANS[rv.answers[x.id].answer]), ' ', rv.reviewer.name, rv.answers[x.id].memo ? '：' + rv.answers[x.id].memo : ''))) : null);
+    return el;
   }
 
   // ------------------------------------------------------------ opening, saving, the slot of this browser
@@ -340,7 +732,7 @@
     }
   }
   function holdWarning() {
-    CE.saveWarning('このブラウザに自動保存したレビューの記録が残っていて、どれを使うかが決まっていないので、レビューの記録の自動保存を止めています（上書きしない）。レビューの概要の「自動保存した記録」で選んでください。', 'review');
+    CE.saveWarning('このブラウザに自動保存したレビューの記録が残っていて、どれを使うかが決まっていないので、レビューの記録の自動保存を止めています（上書きしない）。「提出と記録」の画面で選んでください。', 'review');
   }
   // the autosaved records of this design and the ones opened differ: asked; Esc or a slot that cannot be read leaves
   // the slot as it is and stops autosaving the records until a choice is made (nothing is overwritten silently)
@@ -369,23 +761,29 @@
     st.file = data;
     st.savedText = savedText;
     st.me = me && data.reviews.some((r) => r.reviewer.name === me) ? me : null;
+    st.bar = !!st.me; st.shown = null; st.openRow = null; st.form = null;
+    if (st.bar) CE.setMode('review');
   }
   // a review.yaml text -> {data} or {error}; checked with templates/review/review.schema.json and the questions
   function parseReview(text, name) {
     let v;
     try { v = CE.parseYaml(text); } catch (e) { return { error: `${name}：YAML の誤り（${e.message}）` }; }
-    const errs = CE.validate('review', v);
-    if (errs.length) return { error: `${name}：review.schema.json に合わない（` + errs.slice(0, 4).map((e) => `${e.path}：${e.message}`).join('、') + (errs.length > 4 ? ` ほか ${errs.length - 4} 件` : '') + '）' };
+    const v1 = F.isV1(v);
+    const errs = CE.validate(v1 ? 'review_v1' : 'review', v);
+    if (errs.length) return { error: `${name}：レビューの記録の形に合わない（` + errs.slice(0, 4).map((e) => `${e.path}：${e.message}`).join('、') + (errs.length > 4 ? ` ほか ${errs.length - 4} 件` : '') + '）' };
+    if (v1) v = F.migrate(v);
     const bad = [];
     const names = v.reviews.map((r) => r.reviewer.name);
     names.forEach((n, i) => { if (names.indexOf(n) !== i) bad.push(`レビュアー ${n} が 2 回ある`); });
     v.reviews.forEach((rv) => {
-      Object.keys(rv.answers).forEach((q) => { if (!QBY.has(q)) bad.push(`${rv.reviewer.name}：問い ${q} は観点書に無い`); });
-      const ids = rv.findings.map((f) => f.id);
-      ids.forEach((x, i) => { if (ids.indexOf(x) !== i) bad.push(`${rv.reviewer.name}：指摘 ${x} が 2 つある`); });
+      Object.keys(rv.answers).forEach((q) => { if (!QBY.has(q)) bad.push(`${rv.reviewer.name}：問い ${q} は確認事項に無い`); });
+      const ids = rv.comments.map((f) => f.id);
+      ids.forEach((x, i) => { if (ids.indexOf(x) !== i) bad.push(`${rv.reviewer.name}：コメント ${x} が 2 つある`); });
     });
     if (bad.length) return { error: `${name}：` + bad.slice(0, 4).join('、') };
-    return { data: v };
+    // a v1 text is the same records in the old form: nothing of it is lost by reading it, so the migrated text counts as
+    // written out (the old file is still where it was)
+    return { data: v, migrated: v1, text: v1 ? dump(v, versionOf(text) || undefined) : String(text).replace(/\r\n/g, '\n') };
   }
   function companionOpen(info) {
     st.opening = true;
@@ -394,8 +792,7 @@
   function companionOpen2(info) {
     st.open = true;
     st.designRel = info.designRel;
-    st.base = null;
-    st.editFinding = null;
+    st.migrated = false; st.allQ = false; st.moreQ = false; st.rowSeed = null; st.justSubmitted = false; st.lastKey = undefined; st.filter = null; st.kind = '';
     const empty = emptyFile(info.designRel);
     setFile(empty, dump(empty), null);
     const extra = (info.extras || []).filter((e) => /^review\.ya?ml$/.test(e.name));
@@ -405,8 +802,8 @@
       if (r.error) CE.ask('review.yaml を読めません', r.error + '。レビューの記録は空で始めます（ファイルはそのまま）。', [['ok', '閉じる']]);
       else if (r.data.design !== info.designRel) {
         p = CE.ask('review.yaml の設計書が違います', `review.yaml は ${r.data.design} の記録です。開いた設計書は ${info.designRel} です。`, [['load', 'この設計書の記録として読む'], ['skip', '読まない']])
-          .then((c) => { if (c === 'load') { r.data.design = info.designRel; setFile(r.data, '', null); } });
-      } else setFile(r.data, extra[0].text.replace(/\r\n/g, '\n'), null);
+          .then((c) => { if (c === 'load') { r.data.design = info.designRel; st.migrated = !!r.migrated; setFile(r.data, '', null); } });
+      } else { st.migrated = !!r.migrated; setFile(r.data, r.text, null, extra[0].text); }
     }
     p.then(() => {
       st.slotHold = null;
@@ -416,7 +813,7 @@
       if (sv && typeof sv.text !== 'string') sv = { savedAt: sv.savedAt || '不明', text: '\u0000' };
       if (sv && sv.text !== dump(st.file)) return askSlot(sv);
       return null;
-    }).then(() => { st.opening = false; st.wizard = mine() ? null : 1; CE.publish(); });
+    }).then(() => { st.opening = false; renderBar(); CE.publish(); if (info.startReview && !mine()) openStart(); });
   }
   // merge review files into the open records; a reviewer who is in both with different records is asked about
   function mergeIn(datas) {
@@ -427,7 +824,7 @@
         if (i < 0) { st.file.reviews.push(rv); return null; }
         if (JSON.stringify(st.file.reviews[i]) === JSON.stringify(rv)) return null;
         const alt = freeName(rv.reviewer.name);
-        return CE.ask('同じレビュアーの記録が 2 つあります', `「${rv.reviewer.name}」の記録が、開いている記録と読み込む記録で違います（回答 ${Object.keys(st.file.reviews[i].answers).length}・${Object.keys(rv.answers).length} 問、行 ${Object.keys(st.file.reviews[i].rows).length}・${Object.keys(rv.rows).length}、指摘 ${st.file.reviews[i].findings.length}・${rv.findings.length}）。`,
+        return CE.ask('同じレビュアーの記録が 2 つあります', `「${rv.reviewer.name}」の記録が、開いている記録と読み込む記録で違います（確認済みの行 ${Object.keys(st.file.reviews[i].viewed).length}・${Object.keys(rv.viewed).length}、コメント ${st.file.reviews[i].comments.length}・${rv.comments.length}、確認事項の答え ${Object.keys(st.file.reviews[i].answers).length}・${Object.keys(rv.answers).length}）。`,
           [['both', `両方残す（読み込むほうを「${alt}」にする）`], ['replace', '読み込むほうで置き換える（開いている記録は消える）'], ['keep', '開いている記録を残す（読み込むほうは使わない）']])
           .then((c) => {
             if (c === 'replace') st.file.reviews[i] = rv;
@@ -441,7 +838,7 @@
   function importFiles(list) {
     return Promise.all(Array.from(list || []).map((f) => f.text().then((t) => ({ name: f.name, text: t })))).then((xs) => {
       const ok = []; const errs = [];
-      xs.forEach((x) => { const r = parseReview(x.text, x.name); if (r.error) errs.push(r.error); else ok.push([x, r.data]); });
+      xs.forEach((x) => { const r = parseReview(x.text, x.name); if (r.error) errs.push(r.error); else { ok.push([x, r.data, r.text]); if (r.migrated) st.migrated = true; } });
       const other = ok.filter(([, d]) => d.design !== st.designRel);
       let p = Promise.resolve(true);
       if (other.length) {
@@ -452,11 +849,9 @@
         const use = ok.filter(([, d]) => takeOther || d.design === st.designRel);
         const wasClean = !unsaved() && !st.file.reviews.length;
         return mergeIn(use.map(([, d]) => d)).then(() => {
-          if (wasClean && use.length === 1 && use[0][1].design === st.designRel) st.savedText = use[0][0].text.replace(/\r\n/g, '\n');
+          if (wasClean && use.length === 1 && use[0][1].design === st.designRel) { st.savedText = use[0][2]; st.version = versionOf(use[0][2]) || st.version; }
           st.file.design = st.designRel;
           if (errs.length) CE.ask('読めなかった review.yaml', errs.join('\n'), [['ok', '閉じる']]);
-          if (st.afterImport && use.length) { st.wizard = st.afterImport; }
-          st.afterImport = null;
           changed(true);
           return { loaded: use.length, errors: errs };
         });
@@ -509,8 +904,10 @@
       });
     },
     slotKey: () => (st.open ? slotKey() : null),
+    // the design changed (an edit, a check that finished): the progress of the bar follows the rows as they are now
+    onPublish: () => { if (st.open && !st.opening) renderBar(); },
     onOpen: companionOpen,
-    onClose: () => { st.slotHold = null; CE.saveWarning(null, 'review'); st.open = false; st.file = emptyFile(''); st.savedText = dump(st.file); st.me = null; st.base = null; },
+    onClose: () => { st.slotHold = null; CE.saveWarning(null, 'review'); st.open = false; st.file = emptyFile(''); st.savedText = dump(st.file); st.me = null; st.bar = false; st.form = null; st.shown = null; st.openRow = null; renderBar(); },
     onExtras: (extras) => {
       const r = extras.filter((e) => /^review/.test(e.name));
       if (r.length) importFiles(r.map((e) => ({ name: e.name, text: () => Promise.resolve(e.text) })));
@@ -579,334 +976,355 @@
     if (!name || name === st.me) { if (!name) { st.me = null; changed(true); } return Promise.resolve(); }
     const target = st.file.reviews.find((r) => r.reviewer.name === name);
     const p = locked() ? breakIndependence(`提出の前に別のレビュアー「${name}」の記録に切り替えた`)
-      : CE.ask('既にあるレビュアーの記録で続ける', `「${name}」の記録（${target && target.submitted ? '提出済み' : '未提出'}）に切り替えます。名前は自己申告なので、この操作で、ほかの人の記録を自分のものとして直せてしまいます。${typed ? '同じ名前を打ちました。' : ''}本人のときだけ続けてください。`,
+      : CE.ask('既にあるレビュアーの記録で続ける', `「${name}」の記録（${target && target.submitted ? '提出済み' : '未提出'}）で続けます。名前は自己申告なので、この操作で、ほかの人の記録を自分のものとして直せてしまいます。${typed ? '同じ名前を打ちました。' : ''}本人のときだけ続けてください。`,
         [['go', '続ける'], ['cancel', 'やめる']]).then((c) => c === 'go');
-    return p.then((ok) => { if (ok) st.me = name; changed(true); });
+    return p.then((ok) => { if (ok) st.me = name; changed(true); return ok; });
   }
-  // a new reviewer: in the overview, and as step 1 of the stepper
-  function newForm(m, name, kind, model, onDone) {
-    return h('form', { class: 'filters', id: 'rv-new', onsubmit: (e) => {
-        e.preventDefault();
-        const n = name.value.trim();
-        if (!n) { name.focus(); return; }
-        if (st.file.reviews.some((r) => r.reviewer.name === n)) { switchTo(n, true).then(() => { if (st.wizard === 1 && st.me === n) { st.wizard = 2; changed(true); } }); return; }
-        const go = () => {
-          const rv = { reviewer: { name: n, kind: kind.value }, self_declared: true, started: now(), submitted: null,
-            materials: { perspectives: R.template_version, report_template: (R.versions || {})['templates/review/report_template.md'] || R.template_version, questions: R.questions.length },
-            answers: {}, rows: {}, findings: [] };
-          if (model.value.trim()) rv.reviewer.model = model.value.trim();
-          if (st.file.independent) rv.independence = { mode: 'kept' };
-          st.file.reviews.push(rv);
-          st.me = n;
-          if (st.wizard === 1) st.wizard = 2;
-          changed(true);
-          if (onDone) onDone();
-        };
-        // a new reviewer while I have not submitted: the new name would see nothing of mine, but I leave my review
-        if (locked()) breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => { if (ok) go(); else P.render(); }); else go();
-      } }, h('label', null, '名前（自己申告）', name), h('label', null, '種類', kind), h('label', null, 'モデル（LLM のとき）', model),
-      h('div', null, h('button', { type: 'submit', class: 'primary', id: 'rv-new-go' }, m ? '新しいレビュアーを足す' : '始める')));
-  }
-  // レビューを始める (#53): one step at a time. 1. the reviewer, 2. records to read or a new start, 3. independent or not,
-  // 4. on to the checklist. Recording is possible from the end of step 1 (the name is enough); the rest has defaults.
-  const STEPS = ['レビュアー', '記録のファイル', '独立レビュー', 'チェックリストへ'];
-  function stepper(m, f) {
-    const n = st.wizard;
-    const go = (k) => { st.wizard = k; st.focus = 'rv-step-h'; changed(true); };
-    const back = n > 1 ? h('button', { type: 'button', class: 'link', id: 'rv-step-back', onclick: () => go(n - 1) }, '← 戻る') : null;
-    const skip = h('button', { type: 'button', class: 'link small', id: 'rv-step-close', onclick: () => go(null) }, '手順を閉じる');
-    let body;
-    if (n === 1) {
-      body = [h('p', null, '名前と、人か LLM かを入れて「始める」を押します。名前は自己申告です。'),
-        newForm(m, f.name, f.kind, f.model),
-        st.file.reviews.length ? h('p', null, h('label', { for: 'rv-pick' }, 'または、記録にあるレビュアーで続ける：'), f.pick, ' ',
-          h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(f.pick.value || null).then(() => { if (st.me && st.wizard === 1) go(2); }) }, 'このレビュアーで続ける')) : null];
-    } else if (n === 2) {
-      const others = st.file.reviews.filter((r) => r !== m).length;
-      body = [h('p', null, others ? `いま開いている記録には、ほかのレビュアー ${others} 人の記録があります。` : '前のレビューの記録（review.yaml）があれば読み込みます。無ければ、このまま新しく始めます。'),
-        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-step-import', onclick: () => { st.afterImport = 3; $('#rv-import').click(); } }, 'review.yaml を読み込む'),
-          h('button', { type: 'button', class: 'primary', id: 'rv-step-new', onclick: () => go(3) }, others ? 'このまま進む' : '新しく始める'))];
-    } else if (n === 3) {
-      body = [h('p', null, '独立レビューにすると、提出するまで、ほかのレビュアーの記録を画面に出しません。'),
-        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-step-ind-on', 'aria-pressed': st.file.independent ? 'true' : 'false', onclick: () => {
-          st.file.independent = true; const me = mine(); if (me && !me.submitted && !me.independence) me.independence = { mode: 'kept' }; go(4);
-        } }, '独立レビューにする'),
-        h('button', { type: 'button', class: 'primary', id: 'rv-step-ind-off', onclick: () => {
-          if (!st.file.independent) { go(4); return; }
-          breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) st.file.independent = false; go(ok ? 4 : 3); });
-        } }, st.file.independent ? '独立レビューをやめる' : 'しない（ふつうのレビュー）')),
-        h('details', null, h('summary', null, '詳しく'), h('p', null, '独立レビューは、ほかの人の答えに引きずられないための決まりです（templates/review/procedure.md）。画面で隠すだけなので、review.yaml を開けば誰でも読めます。隠すのをやめる操作は確かめ、外れたことと日時・理由を記録します。'))];
-    } else {
-      body = [h('p', null, '準備ができました。観点の問いに答えるか、設計書の画面で行ごとに判定します。'),
-        h('p', { class: 'buttons' }, h('a', { class: 'btn primary', id: 'rv-step-go', href: P.route('review', 'checklist'), onclick: () => { st.wizard = null; } }, '観点のチェックリストへ'),
-          h('a', { class: 'btn', id: 'rv-step-rows', href: P.route('claims'), onclick: () => { st.wizard = null; } }, '台帳の行を判定する（クレームの一覧へ）'))];
-    }
-    return h('section', { class: 'stepper', id: 'rv-stepper', 'data-step': String(n), 'aria-labelledby': 'rv-step-h' },
-      h('ol', { class: 'steps' }, STEPS.map((t, i) => h('li', { 'aria-current': i + 1 === n ? 'step' : null, class: i + 1 < n ? 'done' : null }, `${i + 1}. ${t}`))),
-      h('h2', { id: 'rv-step-h', tabindex: '-1' }, `${n}. ${STEPS[n - 1]}`), body, h('p', { class: 'small' }, back, ' ', skip));
-  }
-  function viewOverview() {
+  // 「レビューを開始」: one dialog. The name (self-declared), a person or an LLM, a review.yaml to read in if there is
+  // one, and whether the review is independent. Then the rows to review, with the bar on top.
+  function openStart() {
+    if (st.opening) return;
+    if (!st.open || !R) { CE.ask('レビューを開始できません', '設計書を開いてから、もう一度「レビューを開始」を押してください。', [['ok', '閉じる']]); return; }
+    if ($('#rv-start')) return;
     const m = mine();
-    const name = h('input', { type: 'text', id: 'rv-name', 'aria-describedby': 'rv-self-declared', autocomplete: 'off' });
-    const kind = h('select', { id: 'rv-kind' }, h('option', { value: 'human' }, '人'), h('option', { value: 'llm' }, 'LLM'));
-    const model = h('input', { type: 'text', id: 'rv-model', placeholder: 'LLM ならモデルとセッション' });
-    const pick = h('select', { id: 'rv-pick', 'aria-label': '記録するレビュアー' }, h('option', { value: '' }, '（選ぶ）'),
-      st.file.reviews.map((r) => h('option', { value: r.reviewer.name, selected: r.reviewer.name === st.me ? true : null }, r.reviewer.name)));
+    const names = st.file.reviews.map((r) => r.reviewer.name);
+    const name = h('input', { type: 'text', id: 'rv-name', autocomplete: 'off', 'aria-describedby': 'rv-name-hint', value: m ? m.reviewer.name : '' });
+    const model = h('input', { type: 'text', id: 'rv-model', placeholder: 'モデルの名前とセッション', value: m && m.reviewer.model ? m.reviewer.model : '' });
+    const mbox = h('label', { id: 'rv-model-box', hidden: m && m.reviewer.kind === 'llm' ? null : true }, 'モデル（LLM のとき）', model);
+    const radio = (v, label) => h('label', null, h('input', { type: 'radio', name: 'rv-kind', id: 'rv-kind-' + v, value: v, checked: (m ? m.reviewer.kind : 'human') === v ? true : null, onchange: () => { mbox.hidden = v !== 'llm'; } }), ' ', label);
+    const ind = h('input', { type: 'checkbox', id: 'rv-independent', checked: st.file.independent ? true : null });
     const imp = h('input', { type: 'file', id: 'rv-import', multiple: true, accept: '.yaml,.yml', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
-    imp.addEventListener('change', () => importFiles(imp.files));
-    const vis = visible();
+    const msg = h('p', { class: 'err', id: 'rv-start-msg', role: 'alert' });
+    const d = h('dialog', { class: 'confirm rv-start', id: 'rv-start', 'aria-labelledby': 'rv-start-h' });
+    imp.addEventListener('change', () => importFiles(imp.files).then(() => { d.close('reopen'); }));
+    const form = h('form', { method: 'dialog', onsubmit: (e) => {
+      e.preventDefault();
+      const n = name.value.trim();
+      if (!n) { msg.textContent = '名前を入れてください（自己申告です。あだ名でもかまいません）。'; name.focus(); return; }
+      const kind = form.querySelector('input[name="rv-kind"]:checked').value;
+      d.close('go');
+      startAs(n, kind, model.value.trim(), ind.checked);
+    } },
+    h('h2', { id: 'rv-start-h' }, 'レビューを開始'),
+    h('p', { class: 'muted' }, '行を 1 つずつ見て「確認済み」の印を付け、気づいた点はコメントにためます。最後に 1 回だけ、総評と判定を付けて「レビューを提出」します。'),
+    h('label', { class: 'rv-field' }, '名前（自己申告）', name),
+    h('p', { class: 'muted small', id: 'rv-name-hint' }, 'ログインは無く、名前は記録に書くだけです。本当の承認は、GitHub の pull request のレビューで行います。'),
+    h('fieldset', { class: 'rv-ans' }, h('legend', null, 'レビューするのは'), radio('human', '人'), radio('llm', 'LLM')), mbox,
+    h('p', { id: 'rv-start-records', 'data-reviewers': String(names.length) }, names.length
+      ? `読み込んだ記録：レビュアー ${names.length} 人（${names.join('・')}）。同じ名前で始めると、その記録の続き（再レビュー）になります。`
+      : '前のレビューの記録（review.yaml）があれば、読み込んでから始めます。無ければ、このまま始めます。', ' ',
+    h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む'), imp),
+    st.migrated ? h('p', { class: 'muted small', id: 'rv-migrated' }, '古い形の記録を読み込み、新しい形に直しました（行ごとの判定は「確認済み」の印に、指摘はコメントになります）。') : null,
+    h('p', null, h('label', { class: 'chk' }, ind, ' 独立レビューにする（提出するまで、ほかの人の記録を画面に出さない）')),
+    msg,
+    h('p', { class: 'buttons' }, h('button', { type: 'submit', class: 'primary', id: 'rv-start-go' }, 'レビューを開始'), h('button', { type: 'button', id: 'rv-start-cancel', onclick: () => d.close('cancel') }, 'やめる')));
+    d.append(form);
+    d.addEventListener('close', () => { const v = d.returnValue; d.remove(); if (v === 'reopen') openStart(); });
+    document.body.append(d);
+    d.showModal();
+    name.focus();
+  }
+  function startAs(n, kind, model, independent) {
+    const begin = () => {
+      st.bar = true; st.shown = null; st.filter = null; st.openRow = null; st.form = null;
+      CE.setMode('review');
+      CE.setPane('editor', false);  // a review is reading: the YAML editor is folded (「▶ エディター」 opens it again)
+      changed(false, true);
+      const target = P.route('review');
+      if (location.hash === target) P.render(); else location.hash = target;
+      setTimeout(() => { const h1 = $('#main h1'); if (h1) h1.focus(); }, 0);
+      return true;
+    };
+    // the independent review is a setting of the records; taking it off before submitting is leaving it (recorded)
+    const setInd = () => {
+      if (independent && !st.file.independent) { st.file.independent = true; const me = mine(); if (me && !me.submitted && !me.independence) me.independence = { mode: 'kept' }; return Promise.resolve(true); }
+      if (!independent && st.file.independent) return breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) st.file.independent = false; return true; });
+      return Promise.resolve(true);
+    };
+    const existing = st.file.reviews.find((r) => r.reviewer.name === n);
+    if (existing) {
+      const p = st.me === n ? Promise.resolve(true) : switchTo(n, true);
+      return p.then((ok) => (ok && st.me === n ? setInd().then(begin) : false));
+    }
+    const make = () => {
+      const rv = { reviewer: { name: n, kind }, self_declared: true, started: now(), submitted: null,
+        materials: { perspectives: R.template_version, report_template: (R.versions || {})['templates/review/report_template.md'] || R.template_version, questions: R.questions.length },
+        answers: {}, viewed: {}, comments: [], submissions: [] };
+      if (model && kind === 'llm') rv.reviewer.model = model;
+      st.file.reviews.push(rv);
+      st.me = n;
+      return setInd().then(() => { if (st.file.independent) rv.independence = { mode: 'kept' }; return begin(); });
+    };
+    // a new reviewer while I have not submitted: the new name would see nothing of mine, but I leave my review
+    if (locked()) return breakIndependence(`新しいレビュアー「${n}」に切り替えた`).then((ok) => (ok ? make() : false));
+    return make();
+  }
+  function leave() { st.bar = false; st.form = null; CE.setMode('edit'); CE.setPane('editor', true); renderBar(); P.render(); const b = $('#btn-start-review'); if (b) b.focus(); }
+  // the bar that stays on top while a review is going on: the progress and the one button that submits
+  function renderBar() {
+    const bar = $('#review-bar'); const btn = $('#btn-start-review');
+    if (!bar) return;
+    const m = mine();
+    const on = st.open && st.bar && !!m && !!R;
+    bar.hidden = !on;
+    document.body.classList.toggle('reviewing', on);
+    if (btn) { btn.hidden = on; btn.textContent = st.open && m ? 'レビューを続ける' : 'レビューを開始'; }
+    bar.textContent = '';
+    if (!on) return;
+    const p = progress();
+    const sub = m.submissions.length;
+    const dirty = !sub || p.pending > 0 || (m.updated && String(m.updated) > String(m.submitted));
+    const state = !sub ? '未提出' : dirty ? `提出済み（${String(m.submitted).slice(0, 10)}）の後に、未提出の変更あり` : `提出済み（${String(m.submitted).slice(0, 10)}）`;
+    add(bar, [h('span', { class: 'rb-who' }, sub && !dirty ? 'レビュー（提出済み）：' : 'レビュー中：', h('strong', null, m.reviewer.name), m.reviewer.kind === 'llm' ? '（LLM）' : ''),
+      h('span', { id: 'rv-progress', class: 'rb-progress', role: 'status', 'data-viewed': String(p.viewed), 'data-total': String(p.total), 'data-comments': String(p.comments), 'data-pending': String(p.pending),
+        'data-changed': String(p.changed), 'data-submitted': sub && !dirty ? '1' : '0' },
+      `確認済み ${p.viewed} / ${p.total} 行・コメント ${p.comments} 件・${state}`, p.changed ? `・前回の確認から変更あり ${p.changed} 行` : ''),
+      h('progress', { max: String(p.total || 1), value: String(p.viewed), 'aria-label': '確認済みの行の割合' }),
+      h('span', { class: 'rb-actions' }, h('button', { type: 'button', id: 'rv-next', onclick: () => nextUnviewed(st.openRow) }, '次の未確認へ'),
+        h('button', { type: 'button', class: sub && !dirty ? null : 'primary', id: 'rv-submit', title: sub && !dirty ? '提出の後に変えたことは、ありません。もう一度提出することもできます' : null, onclick: openSubmit }, 'レビューを提出'),
+        h('button', { type: 'button', class: 'link small', id: 'rv-leave', title: '記録は残ります。「レビューを続ける」で戻れます', onclick: leave }, '中断'))]);
+  }
+  // 「次の未確認へ」: the next row after `from` (in the order of the list) that is not marked, unfolded and focused
+  function nextUnviewed(from) {
     const set = anchorSet();
-    const lost = []; const stale = [];
-    vis.forEach((rv) => Object.keys(rv.rows).forEach((a) => {
-      const s = rowState(rv.rows[a], a, set);
-      if (s === 'missing') lost.push([rv, a]); else if (s === 'stale') stale.push([rv, a]);
-    }));
-    const wiz = st.wizard ? stepper(m, { name, kind, model, pick }) : null;
-    return [h('h1', { tabindex: '-1' }, 'レビュー', ' ', h('span', { class: 'muted small' }, wiz ? 'はじめる' : '記録の概要')),
-      wiz,
-      h('p', { class: 'lead' }, '観点の問い（', R.questions.length, ' 問）に答え、台帳の行ごとに判定し、指摘を記録します。記録はファイル（review.yaml）に書き出して、設計書と一緒に管理します。', h('span', { class: 'muted small' }, ' 問いの出典：templates/review/perspectives.md')),
-      selfDeclared(),
-      h('h2', null, '記録するレビュアー'),
-      h('p', { 'data-me': st.me || '' }, m ? ['いま記録しているのは ', h('strong', null, m.reviewer.name), `（${m.reviewer.kind === 'llm' ? 'LLM' : '人'}、自己申告）`, m.submitted ? `。${m.submitted} に提出済み` : '。未提出'] : 'レビュアーが決まっていません（回答・判定・指摘の記録には、名前が要ります）。'),
-      st.file.reviews.length && !(wiz && !m) ? h('p', null, h('label', { for: 'rv-pick' }, '記録にあるレビュアーから選ぶ：'), pick, ' ', h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo(pick.value || null) }, 'このレビュアーで記録する')) : null,
-      wiz && !m ? null : newForm(m, name, kind, model),
-      h('h2', null, '独立レビュー'),
-      h('p', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'rv-independent', checked: st.file.independent ? true : null, onchange: (e) => {
-        const on = e.target.checked;
-        if (on) { st.file.independent = true; const me = mine(); if (me && !me.submitted && !me.independence) me.independence = { mode: 'kept' }; changed(true); return; }
-        e.target.checked = true;
-        breakIndependence('独立レビューの設定を外した').then((ok) => { if (ok) { st.file.independent = false; } changed(true); });
-      } }),
-        ' 提出するまで、ほかのレビュアーの記録（回答・判定・指摘）を隠す'), h('span', { class: 'muted small' }, '（合わせて読み込んだ記録も、提出の後に見えます。手順：templates/review/procedure.md）')),
-      h(st.file.independent ? 'p' : 'details', { class: 'note warn', id: 'rv-independence-limits' }, st.file.independent ? null : h('summary', null, '独立レビューでできないこと'), h('strong', null, '独立レビューは画面で隠すだけです。'),
-        'review.yaml を開けば、ほかのレビュアーの記録は誰でも読めます。このエディターにできるのは、提出の前に隠すのをやめる操作（ほかのレビュアーへの切り替え・設定を外す・全員の記録の書き出し）を確かめ、外れたことと日時・理由を review.yaml に記録すること、ほかの記録を初めて見た日時と、その後に直した記録に印を付けることだけです。守ったかどうかは、名前と同じく自己申告で、手順（procedure.md）で守ります。'),
-      m && m.independence ? h('p', { id: 'rv-independence', 'data-mode': m.independence.mode }, '自分の独立レビュー：', m.independence.mode === 'broken' ? `提出の前に外れた（${m.independence.broken_at}、${m.independence.reason || ''}）` : '続けている',
-        m.independence.viewed_others_at ? `。ほかの記録を初めて見た日時 ${m.independence.viewed_others_at}（その後に直した記録には印が付く）` : '') : null,
-      hiding() && hiddenCount() ? h('p', { class: 'note', id: 'rv-hidden', 'data-hidden-others': String(hiddenCount()) }, `ほかのレビュアー ${hiddenCount()} 人の記録を隠しています（${m ? '提出すると見えます' : 'レビュアーを決めて提出すると見えます'}）。`) : null,
-      m && !m.submitted ? h('p', null, h('button', { type: 'button', id: 'rv-submit', onclick: () => CE.ask('レビューを提出する', `${m.reviewer.name} のレビューを提出済みにします（日時を記録）。独立レビューなら、提出の後にほかのレビュアーの記録が見えます。提出の後も記録は直せます。`, [['submit', '提出する'], ['cancel', 'やめる']])
-        .then((c) => { if (c === 'submit') { m.submitted = now(); changed(true); } }) }, '提出する')) : null,
-      st.slotHold ? h('div', { class: 'note warn', id: 'rv-slot-hold' }, h('p', null, `このブラウザに自動保存したレビューの記録（${st.slotHold.savedAt} に保存）が残っています。どれを使うかを選ぶまで、レビューの記録の自動保存を止めています。`),
-        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-slot-ask', onclick: () => askSlot(st.slotHold).then(() => changed(true)) }, '自動保存した記録をどうするか選ぶ'), ' ',
-          h('button', { type: 'button', id: 'rv-slot-forget', onclick: () => CE.ask('自動保存した記録を消す', 'このブラウザに自動保存したレビューの記録を消して、いま開いている記録を使います。', [['delete', '消す'], ['cancel', 'やめる']])
-            .then((c) => { if (c === 'delete') { try { localStorage.removeItem(slotKey()); } catch (e) { /* ignore */ } st.slotHold = null; CE.saveWarning(null, 'review'); changed(true); } }) }, '自動保存した記録を消す'))) : null,
-      h('h2', null, 'レビューの記録を読み込む・書き出す'),
-      h('p', { class: 'muted small' }, '記録のファイル：review.yaml（設計書と同じディレクトリに置く）'),
-      h('p', { id: 'rv-file-state', 'data-unsaved': unsaved() ? '1' : '0' }, unsaved() ? '書き出していない記録があります。' : '書き出していない記録はありません。', ` レビュアー ${st.file.reviews.length} 人。`),
-      h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む（複数を選ぶと合わせる）'), imp, ' ',
-        h('button', { type: 'button', class: 'primary', id: 'rv-export', onclick: () => exportAll() }, 'review.yaml を書き出す（全員の記録）'), ' ',
-        m ? h('button', { type: 'button', id: 'rv-export-mine', onclick: () => exportReview(true) }, '自分の記録だけ書き出す') : null),
-      h('p', { class: 'muted' }, '「zip で書き出す」にも review.yaml が入ります。書き出していない記録があるときに、別の設計書を開く・閉じる・ページを離れると、設計書のファイルと同じように確かめます。自動保存を有効にしていれば、記録もこのブラウザに保存します。'),
-      h('h2', null, 'レビュアーごとの記録'),
-      vis.length ? h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'reviewers' }, h('thead', null, h('tr', null, ['レビュアー（自己申告）', '種類', '回答', '承認', '修正を求める', '保留', '再確認が要る', '指摘', '提出'].map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, vis.map((rv) => {
-          const c = { approve: 0, request_changes: 0, hold: 0 }; let sN = 0;
-          Object.keys(rv.rows).forEach((a) => { c[rv.rows[a].decision]++; if (rowState(rv.rows[a], a, set) !== 'current') sN++; });
-          return h('tr', { 'data-reviewer': rv.reviewer.name }, h('th', { scope: 'row' }, rv.reviewer.name), h('td', null, rv.reviewer.kind === 'llm' ? 'LLM' + (rv.reviewer.model ? `（${rv.reviewer.model}）` : '') : '人'),
-            h('td', { class: 'num' }, `${Object.keys(rv.answers).length} / ${R.questions.length}`), h('td', { class: 'num' }, c.approve), h('td', { class: 'num' }, c.request_changes), h('td', { class: 'num' }, c.hold),
-            h('td', { class: 'num' }, sN), h('td', { class: 'num' }, rv.findings.length), h('td', null, rv.submitted || '未提出'));
-        })))) : h('p', { class: 'muted' }, '表示できる記録はありません。'),
-      h('h2', null, '見直しが要る記録'),
-      stale.length || lost.length ? h('ul', { id: 'rv-attention' }, stale.map(([rv, a]) => h('li', { 'data-stale': a }, stateBadge(rv.rows[a], a, rv, set), ' ', rowLink(a))),
-        lost.map(([rv, a]) => h('li', { 'data-missing': a }, stateBadge(rv.rows[a], a, rv, set), ' ', code(a), ` ― 記録にある行が、今の台帳に無い（行が消えたか、ID が変わった）。記録は消さずに残しています。`))) : h('p', { class: 'muted', id: 'rv-attention' }, 'ありません。')];
+    const order = (st.shown && st.shown.length ? st.shown.filter((a) => set.has(a)) : []).concat(CE.anchors().map((a) => a.anchor));
+    const uniq = Array.from(new Set(order));
+    const i = from ? uniq.indexOf(from) : -1;
+    const next = uniq.slice(i + 1).concat(uniq.slice(0, i + 1)).find((a) => a !== from && rowHash(a) && !isViewed(a, set));
+    const say = $('#rv-progress');
+    if (!next) { if (say) say.append(' ― 未確認の行はありません'); return null; }
+    st.openRow = next; st.form = null;
+    if (st.shown && !st.shown.includes(next)) st.shown.push(next);
+    const go = () => { const el = document.getElementById('rv-t-' + sid(next)); if (el) { el.focus(); const art = el.closest('.rv-row'); if (art && art.scrollIntoView) art.scrollIntoView({ block: 'start' }); } };
+    const target = P.route('review');
+    if (P.parseHash().parts.join('/') === 'review') { H.keepScroll(); P.render(); go(); } else { location.hash = target; setTimeout(go, 0); }
+    return next;
   }
   function rowLink(anchor) {
-    const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
+    const kind = kindOf(anchor); const id = idOf(anchor);
     if (KIND_VIEW[kind]) return h('a', { href: P.route(KIND_VIEW[kind], id) }, anchor);
     if (kind === 'catalog_answers') return h('a', { href: P.route('catalog') }, anchor);
     if (kind === 'issuance_profile') return h('a', { href: P.route('profile') }, anchor);
     return code(anchor);
   }
+  function rowHref(anchor) {
+    const kind = kindOf(anchor);
+    if (KIND_VIEW[kind]) return P.route(KIND_VIEW[kind], idOf(anchor));
+    return kind === 'catalog_answers' ? P.route('catalog') : kind === 'issuance_profile' ? P.route('profile') : P.route('review');
+  }
 
-  // ---- the checklist
-  function answerOf(rv, qid) { return rv && rv.answers[qid] ? rv.answers[qid].answer : ''; }
-  // The traits of the open design that the conditions of templates/review/triage.yaml name (#56): {condition: 'on' |
-  // 'off' | 'unknown'}. The same reading as read_traits() of tools/review_triage.py (tools/tests/test_claims_editor_ux.py
-  // compares the two): on when the registry shows it OR the author declared it (catalog_answers); unknown (shown, with
-  // a note) when the file it is read from is missing, so that a design does not get a shorter list silently.
-  function readTraits() {
-    const reg = H.registry() || {};
-    const adopted = (rows) => (Array.isArray(rows) ? rows : []).filter((r) => isObj(r) && r.decision !== '却下');
-    const claims = adopted(reg.claims && reg.claims.claims); const types = adopted(reg.token_types && reg.token_types.token_types);
-    const noHops = !isObj(reg.hops);
-    const hops = (isObj(reg.hops) && Array.isArray(reg.hops.hops) ? reg.hops.hops : []).filter(isObj);
-    const cat = isObj(reg.catalog_answers) ? reg.catalog_answers : {};
-    const lite = isObj(cat.lite_criteria) ? cat.lite_criteria : {}; const asked = isObj(cat.questions) ? cat.questions : {};
-    const declared = (sec, key, field) => (isObj(sec[key]) && typeof sec[key][field] === 'boolean' ? sec[key][field] : null);
-    const names = new Set(claims.map((c) => String(c.name))); const kinds = new Set(hops.map((x) => x.kind));
-    const has = (v) => Array.isArray(v) ? v.length > 0 : isObj(v) ? Object.keys(v).length > 0 : !!v;
-    const host = (u) => { const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(u)); return m ? m[1] : ''; };
-    const t = { always: 'on' };
-    const put = (c, on, unknown) => { t[c] = on ? 'on' : unknown ? 'unknown' : 'off'; };
-    put('org_claims', claims.some((c) => has(c.namespace) || (!has(c.registered_ref) && (c.usage === 'authz' || c.usage === 'identifier'))));
-    put('pii', claims.some((c) => c.pii_category && c.pii_category !== '該当なし'));
-    const hosts = new Set(); types.forEach((x) => (Array.isArray(x.issuers) ? x.issuers : []).forEach((i) => { if (isObj(i) && host(i.iss)) hosts.add(host(i.iss)); }));
-    // #58: an idp array of catalog_answers.yaml (registry 0.3.0) that names two or more IdPs
-    const idps = new Set(); (Array.isArray(cat.idp) ? cat.idp : []).forEach((i) => { if (isObj(i) && typeof i.name === 'string' && i.name.trim()) idps.add(i.name.trim().toLowerCase()); });
-    put('multi_idp', idps.size > 1 || hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
-    put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
-    put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
-      declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null || declared(lite, 'delegation_or_exchange', 'answer') === true);
-    put('approval', names.has('authorization_details') || hops.some((x) => has(x.authorization_details)), noHops);
-    // the author's answer decides multitenant; tenant_binding is read only when there is no answer
-    const mt = declared(lite, 'multitenant', 'answer');
-    put('multitenant', mt !== null ? mt : types.some((x) => has(x.tenant_binding)));
-    put('data_layer', kinds.has('db_connection'), noHops);
-    put('auth_context', names.has('acr') || names.has('amr') || names.has('auth_time'));
-    put('sender_constrained', types.some((x) => x.sender_constraint === 'dpop' || x.sender_constraint === 'mtls') || declared(asked, 'q-holder', 'needed') === true);
-    put('sender_declined', types.some((x) => (x.kind === 'access_token' || x.kind === 'internal_token') && (x.sender_constraint === undefined || x.sender_constraint === null || x.sender_constraint === 'none')));
-    put('long_running', types.some((x) => has(x.long_running)) || kinds.has('broker_connection'), noHops);
-    return t;
-  }
-  function designTraits() { const t = readTraits(); return new Set(Object.keys(t).filter((c) => t[c] !== 'off')); }
-  // the short list of #56: class C, a default priority and a condition that holds, or a lint rule of show_on_lint that warned
-  function shortList() {
-    const C = (R.checklist && R.checklist.short) || null;
-    if (!C) return null;
-    const states = readTraits(); const traits = designTraits();
-    const warned = new Set(CE.diagnostics().filter((d) => d.source === 'claim_lint' && d.severity !== 'info').map((d) => d.rule));
-    const why = new Map(); const more = new Set();
-    R.questions.forEach((x) => {
-      if (x.triage !== 'C') return;
-      const hit = (x.show_when || []).some((c) => traits.has(c));
-      const byCond = C.priorities.includes(x.priority) && hit;
-      const byLint = (x.show_on_lint || []).filter((r) => warned.has(r));
-      if (byCond || byLint.length) why.set(x.id, byLint.length && !byCond ? `lint の ${byLint.join('・')} の warn` : '');
-      else if ((C.optional_priorities || []).includes(x.priority) && hit) more.add(x.id);   // "if time remains"
-    });
-    // the open prompts that fit the design first: a condition other than always, then prefer_when, then the order of the data
-    const rank = (p) => (p.show_when.some((c) => c !== 'always' && traits.has(c)) ? 0 : (p.prefer_when || []).some((c) => states[c] === 'on') ? 1 : 2);   // prefer_when: traits that hold, not the ones that cannot be read
-    const all = (R.checklist.open_prompts || []).filter((p) => p.show_when.some((c) => traits.has(c))).map((p, i) => [rank(p), i, p]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
-    const max = C.max_prompts || all.length;
-    return { traits, states, why, more, prompts: all.slice(0, max), morePrompts: all.slice(max) };
-  }
-  function viewChecklist(query) {
+  // ---- the rows to review (the first screen of a review)
+  const FILTERS = { todo: '未確認', comments: 'コメントあり', all: 'すべての行' };
+  function viewRows(query) {
     const q = new URLSearchParams(query || '');
     const m = mine();
-    const stageSel = h('select', { id: 'rv-f-stage' }, h('option', { value: '' }, 'すべての段'), R.stages.map((s) => h('option', { value: s.id }, s.name)));
-    const indexed = new Set(R.roles.flatMap((r) => r.questions));
-    const unindexed = R.questions.filter((x) => !indexed.has(x.id)).length;
-    const roleSel = h('select', { id: 'rv-f-role' }, h('option', { value: '' }, 'すべての役割'), R.roles.map((r) => h('option', { value: r.id }, r.name + `（索引の ${r.questions.length} 問）`)),
-      h('option', { value: 'none' }, `役割の索引が未整備の問い（${unindexed} 問）— どの役割にも関わりうる`));
-    const roleNote = h('p', { class: 'note warn', id: 'rv-role-note', role: 'status', hidden: true });
-    const ansSel = h('select', { id: 'rv-f-ans' }, h('option', { value: '' }, 'すべて'), h('option', { value: 'open' }, '未回答'), Object.keys(ANS).map((k) => h('option', { value: k }, ANS[k][2])));
-    const text = h('input', { type: 'search', id: 'rv-f-q', placeholder: '問い ID・問いの文・見る欄で探す' });
-    // the triage of each question (data/review.js): the default filter comes from the data, so that a shorter list shown
-    // first is a change of perspectives.md, not of this screen
-    const tri = Array.from(new Set(R.questions.map((x) => x.triage || 'all')));
-    const tl = (R.checklist && R.checklist.triage_labels) || {};
-    const short = shortList();
-    const triSel = h('select', { id: 'rv-f-triage' }, short ? h('option', { value: 'short' }, tl.short || '短い一覧') : null,
-      short && short.more.size + short.morePrompts.length ? h('option', { value: 'short+' }, tl['short+'] || '短い一覧と、時間があれば') : null, h('option', { value: '' }, `すべての問い（${R.questions.length} 問）`),
-      tri.filter((t) => t !== 'all').sort().map((t) => h('option', { value: t }, (tl[t] || t) + `：${R.questions.filter((x) => (x.triage || 'all') === t).length} 問`)));
-    const inTriage = (x) => !triSel.value || (triSel.value === 'short' ? !!short && short.why.has(x.id) : triSel.value === 'short+' ? !!short && (short.why.has(x.id) || short.more.has(x.id)) : (x.triage || 'all') === triSel.value);
-    const shortNote = h('div', { class: 'note', id: 'rv-short-note', hidden: true });
-    const promptBox = h('section', { class: 'rv-stage', id: 'rv-open-prompts', hidden: true });
-    const def = (R.checklist && R.checklist.default) || {};
-    const anyQuery = Array.from(q.keys()).length > 0;
-    triSel.value = q.get('triage') || (!anyQuery && Array.isArray(def.triage) && def.triage.length === 1 ? def.triage[0] : '');
-    stageSel.value = q.get('stage') || ''; roleSel.value = q.get('role') || ''; ansSel.value = q.get('ans') || ''; text.value = q.get('q') || '';
-    const count = h('p', { class: 'count', id: 'rv-count', 'aria-live': 'polite' });
-    const list = h('div', { id: 'rv-questions' });
-    const items = [];
-    R.stages.forEach((s) => {
-      const qs = R.questions.filter((x) => x.stage === s.id);
-      const sec = h('section', { class: 'rv-stage', 'data-stage': s.id }, h('h2', null, s.title), h('p', { class: 'muted small' }, h('strong', null, '誰が確かめるか：'), H.inlineRepo(s.who)));
-      qs.forEach((x) => { const el = questionItem(x, m); items.push([x, el]); sec.append(el); });
-      list.append(sec);
-    });
-    function apply() {
-      const params = {};
-      if (triSel.value) params.triage = triSel.value; else if (short) params.triage = 'all';   // keeps "every question" across a re-render (the default is the short list)
-      if (stageSel.value) params.stage = stageSel.value;
-      if (roleSel.value) params.role = roleSel.value;
-      if (ansSel.value) params.ans = ansSel.value;
-      if (text.value.trim()) params.q = text.value.trim();
-      const t = text.value.trim().toLowerCase();
-      let n = 0;
-      items.forEach(([x, el]) => {
-        const a = answerOf(mine(), x.id);
-        const ok = inTriage(x) && (!stageSel.value || x.stage === stageSel.value) &&
-          (!roleSel.value || (roleSel.value === 'none' ? !x.roles.length : x.roles.includes(roleSel.value))) &&
-          (!ansSel.value || (ansSel.value === 'open' ? !a : a === ansSel.value)) &&
-          (!t || (x.id + ' ' + x.text + ' ' + x.see).toLowerCase().includes(t));
-        el.hidden = !ok;
-        if (ok) n++;
-      });
-      list.querySelectorAll('.rv-stage').forEach((sec) => { sec.hidden = !sec.querySelector('.rv-q:not([hidden])'); });
-      const role = ROLE.get(roleSel.value);
-      roleNote.hidden = !role;
-      if (role) roleNote.textContent = `「${role.name}」で絞っています：観点書の 7. の索引で「${role.name}」に載っている問い ${role.questions.length} 問だけです。役割の索引が未整備の問い ${unindexed} 問にも、この役割に関わる問いがありえます（「役割の索引が未整備の問い」で絞ると見られます。全問に役割を付けるのは観点書の側の作業）。`;
-      count.textContent = `${n} / ${R.questions.length} 問を表示（自分の回答 ${m ? Object.keys(m.answers).length : 0} 問）`;
-      const isShort = (triSel.value === 'short' || triSel.value === 'short+') && !!short;
-      shortNote.hidden = !isShort; promptBox.hidden = !isShort;
-      if (isShort && !shortNote.dataset.done) {
-        shortNote.dataset.done = '1';
-        const by = (c) => R.questions.filter((x) => x.triage === c).length;
-        const word = { on: '当たる', off: '当たらない', unknown: '読めない（問いは出す）' };
-        const cond = (R.checklist.conditions || []).filter((c) => c.id !== 'always').map((c) => `${c.label}：${word[short.states[c.id]]}`);
-        const b = R.checklist.short.budget || {};
-        shortNote.append(h('p', null, h('strong', null, `全 ${R.questions.length} 問のうち、あなたが答える ${short.why.size} 問と、開いた問い ${short.prompts.length} 個を出しています。`),
-          b.questions ? ` 問いに答える時間の目安は ${b.minutes[0]}〜${b.minutes[1]} 分です（見積もり。人では測っていません）。` : '',
-          short.more.size + short.morePrompts.length ? ` 時間があれば：優先 2 の問い ${short.more.size} 問と、開いた問い ${short.morePrompts.length} 個（「表示する問い」で開けます）。` : '',
-          b.row_sample ? ` 行ごとの問いは、全部の行でなく、認可・識別子に使う行から ${b.row_sample} 行を選んで答えます。` : ''),
-          h('p', { class: 'small', id: 'rv-short-traits' }, 'この設計から読んだ性質（設計書が示すか、書き手が宣言していれば「当たる」）― ', cond.join('／'), '。図と要求に照らして確かめ、合わないときは、それ自体を指摘にして、「表示する問い」で全部の問いを開いてください。'),
-          h('p', { class: 'small', id: 'rv-short-rest' }, `出していない問い：lint が確かめる ${by('A')} 問、書き手が提出前に確かめる ${by('B')} 問、専門家に回す ${by('D')} 問、人の判断が要るがこの設計の性質に当たらない・優先 3 の ${by('C') - short.why.size - short.more.size} 問。「表示する問い」で開けます。分け方は `,
-            h('a', { href: gh(R.checklist.short.source) }, 'triage.yaml'), '、紙で読むなら ', h('a', { href: gh(R.checklist.short.doc) }, 'short_list.md'), '。'));
-        promptBox.append(h('h2', null, '開いた問い（要求と運用から辿る）'),
-          h('p', { class: 'muted small' }, 'Yes／No では答えません。要求の文と運用の場面から自分で辿り、気づいたことを指摘にします（出どころは「テンプレート外」）。1 つにつき 2〜3 分が目安です。'),
-          ...short.prompts.concat(short.morePrompts).map((p, i) => h('article', { class: 'rv-prompt', 'data-prompt': p.id, 'data-more': i >= short.prompts.length ? '1' : null, hidden: i >= short.prompts.length ? true : null },
-            h('h3', null, code(p.id), ' ', i >= short.prompts.length ? '（時間があれば）' : '', p.ask), p.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', p.hint) : null,
-            h('button', { type: 'button', disabled: m ? null : true, onclick: () => newFinding({ questions: [], location: p.id, origin: 'テンプレート外', content: '' }) }, '気づきを指摘にする'))));
-      }
-      promptBox.querySelectorAll('[data-more]').forEach((el) => { el.hidden = triSel.value !== 'short+'; });
-      const hash = P.route('review', 'checklist', params);
-      if (location.hash !== hash) history.replaceState(null, '', hash);
+    const out = [h('h1', { tabindex: '-1' }, 'レビューする行')];
+    if (!m) {
+      const n = st.file.reviews.length;
+      out.push(h('p', { class: 'lead' }, '設計書の行（クレーム・トークン・経路など）を 1 つずつ見て「確認済み」にし、気づいた点をコメントにためて、最後に 1 回だけ提出します。'),
+        h('p', null, h('button', { type: 'button', class: 'primary', id: 'rv-begin', onclick: openStart }, 'レビューを開始')),
+        n ? h('p', { class: 'muted', 'data-reviewers': String(n) }, `この設計書には、レビュアー ${n} 人の記録があります。` + (hiding() ? '独立レビューなので、始めて提出するまで中身は出しません。' : ''), ' ', h('a', { href: P.route('review', 'record') }, '提出と記録を見る')) : null,
+        selfDeclared());
+      return out;
     }
-    const form = h('form', { class: 'filters', role: 'search', onsubmit: (e) => e.preventDefault(), oninput: apply, onchange: apply },
-      tri.length > 1 ? h('label', null, '表示する問い', triSel) : null, h('label', null, '段（スライド 148 の 6 段）', stageSel), h('label', null, '役割（観点書の 7. の索引）', roleSel), h('label', null, '自分の回答', ansSel), h('label', { class: 'wide' }, '検索', text));
-    setTimeout(apply, 0);
-    list.append(promptBox);
-    return [h('h1', { tabindex: '-1' }, '観点のチェックリスト'),
-      h('p', { class: 'lead' }, '問いはどれも Yes が「満たす」の向きです。見る欄が空で判定できないときは No にして、指摘にします（templates/review/procedure.md の段 3）。「見る欄」を押すと、その欄（台帳の列・設計書の節・25 問の回答）に移動します。'),
-      m ? null : h('p', { class: 'note warn' }, '回答を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前（自己申告）を決めてください。'),
-      h('p', { class: 'muted small' }, `役割の索引（perspectives.md の 7.）に載っている問いは ${indexed.size} 問です。残りの ${unindexed} 問は、役割の索引が未整備の問いで、どの役割にも関わりえます（「役割の索引が未整備の問い」で絞り込めます）。`),
-      form, shortNote, roleNote, count, list];
-  }
-  function questionItem(x, m) {
-    const a = answerOf(m, x.id);
-    const memo = h('textarea', { id: 'rv-memo-' + x.id, rows: '1', class: 'rv-memo', 'aria-label': `${x.id} のメモ（理由 1 行）`, disabled: m ? null : true }, m && m.answers[x.id] && m.answers[x.id].memo ? m.answers[x.id].memo : '');
-    const setAns = (v) => {
-      const me = mine();
-      if (!me) return;
-      if (!v) delete me.answers[x.id];
-      else { const e = flagEdit({ answer: v, at: now() }); const mm = memo.value.trim(); if (mm) e.memo = mm; me.answers[x.id] = e; }
-      el.dataset.answer = v;
-      el.querySelector('.rv-findbtn').hidden = v !== 'no';
-      changed(false);
-    };
-    let timer = null;
-    memo.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => { const me = mine(); if (me && me.answers[x.id]) { const mm = memo.value.trim(); if (mm) me.answers[x.id].memo = mm; else delete me.answers[x.id].memo; flagEdit(me.answers[x.id]); changed(false); } }, 250);
+    const set = anchorSet();
+    const rows = rowsNow();
+    const re = m.submissions.length > 0;  // a review after a submission: by default only what changed since
+    if (q.get('filter') && FILTERS[q.get('filter')]) st.filter = q.get('filter');
+    if (!st.filter) st.filter = re ? 'todo' : 'all';
+    if (q.get('kind') !== null && q.get('kind') !== st.kind) { st.kind = q.get('kind') || ''; st.shown = null; }
+    const has = (a) => commentsOf(a.anchor).length > 0;
+    const todo = (a) => a.hash !== null && !(own(m.viewed, a.anchor) && m.viewed[a.anchor].hash === a.hash);
+    const match = (a) => (st.filter === 'all' || (st.filter === 'todo' ? todo(a) : has(a))) && (!st.kind || a.kind === st.kind);
+    const key = st.filter + '|' + st.kind;
+    if (!st.shown || st.shownKey !== key) { st.shown = rows.filter(match).map((a) => a.anchor); st.shownKey = key; }
+    else rows.forEach((a) => { if (match(a) && !st.shown.includes(a.anchor)) st.shown.push(a.anchor); });  // rows marked on this screen stay listed
+    const shown = new Set(st.shown);
+    const list = rows.filter((a) => shown.has(a.anchor));
+    const nTodo = rows.filter(todo).length;
+    const label = (k) => (k === 'todo' && re ? '前回のレビュー以降の変更' : FILTERS[k]) + (k === 'todo' ? `（${nTodo}）` : k === 'all' ? `（${rows.length}）` : `（${rows.filter(has).length}）`);
+    const setFilter = (k) => { st.filter = k; st.shown = null; st.focus = 'rv-flt-' + k; history.replaceState(null, '', P.route('review', null, Object.assign({ filter: k }, st.kind ? { kind: st.kind } : {}))); P.render(); restoreFocus(); };
+    const kindSel = h('select', { id: 'rv-r-kind', 'aria-label': '行の種類', onchange: (e) => { st.kind = e.target.value; st.shown = null; st.focus = 'rv-r-kind'; H.keepScroll(); P.render(); restoreFocus(); } },
+      h('option', { value: '' }, 'すべての種類'), Object.keys(KIND_LABEL).filter((k) => rows.some((a) => a.kind === k)).map((k) => h('option', { value: k, selected: st.kind === k ? true : null }, `${KIND_LABEL[k]}（${rows.filter((a) => a.kind === k).length}）`)));
+    const last = re ? m.submissions[m.submissions.length - 1] : null;
+    out.push(h('p', { class: 'lead' }, re
+      ? `前回の提出（${last.at}、${VERDICT[last.verdict][2]}）の後に内容が変わった行と、まだ確認していない行を出しています。変わった列は、前回と今を並べます。`
+      : '行を開いて内容を見て、「確認済み」を付けます（自分の印で、承認ではありません）。気づいた点は「コメントを追加」でためます。全部を見なくても提出できます（見た行だけが記録に残ります）。どこから見るか迷ったら、「コメントあり」の行や、種類を「クレーム」に絞って上から見ます。'),
+    h('div', { class: 'rv-filter', role: 'group', 'aria-label': '表示する行', id: 'rv-filter', 'data-filter': st.filter, 'data-rereview': re ? '1' : '0' },
+      Object.keys(FILTERS).map((k) => h('button', { type: 'button', id: 'rv-flt-' + k, 'data-filter-btn': k, 'aria-pressed': st.filter === k ? 'true' : 'false', onclick: () => setFilter(k) }, label(k))), kindSel));
+    // the comments that are not resolved come first in a review after a submission
+    const open = allComments().filter(([, c]) => c.state === 'unresolved');
+    if (re && open.length) {
+      out.push(h('section', { id: 'rv-unresolved', class: 'rv-unresolved', 'aria-labelledby': 'rv-unresolved-h' }, h('h2', { id: 'rv-unresolved-h' }, `未解決のコメント ${open.length} 件`),
+        h('p', { class: 'muted small' }, '直っていれば「解決済みにする」を押します。残すなら、そのままにします。'), open.map(([rv, c]) => commentItem(rv, c, true))));
+    }
+    const gone = Object.keys(m.viewed).filter((a) => !set.has(a) || rowHash(a) === null);
+    out.push(h('p', { class: 'count', id: 'rv-r-count', 'aria-live': 'polite', 'data-rows': String(list.length) }, `${list.length} 行を表示（全 ${rows.length} 行）`));
+    if (!list.length) {
+      out.push(h('p', { class: 'note', id: 'rv-r-empty' }, st.filter === 'todo' ? (re ? '前回のレビューの後に変わった行は、ありません。' : '未確認の行は、ありません。') + '「レビューを提出」で提出できます。' : '当てはまる行がありません。'));
+    }
+    let kind = null;
+    list.forEach((a) => {
+      if (a.kind !== kind) { kind = a.kind; out.push(h('h2', { class: 'rv-kind-h', 'data-kind': kind }, KIND_LABEL[kind] || kind)); }
+      out.push(rowCard(a, set));
     });
-    const name = 'rv-a-' + x.id;
-    const others = visible().filter((rv) => rv !== m && rv.answers[x.id]);
-    const el = h('article', { class: 'rv-q', id: 'q-' + x.id, 'data-q': x.id, 'data-answer': a },
-      x.ask ? h('h3', null, code(x.id), ' ', h('span', { class: 'chip' }, '優先 ' + x.priority), ' ', x.ask) : h('h3', null, code(x.id), ' ', H.inlineRepo(x.text)),
-      x.hint ? h('p', { class: 'muted small rv-hint' }, '手がかり：', x.hint) : null,
-      x.ask ? h('p', { class: 'muted small rv-orig' }, '観点書の問い：', H.inlineRepo(x.text)) : null,
-      x.triage_note ? h('p', { class: 'muted small rv-triage', 'data-triage': x.triage }, '区分：', H.inlineRepo(x.triage_note)) : null,
-      x.roles.length ? h('p', { class: 'codes small' }, x.roles.map((r) => h('span', { class: 'chip' }, ROLE.get(r).name))) : null,
-      h('p', { class: 'rv-see' }, h('span', { class: 'muted' }, '見る欄：'), x.see_refs.map((r, i) => [i ? '、' : '', seeLink(r)])),
-      h('details', null, h('summary', null, 'No なら・つながり・根拠'), h('dl', { class: 'obj' }, h('dt', null, 'No なら'), h('dd', null, H.inlineRepo(x.no)), h('dt', null, 'つながり'), h('dd', null, H.inlineRepo(x.links)),
-        h('dt', null, '根拠'), h('dd', null, H.inlineRepo(x.evidence)), h('dt', null, '原文'), h('dd', null, h('a', { href: x.url }, 'perspectives.md の ' + x.id)))),
-      h('fieldset', { class: 'rv-ans', disabled: m ? null : true }, h('legend', null, m ? `${x.id} の回答（${m.reviewer.name}）` : `${x.id} の回答`),
-        [['', '未回答']].concat(Object.keys(ANS).map((k) => [k, ANS[k][2]])).map(([v, label]) => h('label', null,
-          h('input', { type: 'radio', name, value: v, checked: a === v ? true : null, 'data-answer-for': x.id, onchange: () => setAns(v) }), ' ', v ? ANS[v][1] + ' ' : '', label)),
-        h('label', { class: 'rv-memo-l', for: 'rv-memo-' + x.id }, 'メモ'), memo,
-        h('button', { type: 'button', class: 'rv-findbtn', hidden: a !== 'no' ? true : null, onclick: () => newFinding({ questions: [x.id], location: x.id + '（' + x.see_refs.map((r) => r.ref).join('・') + '）', origin: '観点', content: memo.value.trim() }) }, '指摘にする')),
-      others.length ? h('ul', { class: 'rv-others small' }, others.map((rv) => h('li', null, badge(ANS[rv.answers[x.id].answer]), ' ', rv.reviewer.name, rv.answers[x.id].memo ? '：' + rv.answers[x.id].memo : ''))) : null);
-    return el;
+    if (gone.length) {
+      out.push(h('h2', null, '一覧から消えた行'), h('p', { class: 'muted' }, '確認済みの印があるのに、いまの設計書に無い行です（行が消えたか、ID が変わった）。印は消さずに残しています。'),
+        h('ul', { id: 'rv-gone' }, gone.map((a) => h('li', { 'data-missing': a }, code(a), `（${m.viewed[a].at} に確認）`))));
+    }
+    return out;
+  }
+  function rowCard(a, set) {
+    const anchor = a.anchor;
+    const open = st.openRow === anchor;
+    const cs = commentsOf(anchor);
+    const mark = myMark(anchor);
+    const s = mark ? markState(mark, anchor, set) : 'open';
+    const diags = CE.diagnostics().filter((d) => d.anchorKind === a.kind && d.anchorId === a.id);
+    const errs = diags.filter((d) => d.severity === 'error').length; const warns = diags.filter((d) => d.severity === 'warn').length;
+    const tid = 'rv-t-' + sid(anchor); const bid = 'rv-b-' + sid(anchor);
+    return h('article', { class: 'rv-row' + (open ? ' open' : ''), id: 'rv-row-' + sid(anchor), 'data-anchor': anchor, 'data-row-state': s === 'current' ? 'viewed' : s, 'data-open': open ? '1' : '0' },
+      h('div', { class: 'rv-row-head' }, rowHead(anchor, set, false),
+        h('button', { type: 'button', class: 'rv-row-title', id: tid, 'aria-expanded': open ? 'true' : 'false', 'aria-controls': bid, 'data-toggle-row': anchor,
+          onclick: () => { st.openRow = open ? null : anchor; st.form = null; st.focus = tid; H.keepScroll(); P.render(); restoreFocus(); } },
+        h('span', { 'aria-hidden': 'true' }, open ? '▼ ' : '▶ '), rowTitle(a)),
+        h('span', { class: 'codes' }, cs.length ? badge(['info', '!', ''], `コメント ${cs.length}`) : null,
+          errs || warns ? h('button', { type: 'button', class: 'link small', 'data-row-problems': anchor, title: 'この行の問題を、下の問題の一覧で見る', onclick: () => { if (!CE.problems.open()) CE.problems.toggle(true); } }, `問題 ${errs + warns}`) : null)),
+      h('div', { class: 'rv-row-body', id: bid, hidden: open ? null : true }, open ? rowBody(anchor, false, set) : null));
+  }
+
+  // ---- every comment
+  function viewComments() {
+    const m = mine();
+    const all = allComments();
+    const order = { unresolved: 0, pending: 1, resolved: 2 };
+    all.sort((x, y) => order[x[1].state] - order[y[1].state]);
+    const n = (s) => all.filter(([, c]) => c.state === s).length;
+    return [h('h1', { tabindex: '-1' }, 'コメント'),
+      h('p', { class: 'lead' }, `人が書いたコメントです（自動の検査の結果は、画面の下の「問題」）。未提出 ${n('pending')} 件・未解決 ${n('unresolved')} 件・解決済み ${n('resolved')} 件。`),
+      hiding() && hiddenCount() ? h('p', { class: 'note', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人のコメントを隠しています。`) : null,
+      m ? (st.form && st.form.general ? commentForm(st.form) : h('p', null, h('button', { type: 'button', id: 'rv-c-general', onclick: () => openForm({ general: true }) }, '行に付かないコメントを追加'),
+        h('span', { class: 'muted small' }, ' 行や列へのコメントは、「レビューする行」か、行の詳細の画面で付けます。'))) : h('p', { class: 'note warn' }, 'コメントを付けるには、上の「レビューを開始」を押します。'),
+      all.length ? h('div', { id: 'rv-comment-list', 'data-comments': String(all.length) }, all.map(([rv, c]) => commentItem(rv, c, true))) : h('p', { class: 'muted', id: 'rv-comment-list', 'data-comments': '0' }, 'コメントはありません。')];
+  }
+
+  // ---- 「レビューを提出」: once, with a summary and one verdict for the whole review
+  function openSubmit() {
+    const m = mine();
+    if (!m || $('#rv-submit-dialog')) return;
+    const p = progress();
+    const open = p.pending + p.unresolved;
+    const def = open ? 'request_changes' : p.viewed === p.total && p.total ? 'approve' : 'comment';
+    const warn = h('p', { class: 'note warn', id: 'rv-submit-warn', hidden: true });
+    const setWarn = (v) => {
+      const left = p.total - p.viewed;
+      const t = v === 'approve' && left ? `未確認の行が ${left} 行あります。承認は、確認済みの ${p.viewed} 行の今の内容にだけ結びつきます。` : v === 'approve' && open ? `未解決・未提出のコメントが ${open} 件あります。それでも承認にしますか。` : '';
+      warn.hidden = !t; warn.textContent = t;
+    };
+    const summary = h('textarea', { id: 'rv-summary', rows: '4' });
+    const snaps = h('input', { type: 'checkbox', id: 'rv-snapshots', checked: true });
+    const d = h('dialog', { class: 'confirm rv-submit', id: 'rv-submit-dialog', 'aria-labelledby': 'rv-submit-h' });
+    const form = h('form', { method: 'dialog', onsubmit: (e) => {
+      e.preventDefault();
+      const v = form.querySelector('input[name="rv-verdict"]:checked').value;
+      d.close('go');
+      submit(v, summary.value.trim(), snaps.checked);
+    } },
+    h('h2', { id: 'rv-submit-h' }, 'レビューを提出'),
+    h('p', { id: 'rv-submit-counts', 'data-default': def }, `確認済み ${p.viewed} / ${p.total} 行。未提出のコメント ${p.pending} 件（提出すると「未解決」になり、ほかの人に見えます）。未解決のコメント ${p.unresolved} 件。`),
+    h('label', { class: 'rv-field', for: 'rv-summary' }, '総評（全体について、ひとこと）'), summary,
+    h('fieldset', { class: 'rv-verdict' }, h('legend', null, '判定（レビュー全体に 1 つ）'),
+      Object.keys(VERDICT).map((k) => h('label', null, h('input', { type: 'radio', name: 'rv-verdict', id: 'rv-verdict-' + k, value: k, checked: k === def ? true : null, onchange: () => setWarn(k) }), ' ',
+        h('strong', null, VERDICT[k][2]), '：', VERDICT[k][3]))),
+    warn,
+    h('p', { class: 'small' }, h('label', { class: 'chk' }, snaps, ' 確認した行の今の値も記録に含める（次のレビューで、変わった列の前と後を並べるため。記録のファイルは大きくなる）')),
+    h('p', { class: 'muted small' }, '提出すると、判定と、確認済みの各行の内容の照合用の値を記録します。その後に行が変わると、その行は「前回の確認から変更あり」になります。'),
+    h('p', { class: 'buttons' }, h('button', { type: 'submit', class: 'primary', id: 'rv-submit-go' }, '提出する'), h('button', { type: 'button', id: 'rv-submit-cancel', onclick: () => d.close('cancel') }, 'やめる')));
+    d.append(form);
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d);
+    d.showModal();
+    setWarn(def);
+    summary.focus();
+  }
+  function submit(verdict, summary, keepSnapshots) {
+    const m = mine();
+    if (!m) return null;
+    const at = now();
+    const viewed = {};
+    rowsNow().forEach((a) => { const r = own(m.viewed, a.anchor) ? m.viewed[a.anchor] : null; if (r && a.hash !== null && r.hash === a.hash) viewed[a.anchor] = r.hash; });
+    if (!keepSnapshots) Object.keys(m.viewed).forEach((a) => { delete m.viewed[a].snapshot; });
+    const ids = m.comments.filter((c) => c.state === 'pending').map((c) => { c.state = 'unresolved'; return c.id; });
+    const sub = { at, verdict, viewed };
+    if (summary) sub.summary = summary;
+    if (ids.length) sub.comments = ids;
+    sub.unresolved = m.comments.filter((c) => c.state === 'unresolved').length;
+    m.submissions.push(sub);
+    m.submitted = at; m.updated = at;
+    st.justSubmitted = true; st.form = null; st.shown = null;
+    changed(false, true);
+    const target = P.route('review', 'record');
+    if (location.hash === target) P.render(); else location.hash = target;
+    setTimeout(() => { const el = $('#rv-next-steps'); if (el) el.focus(); }, 0);
+    return sub;
+  }
+
+  // ---- 提出と記録: what to do after the submission, the submissions, reading and writing review.yaml
+  function viewRecord() {
+    const m = mine();
+    const vis = visible();
+    const set = anchorSet();
+    const imp = h('input', { type: 'file', id: 'rv-import', multiple: true, accept: '.yaml,.yml', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
+    imp.addEventListener('change', () => importFiles(imp.files));
+    const subs = [];
+    vis.forEach((rv) => rv.submissions.forEach((s, i) => subs.push([rv, s, i])));
+    const lastApprove = (rv) => { const s = rv.submissions[rv.submissions.length - 1]; return s && s.verdict === 'approve' ? s : null; };
+    const staleApproval = (rv) => { const s = lastApprove(rv); return !!s && Object.keys(s.viewed).some((a) => rowHash(a) !== s.viewed[a]); };
+    return [h('h1', { tabindex: '-1' }, '提出と記録'),
+      m && m.submitted ? h('section', { class: 'note', id: 'rv-next-steps', tabindex: '-1', 'aria-labelledby': 'rv-next-h', 'data-just': st.justSubmitted ? '1' : '0' },
+        h('h2', { id: 'rv-next-h' }, st.justSubmitted ? 'レビューを提出しました。次にやること' : '提出の後にやること'),
+        h('ol', null, h('li', null, '記録のファイルを書き出す：', h('button', { type: 'button', class: 'primary', id: 'rv-export-next', onclick: () => exportAll() }, 'review.yaml を書き出す')),
+          h('li', null, '書き出した review.yaml を、設計書と同じフォルダーに置き、その設計書の pull request にコミットする。'),
+          h('li', null, 'GitHub の pull request でも、同じ判定でレビューする（ここでの名前は自己申告で、本当の承認は pull request のレビュー）。')),
+        h('p', { class: 'muted small' }, '設計書が直されたら、直した設計書と、この review.yaml を一緒に開いて「レビューを開始」を押します。変わった行だけが出ます。')) : null,
+      st.migrated ? h('p', { class: 'note', id: 'rv-migrated-note' }, '古い形（claims-review/1）の記録を読み込み、新しい形に直しました。行ごとの判定（承認・修正を求める・保留）は「確認済み」の印になり、元の判定は記録に残しています。書き出すと、新しい形のファイルになります。') : null,
+      h('h2', null, '提出の記録'),
+      subs.length ? h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'submissions' }, h('thead', null, h('tr', null, ['レビュアー（自己申告）', '日時', '判定', '総評', '確認済みの行', 'コメント'].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', null, subs.map(([rv, s, i]) => h('tr', { 'data-submission-by': rv.reviewer.name, 'data-verdict': s.verdict },
+          h('th', { scope: 'row' }, rv.reviewer.name, rv.reviewer.kind === 'llm' ? '（LLM）' : ''), h('td', null, s.at), h('td', null, badge(VERDICT[s.verdict]),
+            i === rv.submissions.length - 1 && s.verdict === 'approve' && staleApproval(rv) ? [' ', h('span', { 'data-stale-approval': '1' }, badge(['warn', '⟳', '古い承認（内容が変更されました）']))] : null,
+            s.migrated ? h('div', { class: 'muted small' }, '古い形の記録から移した') : null),
+          h('td', null, s.summary || '—'), h('td', { class: 'num' }, String(Object.keys(s.viewed).length)), h('td', { class: 'num' }, String((s.comments || []).length))))))) : h('p', { class: 'muted', id: 'rv-no-submission' }, 'まだ提出していません。'),
+      h('h2', null, 'レビュアーごとの記録'),
+      hiding() && hiddenCount() ? h('p', { class: 'note', id: 'rv-hidden', 'data-hidden-others': String(hiddenCount()) }, `ほかのレビュアー ${hiddenCount()} 人の記録を隠しています（${m ? '提出すると見えます' : 'レビューを始めて提出すると見えます'}）。`) : null,
+      vis.length ? h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'reviewers' }, h('thead', null, h('tr', null, ['レビュアー（自己申告）', '種類', '確認済み', '前回の確認から変更あり', 'コメント', '確認事項の答え', '提出'].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', null, vis.map((rv) => {
+          let ok = 0; let chg = 0;
+          Object.keys(rv.viewed).forEach((a) => { const s = markState(rv.viewed[a], a, set); if (s === 'current') ok++; else if (s === 'changed') chg++; });
+          return h('tr', { 'data-reviewer': rv.reviewer.name }, h('th', { scope: 'row' }, rv.reviewer.name), h('td', null, rv.reviewer.kind === 'llm' ? 'LLM' + (rv.reviewer.model ? `（${rv.reviewer.model}）` : '') : '人'),
+            h('td', { class: 'num' }, String(ok)), h('td', { class: 'num' }, String(chg)), h('td', { class: 'num' }, String(rv.comments.length)), h('td', { class: 'num' }, String(Object.keys(rv.answers).length)), h('td', null, rv.submitted || '未提出'));
+        })))) : h('p', { class: 'muted' }, '表示できる記録はありません。'),
+      m && st.file.reviews.length > 1 && !hiding() ? h('p', null, h('label', { for: 'rv-pick' }, '別のレビュアーの記録で続ける：'), ' ',
+        h('select', { id: 'rv-pick' }, st.file.reviews.map((r) => h('option', { value: r.reviewer.name, selected: r.reviewer.name === st.me ? true : null }, r.reviewer.name))), ' ',
+        h('button', { type: 'button', id: 'rv-pick-go', onclick: () => switchTo($('#rv-pick').value || null) }, 'このレビュアーで続ける')) : null,
+      h('h2', null, '記録のファイルを読み込む・書き出す'),
+      h('p', { class: 'muted small' }, '記録のファイル：review.yaml（設計書と同じフォルダーに置く）'),
+      h('p', { id: 'rv-file-state', 'data-unsaved': unsaved() ? '1' : '0' }, unsaved() ? '書き出していない記録があります。' : '書き出していない記録はありません。', ` レビュアー ${st.file.reviews.length} 人。`),
+      h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-import-btn', onclick: () => imp.click() }, 'review.yaml を読み込む（複数を選ぶと合わせる）'), imp, ' ',
+        h('button', { type: 'button', class: m && m.submitted ? null : 'primary', id: 'rv-export', onclick: () => exportAll() }, 'review.yaml を書き出す（全員の記録）'), ' ',
+        m && st.file.reviews.length > 1 ? h('button', { type: 'button', id: 'rv-export-mine', onclick: () => exportReview(true) }, '自分の記録だけ書き出す') : null, ' ',
+        h('a', { href: P.route('review', 'report') }, 'レポートを作る')),
+      st.slotHold ? h('div', { class: 'note warn', id: 'rv-slot-hold' }, h('p', null, `このブラウザに自動保存したレビューの記録（${st.slotHold.savedAt} に保存）が残っています。どれを使うかを選ぶまで、レビューの記録の自動保存を止めています。`),
+        h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-slot-ask', onclick: () => askSlot(st.slotHold).then(() => changed(true)) }, '自動保存した記録をどうするか選ぶ'), ' ',
+          h('button', { type: 'button', id: 'rv-slot-forget', onclick: () => CE.ask('自動保存した記録を消す', 'このブラウザに自動保存したレビューの記録を消して、いま開いている記録を使います。', [['delete', '消す'], ['cancel', 'やめる']])
+            .then((c) => { if (c === 'delete') { try { localStorage.removeItem(slotKey()); } catch (e) { /* ignore */ } st.slotHold = null; CE.saveWarning(null, 'review'); changed(true); } }) }, '自動保存した記録を消す'))) : null,
+      selfDeclared(),
+      h('h2', null, '独立レビュー'),
+      h('p', { id: 'rv-independent-state', 'data-independent': st.file.independent ? '1' : '0' }, st.file.independent ? 'この記録は独立レビューです：提出するまで、ほかのレビュアーの記録（確認済みの印・コメント・確認事項の答え）を画面に出しません。' : '独立レビューではありません（「レビューを開始」のときに選べます）。'),
+      h(st.file.independent ? 'p' : 'details', { class: 'note warn', id: 'rv-independence-limits' }, st.file.independent ? null : h('summary', null, '独立レビューでできないこと'), h('strong', null, '独立レビューは画面で隠すだけです。'),
+        'review.yaml を開けば、ほかのレビュアーの記録は誰でも読めます。このエディターにできるのは、提出の前に隠すのをやめる操作（ほかのレビュアーへの切り替え・設定を外す・全員の記録の書き出し）を確かめ、外れたことと日時・理由を review.yaml に記録すること、ほかの記録を初めて見た日時と、その後に直した記録に印を付けることだけです。'),
+      m && m.independence ? h('p', { id: 'rv-independence', 'data-mode': m.independence.mode }, '自分の独立レビュー：', m.independence.mode === 'broken' ? `提出の前に外れた（${m.independence.broken_at}、${m.independence.reason || ''}）` : '続けている',
+        m.independence.viewed_others_at ? `。ほかの記録を初めて見た日時 ${m.independence.viewed_others_at}（その後に直した記録には印が付く）` : '') : null];
   }
 
   // ---- 見る欄: one column of the registry, every row
@@ -919,11 +1337,11 @@
     const key = { claims: 'claims', token_types: 'token_types', hops: 'hops' }[coll];
     const rows = reg[coll] && Array.isArray(reg[coll][key]) ? reg[coll][key].filter(isObj) : [];
     const qs = R.questions.filter((x) => x.see_refs.some((r) => r.kind === 'registry' && r.path === coll && r.anchor === col));
-    const out = [h('p', null, h('a', { href: P.route('review', 'checklist') }, '← 観点のチェックリスト')),
+    const out = [h('p', null, h('a', { href: P.route('review') }, '← レビューする行'), ' ・ ', h('a', { href: P.route('review', 'checklist') }, '確認事項の一覧')),
       h('h1', { tabindex: '-1', 'data-column': coll + '.' + col }, `欄：${c ? c.label : col}`),
       h('p', { class: 'muted small' }, '項目の名前：', code(`registry:${coll}#${col}`)),
       c && c.meaning ? h('p', { class: 'lead' }, H.inline(c.meaning)) : null,
-      qs.length ? h('details', { open: true }, h('summary', null, `この欄を見る問い ${qs.length} 件`), h('ul', null, qs.map((x) => h('li', null, h('a', { href: P.route('review', 'checklist', { q: x.id }) }, x.id), ' ', H.inlineRepo(x.text))))) : null];
+      qs.length ? h('details', { open: true }, h('summary', null, `この欄を見る確認事項 ${qs.length} 件`), h('ul', null, qs.map((x) => h('li', null, h('a', { href: P.route('review', 'checklist', { q: x.id, all: '1' }) }, x.id), ' ', H.inlineRepo(x.text))))) : null];
     if (isProfile) {
       const p = reg.token_types && reg.token_types.issuance_profile;
       out.push(h('p', null, '発行方式の選択（token_types.yaml の issuance_profile）の項目です：'), h('div', { class: 'cols' }, h('div', { class: 'col' }, h('div', { class: 'ch' }, code(col)), h('div', { class: 'cv' }, p && own(p, col) ? H.value(p[col]) : '（未記入）'))));
@@ -931,182 +1349,13 @@
     }
     const idk = coll === 'catalog_answers' ? 'event' : 'id';
     out.push(h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'column' }, h('caption', null, `${KIND_LABEL[coll] || coll}の ${col}（${rows.length} 行）`),
-      h('thead', null, h('tr', null, ['行', col, '検査', 'レビュー'].map((x) => h('th', { scope: 'col' }, x)))),
+      h('thead', null, h('tr', null, ['行', col, '問題', 'レビュー'].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, rows.map((r) => {
         const anchor = coll + ':' + r[idk];
         return h('tr', { 'data-anchor': anchor }, h('th', { scope: 'row' }, rowLink(anchor), ' ', H.revealLink(coll, r[idk])),
           h('td', null, own(r, col) ? H.columnValue(coll, col, r[col]) : h('span', { class: 'muted' }, '（未記入）')),
           h('td', null, H.lintBadges(String(r[idk]))), h('td', null, rowBadges(anchor)));
       })))));
-    return out;
-  }
-  function rowBadges(anchor) {
-    const set = anchorSet(); const multi = st.file.reviews.length > 1;
-    return visible().filter((rv) => own(rv.rows, anchor)).map((rv) => stateBadge(rv.rows[anchor], anchor, rv, set));
-  }
-
-  // ---- per-row decisions
-  function baseDiff() {
-    if (!st.base) return null;
-    const cur = {}; CE.anchors().forEach((a) => { const x = CE.rowHash(a.anchor); if (x) cur[a.anchor] = x; });
-    const b = st.base.hashes;
-    const out = { added: [], removed: [], changed: [], same: [], unknown: [] };
-    Object.keys(cur).forEach((a) => {
-      if (!own(b, a)) (st.base.kind === 'review' ? out.unknown : out.added).push(a);
-      else if (b[a] !== cur[a]) out.changed.push(a); else out.same.push(a);
-    });
-    Object.keys(b).forEach((a) => { if (!own(cur, a)) out.removed.push(a); });
-    Object.keys(out).forEach((k) => out[k].sort());
-    return out;
-  }
-  function viewRows(query) {
-    const q = new URLSearchParams(query || '');
-    const m = mine();
-    const set = anchorSet();
-    const diff = baseDiff();
-    const changedSet = diff ? new Set(diff.added.concat(diff.changed, diff.unknown)) : null;
-    const kindSel = h('select', { id: 'rv-r-kind' }, h('option', { value: '' }, 'すべて'), Object.keys(KIND_LABEL).map((k) => h('option', { value: k }, KIND_LABEL[k])));
-    const stateSel = h('select', { id: 'rv-r-state' }, h('option', { value: '' }, 'すべて'), h('option', { value: 'open' }, '自分が未判定'),
-      Object.keys(DEC).map((k) => h('option', { value: k }, DEC[k][2])), h('option', { value: 'stale' }, '再確認が要る'));
-    const onlyChanged = h('input', { type: 'checkbox', id: 'rv-r-changed', disabled: diff ? null : true });
-    kindSel.value = q.get('kind') || ''; stateSel.value = q.get('state') || ''; onlyChanged.checked = !!diff && q.get('changed') === '1';
-    const tbody = h('tbody');
-    const count = h('p', { class: 'count', id: 'rv-r-count', 'aria-live': 'polite' });
-    const anchors = CE.anchors();
-    function apply() {
-      tbody.textContent = '';
-      let n = 0;
-      anchors.forEach((a) => {
-        const rec = m && m.rows[a.anchor];
-        const s = rec ? rowState(rec, a.anchor, set) : null;
-        if (kindSel.value && a.kind !== kindSel.value) return;
-        if (stateSel.value === 'open' && rec) return;
-        if (stateSel.value === 'stale' && s !== 'stale') return;
-        if (DEC[stateSel.value] && !(rec && rec.decision === stateSel.value && s === 'current')) return;
-        if (onlyChanged.checked && changedSet && !changedSet.has(a.anchor)) return;
-        n++;
-        tbody.append(rowLine(a, m, set, changedSet));
-      });
-      count.textContent = `${n} / ${anchors.length} 行`;
-      const params = {};
-      if (kindSel.value) params.kind = kindSel.value;
-      if (stateSel.value) params.state = stateSel.value;
-      if (onlyChanged.checked) params.changed = '1';
-      const hash = P.route('review', 'rows', params);
-      if (location.hash !== hash) history.replaceState(null, '', hash);
-    }
-    setTimeout(apply, 0);
-    const lost = [];
-    visible().forEach((rv) => Object.keys(rv.rows).forEach((a) => { if (!set.has(a) || CE.rowHash(a) === null) lost.push([rv, a]); }));
-    return [h('h1', { tabindex: '-1' }, '行ごとの判定'),
-      h('p', { class: 'lead' }, '台帳の行・トークン種別・ホップ・カタログへの回答・発行方式の項目ごとに、承認／修正を求める／保留 を記録します。判定は、その行の内容のハッシュ（RFC 8785 JCS の SHA-256。tools/row_hash.py と同じ）に結びつきます。行を変えると「再確認が要る」になります。'),
-      selfDeclared(),
-      m ? null : h('p', { class: 'note warn' }, '判定を記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前を決めてください。'),
-      h('form', { class: 'filters', onsubmit: (e) => e.preventDefault(), onchange: apply },
-        h('label', null, '種類', kindSel), h('label', null, '自分の判定', stateSel),
-        h('label', null, h('span', null, onlyChanged, ' 前の版から変わった行だけ'), diff ? h('span', null, `（変わった ${diff.changed.length}・足された ${diff.added.length}${diff.unknown.length ? '・前の記録に無い ' + diff.unknown.length : ''}）`) : h('a', { href: P.route('review', 'analysis') + '' }, '前の版を分析の画面で読み込む'))),
-      count,
-      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'review-rows' }, h('thead', null, h('tr', null, ['行', '判定（自分）', 'コメント', '記録', ''].map((x) => h('th', { scope: 'col' }, x)))), tbody)),
-      lost.length ? [h('h2', null, '台帳に無い行の記録'), h('p', { class: 'muted' }, '記録にあるが、今の台帳に無い（または ID が重なってハッシュの無い）行です。消さずに残しています。'),
-        h('ul', { id: 'rv-lost' }, lost.map(([rv, a]) => h('li', { 'data-missing': a }, code(a), '：', DEC[rv.rows[a].decision][2], `（${rv.reviewer.name}、${rv.rows[a].at}）`, rv.rows[a].comment ? '：' + rv.rows[a].comment : '')))] : null];
-  }
-  function rowLine(a, m, set, changedSet) {
-    const rec = m && m.rows[a.anchor];
-    const sid = a.anchor.replace(/[^A-Za-z0-9_-]/g, '_');
-    const sel = h('select', { id: 'rv-d-' + sid, 'data-decide': a.anchor, 'aria-label': `${a.anchor} の判定`, disabled: m ? null : true },
-      h('option', { value: '' }, '未判定'), Object.keys(DEC).map((k) => h('option', { value: k, selected: rec && rec.decision === k ? true : null }, DEC[k][2])));
-    const cm = h('input', { type: 'text', id: 'rv-c-' + sid, 'aria-label': `${a.anchor} のコメント`, value: rec && rec.comment ? rec.comment : '', disabled: m ? null : true });
-    sel.addEventListener('change', () => { st.focus = sel.id; record(a.anchor, sel.value, cm.value.trim()); });
-    cm.addEventListener('change', () => { if (sel.value) { st.focus = cm.id; record(a.anchor, sel.value, cm.value.trim()); } });
-    const s = rec ? rowState(rec, a.anchor, set) : null;
-    return h('tr', { 'data-anchor': a.anchor, 'data-row-state': s || 'open' },
-      h('th', { scope: 'row' }, rowLink(a.anchor), changedSet && changedSet.has(a.anchor) ? [' ', H.badge('info', 'Δ', '変わった')] : null),
-      h('td', null, sel), h('td', null, cm), h('td', null, rowBadges(a.anchor)),
-      h('td', null, s === 'stale' ? h('button', { type: 'button', 'data-rerecord': a.anchor, onclick: () => { st.focus = sel.id; record(a.anchor, rec.decision, rec.comment); } }, '確かめたので今の内容で記録し直す') : null));
-  }
-
-  // ---- findings, escalations, feedback
-  function nextId(rv) {
-    for (let i = 1; ; i++) { const id = 'F' + String(i).padStart(2, '0'); if (!rv.findings.some((f) => f.id === id)) return id; }
-  }
-  function newFinding(pre) {
-    const m = mine();
-    if (!m) { location.hash = P.route('review'); return; }
-    st.editFinding = Object.assign({ id: nextId(m), location: '', content: '', severity: 'Major', origin: '観点', kind: '候補の漏れ', verdict: '保留' }, pre || {}, { _new: true });
-    location.hash = P.route('review', 'findings');
-    setTimeout(() => { const el = $('#rv-f-content'); if (el) el.focus(); }, 50);
-  }
-  function findingForm(m) {
-    const f = st.editFinding;
-    if (!f) return h('p', null, h('button', { type: 'button', class: 'primary', id: 'rv-f-add', disabled: m ? null : true, onclick: () => { newFinding(); P.render(); } }, '指摘を足す'));
-    const sel = (id, list, v, label) => h('label', null, label, h('select', { id }, list.map((x) => h('option', { value: x, selected: x === v ? true : null }, x))));
-    const txt = (id, v, label, area) => h('label', { class: area ? 'wide' : null }, label, area ? h('textarea', { id, rows: '3' }, v || '') : h('input', { type: 'text', id, value: v || '' }));
-    const resp = f.response || {};
-    const confusedBox = h('div', { class: 'wide', id: 'rv-f-confused-box', hidden: f.kind !== MISMATCH ? true : null }, txt('rv-f-confused', f.confused_question, '取り違えた問い（判断の木の節の ID、questions.yaml の ID。例：`q-peer` を `req_wl` で答えた）'));
-    const msg = h('p', { class: 'err', id: 'rv-f-msg', role: 'alert' });
-    const form = h('form', { class: 'filters rv-fform', id: 'rv-finding-form', onsubmit: (e) => {
-      e.preventDefault();
-      const v = (id) => ($('#' + id).value || '').trim();
-      const x = { id: v('rv-f-id'), location: v('rv-f-location'), content: v('rv-f-content'), severity: v('rv-f-severity'), origin: v('rv-f-origin'), kind: v('rv-f-kind'), verdict: v('rv-f-verdict') };
-      const anchors = v('rv-f-anchors').split(/[\s,、]+/).filter(Boolean);
-      const qs = v('rv-f-questions').split(/[\s,、]+/).filter(Boolean);
-      const problems = [];
-      if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(x.id)) problems.push('ID は英字で始める（F01 など）');
-      if (m.findings.some((g) => g.id === x.id && g !== f._orig)) problems.push(`ID ${x.id} はもう使っている`);
-      if (!x.location) problems.push('場所が空');
-      if (!x.content) problems.push('内容が空');
-      anchors.forEach((a) => { if (!/^(claims|token_types|hops|catalog_answers|issuance_profile):.+$/.test(a)) problems.push(`${a} は行の名前（claims:C-… など）でない`); });
-      qs.forEach((qq) => { if (!QBY.has(qq)) problems.push(`${qq} は観点書の問いでない`); });
-      if (x.kind === MISMATCH) { x.confused_question = v('rv-f-confused'); if (!x.confused_question) problems.push('種別が目的と仕組みの不一致なら、取り違えた問いを書く'); }
-      if (problems.length) { msg.textContent = problems.join('。'); return; }
-      if (anchors.length) x.anchors = anchors;
-      if (qs.length) x.questions = qs;
-      if (v('rv-f-reason')) x.verdict_reason = v('rv-f-reason');
-      const r = {};
-      if (v('rv-f-owner')) r.owner = v('rv-f-owner');
-      if (v('rv-f-due')) r.due = v('rv-f-due');
-      r.state = v('rv-f-state') || '未着手';
-      if (v('rv-f-ref')) r.ref = v('rv-f-ref');
-      x.response = r;
-      x.at = now();
-      flagEdit(x);
-      if (f._orig) m.findings[m.findings.indexOf(f._orig)] = x; else m.findings.push(x);
-      st.editFinding = null;
-      st.focus = 'rv-f-add';
-      changed(true);
-    } },
-    h('h2', { class: 'wide' }, f._orig ? `指摘 ${f._orig.id} を直す` : '指摘を足す'),
-    txt('rv-f-id', f.id, 'ID'), txt('rv-f-location', f.location, '場所（項目 ID・行の ID と列・25 問の番号・問い ID）'),
-    txt('rv-f-content', f.content, '内容', true),
-    sel('rv-f-severity', R.report.severities, f.severity, '重大度'), sel('rv-f-origin', R.report.origins, f.origin, '出どころ'),
-    h('label', null, '種別', h('select', { id: 'rv-f-kind', onchange: (e) => { confusedBox.hidden = e.target.value !== MISMATCH; } }, R.report.kinds.map((x) => h('option', { value: x, selected: x === f.kind ? true : null }, x)))),
-    confusedBox,
-    sel('rv-f-verdict', R.report.verdicts, f.verdict, '判定'), txt('rv-f-reason', f.verdict_reason, '判定の理由（却下・保留のとき）'),
-    txt('rv-f-anchors', (f.anchors || []).join(' '), '行（claims:C-… を空白で区切る。行の画面に指摘の印が付く）'), txt('rv-f-questions', (f.questions || []).join(' '), '見つけた問い（問い ID を空白で区切る）'),
-    txt('rv-f-owner', resp.owner, '対応の担当'), txt('rv-f-due', resp.due, '期限'), sel('rv-f-state', R.report.states, resp.state || '未着手', '対応の状態'), txt('rv-f-ref', resp.ref, '対応の PR・コミット'),
-    h('div', { class: 'wide' }, msg, h('button', { type: 'submit', class: 'primary', id: 'rv-f-save' }, '記録する'), ' ', h('button', { type: 'button', id: 'rv-f-cancel', onclick: () => { st.editFinding = null; P.render(); } }, 'やめる')));
-    return form;
-  }
-  function viewFindings() {
-    const m = mine();
-    const vis = visible();
-    const multi = st.file.reviews.length > 1;
-    const all = [];
-    vis.forEach((rv) => rv.findings.forEach((f) => all.push([rv, f])));
-    const out = [h('h1', { tabindex: '-1' }, '指摘'),
-      h('p', { class: 'lead' }, '指摘は templates/review/report_template.md の欄（ID・場所・内容・重大度・出どころ・種別・判定・対応）で記録します。種別が「目的と仕組みの不一致」なら、取り違えた問いも書きます。'),
-      m ? null : h('p', { class: 'note warn' }, '記録するには、', h('a', { href: P.route('review') }, 'レビューの概要'), 'でレビュアーの名前を決めてください。'),
-      hiding() && hiddenCount() ? h('p', { class: 'note', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人の指摘を隠しています。`) : null,
-      findingForm(m),
-      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'findings' }, h('thead', null, h('tr', null, (multi ? ['レビュアー'] : []).concat(['ID', '場所', '内容', '重大度', '出どころ', '種別', '取り違えた問い', '判定', '対応', '']).map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, all.length ? all.map(([rv, f]) => h('tr', { 'data-finding': f.id, 'data-finding-by': rv.reviewer.name }, multi ? h('td', null, rv.reviewer.name) : null,
-          h('th', { scope: 'row' }, code(f.id)), h('td', null, H.inline(f.location), (f.anchors || []).length ? h('div', { class: 'codes' }, f.anchors.map(rowLink)) : null),
-          h('td', null, H.inline(f.content), f.verdict_reason ? h('div', { class: 'muted small' }, '判定の理由：', f.verdict_reason) : null), h('td', null, f.severity), h('td', null, f.origin), h('td', null, f.kind),
-          h('td', null, f.kind === MISMATCH ? H.inline(f.confused_question || '') : '—'), h('td', null, f.verdict), h('td', null, (f.response && f.response.state) || '未着手'),
-          h('td', null, rv === m ? [h('button', { type: 'button', 'data-edit-finding': f.id, onclick: () => { st.editFinding = Object.assign({}, f, { _orig: f }); P.render(); } }, '直す'), ' ',
-            h('button', { type: 'button', 'data-delete-finding': f.id, onclick: () => CE.ask('指摘を消す', `指摘 ${f.id} を消します。`, [['delete', '消す'], ['cancel', 'やめる']]).then((c) => { if (c === 'delete') { m.findings.splice(m.findings.indexOf(f), 1); changed(true); } }) }, '消す')] : null)))
-          : h('tr', null, h('td', { colspan: multi ? '12' : '11', class: 'muted' }, '指摘はありません。'))))),
-      escalationBlock(m), feedbackBlock(m)];
     return out;
   }
   function escalationBlock(m) {
@@ -1140,111 +1389,24 @@
     const list = m.feedback || [];
     const to = h('select', { id: 'rv-fb-to' }, ['カタログ', '観点書', '対応表', 'lint・実行テスト'].map((x) => h('option', { value: x }, x)));
     const content = h('input', { type: 'text', id: 'rv-fb-content', 'aria-label': '戻す中身' });
-    const fids = h('input', { type: 'text', id: 'rv-fb-findings', 'aria-label': '指摘 ID（空白で区切る）', placeholder: 'F01 F02' });
+    const fids = h('input', { type: 'text', id: 'rv-fb-findings', 'aria-label': 'コメントの ID（空白で区切る）', placeholder: 'C01 C02', oninput: (e) => e.target.setCustomValidity('') });
     const ref = h('input', { type: 'text', id: 'rv-fb-ref', 'aria-label': 'issue・PR' });
-    return [h('h2', null, 'カタログ・観点書・対応表に戻す事項'),
-      list.length ? h('ul', null, list.map((x, i) => h('li', null, h('strong', null, x.to), '：', x.content, (x.findings || []).length ? `（${x.findings.join('・')}）` : '', x.ref ? ` ${x.ref}` : '', ' ',
+    return [h('h2', null, 'カタログ・確認事項・対応表に戻す事項'),
+      list.length ? h('ul', null, list.map((x, i) => h('li', null, h('strong', null, x.to), '：', x.content, (x.comments || []).length ? `（${x.comments.join('・')}）` : '', x.ref ? ` ${x.ref}` : '', ' ',
         h('button', { type: 'button', onclick: () => { list.splice(i, 1); m.feedback = list; if (!list.length) delete m.feedback; changed(true); } }, '消す')))) : h('p', { class: 'muted' }, 'まだありません。'),
       h('form', { class: 'filters', onsubmit: (e) => {
         e.preventDefault();
         if (!content.value.trim()) { content.focus(); return; }
         const x = { to: to.value, content: content.value.trim() };
         const ids = fids.value.split(/[\s,、]+/).filter(Boolean);
-        if (ids.some((i) => !m.findings.some((f) => f.id === i))) { fids.setCustomValidity('指摘の一覧に無い ID がある'); fids.reportValidity(); return; }
-        if (ids.length) x.findings = ids;
+        if (ids.some((i) => !m.comments.some((f) => f.id === i))) { fids.setCustomValidity('コメントの一覧に無い ID がある'); fids.reportValidity(); return; }
+        fids.setCustomValidity('');
+        if (ids.length) x.comments = ids;
         if (ref.value.trim()) x.ref = ref.value.trim();
         list.push(x); m.feedback = list; changed(true);
-      } }, h('label', null, '戻す先', to), h('label', null, '中身', content), h('label', null, '指摘 ID', fids), h('label', null, 'issue・PR', ref), h('div', null, h('button', { type: 'submit' }, '足す')))];
+      } }, h('label', null, '戻す先', to), h('label', null, '中身', content), h('label', null, 'コメントの ID', fids), h('label', null, 'issue・PR', ref), h('div', null, h('button', { type: 'submit' }, '足す')))];
   }
 
-  // ---- analysis
-  function coverage(who) {
-    const ans = (qid) => who.some((rv) => rv.answers[qid]);
-    const cols = R.roles.map((r) => ({ id: r.id, label: r.name, has: (x) => x.roles.includes(r.id) })).concat([{ id: 'none', label: '索引に無い', has: (x) => !x.roles.length }, { id: '', label: '計', has: () => true }]);
-    return h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'coverage' }, h('caption', null, '答えた問い / 問いの数（段 × 役割。役割は観点書の 7. の索引。1 つの問いが複数の役割に入ることがある）'),
-      h('thead', null, h('tr', null, h('th', { scope: 'col' }, '段'), cols.map((c) => h('th', { scope: 'col', class: 'num' }, c.label)))),
-      h('tbody', null, R.stages.concat([{ id: '', name: '計' }]).map((s) => h('tr', { 'data-stage': s.id || 'all' }, h('th', { scope: 'row' }, s.name), cols.map((c) => {
-        const qs = R.questions.filter((x) => (!s.id || x.stage === s.id) && c.has(x));
-        const n = qs.filter((x) => ans(x.id)).length;
-        const params = {}; if (s.id) params.stage = s.id; if (c.id) params.role = c.id;
-        return h('td', { class: 'num' + (qs.length && n === qs.length ? ' done' : ''), 'data-cov': `${s.id || 'all'}|${c.id || 'all'}` }, qs.length ? h('a', { href: P.route('review', 'checklist', Object.assign({ ans: 'open' }, params)), title: `未回答 ${qs.length - n} 問を開く` }, `${n} / ${qs.length}`) : '—',
-          qs.length && n === qs.length ? h('span', { class: 'vh' }, '（すべて回答）') : null);
-      }))))));
-  }
-  function overlay() {
-    const diags = CE.diagnostics();
-    const byA = new Map();
-    diags.forEach((d) => { if (d.anchorKind && d.anchorId) { const a = d.anchorKind + ':' + d.anchorId; if (!byA.has(a)) byA.set(a, { error: 0, warn: 0, info: 0 }); byA.get(a)[d.severity]++; } });
-    const set = anchorSet();
-    const rows = [];
-    CE.anchors().forEach((a) => {
-      const lintC = byA.get(a.anchor);
-      const recs = visible().filter((rv) => own(rv.rows, a.anchor));
-      const fs = findingsOf(a.anchor);
-      if (!lintC && !recs.length && !fs.length) return;
-      const flags = [];
-      const approved = recs.some((rv) => rv.rows[a.anchor].decision === 'approve' && rowState(rv.rows[a.anchor], a.anchor, set) === 'current');
-      if (lintC && lintC.error && approved) flags.push('lint の error があるのに承認');
-      if (fs.some(([, f]) => f.verdict !== '却下') && approved) flags.push('指摘があるのに承認');
-      if (recs.some((rv) => rowState(rv.rows[a.anchor], a.anchor, set) === 'stale')) flags.push('再確認が要る');
-      if (lintC && (lintC.error || lintC.warn) && !recs.length && !fs.length) flags.push('lint の指摘があるのに、レビューの記録が無い');
-      rows.push({ a, lintC, recs, fs, flags });
-    });
-    rows.sort((x, y) => y.flags.length - x.flags.length);
-    return [h('p', { class: 'muted' }, 'lint（JSON Schema・claim_lint）の指摘がある行と、レビューの判定・指摘がある行を重ねます。注意の多い行が上です。claim_lint を読み込んでいないときは、ブラウザの Schema と YAML の指摘だけです。'),
-      h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'overlay' }, h('thead', null, h('tr', null, ['行', 'lint（error / warn / info）', 'レビューの判定', '指摘', '注意'].map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, rows.length ? rows.map((r) => h('tr', { 'data-anchor': r.a.anchor, 'data-flags': String(r.flags.length) }, h('th', { scope: 'row' }, rowLink(r.a.anchor)),
-          h('td', null, r.lintC ? `${r.lintC.error} / ${r.lintC.warn} / ${r.lintC.info}` : '—'), h('td', null, rowBadges(r.a.anchor)),
-          h('td', null, r.fs.length ? r.fs.map(([, f]) => code(f.id)) : '—'), h('td', null, r.flags.length ? h('ul', null, r.flags.map((x) => h('li', null, H.badge('warn', '▲', x)))) : '—')))
-          : h('tr', null, h('td', { colspan: '5', class: 'muted' }, '重ねる行がありません。')))))];
-  }
-  function diffBlock() {
-    const files = h('input', { type: 'file', id: 'rv-base-files', multiple: true, accept: '.yaml,.yml', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
-    const folder = h('input', { type: 'file', id: 'rv-base-folder', webkitdirectory: true, multiple: true, class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
-    const rev = h('input', { type: 'file', id: 'rv-base-review', accept: '.yaml,.yml', class: 'vh', tabindex: '-1', 'aria-hidden': 'true' });
-    const readFiles = (list) => Promise.all(Array.from(list || []).map((f) => f.text().then((t) => [f.name, t]))).then((xs) => {
-      const texts = {}; xs.forEach(([n, t]) => { if (/^(claims|token_types|hops|catalog_answers)\.yaml$/.test(n)) texts[n] = t; });
-      const r = CE.hashesOfTexts(texts);
-      st.base = { kind: 'files', label: `前の版のファイル（${Object.keys(texts).join('・') || 'なし'}）`, hashes: r.hashes, errors: r.errors };
-      P.render();
-    });
-    files.addEventListener('change', () => readFiles(files.files));
-    folder.addEventListener('change', () => readFiles(folder.files));
-    rev.addEventListener('change', () => {
-      const f = rev.files && rev.files[0];
-      if (!f) return;
-      f.text().then((t) => {
-        const r = parseReview(t, f.name);
-        if (r.error) { CE.ask('前の版の review.yaml を読めません', r.error, [['ok', '閉じる']]); return; }
-        const hashes = {};
-        r.data.reviews.forEach((rv) => Object.keys(rv.rows).forEach((a) => { const x = rv.rows[a]; if (!hashes[a] || hashes[a].at < x.at) hashes[a] = x; }));
-        const hs = {}; Object.keys(hashes).forEach((a) => { hs[a] = hashes[a].hash; });
-        st.base = { kind: 'review', label: `前のレビューの記録（${f.name}、記録した ${Object.keys(hs).length} 行のハッシュ）`, hashes: hs, errors: [] };
-        P.render();
-      });
-    });
-    const d = baseDiff();
-    return [h('p', { class: 'muted' }, '前の版の台帳（claims.yaml・token_types.yaml・hops.yaml・catalog_answers.yaml）か、前のレビューの記録（review.yaml。記録した行のハッシュを前の版とみなす）を読み込むと、行の内容のハッシュを比べて、変わった行を出します。「行ごとの判定」で、変わった行だけに絞れます。'),
-      h('p', { class: 'muted small' }, 'claim_lint の diff（L10、CI の ', code('python tools/claim_lint diff --base origin/main <dir>'), '）との関係：L10 は、変更が受け手を壊すか（削除・型の変更・必須化など）を規則で確かめます。ここは、壊すかどうかにかかわらず、内容が変わった行を全部出します（Python では ', code('python tools/review_record.py diff <前の版> <dir>'), '）。L10 が通っても、変わった行は再レビューの対象です。'),
-      h('p', { class: 'buttons' }, h('button', { type: 'button', id: 'rv-base-files-btn', onclick: () => files.click() }, '前の版のファイルを開く'), files, ' ',
-        h('button', { type: 'button', id: 'rv-base-folder-btn', onclick: () => folder.click() }, '前の版のフォルダを開く'), folder, ' ',
-        h('button', { type: 'button', id: 'rv-base-review-btn', onclick: () => rev.click() }, '前の review.yaml を開く'), rev,
-        st.base ? [' ', h('button', { type: 'button', onclick: () => { st.base = null; P.render(); } }, '前の版を外す')] : null),
-      d ? h('div', { id: 'rv-diff', 'data-changed': String(d.changed.length), 'data-added': String(d.added.length), 'data-removed': String(d.removed.length) },
-        h('p', null, st.base.label, '：', `変わった ${d.changed.length}・足された ${d.added.length}・消えた ${d.removed.length}・同じ ${d.same.length}`, d.unknown.length ? `・前の記録に無い ${d.unknown.length}` : '', ' ',
-          h('a', { href: P.route('review', 'rows', { changed: '1' }) }, '変わった行だけを判定する')),
-        st.base.errors && st.base.errors.length ? h('p', { class: 'err' }, st.base.errors.join('、')) : null,
-        [['changed', '変わった'], ['added', '足された'], ['removed', '消えた']].map(([k, label]) => d[k].length ? h('p', null, h('strong', null, label + '：'), h('span', { class: 'codes' }, d[k].map((a) => k === 'removed' ? code(a) : rowLink(a)))) : null))
-        : h('p', { class: 'muted' }, '前の版を読み込んでいません。')];
-  }
-  function linksBlock() {
-    const used = new Map();
-    R.questions.forEach((x) => x.link_refs.forEach((r) => { if (r.kind === 'review') { const k = r.path + '#' + r.anchor; if (!used.has(k)) used.set(k, []); used.get(k).push(x.id); } }));
-    return [h('h3', null, '対比表'), h('ul', null, R.contrasts.map((c) => h('li', null, h('a', { href: gh(c.file) }, c.title), ' ',
-      h('span', { class: 'muted small' }, c.sections.map((s) => { const n = (used.get('contrasts/' + c.name + '#' + s.id) || []).length; return [h('a', { href: gh(c.file, s.id) }, s.title), n ? `（問い ${n}）` : '', ' ']; }))))),
-      h('h3', null, '判断の木'), h('ul', null, R.decision_tree.sections.map((s) => h('li', null, h('a', { href: gh(R.decision_tree.file, s.id) }, `${s.number} ${s.title}`),
-        (used.get('decision_tree#' + s.id) || []).length ? h('span', { class: 'muted small' }, ` 問い：${used.get('decision_tree#' + s.id).join('・')}`) : null)))];
-  }
   function samplingBlock(m) {
     if (!m) return h('p', { class: 'muted' }, 'レビュアーを決めると、抜き取りを記録できます。');
     const sm = m.sampling;
@@ -1274,7 +1436,7 @@
         changed(true);
       } }, h('label', null, '乱数の種（空なら作る）', seed), h('label', null, '件数', cnt), h('div', null, h('button', { type: 'submit', id: 'rv-draw' }, '抜き取る')))];
     if (sm && sm.population && sm.population !== populationHash()) {
-      out.push(h('p', { class: 'note warn', id: 'rv-pop-changed', role: 'status' }, '⚠ 抜き取りの母集団が変わった：記録した後に、却下の行か、その内容が変わりました。記録した抜き取りは、その時の台帳では正しいものです。引き直すなら「抜き取る」を押します（前の抜き取りは previous に残ります）。'));
+      out.push(h('p', { class: 'note warn', id: 'rv-pop-changed', role: 'status' }, '⚠ 抜き取りの母集団が変わった：記録した後に、却下の行か、その内容が変わりました。記録した抜き取りは、その時のクレーム一覧では正しいものです。引き直すなら「抜き取る」を押します（前の抜き取りは previous に残ります）。'));
     }
     if (sm) {
       out.push(h('p', { id: 'rv-picked', 'data-picked': sm.picked.join(' ') }, `種 ${sm.seed} で選んだ行：`, h('span', { class: 'codes' }, sm.picked.map(rowLink))));
@@ -1285,7 +1447,7 @@
         const set = (k, v) => { sm.scores = sm.scores || {}; const cur = sm.scores[a] || {}; if (v === '' || v === undefined) delete cur[k]; else cur[k] = v;
           const vals = R.rubric.items.map((it) => cur[it.id]); if (vals.every((x) => x)) cur.pass = !vals.includes('否'); sm.scores[a] = cur; changed(false); };
         out.push(h('section', { class: 'effect', 'data-sample': a }, h('h3', null, rowLink(a)),
-          r && r.row ? h('dl', { class: 'obj' }, ['rationale', 'assumption', 'revisit_trigger'].map((k) => [h('dt', null, k), h('dd', null, own(r.row, k) ? H.value(r.row[k]) : '（未記入）')])) : h('p', { class: 'muted' }, '今の台帳に無い行'),
+          r && r.row ? h('dl', { class: 'obj' }, ['rationale', 'assumption', 'revisit_trigger'].map((k) => [h('dt', null, k), h('dd', null, own(r.row, k) ? H.value(r.row[k]) : '（未記入）')])) : h('p', { class: 'muted' }, '今のクレーム一覧に無い行'),
           h('div', { class: 'rv-rr' }, R.rubric.items.map((it) => h('label', null, h('span', { title: it.question }, `${it.id} ${it.name}`), h('select', { 'data-rr': a + '.' + it.id, onchange: (e) => set(it.id, e.target.value) },
             ['', '満', '否', '対象外'].map((v) => h('option', { value: v, selected: sc[it.id] === v ? true : null }, v || '（未）'))))),
           h('label', null, 'メモ', h('input', { type: 'text', id: 'rv-rr-note-' + sid, value: sc.note || '', onchange: (e) => set('note', e.target.value.trim()) }))),
@@ -1299,24 +1461,6 @@
   function populationHash() { return CE.sha256(rejectedAnchors().map((a) => a + ' ' + (CE.rowHash(a) || '')).join('\n')); }
   function draw(seed, count) {
     return rejectedAnchors().map((a) => [CE.sha256(seed + ':' + a), a]).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)).slice(0, count).map((x) => x[1]);
-  }
-  function viewAnalysis() {
-    const m = mine();
-    const vis = visible();
-    const whoSel = h('select', { id: 'rv-cov-who', onchange: () => { box.textContent = ''; box.append(coverage(whoSel.value === 'me' && m ? [m] : vis)); } },
-      m ? h('option', { value: 'me' }, `自分（${m.reviewer.name}）`) : null, h('option', { value: 'all' }, `表示している全員（${vis.length} 人）`));
-    const box = h('div', { id: 'rv-coverage' }, coverage(m ? [m] : vis));
-    const pa = paFiles();
-    return [h('h1', { tabindex: '-1' }, '分析'),
-      h('nav', { class: 'toc', 'aria-label': '分析の節' }, [['rv-a-cov', '観点の網羅'], ['rv-a-ov', 'lint と指摘の重ね合わせ'], ['rv-a-diff', '前の版との差分'], ['rv-a-links', '対比表と判断の木'], ['rv-a-pa', '25 問の回答'], ['rv-a-sample', '却下の理由の抜き取り']]
-        .map(([id, t]) => h('a', { href: '#' + id, onclick: (e) => { e.preventDefault(); const el = document.getElementById(id); if (el) { el.scrollIntoView(); el.focus(); } } }, t))),
-      h('h2', { id: 'rv-a-cov', tabindex: '-1' }, '観点の網羅'), h('p', null, h('label', { for: 'rv-cov-who' }, '誰の回答：'), whoSel), box,
-      h('h2', { id: 'rv-a-ov', tabindex: '-1' }, '検査の指摘とレビューの指摘の重ね合わせ'), overlay(),
-      h('h2', { id: 'rv-a-diff', tabindex: '-1' }, '前の版との差分'), diffBlock(),
-      h('h2', { id: 'rv-a-links', tabindex: '-1' }, '対比表と判断の木'), linksBlock(),
-      h('h2', { id: 'rv-a-pa', tabindex: '-1' }, '25 問の回答'),
-      h('p', null, `claim_request_*.md が ${pa.length} 件あります（共有クレームごとの追加前の 25 問）。`, h('a', { href: '#/review/pa' }, '25 問の回答の一覧を開く'), '（問いごとに、全部のクレームの回答を並べる）'),
-      h('h2', { id: 'rv-a-sample', tabindex: '-1' }, '却下の理由の抜き取り'), samplingBlock(m)];
   }
 
   // ---- the 25 answers of claim_request_*.md
@@ -1338,162 +1482,23 @@
       Array.from({ length: 25 }, (_, i) => i + 1).map((k) => h('option', { value: String(k), selected: k === n ? true : null }, `問 ${k}：${qtext(k)}`)));
     const pq = n ? QBY.get('pa-' + String(n).padStart(2, '0')) : null;
     const out = [h('h1', { tabindex: '-1', 'data-pa': String(n) }, '追加前の 25 問の回答'),
-      h('p', { class: 'lead' }, 'claim_request_*.md（共有クレームごとの 25 問）の回答を、問いごとに並べます。回答が妥当かを観点書の 1.2（pa-01〜pa-25）で確かめます。'),
+      h('p', { class: 'lead' }, 'claim_request_*.md（共有クレームごとの 25 問）の回答を、問いごとに並べます。回答が妥当かは、確認事項（pa-01〜pa-25）で確かめます。'),
       h('p', null, h('label', { for: 'rv-pa-q' }, '問い：'), sel)];
     if (!files.length) out.push(h('p', { class: 'muted' }, 'claim_request_*.md が開かれていません。'));
-    if (n && pq) out.push(h('div', { class: 'note' }, h('p', null, h('a', { href: P.route('review', 'checklist', { q: pq.id }) }, pq.id), ' ', H.inlineRepo(pq.text))));
+    if (n && pq) out.push(h('div', { class: 'note' }, h('p', null, h('a', { href: P.route('review', 'checklist', { q: pq.id, all: '1' }) }, pq.id), ' ', H.inlineRepo(pq.text))));
     if (n) {
       out.push(h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'pa' }, h('caption', null, `問 ${n}：${qtext(n)}`),
-        h('thead', null, h('tr', null, ['クレーム', '回答', '出どころ', ''].map((x) => h('th', { scope: 'col' }, x)))),
+        h('thead', null, h('tr', null, ['クレーム', '回答', '根拠', ''].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, files.map((f) => { const r = f.rows[n]; return h('tr', { 'data-pa-file': f.name }, h('th', { scope: 'row' }, f.target ? rowLink('claims:' + f.target) : code(f.name)),
           h('td', null, r ? H.inline(r.a) : h('span', { class: 'err' }, '（回答が無い）')), h('td', null, r ? H.inline(r.src) : '—'),
           h('td', null, r ? h('button', { type: 'button', class: 'link', onclick: () => CE.goto(f.name, r.line) }, `${f.name}:${r.line}`) : null)); })))));
     }
     out.push(h('h2', null, 'クレームごとの 25 問'), files.map((f) => H.foldable(H.foldKey('pa', f.name), h('span', null, code(f.name), f.target ? ' ― ' + f.target : ''), () => h('div', { class: 'tablewrap' }, h('table', null,
-      h('thead', null, h('tr', null, ['#', '問い', '回答', '出どころ'].map((x) => h('th', { scope: 'col' }, x)))),
+      h('thead', null, h('tr', null, ['#', '問い', '回答', '根拠'].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, Object.keys(f.rows).map((k) => h('tr', { class: Number(k) === n ? 'exceeds' : null }, h('th', { scope: 'row' }, k), h('td', null, f.rows[k].q), h('td', null, H.inline(f.rows[k].a)), h('td', null, H.inline(f.rows[k].src))))))), { closed: true })));
     return out;
   }
 
-  // ---- the report (the twin of tools/review_record.py report_text)
-  // every value of review.yaml is escaped for Markdown: & < > as entities (no raw HTML), \ ` * _ [ ] ~ with a backslash,
-  // | as a full-width bar, line breaks as spaces; a line that starts with a value is kept text (PR #52 check)
-  function md(s) {
-    return (s === null || s === undefined ? '' : String(s)).replace(/\s*\n\s*/g, ' ').trim()
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/([\\`*_[\]~])/g, '\\$1').replace(/\|/g, '｜');
-  }
-  function mdLine(s) { const t = md(s); return /^(?:[#>+\-=*]|\d+[.)])/.test(t) ? '\\' + t : t; }
-  function cell(s) { return md(s) || '—'; }
-  function row(cells) { return '| ' + cells.join(' | ') + ' |'; }
-  function date(t) { return String(t || '').slice(0, 10); }
-  function short(a) { return a.startsWith('claims:') ? a.split(':').slice(1).join(':') : a; }
-  function independenceText(data, rv) {
-    const ind = rv.independence || {};
-    if (!data.independent && !rv.independence) return '';
-    const parts = [];
-    if (ind.mode === 'broken') parts.push(`独立レビュー：提出の前に外れた（${ind.broken_at || '日時不明'}。${ind.reason || '理由の記録なし'}）`);
-    else parts.push('独立レビュー：提出まで、ほかのレビュアーの記録を画面で隠した（画面で隠すだけで、review.yaml を開けば見える。守ったかは自己申告）');
-    if (ind.viewed_others_at) parts.push(`ほかのレビュアーの記録を初めて見た日時 ${ind.viewed_others_at}`);
-    const n = Object.values(rv.answers || {}).filter((x) => x.edited_after_viewing_others).length + Object.values(rv.rows || {}).filter((x) => x.edited_after_viewing_others).length +
-      (rv.findings || []).filter((x) => x.edited_after_viewing_others).length;
-    if (n) parts.push(`その後に直した記録 ${n} 件（回答・判定・指摘の edited_after_viewing_others）`);
-    if (rv.submitted && rv.updated && String(rv.updated) > String(rv.submitted)) parts.push(`提出（${rv.submitted}）の後に更新した（${rv.updated}）`);
-    return parts.join('。');
-  }
-  function reportText(data, rv, label, version) {
-    const form = R.report;
-    const heads = {}; form.sections.forEach((s) => { heads[s.heading.slice(0, 2)] = s; });
-    const stageName = new Map(R.stages.map((s) => [s.id, s.name]));
-    const qs = R.questions;
-    const qids = new Set(qs.map((x) => x.id));
-    const ctx = rv.context || {};
-    const who = rv.reviewer;
-    const llm = who.kind === 'llm';
-    const lines = [`# レビューレポート：${md(label || data.design)}`, '',
-      '> 設計書のエディターのレビューモード（#50）が `review.yaml` から生成した。レビュアーの名前は自己申告で、本当の承認は GitHub の PR のレビューで行う。' + (llm ? 'レビュアーは LLM で、人による点検は未実施。' : ''), ''];
-    const head = (k) => { lines.push('## ' + heads[k].heading); lines.push(''); };
-    const table = (k, rows) => {
-      const hd = heads[k].header;
-      lines.push(row(hd)); lines.push(row(hd.map(() => '---')));
-      (rows.length ? rows : [hd.map(() => '')]).forEach((r) => lines.push(r.some((x) => x) ? row(r) : '|' + ' |'.repeat(hd.length)));
-      lines.push('');
-    };
-    const tgt = rv.target || {};
-    const sm = rv.sampling || null;
-    const scores = (sm && sm.scores) || {};
-    const scored = ((sm && sm.picked) || []).filter((a) => own(scores, a));
-    const passed = scored.filter((a) => scores[a].pass).length;
-    const cand = rejectedAnchors().length;
-    const ans = rv.answers || {};
-    const tot = { yes: 0, no: 0, na: 0 };
-    const per = R.stages.map((s) => {
-      const c = { yes: 0, no: 0, na: 0 };
-      qs.forEach((x) => { if (x.stage === s.id && own(ans, x.id)) c[ans[x.id].answer]++; });
-      Object.keys(c).forEach((k) => { tot[k] += c[k]; });
-      return `${s.name.split(' ').slice(1).join(' ')} Yes ${c.yes}／No ${c.no}／該当なし ${c.na}`;
-    });
-    const answered = tot.yes + tot.no + tot.na;
-    const gone = Object.keys(ans).filter((q) => !qids.has(q));
-    const ci = ctx.ci;
-    const ciText = !ci ? '記録なし' : `claim_lint error ${ci.error}・warn ${ci.warn}・info ${ci.info}` + (ci.profile ? `（profile ${ci.profile}）` : '') +
-      (!own(ci, 'matches_design') ? '' : '。設計書の 1. と' + (ci.matches_design ? '一致' : '一致しない')) + (ci.note ? `。${ci.note}` : '');
-    const samp = !sm ? '記録なし' : `乱数の種「${sm.seed}」（claims.yaml の却下の行 ${cand} 行から ${sm.count} 行。sha256(種:行) の順）：` + sm.picked.map(short).join('・') +
-      `。${scored.length} 件を採点、合格 ${passed}・不合格 ${scored.length - passed}` + (scored.length < sm.picked.length ? `（未採点 ${sm.picked.length - scored.length}）` : '') +
-      (sm.reason ? `。引き直した（${sm.reason}。前の抜き取り ${(sm.previous || []).length} 件）` : '');
-    const versions = R.versions || {};
-    const nowP = R.template_version;
-    const nowR = versions['templates/review/report_template.md'];
-    const mt = rv.materials || {};
-    const recP = mt.perspectives || version;
-    const recR = mt.report_template;
-    let mats = 'templates/review（レビューした時の版：perspectives.md ' + (recP || '記録なし') + (recR ? `、report_template.md ${recR}` : '') +
-      (mt.questions !== undefined && mt.questions !== null ? `、問い ${mt.questions} 問` : '') + '）';
-    const differs = (recP && recP !== nowP) || (recR && nowR && recR !== nowR) || (mt.questions !== undefined && mt.questions !== null && mt.questions !== qs.length);
-    if (differs) mats += `。注意：今の教材は perspectives.md ${nowP}` + (nowR ? `・report_template.md ${nowR}` : '') + `・問い ${qs.length} 問で、レビューの後に変わった（この表の問いの数と 8. は今の観点書で数えた）`;
-    if (ctx.materials) mats += '。' + ctx.materials;
-    let reviewer = `${who.name}（` + (llm ? 'LLM' + (who.model ? `：${who.model}` : '') : '人') + '。名前は自己申告）' + (ctx.roles_order ? `。${ctx.roles_order}` : '');
-    const ind = independenceText(data, rv);
-    if (ind) reviewer += '。' + ind;
-    const dt = date(rv.started) + (rv.submitted && date(rv.submitted) !== date(rv.started) ? `〜${date(rv.submitted)}` : '');
-    const values = { '対象': `${data.design}` + (tgt.commit ? `（版 ${tgt.commit}）` : '') + (tgt.note ? `。${tgt.note}` : ''),
-      'Lite／Full': ctx.lite_full || '記録なし', '実施した手順の段': ctx.steps || '記録なし', 'レビュアーと役割': reviewer, '実施日': dt, '使った教材の版': mats,
-      'CI の結果': ciText, '抜き取りの結果': samp,
-      '問いの回答': `全 ${qs.length} 問のうち ${answered} 問に回答（未回答 ${qs.length - answered}）。` + per.join('。') + `。合計 Yes ${tot.yes}／No ${tot.no}／該当なし ${tot.na}` +
-        (gone.length ? `。今の観点書に無い問いへの回答 ${gone.length} 件` : '') };
-    head('1.'); table('1.', heads['1.'].items.map((k) => [k, cell(values[k])]));
-    const fs = rv.findings || [];
-    head('2.');
-    table('2.', fs.map((f) => [cell(f.id), cell(f.location), cell(f.content + (f.verdict_reason ? `（判定の理由：${f.verdict_reason}）` : '')), cell(f.severity), cell(f.origin), cell(f.kind),
-      cell(f.kind === MISMATCH ? f.confused_question : null), cell(f.verdict)]));
-    head('3.');
-    table('3.', fs.map((f) => { const r = f.response || {}; return [cell(f.id), cell(r.owner), cell(r.due), cell(r.state || '未着手'), cell(r.ref)]; }));
-    const esc = rv.escalations || {};
-    head('4.');
-    table('4.', (esc.applies || []).map((e) => [cell(e.criterion), cell(e.location), cell(e.to), cell(e.due), cell(e.conclusion)]));
-    const na = esc.not_applicable;
-    lines.push('当てはまらなかった基準：' + (na && na.length ? na.map(md).join('・') : '（記録なし）'));
-    lines.push('');
-    head('5.');
-    table('5.', (rv.feedback || []).map((x) => [cell(x.to), cell(x.content), cell((x.findings || []).join('・')), cell(x.ref)]));
-    head('6.');
-    table('6.', scored.map((a) => [cell(short(a)), 'rationale'].concat([1, 2, 3, 4, 5, 6, 7].map((i) => cell(scores[a]['RR' + i] || '対象外')), [scores[a].pass ? '合格' : '不合格'])));
-    const notes = scored.filter((a) => scores[a].note).map((a) => `- ${md(short(a))}：${md(scores[a].note)}`);
-    if (notes.length) { notes.forEach((x) => lines.push(x)); lines.push(''); }
-    head('7.');
-    if (ctx.human_check) { lines.push(mdLine(ctx.human_check)); lines.push(''); }
-    lines.push(llm ? '人による点検は未実施（このレビューは LLM のセッションのもの。人のレビュアーの採否は未了）。'
-      : 'レビュアーは人（名前は自己申告）。templates/CONTRIBUTING.md の 3. の点検の取り決めによる点検かは、この記録からは分からない。');
-    lines.push('');
-    lines.push('レビュアーの名前は自己申告です（エディターにはログインが無い）。本当の承認は GitHub の PR のレビューで行います。');
-    lines.push('');
-    head('8.');
-    table('8.', qs.filter((x) => own(ans, x.id)).map((x) => [cell(stageName.get(x.stage) || '—'), x.id, ANS[ans[x.id].answer][2], cell(ans[x.id].memo)]));
-    const left = qs.filter((x) => !own(ans, x.id)).map((x) => x.id);
-    if (left.length) { lines.push(`未回答：${left.length} 問（` + left.join('・') + '）'); lines.push(''); }
-    if (gone.length) { lines.push(`今の観点書に無い問いへの回答：${gone.length} 件（` + gone.map(md).join('・') + '）'); lines.push(''); }
-    lines.push('## 9. 行ごとの記録（エディターのレビューモード、#50。生成した時の台帳と比べた状態）');
-    lines.push('');
-    lines.push('行の内容のハッシュ（RFC 8785 JCS の SHA-256、`tools/row_hash.py`）に結びつけた判定です。記録の後に行が変わると「再確認が要る」になります。' +
-      'ハッシュはその行の値だけを見ます（参照するトークン種別・ホップの行、25 問の回答、design.md の本文を変えても再確認にはなりません）。');
-    lines.push('');
-    const rows = rv.rows || {};
-    const set = anchorSet();
-    const stOf = {}; Object.keys(rows).forEach((a) => { stOf[a] = rowState(rows[a], a, set); });
-    lines.push(row(['行', '判定', '日時', '今の行との対応', 'コメント']));
-    lines.push(row(['---', '---', '---', '---', '---']));
-    const labelOf = { current: '一致（記録のときのまま）', stale: '再確認が要る（行が変わった）', missing: '台帳に無い行' };
-    const keys = Object.keys(rows).sort();
-    keys.forEach((a) => {
-      const r = rows[a]; const kind = r.reviewer_kind || who.kind;
-      lines.push(row([cell(a), DEC[r.decision][2] + (kind === 'llm' ? '（LLM）' : ''), cell(r.at), labelOf[stOf[a]] + `（${r.hash.slice(0, 12)}）`, cell(r.comment)]));
-    });
-    if (!keys.length) lines.push('|' + ' |'.repeat(5));
-    const c = {}; Object.keys(DEC).forEach((k) => { c[k] = keys.filter((a) => rows[a].decision === k).length; });
-    lines.push('');
-    lines.push(`計 ${keys.length} 行：` + Object.keys(DEC).map((k) => `${DEC[k][2]} ${c[k]}`).join('・') +
-      `。再確認が要る ${keys.filter((a) => stOf[a] === 'stale').length}・台帳に無い ${keys.filter((a) => stOf[a] === 'missing').length}`);
-    return lines.join('\n') + '\n';
-  }
   function viewReport(query) {
     const q = new URLSearchParams(query || '');
     const vis = visible();
@@ -1506,7 +1511,7 @@
     if (!rv) { out.push(h('p', { class: 'muted' }, '表示できるレビューの記録がありません。')); return out; }
     out.push(h('p', null, h('label', { for: 'rv-rep-who' }, 'レビュアー：'), who));
     if (rv === m) out.push(contextForm(m));
-    const text = reportText(st.file, rv, undefined, st.version);
+    const text = F.reportText(st.file, rv, R, env(), undefined, st.version);
     out.push(h('p', { class: 'buttons' }, h('button', { type: 'button', class: 'primary', id: 'rv-report-download', onclick: () => CE.download(`review-report-${date(rv.started) || 'draft'}.md`, new Blob([text], { type: 'text/markdown' })) }, 'レポートを書き出す（.md）')),
       h('pre', { id: 'rv-report', class: 'rv-report', tabindex: '0', 'aria-label': '生成したレポート', 'data-file-preview': 'review-report.md' }, text));
     return out;
@@ -1537,7 +1542,8 @@
       if (Object.keys(tg).length) m.target = tg; else delete m.target;
       st.focus = 'rv-ctx-save';
       changed(true);
-    } }, h('h2', { class: 'wide' }, '基本情報（レポートの 1.）'),
+    } }, h('h2', { class: 'wide' }, '基本情報（任意。空のままでも書き出せます）'),
+    h('p', { class: 'wide muted small' }, 'レポートの最初の表に載る補足です。分かるものだけ入れます。入れない欄は「記録なし」と出ます。'),
     fld('rv-ctx-commit', '対象の版（コミット）', t.commit), fld('rv-ctx-tnote', '対象の注記', t.note), fld('rv-ctx-lite_full', 'Lite／Full の確認', c.lite_full, true),
     fld('rv-ctx-steps', '実施した手順の段', c.steps, true), fld('rv-ctx-roles_order', '役割の切り替えの順と日付', c.roles_order, true), fld('rv-ctx-materials', '教材の版の補足', c.materials, true),
     fld('rv-ctx-ci-error', 'CI：error', ci.error), fld('rv-ctx-ci-warn', 'CI：warn', ci.warn), fld('rv-ctx-ci-info', 'CI：info', ci.info),
@@ -1548,61 +1554,83 @@
     h('div', { class: 'wide' }, h('button', { type: 'submit', class: 'primary', id: 'rv-ctx-save' }, '基本情報を記録する'), ' ',
       h('button', { type: 'button', id: 'rv-ctx-lint', disabled: lc ? null : true, title: lc ? '' : 'claim_lint が最新の内容で動いた後に使える', onclick: () => {
         $('#rv-ctx-ci-error').value = lc.error; $('#rv-ctx-ci-warn').value = lc.warn; $('#rv-ctx-ci-info').value = lc.info; $('#rv-ctx-ci-profile').value = lc.profile;
-      } }, '検査の結果を写す')));
+      } }, '問題の件数を写す')));
+  }
+
+  function rowBadges(anchor) { const set = anchorSet(); return visible().filter((rv) => own(rv.viewed, anchor)).map((rv) => markBadge(rv.viewed[anchor], anchor, rv, set)); }
+  function date(t) { return String(t || '').slice(0, 10); }
+  // what the report needs of the design as it is now (the twin of tools/review_record.py report: hashes, docs)
+  function env() { const hashes = {}; rowsNow().forEach((a) => { if (a.hash) hashes[a.anchor] = a.hash; }); return { hashes, rejected: rejectedAnchors().length }; }
+  function viewReportFull(query) {
+    const out = viewReport(query);
+    const m = mine();
+    if (m) out.push(h('details', { id: 'rv-report-more' }, h('summary', null, 'レポートに足す記録（専門家に回した項目・戻す事項・却下の理由の抜き取り）'),
+      escalationBlock(m), feedbackBlock(m), h('h2', { id: 'rv-a-sample', tabindex: '-1' }, '却下の理由の抜き取り'), samplingBlock(m)));
+    return out;
   }
 
   // ------------------------------------------------------------ the screens in the navigation
   function refreshCounts() {
-    const m = mine();
-    const a = document.querySelector('#nav a[data-view="review/checklist"] .cnt');
-    if (a && R) a.textContent = ' ' + (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length;
     const s = $('#rv-file-state');
     if (s) { s.dataset.unsaved = unsaved() ? '1' : '0'; }
+    const m = mine();
+    if (!m || !R) return;
+    const p = progress();
+    const a = document.querySelector('#nav a[data-view="review"] .cnt');
+    if (a) a.textContent = ' ' + p.viewed + '/' + p.total;
+    const c = document.querySelector('#nav a[data-view="review/comments"] .cnt');
+    if (c) c.textContent = ' ' + allComments().length;
+    const q = document.querySelector('#nav a[data-view="review/checklist"] .cnt');
+    if (q) { const tri = applicable(); q.textContent = ' ' + tri.filter((x) => m.answers[x.id]).length + '/' + tri.length; }
   }
-  function rowHref(anchor) {
-    const i = anchor.indexOf(':'); const kind = anchor.slice(0, i); const id = anchor.slice(i + 1);
-    if (KIND_VIEW[kind]) return P.route(KIND_VIEW[kind], id);
-    return P.route('review', 'rows', { state: 'stale' });
-  }
+  CE.onStartReview = openStart;
   P.registerView('review', {
     group: 'レビュー',
-    entry: 'レビューを始める・続ける',
-    // the review on the dashboard (#53): progress, and the rows to look at again and the questions not answered
+    entry: 'レビューする行',
+    // the review on the dashboard: the progress, and what to look at again
     summary: () => {
       if (!st.open || !R) return null;
-      const m = mine(); const vis = visible(); const set = anchorSet();
+      const m = mine();
+      const p = m ? progress() : null;
+      const todos = [];
+      // the rows that changed after someone marked them (every reviewer whose records are shown)
+      const set = anchorSet();
       const stale = [];
-      vis.forEach((rv) => Object.keys(rv.rows).forEach((a) => { if (rowState(rv.rows[a], a, set) === 'stale') stale.push([rv, a]); }));
-      const todos = stale.slice(0, 8).map(([rv, a]) => ({ kind: 'stale', label: '再確認が要る', text: `${a}（${rv.reviewer.name} の「${DEC[rv.rows[a].decision][2]}」の後に行が変わった）`, href: rowHref(a) }));
-      if (stale.length > 8) todos.push({ kind: 'stale', label: '再確認が要る', text: `すべて見る（${stale.length} 行）`, href: P.route('review', 'rows', { state: 'stale' }) });
-      if (m) { const open = R.questions.length - Object.keys(m.answers).length; if (open) todos.push({ kind: 'question', label: '未回答の問い', text: `${open} 問（${m.reviewer.name}）`, href: P.route('review', 'checklist', { ans: 'open' }) }); }
-      else todos.push({ kind: 'start', label: 'レビュー', text: 'レビュアーを決めると、回答と判定を記録できます', href: P.route('review') });
-      const lines = [`レビュアー ${vis.length} 人` + (hiddenCount() ? `（ほか ${hiddenCount()} 人は独立レビューで隠している）` : '')];
-      if (m) lines.push(`${m.reviewer.name}：回答 ${Object.keys(m.answers).length} / ${R.questions.length} 問・判定 ${Object.keys(m.rows).length} 行・指摘 ${m.findings.length} 件` + (m.submitted ? '・提出済み' : ''));
-      lines.push(`再確認が要る判定 ${stale.length} 行`, unsaved() ? '書き出していない記録があります' : '書き出していない記録はありません');
+      visible().forEach((rv) => Object.keys(rv.viewed).forEach((a) => { if (markState(rv.viewed[a], a, set) === 'changed') stale.push([rv, a]); }));
+      stale.slice(0, 8).forEach(([rv, a]) => todos.push({ kind: 'stale', label: '前回の確認から変更あり', text: `${a}（${rv.reviewer.name} が確認した後に、行が変わった）`, href: rowHref(a) }));
+      if (stale.length > 8) todos.push({ kind: 'stale', label: '前回の確認から変更あり', text: `すべて見る（${stale.length} 行）`, href: P.route('review', null, { filter: 'todo' }) });
+      const un = allComments().filter(([, c]) => c.state === 'unresolved').length;
+      if (un) todos.push({ kind: 'question', label: '未解決のコメント', text: `${un} 件`, href: P.route('review', 'comments') });
+      if (!m) todos.push({ kind: 'start', label: 'レビュー', text: '「レビューを開始」を押すと、行の確認とコメントを記録できます', href: P.route('review') });
+      else if (p.pending) todos.push({ kind: 'question', label: '未提出のコメント', text: `${p.pending} 件（「レビューを提出」で提出する）`, href: P.route('review', 'comments') });
+      const lines = [`レビュアー ${visible().length} 人` + (hiddenCount() ? `（ほか ${hiddenCount()} 人は独立レビューで隠している）` : '')];
+      if (m) lines.push(`${m.reviewer.name}：確認済み ${p.viewed} / ${p.total} 行・コメント ${p.comments} 件` + (m.submitted ? '・提出済み' : '・未提出'));
+      lines.push(unsaved() ? '書き出していない記録があります' : '書き出していない記録はありません');
       return { id: 'review', title: 'レビュー', href: P.route('review'), lines, todos };
     },
     nav: () => {
-      if (!R) return [{ sub: '', label: 'はじめる・概要' }];
+      if (!R || !st.open) return [{ sub: '', label: 'レビューする行' }];
       const m = mine();
-      let stale = 0;
-      if (st.open) { const set = anchorSet(); visible().forEach((rv) => Object.keys(rv.rows).forEach((x) => { if (rowState(rv.rows[x], x, set) !== 'current') stale++; })); }
-      return [{ sub: '', label: st.wizard ? 'はじめる' : '記録の概要' }, { sub: 'checklist', label: '観点のチェックリスト', count: (m ? Object.keys(m.answers).length : 0) + '/' + R.questions.length },
-        { sub: 'rows', label: '行ごとの判定', count: stale ? '⟳' + stale : null }, { sub: 'findings', label: '指摘', count: String(visible().reduce((n, rv) => n + rv.findings.length, 0)) },
-        { sub: 'analysis', label: '分析' }, { sub: 'pa', label: '25 問の回答' }, { sub: 'report', label: 'レポート' }];
+      const p = m ? progress() : null;
+      const tri = applicable();
+      return [{ sub: '', label: 'レビューする行', count: p ? p.viewed + '/' + p.total : null },
+        { sub: 'checklist', label: '確認事項', count: (m ? tri.filter((x) => m.answers[x.id]).length : 0) + '/' + tri.length },
+        { sub: 'comments', label: 'コメント', count: String(allComments().length) }, { sub: 'record', label: '提出と記録' },
+        { sub: 'report', label: 'レポート' }, { sub: 'pa', label: '25 問の回答' }];
     },
     render: (parts, query) => {
       if (!st.open || !R) return needOpen();
       noteViewing();
       const sub = parts[0] || '';
+      const key = parts.join('/');
+      if (key !== st.lastKey) { if (!sub && st.lastKey !== undefined) st.shown = null; if (st.lastKey === 'record') st.justSubmitted = false; st.lastKey = key; }
       if (sub === 'checklist') return viewChecklist(query);
-      if (sub === 'rows') return viewRows(query);
-      if (sub === 'findings') return viewFindings();
-      if (sub === 'analysis') return viewAnalysis();
+      if (sub === 'comments') return viewComments();
+      if (sub === 'record') return viewRecord();
       if (sub === 'pa') return viewPa(query);
       if (sub === 'col') return viewColumn(parts.slice(1));
-      if (sub === 'report') return viewReport(query);
-      return viewOverview();
+      if (sub === 'report') return viewReportFull(query);
+      return viewRows(query);
     },
   });
 
@@ -1612,13 +1640,20 @@
     text: () => dump(st.file),
     dump,
     me: () => st.me,
+    reviewing: () => st.bar && !!mine(),
     unsaved,
-    reportText: (name, label) => { const rv = st.file.reviews.find((x) => x.reviewer.name === name) || visible()[0]; return rv ? reportText(st.file, rv, label, st.version) : null; },
+    reportText: (name, label) => { const rv = st.file.reviews.find((x) => x.reviewer.name === name) || visible()[0]; return rv ? F.reportText(st.file, rv, R, env(), label, st.version) : null; },
     draw,
     visibleNames: () => visible().map((r) => r.reviewer.name),
     // #56: the traits read from the open design and the questions of its short list (compared with tools/review_triage.py by the tests)
-    traits: () => readTraits(), shortList: () => { const x = shortList(); return x ? { questions: Array.from(x.why.keys()), optional: Array.from(x.more), prompts: x.prompts.map((p) => p.id), morePrompts: x.morePrompts.map((p) => p.id) } : null; },
+    traits: () => readTraits(), shortList,
     importTexts: (list) => importFiles(list.map((x) => ({ name: x.name, text: () => Promise.resolve(x.text) }))),
+    openStart,
+    start: startAs,
+    submit,
+    progress,
+    traitValues: () => traits(),
+    triage: () => triageAll().map(([x, t]) => ({ id: x.id, show: t.show, why: t.why })),
     clock: null,
   };
   window.ClaimsReview = RV;

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/review/review.schema.json",
-  "title": "review.yaml: the review records of a design (#50)",
-  "description": "Written by the review mode of the design editor (docs/claims/) and read back by it; checked by python tools/review_record.py check. One file per design directory, next to claims.yaml. Each entry of reviews is one reviewer. The reviewer's name is self-declared: the approval that counts is the GitHub pull request review. A row decision is bound to the RFC 8785 JCS + SHA-256 hash of the row (tools/row_hash.py); when the row changes, the decision needs to be checked again. The vocabulary of findings is that of templates/review/report_template.md.",
+  "title": "review.yaml: the review records of a design (#50, #67; format claims-review/2)",
+  "description": "Written by the design editor (docs/claims/) and read back by it; checked by python tools/review_record.py check. One file per design directory, next to claims.yaml. Each entry of reviews is one reviewer. The reviewer's name is self-declared: the approval that counts is the GitHub pull request review. The flow is that of a pull request review (#67): the reviewer marks rows as viewed (a personal mark bound to the RFC 8785 JCS + SHA-256 hash of the row, tools/row_hash.py; not an approval; when the row changes the mark no longer holds), writes comments (pending until submitted, then unresolved or resolved) and submits once with a verdict for the whole review; each submission records the hashes of the rows viewed then. The vocabulary of comments is that of the findings of templates/review/report_template.md. The earlier form (claims-review/1, review.v1.schema.json: a decision per row, findings) is still read and migrated (python tools/review_record.py migrate).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "format": {
-      "const": "claims-review/1"
+      "const": "claims-review/2"
     },
     "design": {
       "type": "string",
@@ -60,8 +60,9 @@
         "started",
         "submitted",
         "answers",
-        "rows",
-        "findings"
+        "viewed",
+        "comments",
+        "submissions"
       ],
       "properties": {
         "reviewer": {
@@ -111,7 +112,7 @@
               "type": "null"
             }
           ],
-          "description": "When the reviewer submitted (null: not yet). In independent mode the other records stay hidden until then."
+          "description": "The time of the latest submission (null: not submitted yet; then submissions is empty). In independent mode the other records stay hidden until the first submission."
         },
         "target": {
           "type": "object",
@@ -183,6 +184,16 @@
             }
           }
         },
+        "traits": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "The reviewer's answers to the few questions about the design that cannot be read from its files. With what the editor reads from the design they decide which review questions are shown."
+        },
         "answers": {
           "type": "object",
           "propertyNames": {
@@ -216,57 +227,76 @@
             }
           }
         },
-        "rows": {
+        "viewed": {
           "type": "object",
           "propertyNames": {
             "$ref": "#/$defs/anchor"
           },
+          "description": "The rows the reviewer has marked as viewed (確認済み). A personal mark that the content was looked at, not an approval. Bound to the content: when the hash of the row differs, the mark does not hold (前回の確認から変更あり).",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "decision",
               "hash",
               "at"
             ],
             "properties": {
-              "decision": {
-                "enum": [
-                  "approve",
-                  "request_changes",
-                  "hold"
-                ],
-                "description": "承認 / 修正を求める / 保留"
-              },
               "hash": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{64}$",
-                "description": "ClaimsEditor.rowHash / tools/row_hash.py of the row when it was decided."
+                "$ref": "#/$defs/hash",
+                "description": "ClaimsEditor.rowHash / tools/row_hash.py of the row when it was marked."
               },
               "at": {
                 "$ref": "#/$defs/time"
               },
-              "comment": {
-                "type": "string"
-              },
-              "edited_after_viewing_others": {
-                "type": "boolean",
-                "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
+              "snapshot": {
+                "type": "string",
+                "description": "The RFC 8785 JCS text of the row when it was marked (the SHA-256 of its UTF-8 bytes is hash; check verifies it). Lets a later review show the old and the new value of the columns that changed."
               },
               "reviewer_kind": {
                 "enum": [
                   "human",
                   "llm"
                 ],
-                "description": "The kind of the reviewer when the decision was recorded; an LLM decision is shown as such (no person has checked it)."
+                "description": "The kind of the reviewer when the row was marked; a mark of an LLM is shown as such (no person has checked it)."
+              },
+              "edited_after_viewing_others": {
+                "type": "boolean",
+                "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
+              },
+              "migrated_from": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "decision"
+                ],
+                "description": "Set by the migration from claims-review/1: the decision per row of that form (承認 / 修正を求める / 保留) and its comment. Kept as a record; the new form has no decision per row.",
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "approve",
+                      "request_changes",
+                      "hold"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
-        "findings": {
+        "comments": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/finding"
+            "$ref": "#/$defs/comment"
+          }
+        },
+        "submissions": {
+          "type": "array",
+          "description": "One entry per 「レビューを提出」, oldest first.",
+          "items": {
+            "$ref": "#/$defs/submission"
           }
         },
         "sampling": {
@@ -437,14 +467,15 @@
               "content": {
                 "type": "string"
               },
-              "findings": {
+              "ref": {
+                "type": "string"
+              },
+              "comments": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
-              },
-              "ref": {
-                "type": "string"
+                },
+                "description": "IDs of comments of this review."
               }
             }
           }
@@ -505,11 +536,16 @@
         "対象外"
       ]
     },
-    "finding": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "comment": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "id",
+        "state",
         "location",
         "content",
         "severity",
@@ -522,6 +558,14 @@
           "type": "string",
           "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
         },
+        "state": {
+          "enum": [
+            "pending",
+            "unresolved",
+            "resolved"
+          ],
+          "description": "pending (未提出): written but not in a submission yet; unresolved (未解決) / resolved (解決済み): after it was submitted. The reviewer resolves a comment in a later review."
+        },
         "location": {
           "type": "string",
           "minLength": 1
@@ -532,6 +576,10 @@
             "$ref": "#/$defs/anchor"
           }
         },
+        "column": {
+          "type": "string",
+          "description": "The column of the row the comment is about, when it is about one."
+        },
         "questions": {
           "type": "array",
           "items": {
@@ -541,6 +589,10 @@
         "content": {
           "type": "string",
           "minLength": 1
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "A proposed value for the column."
         },
         "severity": {
           "enum": [
@@ -605,7 +657,14 @@
             }
           }
         },
+        "hash": {
+          "$ref": "#/$defs/hash",
+          "description": "The hash of the first row of anchors when the comment was written (after a change of the row the comment is shown as written about older content)."
+        },
         "at": {
+          "$ref": "#/$defs/time"
+        },
+        "resolved_at": {
           "$ref": "#/$defs/time"
         },
         "edited_after_viewing_others": {
@@ -627,6 +686,58 @@
         "required": [
           "confused_question"
         ]
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at",
+        "verdict",
+        "viewed"
+      ],
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/time"
+        },
+        "verdict": {
+          "enum": [
+            "approve",
+            "request_changes",
+            "comment"
+          ],
+          "description": "承認 / 変更を依頼 / コメントのみ: one verdict for the whole review."
+        },
+        "summary": {
+          "type": "string",
+          "description": "総評"
+        },
+        "viewed": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/anchor"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/hash"
+          },
+          "description": "The hash of every row that was marked as viewed when the review was submitted: an approval holds for this content only (when a row differs now, the approval is old)."
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "IDs of the comments submitted with this submission."
+        },
+        "unresolved": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many comments of the review were unresolved when it was submitted."
+        },
+        "migrated": {
+          "const": true,
+          "description": "Made by the migration from claims-review/1 (which had no verdict for the whole review)."
+        }
       }
     }
   }
