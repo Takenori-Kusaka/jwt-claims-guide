@@ -1,14 +1,14 @@
-<!-- template_version: 0.1.0 -->
+<!-- template_version: 0.2.0 -->
 # カタログの出どころ（種になる一覧）
 
 発行・利用イベントのカタログ（`issue_events.yaml`・`use_events.yaml`）、トークンの種類（`token_kinds.yaml`）、主体の状態の行列（`subject_state_matrix.md`）の行は、人の記憶ではなく、ここに挙げた外部の一覧（種になる一覧）から作りました（#2）。
 
-**対象外 138 件／全 355 件（39%）**
+**対象外 138 件／全 357 件（39%）**
 
 **ガイドの範囲外の行 1 件**（I34：OID4VCI の発行。ガイドの対象の外とし、前提と崩れる条件をカタログの行の `guide` に書いた。種の一覧の「対象外」とは別に数える）
 
-- 種になる一覧の全 355 項目のうち、217 項目がカタログのどれかの行にひもづき、138 項目が「対象外」です。差集合（どの行にもひもづかず、対象外でもない項目）は 0 件です。
-- カタログの全行（発行イベント 34 件、利用イベント 28 件、トークンの種類 17 件、行列の 7 状態）が、種の項目に 1 つ以上ひもづいています。
+- 種になる一覧の全 357 項目のうち、219 項目がカタログのどれかの行にひもづき、138 項目が「対象外」です。差集合（どの行にもひもづかず、対象外でもない項目）は 0 件です。
+- カタログの全行（発行イベント 34 件、利用イベント 30 件、トークンの種類 17 件、行列の 7 状態）が、種の項目に 1 つ以上ひもづいています。
 - 対象外の 137 件のうち 109 件は IANA の JWT Claims の登録簿の項目です。電話（STIR・SIP）、機器の証明（EAT）、CDN、5G（3GPP）、OpenID Federation など、組織の API のトークンに載らない分野のクレームです。登録簿を除いた対象外は 29 件／192 件です。
 - 対象外の項目には、それぞれ「起きない前提」（`assumption`）と「崩れる条件」（`breaks_when`）があります（`seeds.yaml`）。138 件の理由の文は 40 通りです（#17 で足した `keycloak-grant-types/PermissionGrantType` は、`keycloak-settings/authorization` と同じ理由）。同じ分野の項目（たとえば EAT のクレーム 22 件、STIR・SIP のクレーム 21 件）は、分野全体に当てはまる 1 つの理由を共有しています。分野ごとにまとめてよいのは、その理由が分野のすべての項目に当てはまるときだけです。
 - 検査は、理由が 10 字以上であること、同じ文字の繰り返しでないこと、項目の名前そのものでないこと、assumption と breaks_when が違う文であることだけを確かめます。理由が妥当かは機械では判定できず、抜き取りの点検（#13）に頼ります。
@@ -43,6 +43,7 @@
 | `guide-token-kinds` | ガイドで扱うトークンの種類（#2 の本文の一覧：Logout Token・内部トークン・ID-JAG・DPoP の proof・クライアントの assertion・JAR・JARM） | https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/2 | 2026-11-22 | 2027-02-20 | #2 | 7 | 0 |
 | `subject-states` | 主体の状態（#2 の本文の 7 つ。行列の行） | https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/2 | 2026-11-22 | 2027-02-20 | #2 | 7 | 0 |
 | `prior-catalogue` | 調査ノートの先行の一覧（I01〜I30・U01〜U21） | `research/template-design/notes/coverage_lifecycle.md` | 2026-11-22 | 2027-02-20 | #2 | 51 | 3 |
+| `pilot-outside` | パイロット（#9）の「カタログ外の質問」から出た場面（Q1：移行の期間の旧い経路、Q2：試験用の口・時計・鍵が本番に残る。#63 で足した） | `research/template-design/pilot.md` | 2026-11-27 | 2027-02-25 | #63 | 2 | 0 |
 
 ### 一覧ごとの注意
 
@@ -50,6 +51,7 @@
 - **`keycloak-settings`**：Keycloak には、Auth0 の `event.transaction.protocol` のような契機の値の一覧がありません。そこで、公式文書（Server Administration Guide 26.8.2 の Capability Config・Client scopes・Logout settings ほか、Securing Applications の Token exchange・JWT Authorization Grant・DPoP、Release Notes）から、発行・利用を起こす・止める設定を筆者が拾いました（`author-proposal`、tracking #2）。拾い漏れは、この一覧の外の漏れになります。
 - **`auth0-protocol`**：文書は値を並べるだけで、各値の説明がありません。`oauth2-resource-owner`・`oauth2-webauthn`・`oauth2-access-token`・`oauth2-resource-owner-jwt-bearer` がどのフローかは確かめていません（`research/template-design/unverified.md` の V35）。
 - **`iana-jwt-claims`**：登録簿の全 163 項目です。`...`（SD-JWT の配列の要素の digest）も 1 項目として数えています。
+- **`pilot-outside`**：外部の一覧ではなく、パイロット（#9）の 4 回のレビューが一覧の外で見つけた場面です（4 回のうち 3 回と 2 回）。設計書が「この列挙の外に契機はないか」（R9）で探し、見つかったら一覧かカタログに戻す、という手順を、パイロットの結果に当てたものです。行は U29・U30（`asked_from: "0.3.0"`。台帳の版 0.3.0 からの設計書に問う）で、選んだ理由と、ほかの指摘を戻した先は `research/template-design/feedback-63.md` にあります
 - **`prior-catalogue`**：#16 より前の調査で、キーワード検索から作った一覧です。ID（I01〜I30・U01〜U21）はカタログの ID と別物です（たとえば、一覧の I02 はカタログの I10）。
 
 ## 契機の一覧を持つ IdP と、持たない IdP

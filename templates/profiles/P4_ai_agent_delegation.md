@@ -1,4 +1,4 @@
-<!-- template_version: 0.6.0 -->
+<!-- template_version: 0.7.0 -->
 # P4 AI エージェントの委任（profiles/P4_ai_agent_delegation）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
@@ -107,6 +107,7 @@
 | 評価する者 | 交換を担う部品はどれか | 組織の AS／入口の STS／ツールサーバーの AS | slide:p06-narrow-downstream、`hops[].exchanger` |
 | 委任の理由・承認者 | 理由・承認者を独自に運ぶなら、どこに置くか | `act` の外の組織の名前空間（承認 ID など）／運ばない（監査ログで引く） | slide:p02-delegation-client、RFC 8693 §4.1 |
 | 絞り込み | 交換で `aud`・`scope` を上流より広げないことを、どこで強制するか | AS の方針／交換を担う部品の検査／受け手の検査 | slide:p10-token-exchange-not-narrowing |
+| 許す宛先 | 委任（同意）の記録に、トークンを得てよい宛先（MCP サーバーの `resource`）の一覧を持ち、交換・発行のたびに照合するか。エージェントが申告した `resource` のまま、信頼していないサーバー宛てに出さないか（入力に紛れた指示で宛先を変えられうる。#63 で足した。パイロット #9 の O8） | 委任の記録の一覧と照合する／申告どおりに出す（避ける） | RFC 8707 §2、RFC 8693 §2.1、slide:p10-mcp-authorization |
 
 記入欄：
 
@@ -115,8 +116,9 @@
 | 代理してよい者 |  |  | `claims[]`（may_act の行） |
 | 評価する者 |  |  | `hops[].exchanger` |
 | 委任の理由・承認者 |  |  | `claims[]`（承認 ID の行） |
+| 許す宛先 |  |  | `hops[].aud`、`issuance_profile.request_protection`（resource_indicators） |
 
-根拠：RFC 8693 §4.4、slide:p02-delegation-client、slide:p10-token-exchange-not-narrowing
+根拠：RFC 8693 §4.4、slide:p02-delegation-client、slide:p10-token-exchange-not-narrowing、RFC 8707 §2
 
 <a id="human-approval"></a>
 ## 5. 人の承認〔Full：記入〕
@@ -133,6 +135,7 @@
 | 承認の内容 | 承認した対象・金額・相手先をトークンに載せるか | `authorization_details`（`identifier` に対象、`locations` にリソースサーバー）／承認 ID だけ（中身は受け手が引く） | RFC 9396 §2・§2.2、slide:p10-human-approval-evidence |
 | 宛先ごとの絞り込み | `authorization_details` を宛先に合わせて絞るか | 宛先ごとに絞る／全部を載せる | RFC 9396 §9.1 |
 | 受け手の照合 | 受け手が、要求の内容（金額・相手先・対象）と承認の内容を照合するか | 照合する（不一致は拒否）／照合しない | jwt-claims-casestudy@080b8da:C5、slide:p10-human-approval-evidence |
+| 消費の競合と再送 | 「未使用を確かめてから使用済みにする」を、1 つの原子的な更新で行うか（並行の 2 件が両方とも未使用を読まないか）。応答が失われた後の再試行を冪等に扱うか。承認の記録先が止まったら拒むか（#63 で足した。パイロット #9 の O7） | 条件つきの更新（未使用なら使用済み）で 1 回だけ成功させる／承認 ID を冪等キーにし、再試行には前の結果を返す／記録先が止まったら拒む | ASVS v5.0.0-15.4.2、ASVS v5.0.0-2.3.4、ASVS v5.0.0-2.3.3、RFC 6749 §4.1.2、draft-ietf-httpapi-idempotency-key-header-09 |
 
 記入欄：
 
@@ -141,8 +144,9 @@
 | 承認を確かめる者 |  |  | `issuance_profile.grants`（ciba） |
 | 承認の内容 |  |  | `claims[]`（authorization_details・承認 ID の行） |
 | 受け手の照合 |  |  | `claims[].enforced_at` |
+| 消費の競合と再送 |  |  | `claims[].enforced_at`（authorization_details・承認 ID の行）、`token_types[].revocation`（db_lookup） |
 
-根拠：slide:p10-human-approval-evidence、RFC 9396 §2.2、OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1
+根拠：slide:p10-human-approval-evidence、RFC 9396 §2.2、OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1、ASVS v5.0.0-15.4.2
 
 <a id="tool-scopes"></a>
 ## 6. ツールごとのスコープと引き上げ〔Full：記入〕

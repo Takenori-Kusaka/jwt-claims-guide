@@ -214,6 +214,8 @@ evidence:
 
 lint の規則を error で足すと既存の設計書が通らなくなるので、メジャーとして扱います。
 
+カタログ（`templates/catalog/`）にイベントを足すと、それまでの設計書に回答が無く、R2 が error にします。マイナーの版で足すイベントには `asked_from`（台帳の版）を付けます。`catalog_answers.yaml` の版がそれより前の設計書には問わず、それ以後の設計書でも回答が無いことは warn にとどめ、次のメジャーの版で error にします（`tools/claim_lint/RULES.md` の R2。#63）。
+
 ### 作成方法の開示
 
 各成果物の README に、ガイドと同じ書き方で作成方法を書きます。

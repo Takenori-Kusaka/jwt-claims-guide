@@ -93,7 +93,9 @@ def test_migrated_pilot_b_has_no_error_without_the_workarounds(migrated):
     warns = sorted((f['rule'], f['target']) for f in migrated['findings'] if f['severity'] == 'warn')
     # L11 and L69 are the two warnings the pilot's author left. R3b I26 is new: the pilot named Keycloak only, so nothing
     # compared Auth0's Actions with the claim that Auth0 adds (C-auth0-roles); what its author confirmed is about Keycloak
-    assert warns == [('L11', 'C-sub-unread'), ('L69', 'C-groups'), ('R3b', 'I26')]
+    # R2 U29・U30 (#63): events added for designs of registry 0.3.0 and later; the fixture is 0.3.0 and the pilot did not
+    # answer them (the pilot itself is 0.2.0, so they are not asked of it)
+    assert warns == [('L11', 'C-sub-unread'), ('L69', 'C-groups'), ('R2', 'U29'), ('R2', 'U30'), ('R3b', 'I26')]
 
 
 def test_the_workarounds_are_gone_from_the_fixture():

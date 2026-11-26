@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.4.0 -->
 # P5 組織の内側の伝搬（profiles/P5_internal_propagation）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
@@ -28,6 +28,7 @@
 | 製品の独自クレーム | `xms_*` のような製品の独自クレームを、組織の契約にしないか | 入口で `act`・`client_id` などの標準のクレームにそろえる／内部トークンに載せない | slide:p10-vendor-features |
 | 内部トークンの形 | 内部トークンは、完全性を守った短命の切符か | 入口が署名する JWT（短命）／Txn-Token（2.）／参照型 | slide:p05-one-request-carries、slide:p06-edge-exchange |
 | 共通の基準の当て方 | 共通の基準（必須の欠落の拒否など）を、IdP の差を正規化した後に当てるか | 正規化の後に当てる（正規の要求を落とさない）／IdP のトークンにそのまま当てる | slide:p12-priorities-deferrals、jwt-claims-casestudy@080b8da:B16 |
+| 作り直しで消える値 | 作り直した内部トークンからは、元の発行者（どの IdP か）と上流のトークンの `jti` が消える。監査・障害の調査で追う値を、内部トークンに載せるか、入口のログに内部トークンの `jti` と結んで残すか（#63 で足した。パイロット #9 の X1） | 内部トークンの独自クレーム（元の発行者）／入口の監査ログ（`00_core` の 6. の「どこを経由したか」`q-via`） | slide:p06-audit-trail、research/template-design/pilot.md の 5. |
 
 台帳への書き方（IdP が複数のとき。`templates/registry/README.md` の 3.5）：
 
@@ -52,6 +53,7 @@
 | 交換するか |  |  | `issuance_profile.at_format`、`hops[].kind`（exchange・reissue）・`exchanger`・`upstream`・`added_claims` |
 | グループの超過 |  |  | `claims[].overflow_strategy`（ロールの行） |
 | 内部トークンの形 |  |  | `token_types[]`（kind: internal_token の行） |
+| 作り直しで消える値 |  |  | `hops[].added_claims`、`catalog_answers.yaml` の `questions.q-via` |
 
 根拠：slide:p06-edge-exchange、slide:p03-absorb-idp-differences、slide:p11-translation-layer、slide:p10-vendor-features、jwt-claims-casestudy@080b8da:B16
 

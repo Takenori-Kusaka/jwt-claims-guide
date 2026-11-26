@@ -73,7 +73,9 @@ def load_design(design_dir):
     events = []
     for name in ('issue_events', 'use_events'):
         events += [dict(e, _file=name) for e in (_load(os.path.join(CATALOG, name + '.yaml'), {}) or {}).get('events') or []]
-    d['events'] = events
+    # the events this design is asked (#63: an event added by a later minor version is left out of an older design)
+    d['events'] = core.applicable_events(events, d['catalog_answers'],
+                                         core.file_version(os.path.join(design_dir, 'catalog_answers.yaml')))
     # the $id of a payload schema names the design by its directory name, so that a copy of the directory generates
     # the same schema files (the files are compared by --check)
     d['_design'] = os.path.basename(os.path.abspath(design_dir).rstrip('/\\'))

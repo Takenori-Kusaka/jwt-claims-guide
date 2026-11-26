@@ -51,7 +51,7 @@ def tt(docs, tid):
 def test_example_has_no_error():
     res = core.run(EXAMPLE)
     assert res['counts']['error'] == 0, core.format_table(res)
-    assert res['catalog_events'] == 62 and res['claims'] == 26  # C-at-hash added by #30
+    assert res['catalog_events'] == 64 and res['claims'] == 26  # C-at-hash added by #30; U29 and U30 by #63
 
 
 # ------------------------------------------------------------------ R1
@@ -150,6 +150,39 @@ def test_r2_lite_profile_downgrades_to_warn(tmp_path):
     res = lint(tmp_path, docs, profile='lite')
     assert not by(res, 'R2', 'error')
     assert [f['target'] for f in by(res, 'R2', 'warn')] == ['I01']
+
+
+def _with_version(tmp_path, docs, version):
+    tmp_path.mkdir(exist_ok=True)
+    d = write(tmp_path, docs)
+    p = os.path.join(d, 'catalog_answers.yaml')
+    with open(p, encoding='utf-8') as f:
+        body = f.read()
+    with open(p, 'w', encoding='utf-8') as f:
+        f.write(f'# template_version: {version}\n' + body)
+    return d
+
+
+def test_r2_event_added_by_a_minor_version_is_a_warning(tmp_path):
+    # #63: U29 and U30 carry asked_from 0.3.0. A design of 0.3.0 (or without a version line) that does not answer them
+    # gets a warning, not an error, until the next major version
+    docs = load_example()
+    docs['catalog_answers']['answers'] = [a for a in docs['catalog_answers']['answers'] if a['event'] not in ('U29', 'U30')]
+    res = core.run(_with_version(tmp_path, docs, '0.3.0'))
+    assert not by(res, 'R2', 'error')
+    assert sorted(f['target'] for f in by(res, 'R2', 'warn')) == ['U29', 'U30']
+
+
+def test_r2_event_added_later_is_not_asked_of_an_older_design(tmp_path):
+    # a design whose catalog_answers.yaml declares 0.2.0 was written against the catalogue without U29 and U30 (the
+    # pilot designs of #9): the events are left out of R2 and of the counts, unless the design answers them
+    docs = load_example()
+    docs['catalog_answers']['answers'] = [a for a in docs['catalog_answers']['answers'] if a['event'] not in ('U29', 'U30')]
+    old = core.run(_with_version(tmp_path / 'old', docs, '0.2.0'))
+    new = core.run(_with_version(tmp_path / 'new', docs, '0.3.0'))
+    assert not by(old, 'R2') and old['catalog_events'] == new['catalog_events'] - 2
+    answered = core.run(_with_version(tmp_path / 'answered', load_example(), '0.2.0'))
+    assert not by(answered, 'R2') and answered['catalog_events'] == new['catalog_events']
 
 
 # ------------------------------------------------------------------ R8

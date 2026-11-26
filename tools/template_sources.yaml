@@ -4,11 +4,13 @@
 # The RFC numbers were checked to exist by the independent check of PR #43 (2026-11-23, 63 of 63 sections found).
 # Sections are NOT checked: whether "RFC 9449 §11.1" supports the item is the 10% sampled check of templates/CONTRIBUTING.md 2.
 rfcs:
+  6749: The OAuth 2.0 Authorization Framework
   7009: OAuth 2.0 Token Revocation
   7515: JSON Web Signature (JWS)
   7516: JSON Web Encryption (JWE)
   7519: JSON Web Token (JWT)
   7662: OAuth 2.0 Token Introspection
+  7644: System for Cross-domain Identity Management (SCIM) Protocol
   8693: OAuth 2.0 Token Exchange
   8705: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens
   8707: Resource Indicators for OAuth 2.0

@@ -13,6 +13,7 @@ The question IDs of claims.yaml (answers, does_not_answer) are those of template
 import json
 import math
 import os
+import re
 import sys
 
 import yaml
@@ -166,6 +167,38 @@ def rule_r1(claims, token_types, profile='full'):
     return out
 
 
+# ------------------------------------------------------------------ the events a design is asked (#63)
+VERSION_LINE = re.compile(r'^\s*#\s*template_version:\s*(\d+)\.(\d+)\.(\d+)')
+
+
+def file_version(path):
+    """The `# template_version: X.Y.Z` of the first line of a design file as a tuple, or None."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8-sig') as f:
+        m = VERSION_LINE.match(f.readline())
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def _version(v):
+    return tuple(int(x) for x in str(v).split('.'))
+
+
+def applicable_events(catalog, answers_doc, version):
+    """The catalogue events a design answers. An event with `asked_from` (a template version of catalog_answers.yaml,
+    the version of the registry) was added by a minor version: a design whose catalog_answers.yaml declares an older
+    version was written against a catalogue without it, so the event is left out of R2, R3b, R6 and the counts unless
+    the design answers it. A design without a version line is read as the current one. render uses the same list."""
+    answered = {a.get('event') for a in (answers_doc or {}).get('answers', []) or [] if isinstance(a, dict)}
+    out = []
+    for e in catalog:
+        since = e.get('asked_from')
+        if since and version is not None and version < _version(since) and e.get('id') not in answered:
+            continue
+        out.append(e)
+    return out
+
+
 # ------------------------------------------------------------------ R2
 def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     """Every catalogue event has 該当 or 対象外. 対象外 needs assumption and breaks_when with substance (the same test
@@ -185,7 +218,14 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     for eid in known:
         a = answers.get(eid)
         if a is None:
-            out.append(Finding('R2', sev, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"))
+            added = known[eid].get('asked_from')
+            if added:
+                # an event added by a minor version (asked of the designs of that version and later, applicable_events()):
+                # a missing answer is a warning until the next major version (templates/CONTRIBUTING.md 4.「版の管理」)
+                out.append(Finding('R2', WARN, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"
+                                                    f"（台帳の版 {added} で足したイベント。次のメジャーの版で error にする）"))
+            else:
+                out.append(Finding('R2', sev, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"))
             continue
         ans = a.get('answer')
         label = (eid, known[eid].get('name'))
@@ -472,6 +512,7 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     catalog = []
     for name in ('issue_events', 'use_events'):
         catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
+    catalog = applicable_events(catalog, docs['catalog_answers'], file_version(paths['catalog_answers']))
     findings += rule_r1(claims, tts, profile)
     findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})

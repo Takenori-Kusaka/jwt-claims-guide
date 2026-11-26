@@ -87,6 +87,12 @@ proposed_rules:
   N17: {rule: "status が deprecated の行に、sunset_on・alt・consumers_migration を求める（L18 は読む受け手がいることだけを知らせる）", pilot: []}
   N18: {rule: "内部・委任のトークン種別（internal_token・txn_token と、act を運ぶ種別）に log_policy を求める", pilot: []}
   N16: {rule: "iat・amr・sid の行の usage が authz、または enforced_at で認証の時刻・強さ・セッションの判断に使っていれば warn", pilot: []}
+  # N19〜N23：パイロットのテンプレート外の指摘を戻すとき（#63。research/template-design/feedback-63.md）に、機械で決まる部分を規則の案にした
+  N19: {rule: "組織が自分で置く発行者（catalog_answers の idp の kind: self_built、reissue・exchange のホップの exchanger）の種別に、署名鍵の保管（KMS・HSM・ファイル）と漏えい時の目標の秒数の宣言を求める（目録の列の追加を伴う。M_token_validation の 8.）", pilot: [B-R1 T5, B-R2 R2-18, C-R2 F25]}
+  N20: {rule: "採用の種別の issuers の iss・jwks_uri に、試験の値（localhost・127.0.0.1・::1、RFC 6761 の .test・.localhost・.invalid、RFC 6762 の .local）があれば warn（カタログ U30。RFC 6761 の .example・example.com は記入例が使うので除く）", pilot: [B-R2 R2-24, C-R2 F27]}
+  N21: {rule: "jti_policy の replay_check が true の種別に、受けた jti の記録先（複数の台で共有するか）と、記録先が止まったときの扱い（拒む・通す）の宣言を求める（jti_policy の列の追加を伴う。M_token_validation の 6.）", pilot: [B-R1 T6, B-R2 R2-10]}
+  N22: {rule: "sender_constraint が mtls・dpop の RT の種別で、証明書・鍵の寿命の宣言が RT の max_lifetime より短ければ warn（列の追加を伴う。M_sender_constraint の 4.）", pilot: [C-R2 F24]}
+  N23: {rule: "IdP が 2 つ以上で、reissue のホップの上流が複数のとき、元の発行者を残す宣言（added_claims に上流の iss から導く値、または catalog_answers の questions.q-via の channel）が無ければ warn（P5 の 1.）", pilot: [pilot.md 5. B-8]}
 
 # 開いた問い：問いの一覧の内側では見つからなかった Major の指摘（パイロット #9 のテンプレート外・カタログ）から作った。
 # 旧経路・テストの経路は q-outside-catalog に、同意と宛先の束縛は q-approval-from-as にまとめた（重なりを減らすため）。
@@ -100,35 +106,35 @@ open_prompts:
     show_when: [always]
     prefer_when: [multi_idp, org_claims]
     ask: "権限の元データが変わる出来事を 1 つ選び、受け手の判断が変わるまでを、IdP の手前から辿れるか"
-    hint: "出来事の例：異動でロールが外れる・退職。source_system の欄から、元のデータ（人事の台帳・グループ・ロールの割り当て）を書き換えるのは誰で、どの経路かを辿る。図に無い書き込みの経路、誰も時間を約束していない区間を探す"
+    hint: "出来事の例：異動でロールが外れる・退職。source_system と 9.2 の「元のデータからの経路」から、元のデータ（人事の台帳・グループ・ロールの割り当て）を書き換えるのは誰で、どの経路かを辿る。図に無い書き込みの経路、誰も時間を約束していない区間を探す"
     from: [B-R2 R2-06, B-R1 T2, B-R2 R2-08]
   - id: op-one-time
     show_when: [always]
     prefer_when: [approval, delegation]
     ask: "1 回だけ使える値が、「確かめる」と「使用済みにする」の間にもう 1 回届いても、2 回通らないか"
-    hint: "承認・認可コード・jti・ワンタイムの番号。並行の 2 件、通信が切れた後の再送、記録先の障害のそれぞれで辿る。正しい 1 回が失われることもないか"
+    hint: "承認・認可コード・jti・ワンタイムの番号（P4 の 5.・M_token_validation の 6. の記入欄）。並行の 2 件、通信が切れた後の再送、記録先の障害のそれぞれで辿る。正しい 1 回が失われることもないか"
     from: [C-R1 F08, C-R2 F03, B-R1 T6, B-R2 R2-10]
   - id: op-requirement-words
     show_when: [always]
     ask: "要求の言葉に入る人・場合を全部挙げたとき、それぞれを通す・止める値が設計にあるか"
-    hint: "要求の文から言葉を 2〜3 個選ぶ（例：「利用者」「管理者」「承認」「取り消し」）。その言葉に入る人・場合を挙げる（例：正社員・契約社員・派遣・休職中・退職の手続き中）。要求にあるのに設計に無い区分、設計にあるのに要求に無い操作を探す"
+    hint: "要求の文から言葉を 2〜3 個選ぶ（例：「利用者」「管理者」「承認」「取り消し」）。その言葉に入る人・場合を挙げる（例：正社員・契約社員・派遣・休職中・退職の手続き中）。要求にあるのに設計に無い区分（2.1 の記入欄）、設計にあるのに要求に無い操作（6. の要求の出どころ）を探す"
     from: [B-R1 T4, B-R2 R2-19]
   - id: op-clock
     show_when: [always]
     prefer_when: [multi_idp, exchange]
     ask: "時刻を比べている箇所で、比べる 2 つの時刻は同じ時計が書いたものか"
-    hint: "期限、発行時刻とログアウト・失効の時刻、台帳の更新時刻。max_clock_skew と、時刻を使う enforced_at を見る。別の発行者・別のサーバーの時計なら、ずれたときに通すのか止めるのか"
+    hint: "期限、発行時刻とログアウト・失効の時刻、台帳の更新時刻。max_clock_skew、時刻を使う enforced_at、M_token_validation の 6. の記入欄を見る。別の発行者・別のサーバーの時計なら、ずれたときに通すのか止めるのか"
     from: [B-R1 T1]
   - id: op-key-custody
     show_when: [always]
     prefer_when: [exchange]
     ask: "署名の鍵ごとに、誰が持ち、漏れたとき誰が何分で何をするかを言えるか"
-    hint: "種別の key_rotation・signing_key_scope・jwks_cache_ttl を見る。新しく置いた発行者（入口・STS）の鍵と、証明書を出す側の鍵も数える。受け手が古い鍵を使い続ける時間はどれだけか"
+    hint: "種別の key_rotation・signing_key_scope と、M_token_validation の 8. の保管・漏えい時の記入欄を見る。新しく置いた発行者（入口・STS）の鍵と、証明書を出す側の鍵も数える。受け手が古い鍵を使い続ける時間はどれだけか"
     from: [B-R1 T5, B-R2 R2-18, C-R2 F25]
   - id: op-proof-holder
     show_when: [sender_constrained]
     ask: "「鍵の持ち主を確かめる」箇所で、確かめる側が見ている鍵は、そのトークンを実際に持つ者の鍵か"
-    hint: "cnf の行の enforced_at と、種別の holder・sender_constraint を見る。箇所ごとに「トークンを持つ者」と「鍵を持つ者」を並べる。証明書・鍵を更新したとき、束縛したトークンはどうなるか"
+    hint: "cnf の行の enforced_at と、種別の holder・sender_constraint を見る。箇所ごとに「トークンを持つ者」と「鍵を持つ者」を並べる。証明書・鍵を更新したとき、束縛したトークンはどうなるか（M_sender_constraint の 4.）"
     from: [C-R1 F02, C-R2 F02, C-R2 F24]
 
 questions:
@@ -208,7 +214,7 @@ questions:
   - {id: q-agent-delegation-claims, class: A, lint: [L12], why: "sub と act の取り違えは L12 が見る"}
   - {id: q-idp-capability-verified, class: D, escalation: unverified-idp-behavior, why: "IdP・製品の挙動が出どころどおりかは、実測か製品の知識が要る。パイロットの D の Major 3 件"}
   - {id: q-variant-comparison, class: C, priority: 2, unit: design, show_when: [sender_declined], ask: "既定から外した選択の理由は、それで開く攻撃と代わりの守りを比べているか", hint: "設計書の 3.（既定から外した点）と issuance_profile の rationale を見る。送信者制約の見送り・寿命の延長など。比べた候補は足りているか", why: "取り引きの妥当さの判断。パイロットの B-R2 R2-02"}
-  - {id: q-outside-catalog, class: C, priority: 1, unit: design, show_when: [always], ask: "図に無い入口や場面は、設計書のどこかで答えられているか", hint: "範囲の図・シーケンス図・catalog_answers の outside_enumeration を見る。挙げる場面：入口を通らない経路（サービス間の直接の呼び出し・メッセージ）、管理用の口、テスト用の口・時計・鍵・利用者、移行期間の旧経路、障害時の再送と手作業。本番で開いているなら、同じ守りが掛かるか、いつ誰が閉じるか", why: "一覧と図の外を問う。q-gateway-bypass-path と、開いた問い（旧経路・テストの経路）をここにまとめた。パイロットの Major 3 件（4 回のうち 3 回で出た）"}
+  - {id: q-outside-catalog, class: C, priority: 1, unit: design, show_when: [always], ask: "図に無い入口や場面は、設計書のどこかで答えられているか", hint: "範囲の図・シーケンス図・catalog_answers の outside_enumeration を見る。挙げる場面：入口を通らない経路（サービス間の直接の呼び出し・メッセージ）、管理用の口、テスト用の口・時計・鍵・利用者（カタログ U30）、移行期間の旧経路（U29）、障害時の再送と手作業。本番で開いているなら、同じ守りが掛かるか、いつ誰が閉じるか", why: "一覧と図の外を問う。q-gateway-bypass-path と、開いた問い（旧経路・テストの経路）をここにまとめた。パイロットの Major 3 件（4 回のうち 3 回で出た）"}
   # ---- 3. 伝搬：3.1 流れの規則
   - {id: cf-01, class: A, lint: [L4, L5], why: "段階ごとの書き手と、フックに入れる値の volatility で決まる"}
   - {id: cf-02, class: A, lint: [L7], why: "必須のクレームの on_missing で決まる"}

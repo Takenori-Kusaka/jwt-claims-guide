@@ -13,7 +13,7 @@
 ## 1. CI の結果
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-b --also-scan templates/examples/scenario-b/design.md`（profile full）：**error 0、warn 6、info 31**（claims 46・token_types 24・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-b --also-scan templates/examples/scenario-b/design.md`（profile full）：**error 0、warn 6、info 31**（claims 46・token_types 24・catalog_events 64）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -915,7 +915,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 ## 11. カタログへの回答
 
 <!-- render:catalog-summary:begin -->
-`catalog_answers.yaml`：全 62 件（発行 34・利用 28）のうち 62 件に回答。該当 31 件、**対象外 31 件／全 62 件（50%）**。
+`catalog_answers.yaml`：全 64 件（発行 34・利用 30）のうち 64 件に回答。該当 33 件、**対象外 31 件／全 64 件（48%）**。
 
 **該当**
 
@@ -952,6 +952,8 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `U25` | エージェントがツール（MCP のサーバー）を呼ぶ | `AGENT_AT`・`DPOP` | エージェントが invoice-mcp を呼ぶ。invoice-mcp は自分宛ての AGENT_AT だけを受け、上流に渡さない（ケーススタディ C2・C13） |
 | `U26` | 送信者制約つきのトークンを使う（DPoP の proof・mTLS の証明書と cnf を照合する） | `AGENT_AT`・`TASK_AT`・`DPOP` | invoice-mcp・invoices が DPoP の proof（htm・htu・iat・jti・ath）と cnf.jkt を照合し、jti の再送を拒む |
 | `U27` | 受け手が拒否して再挑戦を求める（WWW-Authenticate、insufficient_user_authentication） | `KC_AT`・`AGENT_AT` | ledger は acr が足りなければ insufficient_user_authentication を返す。invoice-mcp は scope が足りなければ WWW-Authenticate で必要な scope を示す（タスクの範囲を超える昇格は CIBA の承認から） |
+| `U29` | 移行の期間に、受け手が旧い経路（旧い入口・旧いヘッダー・旧いトークンや資格情報）の要求も受け続ける | `KC_AT`・`INT_AT_PAYROLL` | C-employee-id を C-user-id に移す間（9.3。期日 2027-03-31）、KC_AT に両方を載せ、payroll は旧い employee_id も読む。並行の期間と、payroll が読むのをやめる時点は 9.3 に書いた |
+| `U30` | 試験用の発行者・鍵・時計・口（認証を飛ばす口、時刻を進める口、試験の利用者）が本番に残り、受け手がそれを受け入れる | `KC_AT`・`EXT_AT`・`INT_AT` | 入口が受ける発行者は、token_types の issuers に書いた本番の Keycloak のレルムと外部の IdP だけで、ケーススタディの模擬の IdP と試験の鍵を載せない。拒否のテストの鍵は tools/runtime_tests がその場で作る。時刻を進める口・認証を飛ばす口は持たない |
 
 **対象外**
 

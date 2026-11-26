@@ -128,7 +128,7 @@ YAML の 1 行目は `# template_version: 0.3.0`（0.2.0 で書いた設計書�
 
 | 列 | 見出し | 意味 | ケーススタディの列（区分） | 根拠 | 縮小 Lite |
 | --- | --- | --- | --- | --- | --- |
-| `source_system` | データ源 | 値の権威ある情報源 | なし | slide:p11-registry-fields（「鮮度」）、slide:p11-ownership | 手で書く |
+| `source_system` | データ源 | 値の権威ある情報源。IdP の手前に元のデータ（人事の台帳など）があるときは、IdP でなく元のデータと、IdP に届くまでの経路（SCIM・人事の連携・人手）を書く。その遅れは `volatility`・`propagation_delay` の秒数に含める（#63。パイロット #9 の O5） | なし | slide:p11-registry-fields（「鮮度」）、slide:p11-ownership | 手で書く |
 | `verification_method` | 値の確かめ方 | データ源の値をどう確かめるか（所属はメールのドメインだけで付けない など） | なし | slide:p03-keycloak-aud-lightweight、NIST IR 8112 §3.1（スライドの引用） | Full のみ |
 | `last_verified` | 最後に確かめた日 | データ源の値を確かめた日 | `checked_on`（意味が違う：出典を開いた日） | NIST IR 8112 §3.2.1（スライドの引用）、`casestudy-mapping.md` の 3. | Full のみ |
 | `source_max_length` | データ源の長さの上限 | データ源の欄の上限と単位（バイト・UTF-16 の単位・符号位置）。`max_bytes` の根拠 | `limit`（一部） | gate1.md の 5.（A11） | Full のみ |
