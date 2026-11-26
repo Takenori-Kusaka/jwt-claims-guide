@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = '3aa849987540';
+  const BUILD_ID = 'c1280f048d32';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;
@@ -38,6 +38,8 @@
   const REF_KIND = { spec: '仕様', guidance: '指針', research: '研究', book: '書籍', incident: '事故', 'guide-slide': 'ガイドのスライド',
     'author-proposal': '筆者の提案' };
   const SEVERITY = { error: ['ng', '✖'], warn: ['warn', '▲'], info: ['info', 'ℹ'] };
+  // the words of the problems panel (templates/glossary.md 5.1): the screens do not show the English names of the levels
+  const SEV_WORD = { error: 'エラー', warn: '警告', info: '情報' };
   const STATUS = { satisfied: ['ok', '✓', '満たす'], unsatisfied: ['ng', '✖', '満たさない'], unknown: ['warn', '?', '判定できない'] };
   const DECISION = { '採用': ['ok', '●'], '既定どおり': ['neutral', '○'], '却下': ['ng', '✖'] };
   // kinds of rows of templates/registry/README.md 2. (縮小 Lite の印). Not the trace tier (core/full).
@@ -161,7 +163,9 @@
     if (last < s.length) out.push(s.slice(last));
     return out;
   }
-  function paras(list) { return (list || []).map((t) => h('p', { class: 'muted' }, inline(t))); }
+  // the paragraphs of the design document and of what claim_lint writes into it (data-design-text: the checks of the
+  // words of the screens leave them out; tools/tests/test_claims_editor_ux.py)
+  function paras(list) { return (list || []).map((t) => h('p', { class: 'muted', 'data-design-text': '1' }, inline(t))); }
   // text of this guide's own materials (the review questions, the trace table): `#5` is an issue of this repository and
   // becomes a link that says so (never a bare number on the screen)
   function issueLink(n) { return h('a', { href: REPO + '/issues/' + n, class: 'gh-issue', title: `GitHub の issue ${n}（このガイドのリポジトリ）` }, `GitHub の issue ${n}`); }
@@ -216,7 +220,7 @@
     const by = Object.create(null);
     fs.forEach((f) => { by[f.severity] = (by[f.severity] || 0) + 1; });
     return h('span', { class: 'codes', 'data-diag-for': id }, Object.keys(SEVERITY).filter((k) => by[k]).map((k) =>
-      badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k]}`, fs.filter((f) => f.severity === k).map((f) => `[${SOURCE[f.source] || f.source}] ${f.rule} ${f.message}`).join('\n'))));
+      badge(SEVERITY[k][0], SEVERITY[k][1], `${SEV_WORD[k]} ${by[k]}`, fs.filter((f) => f.severity === k).map((f) => `[${SOURCE[f.source] || f.source}] ${f.rule} ${f.message}`).join('\n'))));
   }
   function lintList(id, title) {
     const fs = lintIndex().get(id) || [];
@@ -227,7 +231,7 @@
   }
   function lintProfile(sec) { const m = /（profile (\w+)）/.exec(((sec && sec.notes) || []).join(' ')); return m ? m[1] : null; }
   function datasetLabel() { return B().label || ''; }
-  function sevBadge(s) { const x = lookup(SEVERITY, s) || ['neutral', '•']; return badge(x[0], x[1], s); }
+  function sevBadge(s) { const x = lookup(SEVERITY, s) || ['neutral', '•']; return badge(x[0], x[1], lookup(SEV_WORD, s) || s); }
 
   // ------------------------------------------------------------ value rendering
   function refItem(r) {
@@ -519,8 +523,8 @@
     diag.forEach((f) => { rules[f.rule] = (rules[f.rule] || 0) + 1; });
     const top = Object.keys(rules).sort((x, y) => rules[y] - rules[x]).slice(0, 5);
     const lintSec = h('section', { id: 'dash-lint', 'aria-labelledby': 'dash-lint-h' }, h('h2', { id: 'dash-lint-h' }, h('a', { href: route('lint') }, '問題')),
-      h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${dc[k] || 0}`), ' '])),
-      top.length ? h('ul', null, top.map((r) => h('li', null, code(r), ` ${rules[r]} 件`))) : h('p', { class: 'muted' }, '指摘はありません。'),
+      h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${SEV_WORD[k]} ${dc[k] || 0}`), ' '])),
+      top.length ? h('ul', null, top.map((r) => h('li', null, code(r), ` ${rules[r]} 件`))) : h('p', { class: 'muted' }, '問題はありません。'),
       h('p', { class: 'muted small' }, '書式の検査（JSON Schema）は入力のたびに行います。設計の規則の検査（claim_lint）：',
         { off: 'まだ動かしていません', loading: '読み込み中', running: '検査中', fresh: '最新の内容で検査済み', stale: '編集の後、まだ検査していません', error: '動きませんでした', unavailable: 'ファイルを直接開いたときは動きません' }[st] || st),
       st === 'off' || st === 'error' ? h('p', null, h('button', { type: 'button', 'data-action': 'load-lint', onclick: () => state.hooks.loadLint && state.hooks.loadLint() }, '設計の規則も検査する（初めては数秒）')) : null);
@@ -819,7 +823,7 @@
     if (!hs.length) return null;
     const diff = (a, b) => arr(a).filter((x) => !arr(b).includes(x));
     return [h('h2', null, '上流との比較（絞り込み）'),
-      h('p', { class: 'muted' }, '「減った」は上流にあって下流に無いもの、「増えた」は下流で足されたもの（増えたら理由が要る。検査の正は claim_lint の L16）。'),
+      h('p', { class: 'muted' }, '「減った」は上流にあって下流に無いもの、「増えた」は下流で足されたもの（増えたら理由が要る。この比較は、設計の規則の検査 L16 でも確かめる）。'),
       h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'narrowing' }, h('thead', null, h('tr', null, ['経路', '上流', 'aud', 'scope', '寿命', '独自クレーム'].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, hs.map(([x, up]) => {
           const u = hopById(up) || {};
@@ -875,7 +879,7 @@
       h('p', { class: 'lead' }, '書式の検査（JSON Schema）と、設計の規則の検査（claim_lint、Python でブラウザの中で動かす）の指摘です。行の番号を押すと、エディターのその行に移ります。')];
     const by = { error: 0, warn: 0, info: 0 };
     all.forEach((f) => { by[f.severity] = (by[f.severity] || 0) + 1; });
-    out.push(h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${k} ${by[k] || 0}`), ' ']),
+    out.push(h('p', null, Object.keys(SEVERITY).map((k) => [badge(SEVERITY[k][0], SEVERITY[k][1], `${SEV_WORD[k]} ${by[k] || 0}`), ' ']),
       h('span', { 'data-lint-state': st }, 'claim_lint：', { off: '未読み込み', loading: '読み込み中', running: '検査中', fresh: '最新の内容で検査済み', stale: '編集後に未検査', error: '失敗', unavailable: '使えない（file://）' }[st] || st)));
     if (state.hooks.setProfile) {
       const sel = h('select', { id: 'lint-profile', onchange: (e) => state.hooks.setProfile(e.target.value) },
@@ -887,7 +891,7 @@
     if (st !== 'fresh' && st !== 'stale' && st !== 'running') out.push(needBundle('claim_lint の指摘'));
     const sources = ['schema', 'yaml', 'claim_lint', 'editor'];
     const fsel = h('select', { id: 'diag-source' }, h('option', { value: '' }, 'すべて'), sources.map((x) => h('option', { value: x }, SOURCE[x])));
-    const ssel = h('select', { id: 'diag-severity' }, h('option', { value: '' }, 'すべて'), Object.keys(SEVERITY).map((x) => h('option', { value: x }, x)));
+    const ssel = h('select', { id: 'diag-severity' }, h('option', { value: '' }, 'すべて'), Object.keys(SEVERITY).map((x) => h('option', { value: x }, SEV_WORD[x])));
     const tbody = h('tbody');
     const apply = () => {
       tbody.textContent = '';

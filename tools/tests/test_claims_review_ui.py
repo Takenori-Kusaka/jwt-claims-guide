@@ -137,8 +137,20 @@ class ReviewFlow(unittest.TestCase):
             pg.click('#rv-independent')
         pg.click('#rv-start-go')
 
-    def started(self, pg, name):
+    def started(self, pg, name, rows=True):
+        """The review has started. A first review starts on 確認事項 (the questions come first); with rows=True the test
+        then goes on to the rows (レビューする行)."""
         self.poll(pg, 'n => ClaimsReview.me() === n && !document.querySelector("#review-bar").hidden', arg=name)
+        if rows:
+            pg.wait_for_timeout(100)
+            self.go(pg, '#/review', 'レビューする行')
+
+    def answer_all(self, pg):
+        """Answers every question of the default list 「問題なし」."""
+        self.go(pg, '#/review/checklist', '確認事項')
+        for el in pg.locator('.rv-q input[value="yes"]').all():
+            el.check()
+        self.poll(pg, '() => { const p = document.querySelector("#rv-progress").dataset; return p.qAnswered === p.qTotal; }')
 
     def shot(self, pg, name):
         if SHOTS:
@@ -179,17 +191,23 @@ class ReviewFlow(unittest.TestCase):
                 pg.click('#rv-start-go')  # no name: said, not started
                 self.assertIn('名前', pg.inner_text('#rv-start-msg'))
                 pg.fill('#rv-name', '山田')
+                self.assertIn('1. 確認事項', pg.inner_text('#rv-start-order'))  # the order is told before the start
                 pg.click('#rv-start-go')
-                self.started(pg, '山田')
-                # the bar: the progress and the one button that submits, always there while reviewing
+                self.started(pg, '山田', rows=False)
+                # a first review starts on the questions; the bar counts the required rows and the questions
+                self.assertIn('確認事項', pg.inner_text('main h1'))
                 bar = pg.inner_text('#rv-progress')
-                total = int(pg.get_attribute('#rv-progress', 'data-total'))
-                self.assertGreater(total, 10)
-                self.assertIn(f'確認済み 0 / {total} 行・コメント 0 件・未提出', bar)
+                total = int(pg.get_attribute('#rv-progress', 'data-req-total'))
+                qs = int(pg.get_attribute('#rv-progress', 'data-q-total'))
+                self.assertEqual((total, qs), (7, 11))  # sample A: 117 rows in all
+                self.assertEqual(pg.get_attribute('#rv-progress', 'data-total'), '117')
+                self.assertIn(f'要確認 0 / {total} 行・確認事項 0 / {qs} 問・コメント 0 件・未提出', bar)
                 self.assertTrue(pg.is_visible('#rv-submit'))
-                self.assertIn('レビューする行', pg.inner_text('main h1'))
-                self.assertEqual(pg.get_attribute('#rv-filter', 'data-filter'), 'all')
+                self.go(pg, '#/review', 'レビューする行')
+                self.assertIn('1. 確認事項（0 / 11 問に回答）', pg.inner_text('#rv-order'))
+                self.assertEqual(pg.get_attribute('#rv-filter', 'data-filter'), 'required')
                 self.assertEqual(pg.locator('.rv-row').count(), total)
+                self.assertEqual(pg.locator('.rv-row [data-required]').count(), total)
                 # a row: opened with the keyboard, its values listed, marked 「確認済み」 -> it folds
                 first = pg.locator('.rv-row').first
                 anchor = first.get_attribute('data-anchor')
@@ -203,9 +221,13 @@ class ReviewFlow(unittest.TestCase):
                 # a comment: kept as 未提出 until the submission, with the severity and the kind the report needs
                 pg.click(f'[data-add-comment="{anchor}"]')
                 self.assertEqual(pg.evaluate('() => document.activeElement.id'), 'rvc-content')
-                self.assertEqual(pg.locator('#rvc-severity option').count(), 3)
+                self.assertEqual(pg.locator('#rvc-severity option').count(), 4)  # 未選択 and the three severities
+                self.assertEqual(pg.input_value('#rvc-severity'), '')  # no default: it is chosen
                 self.assertEqual(pg.locator('#rvc-kind option').count(), 5)
                 pg.fill('#rvc-content', 'この行の理由が、要求と合っていない')
+                pg.click('#rvc-save')
+                self.assertIn('重大度を選んでください', pg.inner_text('#rvc-msg'))
+                self.assertEqual(self.data(pg)['reviews'][0]['comments'], [])
                 pg.select_option('#rvc-severity', 'Minor')
                 pg.click('#rvc-save')
                 c = pg.locator(f'.rv-row[data-anchor="{anchor}"] .rv-c')
@@ -217,7 +239,7 @@ class ReviewFlow(unittest.TestCase):
                 self.poll(pg, 'a => document.querySelector(`.rv-row[data-anchor="${a}"]`).dataset.rowState === "viewed"', arg=anchor)
                 self.assertEqual(pg.locator(f'.rv-row[data-anchor="{anchor}"]').get_attribute('data-open'), '0')  # folded
                 self.assertEqual(pg.evaluate('() => document.activeElement.dataset.viewed'), anchor)  # the focus stays on the mark
-                self.assertIn(f'確認済み 1 / {total} 行・コメント 1 件・未提出', pg.inner_text('#rv-progress'))
+                self.assertIn(f'要確認 1 / {total} 行・確認事項 0 / {qs} 問・コメント 1 件・未提出', pg.inner_text('#rv-progress'))
                 # 「次の未確認へ」 opens the next row that is not marked
                 pg.click('#rv-next')
                 nxt = self.poll(pg, '() => (document.querySelector(".rv-row.open") || {dataset: {}}).dataset.anchor')
@@ -229,6 +251,10 @@ class ReviewFlow(unittest.TestCase):
                 pg.wait_for_selector('#rv-submit-dialog[open]')
                 self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-default'), 'request_changes')
                 self.assertTrue(pg.is_checked('#rv-verdict-request_changes'))
+                # what is left is listed: the required rows and the questions
+                self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-rows-left'), str(total - 1))
+                self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-questions-left'), str(qs))
+                self.assertIn(f'要確認の行 {total - 1} 行・確認事項 {qs} 問', pg.inner_text('#rv-submit-left summary'))
                 self.assertEqual(pg.locator('input[name="rv-verdict"]').count(), 3)
                 pg.fill('#rv-summary', '理由の書き方を 1 か所直してほしい')
                 self.shot(pg, '04_submit_dialog')
@@ -305,9 +331,12 @@ class ReviewFlow(unittest.TestCase):
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ criterion 3: the review after a submission
-    def rereview_yaml(self, design, edit=None):
-        """A review.yaml in which 再レビュー has viewed every row of the design and submitted (with one unresolved comment)."""
+    def rereview_yaml(self, design, edit=None, only=None):
+        """A review.yaml in which 再レビュー has viewed every row of the design (or the rows `only`) and submitted (with one
+        unresolved comment)."""
         hashes = row_hash.row_hashes(design)['hashes']
+        if only:
+            hashes = {a: h for a, h in hashes.items() if a in only}
         docs = row_hash.load(design)
         rows, _ = row_hash.anchors(docs)
         snap = {a: row_hash.jcs(r) for a, _, _, r in rows if a in hashes}
@@ -349,11 +378,11 @@ class ReviewFlow(unittest.TestCase):
         self.started(pg, '再レビュー')
         # by default: only what changed since the last review
         self.assertEqual(pg.get_attribute('#rv-filter', 'data-rereview'), '1')
-        self.assertEqual(pg.get_attribute('#rv-filter', 'data-filter'), 'todo')
-        self.assertIn('前回のレビュー以降の変更（1）', pg.inner_text('#rv-flt-todo'))
+        self.assertEqual(pg.get_attribute('#rv-filter', 'data-filter'), 'changed')
+        self.assertIn('前回のレビュー以降の変更（1）', pg.inner_text('#rv-flt-changed'))
         self.assertEqual([r.get_attribute('data-anchor') for r in pg.locator('.rv-row').all()], ['claims:C-tenant-id'])
         self.assertEqual(pg.locator('.rv-row').get_attribute('data-row-state'), 'changed')
-        self.assertIn(f'確認済み {total - 1} / {total} 行', pg.inner_text('#rv-progress'))
+        self.assertEqual(pg.get_attribute('#rv-progress', 'data-viewed'), str(total - 1))
         # the unresolved comments come first
         self.assertEqual(pg.locator('#rv-unresolved .rv-c').count(), 1)
         self.assertTrue(pg.evaluate('() => document.querySelector("#rv-unresolved").compareDocumentPosition(document.querySelector(".rv-row")) & Node.DOCUMENT_POSITION_FOLLOWING'))
@@ -370,18 +399,91 @@ class ReviewFlow(unittest.TestCase):
         self.go(pg, '#/review', 'レビューする行')
         pg.click('#rv-flt-all')
         self.assertEqual(pg.locator('.rv-row').count(), total)
-        pg.click('#rv-flt-todo')
+        pg.click('#rv-flt-changed')
         pg.click('#rv-unresolved [data-resolve="C01"]')
         self.poll(pg, '() => !document.querySelector("#rv-unresolved")')
         pg.click('[data-viewed="claims:C-tenant-id"]')
         pg.click('#rv-submit')
-        self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-default'), 'approve')  # all viewed, nothing unresolved
+        # the required rows are done, the questions are not: the default is 「コメントのみ」
+        self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-default'), 'comment')
+        pg.click('#rv-submit-cancel')
+        self.answer_all(pg)
+        pg.click('#rv-submit')
+        self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-default'), 'approve')  # required rows and questions done, nothing unresolved
         pg.click('#rv-submit-go')
         pg.wait_for_selector('#rv-next-steps')
         data = self.data(pg)
         self.assertEqual([s['verdict'] for s in data['reviews'][0]['submissions']], ['approve', 'approve'])
         self.assertEqual(data['reviews'][0]['comments'][0]['state'], 'resolved')
         self.assertEqual(pg.locator('[data-stale-approval]').count(), 0)
+        self.assertEqual(pg.problems, [])
+
+    def test_a_review_that_saw_a_few_rows_lists_only_the_changed_ones_and_starting_again_is_not_an_edit(self):
+        # the previous review marked 3 rows of 117 and submitted; the author changed one of them and one row it never saw
+        a_dir = os.path.join(ROOT, 'templates', 'examples', 'scenario-a')
+        seen = ['claims:C-roles', 'claims:C-tenant-id', 'claims:C-iss']
+        text, n = self.rereview_yaml(a_dir, only=seen)
+        self.assertEqual(n, 3)
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, 'rereview'))
+        rows = {c['id']: c for c in row_hash.load(a_dir)['claims']['claims']}
+        for name in DESIGN:
+            body = read(os.path.join(a_dir, name))
+            if name == 'claims.yaml':
+                for cid in ('C-tenant-id', 'C-exp'):  # one row the review saw, one it did not
+                    self.assertEqual(body.count(rows[cid]['description']), 1)
+                    body = body.replace(rows[cid]['description'], rows[cid]['description'] + '（直した）')
+            with open(os.path.join(d, 'rereview', name), 'w', encoding='utf-8', newline='\n') as f:
+                f.write(body)
+        with open(os.path.join(d, 'rereview', 'review.yaml'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
+        pg = self.page()
+        pg.set_input_files('#in-review-files', [os.path.join(d, 'rereview', x) for x in DESIGN + ('review.yaml',)])
+        pg.wait_for_selector('#rv-start[open]')
+        before = self.data(pg)
+        pg.fill('#rv-name', '再レビュー')
+        pg.click('#rv-start-go')
+        pg.click('#confirm [data-choice="go"]')
+        self.started(pg, '再レビュー', rows=False)
+        # starting again changes nothing in the records: no `updated`, nothing to export
+        self.assertEqual(self.data(pg), before)
+        self.assertFalse(pg.evaluate('() => ClaimsReview.unsaved()'))
+        self.assertNotIn('未提出の変更あり', pg.inner_text('#rv-progress'))
+        # a review after a submission starts on the rows: only the changed row it had seen, not the 114 it never saw
+        self.poll(pg, '() => ((document.querySelector("main h1") || {}).textContent || "").includes("レビューする行")')
+        self.assertEqual(pg.get_attribute('#rv-filter', 'data-filter'), 'changed')
+        self.assertEqual([r.get_attribute('data-anchor') for r in pg.locator('.rv-row').all()], ['claims:C-tenant-id'])
+        self.assertIn('（115）', pg.inner_text('#rv-flt-todo'))  # the rows not seen (C-exp among them) are one press away
+        pg.click('#rv-flt-todo')
+        self.assertEqual(pg.locator('.rv-row').count(), 115)
+        self.assertEqual(pg.problems, [])
+
+    def test_groups_that_need_no_judgement_are_confirmed_together(self):
+        pg = self.page()
+        self.sample(pg, 'a')
+        self.start(pg, 'まとめる人')
+        self.started(pg, 'まとめる人')
+        req = pg.get_attribute('#rv-progress', 'data-req-total')
+        pg.click('#rv-flt-other')
+        self.assertEqual(pg.locator('.rv-row').count(), 117 - int(req))
+        grp = pg.locator('[data-bulk-group="catalog-na"]')
+        self.assertEqual(grp.get_attribute('data-rows'), '50')
+        self.assertIn('まとめて確認', pg.inner_text('#rv-bulk'))
+        pg.click('[data-bulk="catalog-na"]')
+        self.assertIn('まとめて「確認済み」', pg.inner_text('#confirm'))
+        pg.click('#confirm [data-choice="go"]')
+        self.poll(pg, '() => document.querySelector(\'[data-bulk-group="catalog-na"]\').dataset.left === "0"')
+        viewed = self.data(pg)['reviews'][0]['viewed']
+        hashes = row_hash.row_hashes(os.path.join(ROOT, 'templates', 'examples', 'scenario-a'))['hashes']
+        bulk = {a: r for a, r in viewed.items() if r.get('bulk')}
+        self.assertEqual(len(bulk), 50)
+        self.assertTrue(all(r['hash'] == hashes[a] and a.startswith('catalog_answers:') for a, r in bulk.items()))
+        self.assertEqual(pg.get_attribute('#rv-progress', 'data-req-viewed'), '0')  # the required rows are not touched
+        self.assertEqual(pg.get_attribute('#rv-progress', 'data-viewed'), '50')
+        self.assertEqual(pg.locator('[data-bulk-mark]').count(), 50)
+        # the record passes the checker, and the report counts the marks made together apart
+        self.check_text(pg.evaluate('() => ClaimsReview.text()'), os.path.join(ROOT, 'templates', 'examples', 'scenario-a'))
+        self.assertIn('まとめて確認 50 行・1 行ずつ確認 0 行', pg.evaluate('() => ClaimsReview.reportText("まとめる人")'))
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ criterion 7: the old form is read
@@ -469,6 +571,7 @@ class ReviewFlow(unittest.TestCase):
         pg.click(f'.rv-row[data-anchor="{anchor}"] .rv-row-title')
         pg.click(f'[data-add-comment="{anchor}"]')
         pg.fill('#rvc-content', 'レビュアーが書いた意見')
+        pg.select_option('#rvc-severity', 'Major')
         pg.click('#rvc-save')
         self.assertNotIn('レビュアーが書いた意見', pg.inner_text('#problems-panel'))
         # F8 steps through the problems; the severity toggles filter; Escape-free closing with the button
@@ -550,6 +653,7 @@ class ReviewFlow(unittest.TestCase):
         pg.click(f'.rv-q[data-q="{qid}"] .rv-findbtn')
         pg.wait_for_selector('#rvc-content')
         self.assertEqual(pg.input_value('#rvc-content'), '欄が空')
+        pg.select_option('#rvc-severity', 'Major')
         pg.click('#rvc-save')
         c = self.data(pg)['reviews'][0]['comments'][0]
         self.assertEqual((c['questions'], c['origin'], c['state']), ([qid], '観点', 'pending'))
@@ -836,11 +940,12 @@ class ReviewFlow(unittest.TestCase):
         self.assertEqual(pg.locator(f'.rv-row.open .col[data-col="{col}"] #rv-comment-form').count(), 1)
         self.assertEqual(pg.evaluate('() => document.activeElement.id'), 'rvc-content')
         pg.fill('#rvc-content', '列へのコメント')
+        pg.select_option('#rvc-severity', 'Major')
         pg.click('#rvc-save')
         self.assertEqual(self.data(pg)['reviews'][0]['comments'][0]['column'], col)
         pg.click(f'.rv-row[data-anchor="{b}"] .rv-row-title')
         # the filter buttons say which is on
-        self.assertEqual(pg.get_attribute('#rv-flt-all', 'aria-pressed'), 'true')
+        self.assertEqual(pg.get_attribute('#rv-flt-required', 'aria-pressed'), 'true')
         pg.click('#rv-flt-todo')
         self.assertEqual(pg.get_attribute('#rv-flt-todo', 'aria-pressed'), 'true')
         self.assertEqual(pg.evaluate('() => document.activeElement.id'), 'rv-flt-todo')

@@ -45,6 +45,9 @@ JARGON = ['CSP', 'connect-src', 'worker', 'Worker', 'Pyodide', 'rowHash', 'hash'
           # 観点 -> 確認事項, 検査の結果 -> 問題, 出どころ -> 元データ; 縮小 Lite and 正本 are not shown
           '台帳', 'ホップ', '観点', '検査の結果', '出どころ', '縮小 Lite', '正本']
 # （「概要」 was in this list while it named the dashboard; #67 asks for a tab 「概要」 on the claim detail screen）
+# words of the body text that templates/glossary.md 5.1 replaces (the re-check of PR #72): 指摘 is a reviewer's word (the
+# checks give 問題), the levels are エラー・警告・情報, and the screens do not say which tool is the authority
+BODY_DENY = [re.compile(r'指摘はありません'), re.compile(r'検査の正'), re.compile(r'(?<![A-Za-z_])(?:error|warn|info) \d')]
 FILE_IN_HEADING = re.compile(r'[A-Za-z0-9_*.-]+\.(?:ya?ml|md|json|js)\b|templates/|tools/')
 # the rendered text of the page (visible text nodes), leaving out the labelled links to GitHub and a file shown as it is
 RENDERED = '''() => {
@@ -61,6 +64,8 @@ RENDERED = '''() => {
   }
   return out.join(' ');
 }'''
+# the same, without the text that comes from the design document (sectionBlock of preview.js: data-design-text)
+RENDERED_UI = RENDERED.replace("el.closest('[data-file-preview]')", "el.closest('[data-file-preview]') || el.closest('[data-design-text]')")
 LABELS = '''() => {
   const pick = (sel) => Array.from(document.querySelectorAll(sel)).filter((e) => !e.closest('[hidden]') && (!e.checkVisibility || e.checkVisibility()))
     .filter((e) => !e.closest('.rv-q h3, [data-see], [data-anchor], table'))
@@ -195,7 +200,7 @@ class EditorUX(unittest.TestCase):
         pg.fill('#rv-name', name)
         pg.click('#rv-start-go')
         self.poll(pg, 'n => ClaimsReview.me() === n', arg=name)
-        self.h1(pg, 'レビューする行')
+        self.h1(pg, '確認事項')  # a first review starts on the questions
         self.go(pg, '#/review/checklist', '確認事項')
         qid = pg.evaluate('() => document.querySelector(".rv-q").dataset.q')
         pg.check(f'.rv-q[data-q="{qid}"] input[value="yes"]')
@@ -394,7 +399,7 @@ class EditorUX(unittest.TestCase):
         pg.fill('#rv-name', '三回で始める人')
         pg.click('#rv-start-go')
         self.poll(pg, '() => ClaimsReview.me() === "三回で始める人"')
-        self.h1(pg, 'レビューする行')
+        self.h1(pg, '確認事項')  # the questions first, then the required rows
         # recording works from here, on the screens of the design too
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         pg.click('[data-review-panel="claims:C-iss"] [data-viewed="claims:C-iss"]')
@@ -571,6 +576,10 @@ class EditorUX(unittest.TestCase):
         text = pg.evaluate(RENDERED)
         for x in re.findall(r'.{0,30}#\d+.{0,10}', text):
             self.bad.append(f'{where}: an issue number on the screen: {x!r}')
+        ui_text = pg.evaluate(RENDERED_UI)
+        for rx in BODY_DENY:
+            for x in rx.findall(ui_text):
+                self.bad.append(f'{where}: a word of the body text that the glossary replaces: {x!r}')
         for tag, label in pg.evaluate(LABELS):
             if tag in ('H1', 'H2', 'H3') and FILE_IN_HEADING.search(label):
                 self.bad.append(f'{where}: a file name as a heading: {label!r}')

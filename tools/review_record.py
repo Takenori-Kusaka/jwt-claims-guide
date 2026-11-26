@@ -81,7 +81,7 @@ KEY_ORDER = ['format', 'design', 'independent', 'reviews', 'reviewer', 'id', 'cr
              'independence', 'mode', 'broken_at', 'viewed_others_at', 'target', 'commit', 'materials', 'perspectives',
              'report_template', 'context', 'lite_full', 'steps', 'roles_order', 'ci', 'error', 'warn', 'info',
              'profile', 'matches_design', 'human_check', 'traits', 'answers', 'answer', 'memo', 'rows', 'viewed', 'decision',
-             'reviewer_kind', 'hash', 'comment', 'edited_after_viewing_others', 'at', 'resolved_at', 'snapshot', 'migrated_from',
+             'reviewer_kind', 'hash', 'comment', 'edited_after_viewing_others', 'bulk', 'at', 'resolved_at', 'snapshot', 'migrated_from',
              'findings', 'comments', 'unresolved', 'migrated', 'submissions', 'sampling', 'seed', 'count', 'picked',
              'population', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7', 'pass', 'reason', 'previous',
              'replaced_at', 'escalations', 'applies', 'not_applicable', 'feedback', 'note']
@@ -673,13 +673,14 @@ def report_text(data, rv, R, hashes, docs, label=None, version=None):
         r = viewed[a]
         kind = r.get('reviewer_kind') or who['kind']
         mf = r.get('migrated_from')
-        lines.append(_row([_cell(a), _cell(r['at']) + ('（LLM）' if kind == 'llm' else ''), label_of[st[a]] + f'（{r["hash"][:12]}）',
+        lines.append(_row([_cell(a), _cell(r['at']) + ('（LLM）' if kind == 'llm' else '') + ('（まとめて確認）' if r.get('bulk') else ''), label_of[st[a]] + f'（{r["hash"][:12]}）',
                            (DECISION_JA[mf['decision']] + (f'：{md(mf["comment"])}' if mf.get('comment') else '')) if mf else '—']))
     if not viewed:
         lines.append('|' + ' |' * 4)
     lines.append('')
     lines.append(f'計 {len(viewed)} 行：一致 {sum(1 for v in st.values() if v == "current")}'
-                 f'・前回の確認から変更あり {sum(1 for v in st.values() if v == "stale")}・一覧に無い {sum(1 for v in st.values() if v == "missing")}')
+                 f'・前回の確認から変更あり {sum(1 for v in st.values() if v == "stale")}・一覧に無い {sum(1 for v in st.values() if v == "missing")}'
+                 + (f'（うち、まとめて確認 {n_bulk} 行・1 行ずつ確認 {len(viewed) - n_bulk} 行）' if (n_bulk := sum(1 for r in viewed.values() if r.get('bulk'))) else ''))
     return '\n'.join(lines) + '\n'
 
 
