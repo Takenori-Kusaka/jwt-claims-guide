@@ -218,6 +218,16 @@ def test_asked_from_on_an_existing_row_does_not_soften_r2(tmp_path):
     assert any(f['check'] == 'ASKED' and f['target'].endswith('U01') for f in cc2['findings'])
 
 
+def test_only_the_pilot_evidence_records_may_be_frozen():
+    """Re-check of PR #79: an author could add their own design to frozen_designs.yaml to stop being asked new catalog
+    events. Only the pilot's blind records (#9) are evidence that must not change; any other entry fails here."""
+    import yaml as _yaml
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'claim_lint', 'frozen_designs.yaml')
+    with open(path, encoding='utf-8') as f:
+        doc = _yaml.safe_load(f)
+    assert sorted(d['path'] for d in doc['designs']) == ['research/pilot/scenario-b', 'research/pilot/scenario-c']
+
+
 def test_frozen_record_is_not_asked_the_new_events_and_says_so():
     res = core.run(os.path.join(ROOT, 'research', 'pilot', 'scenario-b'))
     assert not [f for f in by(res, 'R2') if f['target'] in ('U29', 'U30')]
