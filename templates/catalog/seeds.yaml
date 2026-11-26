@@ -1,4 +1,4 @@
-# template_version: 0.2.0
+# template_version: 0.3.0
 # 種になる一覧（#2）。カタログの行（issue_events・use_events・token_kinds）と行列（subject_state_matrix.md）は、
 # ここの項目に `<一覧の id>/<項目の id>` でひもづける（行の seeds、IANA JWT Claims は claims_produced・claims_read のクレーム名）。
 # どの行にもひもづかない項目は out_of_scope（assumption：起きない前提、breaks_when：崩れる条件）を持つ。

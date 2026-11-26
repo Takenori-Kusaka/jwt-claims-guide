@@ -120,8 +120,13 @@ def test_the_workarounds_are_gone_from_the_fixture():
     (PILOT_C, 'lite', {'error': 0, 'warn': 3, 'info': 9}),
 ])
 def test_committed_pilot_designs_give_the_same_result_as_before(design, profile, counts):
-    """The pilot designs were written against 0.2.0 and are not edited; their design.md embeds the lint result."""
-    assert core.run(design, profile=profile, today=TODAY)['counts'] == counts
+    """The pilot designs were written against 0.2.0 and are not edited; their design.md embeds the lint result. They are
+    frozen records (tools/claim_lint/frozen_designs.yaml, #63): the one FROZEN info that says U29 and U30 are not asked is
+    the only new finding, and render keeps it out of the generated section."""
+    res = core.run(design, profile=profile, today=TODAY)
+    frozen = [f for f in res['findings'] if f['rule'] == 'FROZEN']
+    assert [f['severity'] for f in frozen] == ['info']
+    assert dict(res['counts'], info=res['counts']['info'] - 1) == counts
 
 
 @pytest.mark.parametrize('name', ('claims', 'token_types', 'hops'))

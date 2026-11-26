@@ -4,6 +4,7 @@ import base64
 import copy
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -163,26 +164,91 @@ def _with_version(tmp_path, docs, version):
     return d
 
 
-def test_r2_event_added_by_a_minor_version_is_a_warning(tmp_path):
-    # #63: U29 and U30 carry asked_from 0.3.0. A design of 0.3.0 (or without a version line) that does not answer them
-    # gets a warning, not an error, until the next major version
-    docs = load_example()
+def _without_new_events(docs):
     docs['catalog_answers']['answers'] = [a for a in docs['catalog_answers']['answers'] if a['event'] not in ('U29', 'U30')]
-    res = core.run(_with_version(tmp_path, docs, '0.3.0'))
-    assert not by(res, 'R2', 'error')
-    assert sorted(f['target'] for f in by(res, 'R2', 'warn')) == ['U29', 'U30']
+    return docs
 
 
-def test_r2_event_added_later_is_not_asked_of_an_older_design(tmp_path):
-    # a design whose catalog_answers.yaml declares 0.2.0 was written against the catalogue without U29 and U30 (the
-    # pilot designs of #9): the events are left out of R2 and of the counts, unless the design answers them
+def test_r2_new_event_is_a_warning_in_its_minor_version_and_an_error_from_the_next(tmp_path, monkeypatch):
+    # #63: U29 and U30 carry asked_from 0.3.0. The grace is one minor version of the registry (compared in code)
+    d = write(tmp_path, _without_new_events(load_example()))
+    for current, sev in (((0, 3, 0), 'warn'), ((0, 3, 7), 'warn'), ((0, 4, 0), 'error'), ((1, 0, 0), 'error')):
+        monkeypatch.setattr(core, 'registry_version', lambda root=core.ROOT, v=current: v)
+        res = core.run(d)
+        assert sorted(f['target'] for f in by(res, 'R2', sev)) == ['U29', 'U30'], current
+    monkeypatch.setattr(core, 'registry_version', lambda root=core.ROOT: (0, 4, 0))
+    assert [f['target'] for f in by(core.run(d, profile='lite'), 'R2', 'warn')] == ['U29', 'U30']  # Lite: warn as R2 is
+
+
+def test_r2_version_comment_does_not_exempt_a_design(tmp_path):
+    # PR #79 check: an author who writes an old version on the first line is still asked the new events
+    docs = _without_new_events(load_example())
+    for v in ('0.2.0', '0.0.1'):
+        res = core.run(_with_version(tmp_path / v, docs, v))
+        assert sorted(f['target'] for f in by(res, 'R2', 'warn')) == ['U29', 'U30'] and not by(res, 'FROZEN')
+
+
+def _catalog_copy(tmp_path, old, new):
+    cat = tmp_path / 'catalog'
+    shutil.copytree(os.path.join(ROOT, 'templates', 'catalog'), cat)
+    p = cat / 'use_events.yaml'
+    text = p.read_text(encoding='utf-8')
+    assert old in text
+    p.write_text(text.replace(old, new, 1), encoding='utf-8')
+    return str(cat)
+
+
+def test_asked_from_on_an_existing_row_does_not_soften_r2(tmp_path):
+    # PR #79 check: asked_from "9.9.9" on U01 must not turn its missing answer into a warning (and catalog_check fails)
+    import catalog_check
+    cat = _catalog_copy(tmp_path, '  - id: U01\n', '  - id: U01\n    asked_from: "9.9.9"\n')
     docs = load_example()
-    docs['catalog_answers']['answers'] = [a for a in docs['catalog_answers']['answers'] if a['event'] not in ('U29', 'U30')]
-    old = core.run(_with_version(tmp_path / 'old', docs, '0.2.0'))
-    new = core.run(_with_version(tmp_path / 'new', docs, '0.3.0'))
-    assert not by(old, 'R2') and old['catalog_events'] == new['catalog_events'] - 2
-    answered = core.run(_with_version(tmp_path / 'answered', load_example(), '0.2.0'))
-    assert not by(answered, 'R2') and answered['catalog_events'] == new['catalog_events']
+    docs['catalog_answers']['answers'] = [a for a in docs['catalog_answers']['answers'] if a['event'] != 'U01']
+    res = core.run(write(tmp_path, docs), catalog_dir=cat)
+    assert [f['target'] for f in by(res, 'R2', 'error')] == ['U01']
+    cc = catalog_check.run(catalog_dir=cat)
+    assert cc['errors'] and any(f['check'] == 'ASKED' and 'U01' in f['target'] for f in cc['findings'])
+    # listing U01 in _added does not help either: only rows appended after the unlisted ones may be listed
+    cat2 = _catalog_copy(tmp_path / 'b', '  "0.3.0": [U29, U30]', '  "0.3.0": [U01, U29, U30]')
+    with open(os.path.join(cat2, 'use_events.yaml'), encoding='utf-8') as f:
+        text = f.read()
+    with open(os.path.join(cat2, 'use_events.yaml'), 'w', encoding='utf-8') as f:
+        f.write(text.replace('  - id: U01\n', '  - id: U01\n    asked_from: "0.3.0"\n', 1))
+    cc2 = catalog_check.run(catalog_dir=cat2)
+    assert any(f['check'] == 'ASKED' and f['target'].endswith('U01') for f in cc2['findings'])
+
+
+def test_frozen_record_is_not_asked_the_new_events_and_says_so():
+    res = core.run(os.path.join(ROOT, 'research', 'pilot', 'scenario-b'))
+    assert not [f for f in by(res, 'R2') if f['target'] in ('U29', 'U30')]
+    frozen = by(res, 'FROZEN', 'info')
+    assert len(frozen) == 1 and 'U29・U30' in frozen[0]['message']
+
+
+def test_a_copy_or_a_changed_record_is_not_frozen(tmp_path, monkeypatch):
+    pilot = os.path.join(ROOT, 'research', 'pilot', 'scenario-b')
+    copy = tmp_path / 'scenario-b'
+    shutil.copytree(pilot, copy)
+    res = core.run(str(copy))  # not listed in frozen_designs.yaml
+    assert sorted(f['target'] for f in by(res, 'R2', 'warn') if f['target'] in ('U29', 'U30')) == ['U29', 'U30']
+    assert not by(res, 'FROZEN')
+    # listed, but its catalog_answers.yaml changed: the exemption is lost and FROZEN warns. The copy sits under the
+    # repository so that its path can be listed (tmp_path may be on another drive)
+    import tempfile
+    inside = tempfile.mkdtemp(prefix='.frozen-test-', dir=ROOT)
+    try:
+        listed = os.path.join(inside, 'scenario-b')
+        shutil.copytree(pilot, listed)
+        rel = os.path.relpath(listed, ROOT).replace('\\', '/')
+        frozen = tmp_path / 'frozen.yaml'
+        frozen.write_text(f'designs:\n  - {{path: "{rel}", catalog_answers_sha256: "0", version: "0.2.0", reason: test}}\n',
+                          encoding='utf-8')
+        monkeypatch.setattr(core, 'FROZEN_FILE', str(frozen))
+        res = core.run(listed)
+        assert by(res, 'FROZEN', 'warn')
+        assert sorted(f['target'] for f in by(res, 'R2', 'warn') if f['target'] in ('U29', 'U30')) == ['U29', 'U30']
+    finally:
+        shutil.rmtree(inside)
 
 
 # ------------------------------------------------------------------ R8

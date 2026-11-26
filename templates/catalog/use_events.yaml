@@ -1,4 +1,4 @@
-# template_version: 0.2.0
+# template_version: 0.3.0
 # 利用イベントのカタログ（#2）
 #
 # 種になる一覧との関係と、カタログの範囲（Keycloak 26.8 と Auth0）は issue_events.yaml の冒頭と同じ。
@@ -9,13 +9,17 @@
 #                  （クレームが生まれる場所）には当てはまらないため
 #   tokens_used    使う・受けるトークンの種類（token_kinds.yaml の id）とセッションの層
 #   claims_read    このイベントで読む・確かめるクレーム。IANA JWT Claims の名前は seeds.yaml の項目にひもづく
-#   asked_from     マイナーの版で足した行に付ける。値は、この行を問う設計書の catalog_answers.yaml の版（台帳の版。1 行目の
-#                  template_version）。それより前の版の設計書には、答えていない限り問わない（R2 も件数も見ない。その版のカタログで
-#                  書いた設計書だから）。この版以後の設計書でも、回答が無いことは R2 の warn にとどめ、次のメジャーの版で error にする
-#                  （templates/CONTRIBUTING.md の「版の管理」。tools/claim_lint/core.py の applicable_events）
+#   asked_from     マイナーの版で末尾に足した行に付ける。値は、その行を足した台帳の版（templates/registry/*.schema.json の
+#                  template_version。tools/new_design.py が新しい設計書に書く版。版はこの 1 つの軸だけを使う）。下の _added に
+#                  その版で載る行だけが持てる（tools/catalog_check.py の ASKED）。claim_lint の R2 は、台帳の今のマイナーの版が
+#                  asked_from と同じ間だけ、回答が無いことを warn にし、次のマイナーの版から error にする（猶予はマイナーの版 1 つ）。
+#                  回答を問わないのは、tools/claim_lint/frozen_designs.yaml に載る凍結した記録だけ（設計書の版のコメントでは外せない）
 #   idp.<IdP>      occurs は、この利用に IdP が関わるか（イントロスペクション・リフレッシュなど）。hook_invoked は、この利用で IdP の
 #                  フックが呼ばれるか（受け手だけで完結する利用は no）
 # 件数：利用イベント 30 件。「ガイドの空白」0 件（#10 で 4 件を埋めた）、一部だけ扱う 2 件（U29・U30。#63 で足した）
+# 版の歴史（#63）：台帳の版ごとに、その版で末尾に足した行。ここに載る行だけが asked_from を持てる（tools/catalog_check.py の ASKED）
+_added:
+  "0.3.0": [U29, U30]
 _refs:
   kc_introspect_aud: &kc_introspect_aud {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Token introspection audience validation」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
   kc_oidc_layers: &kc_oidc_layers {kind: spec, id: "Keycloak Securing Applications（26.8.2）「OpenID Connect」Introspection endpoint・Token Revocation endpoint", url: "https://www.keycloak.org/securing-apps/oidc-layers", verified_on: 2026-11-22}
@@ -587,9 +591,9 @@ events:
     review_by: 2027-02-20
     owner: "#2"
 
-  # U29・U30 は #63 で足した（カタログ 0.2.0）。パイロット（#9）の「カタログ外の質問」から出た指摘で、4 回のレビューのうち
+  # U29・U30 は #63 で足した（台帳の版 0.3.0）。パイロット（#9）の「カタログ外の質問」から出た指摘で、4 回のレビューのうち
   # 3 回（U29）と 2 回（U30）で出た場面を、q-outside-catalog の問いの例から行に上げた（research/template-design/feedback-63.md）。
-  # asked_from: "0.3.0"：catalog_answers.yaml が 0.3.0 より前の版の設計書（パイロットの 2 つは 0.2.0）には問わない。0.3.0 以後は R2 の warn
+  # asked_from: "0.3.0"：台帳の版が 0.3 の間は、回答が無いと R2 の warn。0.4.0 から error。パイロットの 2 つは凍結した記録なので問わない（FROZEN の info）
   - id: U29
     name: 移行の期間に、受け手が旧い経路（旧い入口・旧いヘッダー・旧いトークンや資格情報）の要求も受け続ける
     actor: リソースサーバー（API）・入口

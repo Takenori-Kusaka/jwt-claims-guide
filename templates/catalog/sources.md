@@ -1,4 +1,4 @@
-<!-- template_version: 0.2.0 -->
+<!-- template_version: 0.3.0 -->
 # カタログの出どころ（種になる一覧）
 
 発行・利用イベントのカタログ（`issue_events.yaml`・`use_events.yaml`）、トークンの種類（`token_kinds.yaml`）、主体の状態の行列（`subject_state_matrix.md`）の行は、人の記憶ではなく、ここに挙げた外部の一覧（種になる一覧）から作りました（#2）。
@@ -51,7 +51,7 @@
 - **`keycloak-settings`**：Keycloak には、Auth0 の `event.transaction.protocol` のような契機の値の一覧がありません。そこで、公式文書（Server Administration Guide 26.8.2 の Capability Config・Client scopes・Logout settings ほか、Securing Applications の Token exchange・JWT Authorization Grant・DPoP、Release Notes）から、発行・利用を起こす・止める設定を筆者が拾いました（`author-proposal`、tracking #2）。拾い漏れは、この一覧の外の漏れになります。
 - **`auth0-protocol`**：文書は値を並べるだけで、各値の説明がありません。`oauth2-resource-owner`・`oauth2-webauthn`・`oauth2-access-token`・`oauth2-resource-owner-jwt-bearer` がどのフローかは確かめていません（`research/template-design/unverified.md` の V35）。
 - **`iana-jwt-claims`**：登録簿の全 163 項目です。`...`（SD-JWT の配列の要素の digest）も 1 項目として数えています。
-- **`pilot-outside`**：外部の一覧ではなく、パイロット（#9）の 4 回のレビューが一覧の外で見つけた場面です（4 回のうち 3 回と 2 回）。設計書が「この列挙の外に契機はないか」（R9）で探し、見つかったら一覧かカタログに戻す、という手順を、パイロットの結果に当てたものです。行は U29・U30（`asked_from: "0.3.0"`。台帳の版 0.3.0 からの設計書に問う）で、選んだ理由と、ほかの指摘を戻した先は `research/template-design/feedback-63.md` にあります
+- **`pilot-outside`**：外部の一覧ではなく、パイロット（#9）の 4 回のレビューが一覧の外で見つけた場面です（4 回のうち 3 回と 2 回）。設計書が「この列挙の外に契機はないか」（R9）で探し、見つかったら一覧かカタログに戻す、という手順を、パイロットの結果に当てたものです。行は U29・U30（`asked_from: "0.3.0"`。台帳の版 0.3 の間は回答が無いと warn、0.4.0 から error）で、選んだ理由と、ほかの指摘を戻した先は `research/template-design/feedback-63.md` にあります
 - **`prior-catalogue`**：#16 より前の調査で、キーワード検索から作った一覧です。ID（I01〜I30・U01〜U21）はカタログの ID と別物です（たとえば、一覧の I02 はカタログの I10）。
 
 ## 契機の一覧を持つ IdP と、持たない IdP

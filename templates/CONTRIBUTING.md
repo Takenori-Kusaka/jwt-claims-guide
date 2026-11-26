@@ -214,7 +214,7 @@ evidence:
 
 lint の規則を error で足すと既存の設計書が通らなくなるので、メジャーとして扱います。
 
-カタログ（`templates/catalog/`）にイベントを足すと、それまでの設計書に回答が無く、R2 が error にします。マイナーの版で足すイベントには `asked_from`（台帳の版）を付けます。`catalog_answers.yaml` の版がそれより前の設計書には問わず、それ以後の設計書でも回答が無いことは warn にとどめ、次のメジャーの版で error にします（`tools/claim_lint/RULES.md` の R2。#63）。
+カタログ（`templates/catalog/`）にイベントを足すと、それまでの設計書に回答が無く、R2 が error にします。マイナーの版でイベントを足すときは、行を末尾に足し、`asked_from` に台帳の版（`templates/registry/*.schema.json` の `template_version`。版の軸はこれ 1 つ）を書き、ファイルの `_added` にその版で載せます。猶予は**マイナーの版 1 つ**です。台帳のマイナーの版が `asked_from` と同じ間は、回答が無いことを warn にとどめ、次のマイナーの版から error にします（コードで版を比べる。`tools/claim_lint/RULES.md` の R2。#63）。回答を問わないのは、変えられない記録として `tools/claim_lint/frozen_designs.yaml` に PR で載せた設計書だけです（パス・`catalog_answers.yaml` の sha256・理由）。
 
 ### 作成方法の開示
 

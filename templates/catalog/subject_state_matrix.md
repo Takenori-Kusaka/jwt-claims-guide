@@ -1,4 +1,4 @@
-<!-- template_version: 0.2.0 -->
+<!-- template_version: 0.3.0 -->
 # 主体の状態 × トークン・セッションの行列（#2）
 
 主体（利用者）の状態が変わったときに、各トークンとセッションに何が起きるかの表です。発行イベントのカタログ（`issue_events.yaml`）だけでは、状態の変化で起きる漏れ（停止したのに RT が使える、テナントを切り替えたのに古い値が残る、など）が見えないため、行列にしました（`research/template-design/notes/coverage_lifecycle.md` の Q3 の 3.）。

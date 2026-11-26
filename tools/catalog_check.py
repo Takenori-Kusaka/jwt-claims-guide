@@ -27,6 +27,8 @@ Checks (each failure is an error; `hook_invoked: unknown` and guide gaps are rep
   MATRIX    every subject state of the seed list has a section in subject_state_matrix.md with one row per layer,
             a result in RESULTS and a non-empty basis
   SOURCES   sources.md names every seed list and states the 対象外 count / total / ratio computed here
+  ASKED     `asked_from` (the registry version that added a row) is not later than the current registry version, and only on
+            rows appended by that version and listed in the file's `_added` version history (#63, check_asked_from)
 
 The closure function (closure()) is importable so that claim_lint's R3 (#17) can reuse it.
 Exit status: 1 when there is at least one error, 0 otherwise.
@@ -379,6 +381,54 @@ def check_rows(docs, slides, reg_kinds):
     return out, info
 
 
+# ------------------------------------------------------------------ asked_from (#63)
+def check_asked_from(docs, current):
+    """A row may carry `asked_from` (the registry version that added it; claim_lint's R2 then gives the designs a grace
+    of one minor version, and frozen records are not asked it) only when: the version is not later than the current
+    registry version; the row is listed under that version in the file's `_added` (the version history); and the listed
+    rows were appended (their IDs are higher than every row the history does not list), so that the key cannot be put on
+    an existing row such as U01 to turn its R2 error into a warning. Every listed row carries asked_from of its version."""
+    out = []
+    for kind_name in ('issue_events', 'use_events'):
+        doc = docs.get(kind_name) or {}
+        rows = doc.get('events', []) or []
+        added = doc.get('_added') or {}
+        if not isinstance(added, dict):
+            out.append(err('ASKED', kind_name, '_added は {版: [行の ID]} の形'))
+            continue
+        listed = {}
+        for v, ids in added.items():
+            for i in ids or []:
+                listed[i] = str(v)
+        by_id = {r.get('id'): r for r in rows}
+        unlisted_max = max((int(str(r.get('id'))[1:]) for r in rows if r.get('id') not in listed
+                            and re.match(r'^[IU]\d{2}$', str(r.get('id')))), default=0)
+        for i, v in listed.items():
+            r = by_id.get(i)
+            if r is None:
+                out.append(err('ASKED', f'{kind_name}:_added', f'版 {v} の {i} がカタログの行にない'))
+                continue
+            if str(r.get('asked_from')) != v:
+                out.append(err('ASKED', f'{kind_name}:{i}', f'_added の版 {v} に載る行に asked_from: "{v}" がない'))
+            if int(str(i)[1:]) <= unlisted_max:
+                out.append(err('ASKED', f'{kind_name}:{i}', '_added に載せられるのは、その版で末尾に足した行だけ（既存の行より大きい ID）'))
+        for r in rows:
+            v = r.get('asked_from')
+            if v is None:
+                continue
+            where = f"{kind_name}:{r.get('id')}"
+            try:
+                ver = tuple(int(x) for x in str(v).split('.'))
+            except ValueError:
+                out.append(err('ASKED', where, f'asked_from は X.Y.Z（あるのは {v!r}）'))
+                continue
+            if len(ver) != 3 or ver > tuple(current):
+                out.append(err('ASKED', where, f"asked_from {v} が台帳の今の版 {'.'.join(map(str, current))} より後"))
+            if listed.get(r.get('id')) != str(v):
+                out.append(err('ASKED', where, f'asked_from {v} の行が、ファイルの _added の版 {v} に載っていない'))
+    return out
+
+
 # ------------------------------------------------------------------ matrix
 def parse_matrix(md):
     """{state_seed: {'section': title, 'rows': {layer: (result, basis)}}}."""
@@ -481,6 +531,7 @@ def run(catalog_dir=CATALOG, root=ROOT, docs=None):
                   'guide_out_of_scope': sorted(r['id'] for r in ie + ue if (r.get('guide') or {}).get('status') == 'out-of-scope'),
                   'hook_unknown': sorted(f"{r['id']}:{n}" for r in ie + ue for n in IDPS
                                          if ((r.get('idp') or {}).get(n) or {}).get('hook_invoked') == 'unknown')})
+    findings += check_asked_from(docs, core.registry_version(root))
     findings += check_sources(docs, stats)
     errors = [x for x in findings if x['severity'] == 'error']
     return {'stats': stats, 'findings': findings + info, 'errors': len(errors)}

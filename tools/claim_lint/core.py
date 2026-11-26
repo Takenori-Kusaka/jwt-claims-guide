@@ -10,6 +10,7 @@ Input directory (e.g. templates/examples/scenario-a):
   catalog_answers.yaml   an answer for every event of the catalogue (templates/catalog/*.yaml)
 The question IDs of claims.yaml (answers, does_not_answer) are those of templates/registry/questions.yaml.
 """
+import hashlib
 import json
 import math
 import os
@@ -168,39 +169,104 @@ def rule_r1(claims, token_types, profile='full'):
 
 
 # ------------------------------------------------------------------ the events a design is asked (#63)
-VERSION_LINE = re.compile(r'^\s*#\s*template_version:\s*(\d+)\.(\d+)\.(\d+)')
-
-
-def file_version(path):
-    """The `# template_version: X.Y.Z` of the first line of a design file as a tuple, or None."""
-    if not os.path.isfile(path):
-        return None
-    with open(path, encoding='utf-8-sig') as f:
-        m = VERSION_LINE.match(f.readline())
-    return tuple(int(x) for x in m.groups()) if m else None
+# One version notion: the version of the registry (templates/registry/*.schema.json, the `template_version` that
+# tools/new_design.py writes into a new design). A catalogue row added by a minor version carries `asked_from` with that
+# registry version. Two rules use it, and the author of a design can grant neither to themself:
+#   - frozen records (tools/claim_lint/frozen_designs.yaml: path, sha256 of catalog_answers.yaml, the registry version
+#     they were written against, reason) are not asked the events added after their version. Every other design is asked
+#     every event, whatever its version comment says
+#   - R2: a missing answer to an event with `asked_from` is a warning while the registry's minor version is that of
+#     asked_from (the grace of one minor version), and the usual severity from the next minor version on
+FROZEN_FILE = os.path.join(HERE, 'frozen_designs.yaml')
+REGISTRY_VERSION_RE = re.compile(r'template_version:\s*(\d+\.\d+\.\d+)')
 
 
 def _version(v):
     return tuple(int(x) for x in str(v).split('.'))
 
 
-def applicable_events(catalog, answers_doc, version):
-    """The catalogue events a design answers. An event with `asked_from` (a template version of catalog_answers.yaml,
-    the version of the registry) was added by a minor version: a design whose catalog_answers.yaml declares an older
-    version was written against a catalogue without it, so the event is left out of R2, R3b, R6 and the counts unless
-    the design answers it. A design without a version line is read as the current one. render uses the same list."""
+def registry_version(root=ROOT):
+    """The current registry version (the `$comment` of templates/registry/claims.schema.json) as a tuple."""
+    with open(os.path.join(root, 'templates', 'registry', 'claims.schema.json'), encoding='utf-8') as f:
+        m = REGISTRY_VERSION_RE.search(json.load(f).get('$comment', ''))
+    return _version(m.group(1))
+
+
+def normalized_sha256(path):
+    """sha256 of a file with CRLF read as LF (the working copy on Windows and the checkout on CI give the same value)."""
+    with open(path, 'rb') as f:
+        return hashlib.sha256(f.read().replace(b'\r\n', b'\n')).hexdigest()
+
+
+def frozen_entry(design_dir, root=ROOT, frozen_path=None):
+    """The entry of frozen_designs.yaml for this design, with `matches` (the sha256 of its catalog_answers.yaml is the
+    recorded one), or None when the design is not listed."""
+    path = frozen_path or FROZEN_FILE
+    if not os.path.isfile(path):
+        return None
+    try:
+        rel = os.path.relpath(os.path.abspath(design_dir), os.path.abspath(root)).replace('\\', '/')
+    except ValueError:  # another drive (Windows): not under the repository, so not listed
+        return None
+    for e in (load_yaml(path) or {}).get('designs') or []:
+        if e.get('path') == rel:
+            ca = os.path.join(design_dir, 'catalog_answers.yaml')
+            return dict(e, matches=os.path.isfile(ca) and normalized_sha256(ca) == e.get('catalog_answers_sha256'))
+    return None
+
+
+def asked_events(catalog, answers_doc, frozen):
+    """(asked, not_asked): a frozen record whose catalog_answers.yaml still has the recorded sha256 is not asked the
+    events added after its registry version, unless it answers them. Every other design is asked every event."""
+    if not frozen or not frozen.get('matches'):
+        return list(catalog), []
     answered = {a.get('event') for a in (answers_doc or {}).get('answers', []) or [] if isinstance(a, dict)}
-    out = []
+    asked, not_asked = [], []
     for e in catalog:
         since = e.get('asked_from')
-        if since and version is not None and version < _version(since) and e.get('id') not in answered:
-            continue
+        if since and _version(since) > _version(frozen.get('version')) and e.get('id') not in answered:
+            not_asked.append(e)
+        else:
+            asked.append(e)
+    return asked, not_asked
+
+
+def frozen_findings(frozen, not_asked):
+    if frozen and not frozen.get('matches'):
+        return [Finding('FROZEN', WARN, 'catalog_answers', 'tools/claim_lint/frozen_designs.yaml に載る記録だが、'
+                        'catalog_answers.yaml の sha256 が記録と合わない。凍結した記録として扱わず、カタログの全イベントを問う')]
+    if not_asked:
+        ids = '・'.join(e['id'] for e in not_asked)
+        return [Finding('FROZEN', INFO, 'catalog_answers', f"凍結した記録（tools/claim_lint/frozen_designs.yaml：{frozen.get('reason')}）"
+                        f"なので、台帳の版 {frozen.get('version')} より後に足したイベント {ids} を問わない")]
+    return []
+
+
+def catalog_events(doc):
+    """The rows of an event file. `asked_from` counts only on a row that the file's `_added` lists under that version
+    (tools/catalog_check.py ASKED); on any other row it is dropped, so that it cannot soften R2."""
+    doc = doc or {}
+    listed = {i: str(v) for v, ids in (doc.get('_added') or {}).items() for i in ids or []}
+    out = []
+    for e in doc.get('events', []) or []:
+        if e.get('asked_from') is not None and listed.get(e.get('id')) != str(e.get('asked_from')):
+            e = {k: v for k, v in e.items() if k != 'asked_from'}
         out.append(e)
     return out
 
 
+def missing_severity(event, sev, current=None):
+    """R2's severity for a missing answer: an event with `asked_from` is a warning while the registry's minor version
+    is that of asked_from, and `sev` (error in Full) from the next minor version on or for any other value."""
+    since = event.get('asked_from')
+    if not since:
+        return sev
+    cur = current or registry_version()
+    return WARN if _version(since)[:2] == tuple(cur)[:2] else sev
+
+
 # ------------------------------------------------------------------ R2
-def rule_r2(answers_doc, catalog, profile, tt_ids=None):
+def rule_r2(answers_doc, catalog, profile, tt_ids=None, current=None):
     """Every catalogue event has 該当 or 対象外. 対象外 needs assumption and breaks_when with substance (the same test
     as catalog_check's seed items: >= MIN_REASON characters, not one repeated character, not the event ID or name, not
     equal to each other). Lite may inherit the IdP default for an event that one client setting stops (coverage.py)."""
@@ -218,14 +284,12 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     for eid in known:
         a = answers.get(eid)
         if a is None:
-            added = known[eid].get('asked_from')
-            if added:
-                # an event added by a minor version (asked of the designs of that version and later, applicable_events()):
-                # a missing answer is a warning until the next major version (templates/CONTRIBUTING.md 4.「版の管理」)
+            s_missing = missing_severity(known[eid], sev, current)
+            if known[eid].get('asked_from') and s_missing == WARN:
                 out.append(Finding('R2', WARN, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"
-                                                    f"（台帳の版 {added} で足したイベント。次のメジャーの版で error にする）"))
+                                                    f"（台帳の版 {known[eid]['asked_from']} で足したイベント。猶予はこのマイナーの版の間だけで、次のマイナーの版から error）"))
             else:
-                out.append(Finding('R2', sev, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"))
+                out.append(Finding('R2', s_missing, eid, f"カタログのイベント {eid}（{known[eid].get('name')}）に回答がない"))
             continue
         ans = a.get('answer')
         label = (eid, known[eid].get('name'))
@@ -511,8 +575,10 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     tts = docs['token_types'].get('token_types') or []
     catalog = []
     for name in ('issue_events', 'use_events'):
-        catalog += (load_yaml(os.path.join(catalog_dir, name + '.yaml')) or {}).get('events', [])
-    catalog = applicable_events(catalog, docs['catalog_answers'], file_version(paths['catalog_answers']))
+        catalog += catalog_events(load_yaml(os.path.join(catalog_dir, name + '.yaml')))
+    frozen = frozen_entry(design_dir, root)
+    catalog, not_asked = asked_events(catalog, docs['catalog_answers'], frozen)
+    findings += frozen_findings(frozen, not_asked)
     findings += rule_r1(claims, tts, profile)
     findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
