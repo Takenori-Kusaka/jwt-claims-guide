@@ -220,7 +220,10 @@ def _idp_defined_problem(x, c):
     if idts:
         mine = {t.get('id') for t in x.adopted_tts() if t.get('kind') == 'access_token'
                 and (ent['token_types'] is None or t.get('id') in ent['token_types'])}
-        clients = {_service_name(h.get('from')) for h in x.hops if h.get('token_type') in mine}
+        clients = {_service_name(h.get('from')) for h in x.hops if h.get('token_type') in mine and h.get('kind') == 'entry'}
+        # a service that itself receives this IdP's access token on a hop (an API that forwards it further down) is not
+        # the client: it is held to the access token's condition (PR #70 re-check 3: orders forwarding KC_AT read realm_access)
+        clients -= {_service_name(h.get('to')) for h in x.hops if h.get('token_type') in mine}
         clients |= {str(a) for t in idts for a in (x.tt.get(t) or {}).get('aud') or []}
     strangers = [s for s in c.get('consumers') or [] if not (s in entries and s in minters) and s not in clients]
     if strangers:
@@ -798,7 +801,11 @@ def _kd_forms(t):
     forms, vague = {}, []
     for e in t.get('kind_discriminator') or []:
         c = e.get('claim')
-        if 'value' in e:
+        if c == 'iss' and 'value' in e:
+            # iss is compared like aud: as the set of issuers the token type accepts, not as the one value written here
+            # (PR #70 re-check 3: one of five accepted iss values made ID_TOKEN look apart from an access token)
+            forms[c] = ('iss', frozenset(_norm_value(i.get('iss')) for i in t.get('issuers') or []), _norm_value(e['value']))
+        elif 'value' in e:
             forms[c] = ('value', _norm_value(e['value']))  # 1 and "1" are the same value
         elif e.get('absent') is True:
             forms[c] = ('absent',)
@@ -821,6 +828,8 @@ def _forms_exclusive(fa, fb):
         if 'absent' in kinds and len(kinds) == 2 and ('aud' not in kinds or (p if p[0] == 'aud' else q)[1]):
             return True
         if kinds == {'aud'} and p[1] and q[1] and not p[1] & q[1]:
+            return True
+        if kinds == {'iss'} and p[1] and q[1] and not p[1] & q[1]:
             return True
     return False
 
@@ -860,8 +869,8 @@ def _kd_grounded(x, t):
             continue
         elif c == 'iss':
             # the issuers the token type accepts are in the inventory: an iss value that is not among them proves nothing
-            if form[1] not in {_norm_value(i.get('iss')) for i in t.get('issuers') or []}:
-                problems.append(f'iss の value {form[1]} が、この種別の issuers の iss にない')
+            if form[0] != 'iss' or form[2] not in form[1]:
+                problems.append(f"iss の value {form[2] if form[0] == 'iss' else form[1]} が、この種別の issuers の iss にない")
                 continue
         elif any(form[1] not in _declared_values(r) for r in rows):
             # the value must be one the registry row declares (re-check of PR #70: a made-up value on any claim that has

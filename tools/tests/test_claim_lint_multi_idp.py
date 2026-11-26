@@ -402,6 +402,38 @@ def test_l1b_the_client_may_read_an_idp_name_from_the_id_token(tmp_path):
     assert got and 'orders' in got[0]['message']
 
 
+def _forwarding_orders_reads_realm_access(d, pass_through):
+    """orders presents KC_AT to invoices (H14); with a per-IdP ID token that also carries realm_access"""
+    h = copy.deepcopy(hop(d, 'H2'))
+    h.update(id='H14', kind='service', **{'from': 'orders', 'to': 'invoices'})
+    d['hops']['hops'].append(h)
+    if pass_through:  # orders also receives KC_AT from the gateway
+        h = copy.deepcopy(hop(d, 'H2'))
+        h.update(id='H15', kind='service', **{'from': 'gateway', 'to': 'orders'})
+        d['hops']['hops'].append(h)
+    idt = copy.deepcopy(tt(d, 'ID_TOKEN'))
+    idt.update(id='KC_IDT', issuers=[i for i in idt['issuers'] if 'kc.corp' in i['iss']])
+    d['token_types']['token_types'].append(idt)
+    idp(d, 'keycloak')['token_types'].append('KC_IDT')
+    for c in d['claims']['claims']:
+        if 'ID_TOKEN' in (c.get('carried_in') or []):
+            c['carried_in'].append('KC_IDT')
+    c = claim(d, 'C-kc-realm-access')
+    c.update(carried_in=['KC_AT', 'KC_IDT'], consumers=['gateway', 'orders'])
+    if c.get('enforced_at'):
+        c['enforced_at'] = c['enforced_at'] + [dict(c['enforced_at'][0], service='orders')]
+
+
+@pytest.mark.parametrize('pass_through', [False, True])
+def test_l1b_a_service_that_forwards_the_idp_access_token_is_not_the_client(tmp_path, pass_through):
+    """Re-check 3 of PR #70 (G6c, G6d): a downstream API that presents the IdP's access token on a non-entry hop, or
+    receives it and forwards it, does not become the ID token's client and may not read the IdP's name."""
+    d = base()
+    _forwarding_orders_reads_realm_access(d, pass_through)
+    got = [f for f in by(lint(tmp_path, d), 'L1b', 'error') if f['target'] == 'C-kc-realm-access']
+    assert got and 'orders' in got[0]['message']
+
+
 def test_l1b_same_name_of_two_idps_may_differ_but_not_inside_one_idp(tmp_path, migrated):
     # Entra scp is a space-delimited string and Okta scp an array: two rows named scp, no finding
     assert not [f for f in by(migrated, 'L1b') if '同じ名前' in f['message']]
@@ -765,6 +797,28 @@ def test_l17_a_made_up_value_does_not_prove_the_kinds_apart(tmp_path, at_entry, 
     res = lint(tmp_path, d)
     got = by(res, 'L17', 'error')
     assert len(got) == 1 and '排他と言えない' in got[0]['message'] and by(res, 'L17', 'info') == []
+
+
+def test_l17_iss_is_compared_as_the_set_of_accepted_issuers(tmp_path):
+    """Re-check 3 of PR #70 (V3): ID_TOKEN accepts five issuers; writing only Okta's iss for it must not prove it apart
+    from KC_AT and ENTRA_AT, whose issuers it also accepts. Issuer sets that do not overlap do prove the kinds apart."""
+    kc = 'https://kc.corp.example.com/realms/corp'
+    entra = 'https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0'
+    okta = 'https://corp.okta.example.com/oauth2/default'
+    d = base()
+    _overlapping_aud(d)
+    tt(d, 'KC_AT')['kind_discriminator'].append({'claim': 'iss', 'value': kc})
+    tt(d, 'ENTRA_AT')['kind_discriminator'].append({'claim': 'iss', 'value': entra})
+    tt(d, 'ID_TOKEN')['kind_discriminator'].append({'claim': 'iss', 'value': okta})
+    res = lint(tmp_path, d)
+    assert len(by(res, 'L17', 'error')) == 1 and by(res, 'L17', 'info') == []
+    # control: an ID token type that accepts only Okta's issuer is apart from KC_AT and ENTRA_AT by iss
+    tt(d, 'ID_TOKEN')['issuers'] = [i for i in tt(d, 'ID_TOKEN')['issuers'] if i['iss'] == okta]
+    for c in d['claims']['claims']:
+        if 'ID_TOKEN' in (c.get('carried_in') or []) and c.get('issuers'):
+            c['issuers'] = [i for i in c['issuers'] if i in (kc, entra, okta)] or c['issuers']
+    res = lint(tmp_path, d)
+    assert not [f for f in by(res, 'L17', 'error') if '排他と言えない' in f['message']]
 
 
 def test_l17_value_grounding_one_condition_at_a_time(tmp_path):

@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '98c318448611';
+  const BUILD_ID = 'f8622f72ddd2';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -741,7 +741,7 @@
     put('pii', claims.some((c) => c.pii_category && c.pii_category !== '該当なし'));
     const hosts = new Set(); types.forEach((x) => (Array.isArray(x.issuers) ? x.issuers : []).forEach((i) => { if (isObj(i) && host(i.iss)) hosts.add(host(i.iss)); }));
     // #58: an idp array of catalog_answers.yaml (registry 0.3.0) that names two or more IdPs
-    const idps = new Set(); (Array.isArray(cat.idp) ? cat.idp : []).forEach((i) => { if (isObj(i) && typeof i.name === 'string' && i.name.trim()) idps.add(i.name.trim()); });
+    const idps = new Set(); (Array.isArray(cat.idp) ? cat.idp : []).forEach((i) => { if (isObj(i) && typeof i.name === 'string' && i.name.trim()) idps.add(i.name.trim().toLowerCase()); });
     put('multi_idp', idps.size > 1 || hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
     put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
     put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
