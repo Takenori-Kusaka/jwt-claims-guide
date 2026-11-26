@@ -263,6 +263,10 @@
                 "type": "boolean",
                 "description": "Changed after the reviewer saw the others' records (independence.viewed_others_at)."
               },
+              "bulk": {
+                "const": true,
+                "description": "Marked together with its group (まとめて確認: the answers 対象外 of catalog_answers, the claims 既定どおり), not opened one by one. The report counts these marks apart."
+              },
               "migrated_from": {
                 "type": "object",
                 "additionalProperties": false,

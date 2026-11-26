@@ -328,7 +328,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertIn('照合する場所', pg.inner_text('[data-col="enforced_at"] .lbl'))
         self.assertIn('L18', pg.inner_text('[data-lint-for="C-employee-id"]'))  # lint overlay on the row
         self.go(pg, '#/claims', 'クレーム一覧')
-        self.assertIn('warn', pg.inner_text('tr[data-row="C-employee-id"]'))
+        self.assertIn('警告', pg.inner_text('tr[data-row="C-employee-id"]'))
         # status is not shown by colour only
         for h in ('#/profile', '#/claims', '#/lint'):
             self.go(pg, h)
@@ -398,7 +398,7 @@ class ClaimsEditor(unittest.TestCase):
         self.assertIn('✖', pg.inner_text('#tab-claims\\.yaml'))
         # the preview shows them on the row
         self.go(pg, '#/claims', 'クレーム一覧')
-        self.assertIn('error', pg.inner_text('tr[data-row="C-iss"]'))
+        self.assertIn('エラー', pg.inner_text('tr[data-row="C-iss"]'))
         self.go(pg, '#/claim/C-iss', '(C-iss)')
         self.assertIn('bogus_column', pg.inner_text('[data-lint-for="C-iss"]'))
         self.assertIn('bogus_column', pg.inner_text('main [data-col="bogus_column"]'))  # shown as a column outside the schema

@@ -8,7 +8,7 @@
 'use strict';
 (function () {
   // the build id (tools/build_claims_viewer.py, #53)
-  const BUILD_ID = '3aa849987540';
+  const BUILD_ID = '2548603ba695';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review-format.js'] = BUILD_ID;
 
   const FORMAT = 'claims-review/2';
@@ -22,7 +22,7 @@
     'independence', 'mode', 'broken_at', 'viewed_others_at', 'target', 'commit', 'materials', 'perspectives',
     'report_template', 'context', 'lite_full', 'steps', 'roles_order', 'ci', 'error', 'warn', 'info',
     'profile', 'matches_design', 'human_check', 'traits', 'answers', 'answer', 'memo', 'rows', 'viewed', 'decision',
-    'reviewer_kind', 'hash', 'comment', 'edited_after_viewing_others', 'at', 'resolved_at', 'snapshot', 'migrated_from',
+    'reviewer_kind', 'hash', 'comment', 'edited_after_viewing_others', 'bulk', 'at', 'resolved_at', 'snapshot', 'migrated_from',
     'findings', 'comments', 'unresolved', 'migrated', 'submissions', 'sampling', 'seed', 'count', 'picked',
     'population', 'scores', 'RR1', 'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7', 'pass', 'reason', 'previous',
     'replaced_at', 'escalations', 'applies', 'not_applicable', 'feedback', 'note'];
@@ -311,13 +311,14 @@
     keys.forEach((a) => {
       const r = viewed[a]; const kind = r.reviewer_kind || who.kind;
       const mf = r.migrated_from;
-      lines.push(row([cell(a), cell(r.at) + (kind === 'llm' ? '（LLM）' : ''), labelOf[stOf[a]] + `（${r.hash.slice(0, 12)}）`,
+      lines.push(row([cell(a), cell(r.at) + (kind === 'llm' ? '（LLM）' : '') + (r.bulk ? '（まとめて確認）' : ''), labelOf[stOf[a]] + `（${r.hash.slice(0, 12)}）`,
         mf ? DECISION_JA[mf.decision] + (mf.comment ? `：${md(mf.comment)}` : '') : '—']));
     });
     if (!keys.length) lines.push('|' + ' |'.repeat(4));
     lines.push('');
     const cnt = (s) => keys.filter((a) => stOf[a] === s).length;
-    lines.push(`計 ${keys.length} 行：一致 ${cnt('current')}・前回の確認から変更あり ${cnt('stale')}・一覧に無い ${cnt('missing')}`);
+    const nBulk = keys.filter((a) => viewed[a].bulk).length;
+    lines.push(`計 ${keys.length} 行：一致 ${cnt('current')}・前回の確認から変更あり ${cnt('stale')}・一覧に無い ${cnt('missing')}` + (nBulk ? `（うち、まとめて確認 ${nBulk} 行・1 行ずつ確認 ${keys.length - nBulk} 行）` : ''));
     return lines.join('\n') + '\n';
   }
 

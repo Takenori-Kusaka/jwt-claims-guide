@@ -182,7 +182,7 @@ jobs:
           echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           rm gitleaks.tar.gz
-      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs, also in the editor data, and the viewer's source hashes are not)
+      - name: Self-test of .gitleaks.toml (random keys are still found; trace requirement IDs, also in the editor data, the viewer's source hashes and the row hashes of review.yaml are not)
         run: |
           d="$RUNNER_TEMP/gitleaks-selftest"; mkdir -p "$d"
           # the keys are made at run time so that no secret-looking literal is committed
@@ -197,9 +197,16 @@ jobs:
           printf 'y={"api_token":"%s"};\n' "$h2" > "$d/docs/claims/data/leak-x.js"
           # editor data (#49): the registry schemas copied into docs/claims/data/schemas.js carry requirement IDs
           printf 'z={"$comment":"Trace: req:p06-transaction-tokens.R8 req:p08-revocation-propagation.R6 req:p10-vendor-features.R2"};\n' > "$d/docs/claims/data/schemas-x.js"
+          # review records (#67): a line that is only a row anchor and its sha256 (submissions[].viewed) is allowed in a
+          # review.yaml; a 64-hex value under another key in the same file is not, nor the same anchor line in another file
+          mkdir -p "$d/review-x"
+          h3=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64); h4=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64); h5=$(head -c 32 /dev/urandom | sha256sum | cut -c1-64)
+          printf 'reviews:\n  - submissions:\n      - viewed:\n          "token_types:TXN_TOKEN": "%s"\n' "$h3" > "$d/review-x/review.yaml"
+          printf 'settings:\n  api_token: "%s"\n' "$h4" > "$d/review-x/review.v2.yaml"
+          printf 'viewed:\n  "token_types:TXN_TOKEN": "%s"\n' "$h5" > "$d/review-x/notes.yaml"
           ./gitleaks dir --no-banner --redact --config .gitleaks.toml --report-format json --report-path "$d/report.json" "$d" || true
           jq -c '[.[] | {RuleID, File}]' "$d/report.json"
-          jq -e 'length == 2 and ([.[].File | split("/") | last] | sort == ["leak-x.js", "leak.env"])' "$d/report.json"
+          jq -e 'length == 4 and ([.[].File | split("/") | last] | sort == ["leak-x.js", "leak.env", "notes.yaml", "review.v2.yaml"])' "$d/report.json"
       - name: Scan the git history reachable from HEAD (fails on any finding; exclusions are in .gitleaks.toml with reasons)
         # --log-opts HEAD: only the commits of this checkout (for a pull request, the merge of the PR and its base), not the
         # other branches that fetch-depth 0 also fetches (their findings belong to their own PRs)
