@@ -157,7 +157,7 @@ jobs:
       # The browser tests of the editor (tools/tests/test_claims_editor_ui.py: empty start, the six entry points,
       # diagnostics, claim_lint in Pyodide vs the CLI for scenarios A and B (full and lite), export round trip, network
       # log) and of its review mode (tools/tests/test_claims_review_ui.py, #50) need Playwright and Chromium, which this job
-      # does not install; they are skipped here and run locally (README.md, 設計書のエディター).
+      # does not install; they are skipped here and run locally (docs/claims/README.md, ビルドとテスト).
 
   secret-scan:
     runs-on: ubuntu-latest

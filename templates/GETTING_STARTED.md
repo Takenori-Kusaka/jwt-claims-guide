@@ -5,7 +5,16 @@
 
 初めて設計書を書く人が、「空の設計書を作る → Lite か Full かの判定 → プロファイルの選択 → 最初の 3 欄の下書き → claim-lint の実行」まで進むための手順です。手順 1〜3 と 5 は合わせて 30 分ほど、手順 4 の下書きは 1〜2 時間を見込んでください。どちらも筆者の見積もりで、人が測った時間ではありません（測った時間は [README.md](README.md) の「記入の目安」に載せる）。最初の 30 分で終わるのは「何を決めるかが分かり、lint の指摘が手元の作業の一覧になる」ところまでです
 
-- 前提：Python 3.12 と、`tools/requirements-ci.txt` の依存（`python -m pip install --require-hashes --no-deps -r tools/requirements-ci.txt`）
+**始め方は 2 つあります。** どちらも同じファイルを作るので、途中で行き来できます。
+
+| 始め方 | 最初にすること | この手順との関係 |
+| --- | --- | --- |
+| **エディターで書く** | 設計書のエディター（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）を開き、「空の雛形から始める」を押す | 手順 1 のコマンドの代わりになる。手順 2・4 は、エディターで YAML を直して行う。手順 5 の検査は、エディターの中で動く。手順 3 の `--use` と、手順 5 の `render --write` は CLI で行う（書き出したファイルに対して実行する） |
+| **CLI で書く** | 下の前提をそろえ、手順 1 から進む | この手順のとおり |
+
+- エディターは、Python を入れなくても使えます。ブラウザの中だけで動き、開いたファイルを外部に送信しません。書き終えたら、ファイルか zip で書き出します
+- CLI で作った設計書は、エディターの「フォルダを開く」で開けます。書きながら、表と検査の結果を見られます
+- 前提（CLI で書くとき）：Python 3.12 と、`tools/requirements-ci.txt` の依存（`python -m pip install --require-hashes --no-deps -r tools/requirements-ci.txt`）
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施
 
 <a id="step-1-copy"></a>
@@ -63,13 +72,14 @@ python tools/new_design.py designs/my-service --profile lite --use P1,M_token_va
 
 - Full：記入欄のあるすべての項目が足されます
 - Lite：見出しが〔Lite・Full：記入〕で始まる項目だけが足されます（例：`M_privacy_minimization` の個人情報保護法の判断表）。ほかの項目は問いを読み、答えは 00_core の 3. と台帳に書きます
+- **P4 は Full だけです**（#61）。`--profile lite` の `--use` に P4 を入れると、何も書かずに、`--profile full` を使うよう知らせて終わります。信頼の境界を越えず、委任も交換も無いエージェントの設計は、P4 ではなく P5 で書きます
 - 見出しの〔〕に書く場所がある項目（`M_data_layer` の 5.〔…記入（00_core に書く）〕、`M_idp_keycloak` の 5.〔…記入（台帳の既定どおりの行）〕）は、付録 D には表を足さず、「その場所に 1 回だけ書く」という 1 行だけを足します。同じ答えを 2 か所に書かないためです
 - 当てはまらない記入欄は消さずに、最初の列に「無い」と理由を書きます（00_core の冒頭の「使わない記入欄」）
 
 | 境界 | プロファイル |
 | --- | --- |
 | 人がブラウザで使う | `profiles/P1_human_web.md` |
-| AI エージェントが利用者の代わりに呼ぶ | `profiles/P4_ai_agent_delegation.md` |
+| AI エージェントが利用者の代わりに、または自分の権限で、ツール（MCP）・API を呼ぶ（Full だけ。信頼の境界を越えず、委任も交換も無い設計は P5） | `profiles/P4_ai_agent_delegation.md` |
 | 入口の内側でサービス間に運ぶ | `profiles/P5_internal_propagation.md` |
 
 根拠：templates/README.md の「プロファイルとモジュールの組み合わせ方」、templates/00_core.md の付録 D、research/template-design/pilot.md の 6.
