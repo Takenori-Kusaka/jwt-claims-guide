@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'c1280f048d32';
+  const BUILD_ID = '2548603ba695';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -147,6 +147,7 @@
   }
   function unsaved() { return st.open && dump(st.file) !== st.savedText; }
   function changed(rerender, keepUpdated) {
+    st.reqMemo = null;
     const m = mine();
     if (m && !keepUpdated) m.updated = now();
     autosaveSoon();
@@ -176,6 +177,10 @@
   }
   function myMark(anchor) { const m = mine(); return m && own(m.viewed, anchor) ? m.viewed[anchor] : null; }
   function isViewed(anchor, set) { const r = myMark(anchor); return !!r && markState(r, anchor, set) === 'current'; }
+  // a required row counts as confirmed only with a mark of its own: a mark made with its group (bulk) was made before the
+  // row became required (a warning, the sample, a comment) and does not stand for having looked at it (PR #78 check)
+  function isConfirmed(anchor, set, req) { const r = myMark(anchor); return isViewed(anchor, set) && !(r.bulk && (req || required()).has(anchor)); }
+  function bulkOnly(anchor, set, req) { const r = myMark(anchor); return isViewed(anchor, set) && !!r.bulk && (req || required()).has(anchor); }
   const SNAPSHOT_MAX = 200000;
   function setViewed(anchor, on, bulk, quiet) {
     const m = mine();
@@ -214,6 +219,7 @@
   }
   // Map anchor -> [reasons] of the rows required now
   function required(rows) {
+    if (!rows && st.reqMemo) return st.reqMemo;
     const m = mine();
     const out = new Map();
     const put = (a, why) => { if (!out.has(a)) out.set(a, []); if (!out.get(a).includes(why)) out.get(a).push(why); };
@@ -227,6 +233,7 @@
       if (isOrgClaim(a)) put(a.anchor, 'org');
       if (m && m.comments.some((c) => c.state !== 'resolved' && (c.anchors || []).includes(a.anchor))) put(a.anchor, 'comment');   // my own open comments
     });
+    if (!rows) { st.reqMemo = out; queueMicrotask(() => { st.reqMemo = null; }); }
     return out;
   }
   // the groups of rows that need no judgement one by one, marked together (each row's hash is recorded, with bulk: true)
@@ -242,7 +249,7 @@
     all.forEach((a) => {
       const r = m && own(m.viewed, a.anchor) ? m.viewed[a.anchor] : null;
       if (!r || a.hash === null) return;
-      if (r.hash === a.hash) { viewed++; if (req.has(a.anchor)) reqViewed++; } else chg++;
+      if (r.hash === a.hash) { viewed++; if (req.has(a.anchor) && !r.bulk) reqViewed++; } else chg++;
     });
     const qs = R ? applicable() : [];
     const cs = m ? m.comments : [];
@@ -298,7 +305,8 @@
   function rowHead(anchor, set, detail) {
     const m = mine();
     const mark = myMark(anchor);
-    const s = mark ? markState(mark, anchor, set) : null;
+    const bulkReq = !!mark && bulkOnly(anchor, set);
+    const s = mark ? (bulkReq ? null : markState(mark, anchor, set)) : null;
     const hash = rowHash(anchor);
     const cid = 'rv-v-' + sid(anchor);
     const cb = h('input', { type: 'checkbox', id: cid, 'data-viewed': anchor, checked: s === 'current' ? true : null, disabled: m && hash ? null : true,
@@ -309,8 +317,9 @@
         setViewed(anchor, e.target.checked);
         changed(true, true);
       } });
-    return h('span', { class: 'rv-viewed', 'data-row-state': s === 'current' ? 'viewed' : s || 'open' },
+    return h('span', { class: 'rv-viewed', 'data-row-state': s === 'current' ? 'viewed' : s || 'open', 'data-bulk-only': bulkReq ? '1' : null },
       h('label', { class: 'chk', for: cid, title: '「確認済み」は、この内容を見たという自分の印です（承認ではありません）。行の内容が変わると外れます。' }, cb, ' 確認済み'),
+      bulkReq ? [' ', h('span', { class: 'muted small', 'data-bulk-required': anchor }, 'まとめて確認済み。要確認になったので 1 行ずつ確認してください')] : null,
       s === 'changed' ? [' ', h('span', { 'data-changed': anchor }, badge(CHANGED))] : null,
       s === 'missing' ? [' ', badge(MISSING)] : null,
       !hash && detail ? h('span', { class: 'muted small' }, ' この行は内容を照合できないので、印を付けられません（ID が 2 行以上にある、など）。') : null);
@@ -626,6 +635,8 @@
       out.replaceChildren(r.rows.length ? ['答える行（認可・識別子に使う ', String(r.population), ' 行から ', String(r.rows.length), ' 行）：', r.rows.map((i, k) => [k ? '・' : '', h('a', { href: P.route('claim', i), 'data-sample-row': i }, i)]),
         r.own ? `。${r.own} は、組織独自の認可の行として必ず入れた 1 行です。` : '。組織独自の認可の行（名前空間つき）はありません。'] : '認可・識別子に使う行がありません。');
       out.dataset.rows = r.rows.join(' ');
+      st.reqMemo = null;
+      if (st.bar) { renderBar(); refreshCounts(); }
     };
     seed.addEventListener('input', draw);
     draw();
@@ -1146,7 +1157,7 @@
     const order = (st.shown && st.shown.length ? st.shown.filter((a) => set.has(a)) : []).concat(CE.anchors().map((a) => a.anchor).filter((a) => req.has(a)));
     const uniq = Array.from(new Set(order));
     const i = from ? uniq.indexOf(from) : -1;
-    const next = uniq.slice(i + 1).concat(uniq.slice(0, i + 1)).find((a) => a !== from && rowHash(a) && !isViewed(a, set));
+    const next = uniq.slice(i + 1).concat(uniq.slice(0, i + 1)).find((a) => a !== from && rowHash(a) && !isConfirmed(a, set, req));
     const say = $('#rv-progress');
     if (!next) { if (say) say.append(' ― 要確認の行は、すべて確認済みです'); return null; }
     st.openRow = next; st.form = null;
@@ -1201,7 +1212,7 @@
     else rows.forEach((a) => { if (match(a) && !st.shown.includes(a.anchor)) st.shown.push(a.anchor); });  // rows marked on this screen stay listed
     const shown = new Set(st.shown);
     const list = rows.filter((a) => shown.has(a.anchor));
-    const label = (k) => FILTERS[k] + (k === 'required' ? `（${rows.filter((a) => req.has(a.anchor) && !todo(a)).length} / ${req.size} 確認済み）` : `（${rows.filter(test[k]).length}）`);
+    const label = (k) => FILTERS[k] + (k === 'required' ? `（${rows.filter((a) => req.has(a.anchor) && isConfirmed(a.anchor, set, req)).length} / ${req.size} 確認済み）` : `（${rows.filter(test[k]).length}）`);
     const setFilter = (k) => { st.filter = k; st.shown = null; st.focus = 'rv-flt-' + k; history.replaceState(null, '', P.route('review', null, Object.assign({ filter: k }, st.kind ? { kind: st.kind } : {}))); P.render(); restoreFocus(); };
     const kindSel = h('select', { id: 'rv-r-kind', 'aria-label': '行の種類', onchange: (e) => { st.kind = e.target.value; st.shown = null; st.focus = 'rv-r-kind'; H.keepScroll(); P.render(); restoreFocus(); } },
       h('option', { value: '' }, 'すべての種類'), Object.keys(KIND_LABEL).filter((k) => rows.some((a) => a.kind === k)).map((k) => h('option', { value: k, selected: st.kind === k ? true : null }, `${KIND_LABEL[k]}（${rows.filter((a) => a.kind === k).length}）`)));
@@ -1256,7 +1267,7 @@
               if (c !== 'go') return;
               left.forEach((a) => setViewed(a.anchor, true, true, true));
               st.focus = null;
-              changed(true, true);
+              changed(true);
             }) }, `まとめて確認済みにする（${left.length} 行）`));
       })));
   }
@@ -1265,7 +1276,7 @@
     const open = st.openRow === anchor;
     const cs = commentsOf(anchor);
     const mark = myMark(anchor);
-    const s = mark ? markState(mark, anchor, set) : 'open';
+    const s = mark ? (bulkOnly(anchor, set) ? 'open' : markState(mark, anchor, set)) : 'open';
     const diags = CE.diagnostics().filter((d) => d.anchorKind === a.kind && d.anchorId === a.id);
     const errs = diags.filter((d) => d.severity === 'error').length; const warns = diags.filter((d) => d.severity === 'warn').length;
     const tid = 'rv-t-' + sid(anchor); const bid = 'rv-b-' + sid(anchor);
@@ -1289,7 +1300,7 @@
     all.sort((x, y) => order[x[1].state] - order[y[1].state]);
     const n = (s) => all.filter(([, c]) => c.state === s).length;
     return [h('h1', { tabindex: '-1' }, 'コメント'),
-      h('p', { class: 'lead' }, `人が書いたコメントです（自動の検査の結果は、画面の下の「問題」）。未提出 ${n('pending')} 件・未解決 ${n('unresolved')} 件・解決済み ${n('resolved')} 件。`),
+      h('p', { class: 'lead' }, `人が書いたコメントです（書式の検査と設計の規則の検査が見つけたものは、画面の下の「問題」）。未提出 ${n('pending')} 件・未解決 ${n('unresolved')} 件・解決済み ${n('resolved')} 件。`),
       hiding() && hiddenCount() ? h('p', { class: 'note', 'data-hidden-others': String(hiddenCount()) }, `独立レビュー：提出するまで、ほかのレビュアー ${hiddenCount()} 人のコメントを隠しています。`) : null,
       m ? (st.form && st.form.general ? commentForm(st.form) : h('p', null, h('button', { type: 'button', id: 'rv-c-general', onclick: () => openForm({ general: true }) }, '行に付かないコメントを追加'),
         h('span', { class: 'muted small' }, ' 行や列へのコメントは、「レビューする行」か、行の詳細の画面で付けます。'))) : h('p', { class: 'note warn' }, 'コメントを付けるには、上の「レビューを開始」を押します。'),
@@ -1310,7 +1321,7 @@
       warn.hidden = !t; warn.textContent = t;
     };
     const set = anchorSet(); const req = required();
-    const rowsLeft = Array.from(req.keys()).filter((a) => !isViewed(a, set));
+    const rowsLeft = Array.from(req.keys()).filter((a) => !isConfirmed(a, set, req));
     const qsLeft = applicable().filter((x) => !answerOf(m, x.id));
     const summary = h('textarea', { id: 'rv-summary', rows: '4' });
     const snaps = h('input', { type: 'checkbox', id: 'rv-snapshots', checked: true });
@@ -1642,7 +1653,7 @@
     h('p', { class: 'wide muted small' }, 'レポートの最初の表に載る補足です。分かるものだけ入れます。入れない欄は「記録なし」と出ます。'),
     fld('rv-ctx-commit', '対象の版（コミット）', t.commit), fld('rv-ctx-tnote', '対象の注記', t.note), fld('rv-ctx-lite_full', 'Lite／Full の確認', c.lite_full, true),
     fld('rv-ctx-steps', '実施した手順の段', c.steps, true), fld('rv-ctx-roles_order', '役割の切り替えの順と日付', c.roles_order, true), fld('rv-ctx-materials', '教材の版の補足', c.materials, true),
-    fld('rv-ctx-ci-error', 'CI：error', ci.error), fld('rv-ctx-ci-warn', 'CI：warn', ci.warn), fld('rv-ctx-ci-info', 'CI：info', ci.info),
+    fld('rv-ctx-ci-error', 'CI：エラー', ci.error), fld('rv-ctx-ci-warn', 'CI：警告', ci.warn), fld('rv-ctx-ci-info', 'CI：情報', ci.info),
     h('label', null, 'CI：profile', h('select', { id: 'rv-ctx-ci-profile' }, ['', 'full', 'lite'].map((x) => h('option', { value: x, selected: (ci.profile || '') === x ? true : null }, x || '—')))),
     h('label', null, 'CI：設計書の 1. と', h('select', { id: 'rv-ctx-ci-match' }, [['', '—'], ['yes', '一致'], ['no', '一致しない']].map(([x, l]) => h('option', { value: x, selected: (own(ci, 'matches_design') ? (ci.matches_design ? 'yes' : 'no') : '') === x ? true : null }, l)))),
     fld('rv-ctx-ci-note', 'CI：注記', ci.note, true),

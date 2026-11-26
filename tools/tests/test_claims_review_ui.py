@@ -37,6 +37,7 @@ PILOT_B = os.path.join(ROOT, 'research', 'pilot', 'scenario-b')
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import review_check  # noqa: E402
 import review_record  # noqa: E402
+import review_triage  # noqa: E402
 import row_hash  # noqa: E402
 try:
     from playwright.sync_api import sync_playwright
@@ -484,6 +485,66 @@ class ReviewFlow(unittest.TestCase):
         # the record passes the checker, and the report counts the marks made together apart
         self.check_text(pg.evaluate('() => ClaimsReview.text()'), os.path.join(ROOT, 'templates', 'examples', 'scenario-a'))
         self.assertIn('まとめて確認 50 行・1 行ずつ確認 0 行', pg.evaluate('() => ClaimsReview.reportText("まとめる人")'))
+        self.assertTrue(self.data(pg)['reviews'][0].get('updated'))  # an edit of the records (reported after a submission)
+        self.assertEqual(pg.problems, [])
+
+    def bulk_defaults(self, pg, name):
+        """Sample A: a review that marked the claims 既定どおり together; returns their anchors."""
+        self.sample(pg, 'a')
+        self.start(pg, name)
+        self.started(pg, name)
+        pg.click('#rv-flt-other')
+        pg.click('[data-bulk="claims-default"]')
+        pg.click('#confirm [data-choice="go"]')
+        self.poll(pg, '() => document.querySelector(\'[data-bulk-group="claims-default"]\').dataset.left === "0"')
+        return sorted(a for a, r in self.data(pg)['reviews'][0]['viewed'].items() if r.get('bulk'))
+
+    def assert_bulk_only(self, pg, anchor, req_viewed):
+        """A required row with only a mark made with its group is not confirmed: not counted, listed as left, said on the row."""
+        self.assertEqual(pg.get_attribute('#rv-progress', 'data-req-viewed'), str(req_viewed))
+        self.go(pg, '#/review?filter=required', 'レビューする行')
+        row = pg.locator(f'.rv-row[data-anchor="{anchor}"]')
+        self.assertEqual(row.get_attribute('data-row-state'), 'open')
+        self.assertIn('まとめて確認済み。要確認になったので 1 行ずつ確認してください', row.inner_text())
+        self.assertFalse(pg.is_checked(f'[data-viewed="{anchor}"]'))
+        seen = []  # 「次の要確認へ」 goes through the required rows not confirmed, this one among them
+        for _ in range(int(pg.get_attribute('#rv-progress', 'data-req-total'))):
+            pg.click('#rv-next')
+            seen.append(self.poll(pg, 'p => { const o = document.querySelector(".rv-row.open"); return o && o.dataset.anchor !== p ? o.dataset.anchor : null; }', arg=seen[-1] if seen else ''))
+        self.assertIn(anchor, seen)
+        pg.click('#rv-submit')
+        pg.wait_for_selector('#rv-submit-dialog[open]')
+        self.assertIn(anchor.split(':')[1], pg.inner_text('#rv-submit-left'))
+        self.assertEqual(pg.get_attribute('#rv-submit-counts', 'data-default'), 'comment')
+        pg.click('#rv-submit-cancel')
+        # marked one by one now: confirmed
+        pg.click(f'[data-viewed="{anchor}"]')
+        self.poll(pg, 'n => document.querySelector("#rv-progress").dataset.reqViewed === n', arg=str(req_viewed + 1))
+
+    def test_a_row_marked_with_its_group_that_becomes_required_by_a_warning_is_not_confirmed(self):
+        pg = self.page()
+        bulk = self.bulk_defaults(pg, '警告の人')
+        self.assertIn('claims:C-scope', bulk)
+        before = int(pg.get_attribute('#rv-progress', 'data-req-total'))
+        # claim_lint warns on C-scope (L11): the row becomes required
+        self.go(pg, '#/lint', '問題')  # loads claim_lint (Pyodide) and runs it
+        self.poll(pg, '() => ClaimsEditor.state().lint === "fresh"', timeout=180)
+        self.poll(pg, 'n => Number(document.querySelector("#rv-progress").dataset.reqTotal) > n', arg=before)
+        self.assert_bulk_only(pg, 'claims:C-scope', 0)
+        self.assertEqual(pg.problems, [])
+
+    def test_a_row_marked_with_its_group_that_becomes_required_by_the_sample_is_not_confirmed(self):
+        pg = self.page()
+        bulk = self.bulk_defaults(pg, '抜き取りの人')
+        tri = review_triage.load(ROOT)
+        reg = review_triage.load_design(os.path.join(ROOT, 'templates', 'examples', 'scenario-a'))
+        seed, hit = next((sd, r) for sd in (f'seed-{i}' for i in range(500)) for r in review_triage.row_sample(tri, reg, sd)[0] if 'claims:' + r in bulk)
+        before = int(pg.get_attribute('#rv-progress', 'data-req-total'))
+        self.go(pg, '#/review/checklist', '確認事項')
+        pg.fill('#rv-row-seed', seed)
+        # the bar follows the seed at once
+        self.poll(pg, 'n => Number(document.querySelector("#rv-progress").dataset.reqTotal) > n', arg=before)
+        self.assert_bulk_only(pg, 'claims:' + hit, 0)
         self.assertEqual(pg.problems, [])
 
     # ------------------------------------------------------------------ criterion 7: the old form is read

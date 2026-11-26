@@ -8,7 +8,7 @@
 'use strict';
 (function () {
   // the build id (tools/build_claims_viewer.py, #53)
-  const BUILD_ID = 'c1280f048d32';
+  const BUILD_ID = '2548603ba695';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review-format.js'] = BUILD_ID;
 
   const FORMAT = 'claims-review/2';
