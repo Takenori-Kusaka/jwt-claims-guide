@@ -8,6 +8,19 @@
 - 初めての人は [GETTING_STARTED.md](GETTING_STARTED.md)（空の設計書を作り、判定・プロファイルの選択・最初の 3 欄の下書き・claim-lint の実行まで）
 - 用語は [glossary.md](glossary.md)（ガイドと同じ訳語）
 
+## 2 つの始め方
+
+どちらも同じファイル（YAML と Markdown）を作ります。途中で行き来できます。
+
+| 始め方 | 最初にすること | 向いている場合 |
+| --- | --- | --- |
+| **エディターで書く** | 設計書のエディター（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）を開き、「空の雛形から始める」を押す。記入例は「サンプルを開く」で読める | まず試したい。Python を入れずに始めたい。書きながら検査の結果を見たい |
+| **CLI で書く** | このリポジトリを clone し、`python tools/new_design.py designs/my-service` を実行する。手順は [GETTING_STARTED.md](GETTING_STARTED.md) | 自分のリポジトリで、PR と CI に載せて書きたい |
+
+- エディターは、ブラウザの中だけで動きます。開いたファイルを外部に送信しません。書き終えたら、ファイルか zip で書き出します
+- エディターで書いた設計書も、書き出した後は CLI で検査できます。CLI で作った設計書は、エディターの「フォルダを開く」で開けます
+- 選んだプロファイルとモジュールの記入欄を足す操作（`new_design.py --use`）と、生成の節を埋める操作（`claim_lint render --write`）は、CLI で行います
+
 ## 約束の範囲
 
 このテンプレートは「想定漏れが一切生じない」ことを約束しません（#11 の「約束の範囲」）。約束するのは次のことです。
