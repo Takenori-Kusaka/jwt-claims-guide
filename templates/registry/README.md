@@ -1,11 +1,11 @@
-<!-- template_version: 0.2.0 -->
+<!-- template_version: 0.3.0 -->
 # クレームの台帳（v1）
 
-クレームの台帳を、人が読めて機械で検査できる形にしたものです（#3）。v0（#16 の縦の一本）で分かった過不足（[`research/template-design/v0-columns.md`](../../research/template-design/v0-columns.md)）と、#11 のレビュー記録の指摘を反映しました。スキーマの版は `template_version` 0.2.0 です（`$id` の末尾 `/v0.2.0`）。テンプレート一式の最初の公開版（`templates-v1.0.0`）までは 0.y.z で数えるので、「台帳 v1」は 0.2.0 のスキーマを指します。
+クレームの台帳を、人が読めて機械で検査できる形にしたものです（#3）。v0（#16 の縦の一本）で分かった過不足（[`research/template-design/v0-columns.md`](../../research/template-design/v0-columns.md)）と、#11 のレビュー記録の指摘を反映しました。スキーマの版は `template_version` 0.3.0 です（`$id` の末尾 `/v0.3.0`）。テンプレート一式の最初の公開版（`templates-v1.0.0`）までは 0.y.z で数えるので、「台帳 v1」は 0.2.0 から始まるスキーマを指します。0.3.0（#58）は、複数の IdP と入口での作り直しを書くための任意の列を足した版で、0.2.0 で書いた設計書はそのまま通ります（3.5 の「0.2.0 からの移行」）。
 
 - 1. ファイル
 - 2. 縮小 Lite の印
-- 3. 列の一覧（台帳・トークン目録・発行方式の選択・ホップ）
+- 3. 列の一覧（台帳・トークン目録・発行方式の選択・ホップ・複数の IdP と入口での作り直し）
 - 4. スライド 134 の 12 項目と台帳の列
 - 5. 設計のチェックリスト（スライド 61）と台帳の列
 - 6. 寿命の 4 つの層
@@ -34,7 +34,7 @@ python tools/claim_lint templates/examples/scenario-a          # スキーマ・
 python tools/casestudy_check.py                                # ORG 行の名前と型、採否とケーススタディの判定の照合
 ```
 
-YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-server の modeline です（`templates/CONTRIBUTING.md` の 4.）。
+YAML の 1 行目は `# template_version: 0.3.0`（0.2.0 で書いた設計書は 0.2.0 のまま）、2 行目が yaml-language-server の modeline です（`templates/CONTRIBUTING.md` の 4.）。
 
 ## 2. 縮小 Lite の印
 
@@ -71,6 +71,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `catalog_refs` | ケーススタディの行 | ケーススタディの一覧表の行（コミットつき）。名前と型の正はそちら。記入例ではすべての行に書く（`tools/casestudy_check.py`）。同じ ID を 2 つの行から参照しない。組織の名前空間の行は ORG の行を参照する | `id`（列なし） | `templates/casestudy-mapping.md` の 1.、v0-columns.md の 1. #1、PR #37 の独立点検 | 手で書く（却下の行も） |
 | `catalog_refs_reason` | 一覧表に行が無い理由 | `catalog_refs: []` のときの理由（スキーマで必須） | なし | PR #37 の独立点検、author-proposal（#3） | 手で書く（却下の行も） |
 | `registered_ref` | 登録の参照 | IANA に登録された名前を使うときの登録の参照 | `source_kind`・`source`・`url`・`is_custom`（一部） | slide:p02-name-categories、IANA JWT Claims registry | 手で書く |
+| `idp_defined` | IdP が決めた名前 | 名前を決めたのが組織ではなく IdP の製品であること（Entra の `tid`・`oid`、Okta の `uid`・`cid`、Cognito の `token_use`・`cognito:groups`、Keycloak の `realm_access` など）。`{idp: <catalog_answers.yaml の idp の name>}`。入口がその IdP のトークンから読み、名前のまま下流へ渡さない行に書く。名前空間なしの未登録名でも L1b が error にしない条件は 3.5 | `source_kind`（一部） | slide:p03-entra-oid-tid、slide:p03-cognito-token-use、slide:p03-absorb-idp-differences、RFC 7519 §4.3。名前ごとの出どころ（IdP の文書の URL と確かめた日）は `tools/claim_lint/idp_claims.yaml` | Full のみ |
 | `type` | 型 | 1 つの値（配列なら要素）の JSON の型。1 つに固定する | `value_type`（同じ） | slide:p04-type、slide:p11-registry-fields | 手で書く（却下の行も） |
 | `shape` | 形 | 単一・配列・空白区切りの文字列（scope）。受け手が読み方をずらさない。配列と空白区切りは `max_items` が必須（スキーマ）。空白区切りの `max_bytes` は文字列全体の上限 | `multiplicity`（一部） | slide:p04-shape、slide:p02-scope、RFC 9068 §2.2.3（scope の形は RFC 8693 §4.2 に委ねている）、RFC 8693 §4.2 | 手で書く |
 | `allowed_values` | 形式と許容値 | 正規表現・列挙・最小・最大・形式 | `comparison`・`vocabulary`（列なし） | slide:p11-registry-fields（「形式・許容値」）、NIST SP 800-162 §2.4.2（スライドの引用） | Full のみ |
@@ -218,10 +219,12 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `purpose` | 役割 | 何のためのトークンか | #3 の本文（トークン目録） | 手で書く |
 | `issuer` | 発行者 | 誰が発行するか | #3 の本文 | 手で書く |
 | `aud` | 宛先 | 誰に向けたものか | #3 の本文、RFC 7519 §4.1.3 | 手で書く |
+| `audience_claim` | aud の代わりに確かめるクレーム | IdP の AT が aud を持たないとき、受け手が宛先の確認に使うクレームの名前（Cognito の AT の `client_id`）。`required_claims` にその名前を書き、`aud` は書かない。IdP ごとに使える名前は `tools/claim_lint/idp_claims.yaml` の `audience_claim` に固定してある。L27 が読む（3.5） | Amazon Cognito Developer Guide「Verifying JSON web tokens」の Verify the claims（2026-11-25 に確認）、slide:p03-cognito-token-use | Full のみ |
 | `holder` | 持つ者 | 誰が持つか | #3 の本文 | 手で書く |
 | `format` | 形式 | jwt・opaque | #3 の本文、slide:p01-self-contained-vs-reference | 手で書く（却下の行も） |
 | `subject_type` | sub の種類 | public・pairwise | slide:p09-pairwise-identifiers、OpenID Connect Core 1.0 §8 | Full のみ |
-| `typ` | typ | ヘッダーの typ（at+jwt・txntoken+jwt・logout+jwt など） | slide:p01-validation-order、RFC 9068 §2.1 | 手で書く |
+| `typ` | typ | ヘッダーの typ（at+jwt・txntoken+jwt・logout+jwt など）。ヘッダーの値だけを書く（説明の文を入れない）。発行者がヘッダーに typ を出さない種別は `(absent)` と書く（Cognito の AT のヘッダーは kid と alg だけ） | slide:p01-validation-order、RFC 9068 §2.1 | 手で書く |
+| `kind_discriminator` | 種類を区別するペイロードの値 | ヘッダーの typ が同じ（か、無い）ほかの種類のトークンと、ペイロードのどの値で区別するか。IdP が typ を決めていて設計で選べないときに書く。要素は `{claim, value}`（その値であること）、`{claim, absent: true}`（無いこと）、`{claim: aud}`（宛先の列 `aud` どうしが重ならないこと）のどれか。L17 が読む（3.5） | RFC 8725 §3.12（必須クレームの値・aud を変えて検証の規則を排他にする）、slide:p03-confusing-differences | Full のみ |
 | `alg_allowlist` | 許可する alg | 許可リスト。鍵ごとに 1 つ | slide:p01-dangerous-header-params、RFC 8725 §3.1 | 手で書く |
 | `issuers` | 許可する発行者 | 許可する `iss` と、そのメタデータの `jwks_uri` | slide:p00-incident-signature-valid、slide:p01-key-rotation-jwks | 手で書く |
 | `key_source` | 鍵の取得元 | 鍵はどこから取るか。ヘッダーの jku・x5u・jwk・x5c はたどらず信頼しない | slide:p01-key-rotation-jwks、slide:p01-dangerous-header-params | 手で書く |
@@ -256,7 +259,7 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 
 ### 3.3 発行方式の選択（`token_types.yaml` の `issuance_profile`）
 
-どれも `{value, rationale, refs}` の形です（`forwarded_cert_header` を除く）。値ごとに台帳で必要になるものは 7. です。
+どれも `{value, rationale, refs}` の形です（`forwarded_cert_header` を除く）。値ごとに台帳で必要になるものは 7. です。IdP が複数あり、ある IdP だけ値が違うときは、その項目に `exceptions`（`[{idp, value, rationale, refs}]`。`idp` は `catalog_answers.yaml` の `idp` の name、`value` は同じ語彙）を足します（#58。3.5）。
 
 | 列 | 見出し | 意味 | 根拠 | 縮小 Lite |
 | --- | --- | --- | --- | --- |
@@ -281,20 +284,139 @@ YAML の 1 行目は `# template_version: 0.2.0`、2 行目が yaml-language-ser
 | `from` | 送り手 | | slide:p06-narrow-downstream | 生成 |
 | `to` | 受け手 | | slide:p06-narrow-downstream | 生成 |
 | `kind` | ホップの種類 | entry・service・exchange・reissue・db_connection・broker_connection・browser | slide:p06-edge-exchange、slide:p07-lifetime-mismatch | 生成 |
-| `upstream` | 上流のホップ | 絞り込みを比べる相手 | slide:p06-narrow-downstream | 生成 |
+| `upstream` | 上流のホップ | 絞り込みを比べる相手。ホップの ID を 1 つ、または配列で複数（IdP ごとの AT を受けて 1 つの内部トークンに作り直すホップ。#58）。L16 は上流の 1 つずつと比べる | slide:p06-narrow-downstream、slide:p06-edge-exchange | 生成 |
 | `token_type` | 運ぶトークン | トークン目録の ID（トークンを渡さないホップは null） | #3 の本文（ホップ） | 生成 |
 | `aud` | aud | そのホップのトークンの宛先（resource indicator で絞る） | slide:p06-narrow-downstream、RFC 8707 §2 | 生成（交換・作り直しのホップは手で書く） |
 | `scope` | scope | そのホップの scope | slide:p06-narrow-downstream | 生成（交換・作り直しのホップは手で書く） |
 | `max_lifetime` | 寿命 | そのホップのトークンの寿命。Txn-Token は元より長くてよい（仕様）ので、その場合は `narrowing_exception` に書く | slide:p06-narrow-downstream、draft-ietf-oauth-transaction-tokens-11 §6 | 生成（交換・作り直しのホップは手で書く） |
 | `custom_claims` | 運ぶ独自クレーム | 台帳の行の ID | slide:p06-narrow-downstream | 生成（交換・作り直しのホップは手で書く） |
+| `added_claims` | 作り直しで足すクレーム | `custom_claims` のうち、上流のトークンに無く、作り直し・交換を担うサービス（`exchanger`）が新しいトークンに足すもの。`{claim, source, reason}` に、`source: external_source`（トークン以外の出どころ。`system` に社員台帳・DB・API の名前）か `source: upstream_claims`（上流のクレームから導く。`from` に台帳の行の ID）を書く。L16 が「上流に無い独自クレーム」から除くのは、ここに書いて条件を満たすものだけ（3.5） | slide:p06-edge-exchange、slide:p03-absorb-idp-differences、author-proposal（#58） | 手で書く（作り直しのホップ） |
 | `authorization_details` | 運ぶ authorization_details | 宛先に合わせて絞った type | RFC 9396 §9.1、slide:p05-coarse-fine-layers | 生成（交換・作り直しのホップは手で書く） |
 | `exchanger` | 交換を担うサービス | 交換・作り直しを担うサービス（そのまま渡すなら null） | slide:p06-narrow-downstream、slide:p06-edge-exchange | 生成（交換・作り直しのホップは手で書く） |
 | `validates` | 受け手の検証 | 手元で検証するか問い合わせるかと、確かめること | slide:p08-revocation-propagation、slide:p06-validation-split | 生成 |
 | `connection_max_lifetime` | 接続の寿命 | DB・ブローカーの接続の寿命（トークンより長く生きる） | slide:p07-lifetime-mismatch、v0-columns.md の 1. #13 | 手で書く |
 | `forwarded_headers` | 転記するヘッダー | ヘッダーに写すクレームと、入口で同名を捨てるか、書ける者、符号化（L8） | slide:p06-header-forwarding | 手で書く |
 | `narrowing_exception` | 絞り込みの例外 | 上流より長くする・aud を置き換える理由（10 字以上）。文字列は Txn-Token の寿命の理由。オブジェクトは `aud`（`aud_replacement` と組で）と `max_lifetime`（Txn-Token だけ）。scope・authorization_details・独自クレームは広げられず、例外も書けない | draft-ietf-oauth-transaction-tokens-11 §6、slide:p06-narrow-downstream | 手で書く |
+| `aud_mapping` | 上流の宛先との対応 | 作り直しのホップで、発行者が変わって宛先の名前が上流と違うとき、このホップの aud の値を、上流のどの値が認めているか。`{upstream, aud, via, value}`：`via: aud` は上流の aud の値（Entra の `api://orders` など）、`via: scope` は上流の scope の値（aud が全 API で共通の IdP、aud の無い IdP）。L16 は `value` がその上流のホップの aud・scope にあることを確かめる | slide:p06-narrow-downstream、author-proposal（#58） | 手で書く（作り直しのホップ） |
 | `aud_replacement` | aud の置き換え | トークン交換（`kind: exchange`）のホップで、aud をホップの行き先の 1 つの宛先に替える（置き換えによる絞り込み）。上流の aud に交換を求めるサービスがあり、`narrowing_exception.aud` に理由が要る。作り直しのホップでは使えない（L16） | slide:p06-narrow-downstream、RFC 8693 §2.1 | 手で書く（交換のホップ） |
 | `note` | 注記 | | author-proposal（#3） | Full のみ |
+
+### 3.5 複数の IdP と、入口での作り直し（#58）
+
+パイロット（#9）のシナリオ B（IdP が 5 つ、入口が IdP の AT を検証して内部トークンに作り直す）で、書き手は台帳に書けないものを回避策で書き、機械の検査が走らない箇所ができました（`research/template-design/pilot.md` の 6.・7.）。0.3.0 で、次の書き方を足しました。書き直した例は [`tools/tests/fixtures/claim_lint/pilot-b-migrated/`](../../tools/tests/fixtures/claim_lint/pilot-b-migrated/)（パイロットの設計書を `migrate.py` で写したもの。パイロットの記録そのものは書き換えていない）です。
+
+#### 設計書の IdP を複数書く（`catalog_answers.yaml` の `idp`）
+
+`idp` は、1 つの IdP なら今までどおりの対応（`{name, version, …}`）、複数なら対応の配列で書きます。配列の要素には、その IdP が出すトークン種別（`token_types`：トークン目録の ID）を書きます。ID トークンのように複数の IdP が出す種別は、それぞれの要素に書きます。
+
+```yaml
+idp:
+  - {name: keycloak, version: "26.8", token_types: [KC_AT, ID_TOKEN]}
+  - {name: entra, version: "v2.0 エンドポイント", token_types: [ENTRA_AT, ID_TOKEN]}
+  - name: cognito                      # 一覧あり・カタログにない IdP は、今までどおり trigger_list を書く
+    token_types: [COGNITO_AT, ID_TOKEN]
+    trigger_list_source: {url: "https://…", verified_on: "2026-11-25"}
+    trigger_list: [{trigger: TokenGeneration_HostedAuth, events: [I01]}]
+```
+
+- R3 は IdP ごとに契機の一覧を確かめます（指摘の対象は `idp[<name>]`。1 つの対応で書いた設計書では今までどおり `idp`）。採用した AT・ID トークンの種別は、どれかの IdP の `token_types` に書きます（どこにも無いと error。IdP ごとの検査がその種別を見なくなるため）。AT の種別は IdP ごとに分けます（2 つ以上の IdP に書くと warn）。種別は、それを出す IdP の要素に書きます（目録の `issuers` の `iss` が、その IdP のほかの種別と合わないと warn）。
+- R3b と L2 は、IdP ごとに、その IdP の `token_types` に載るクレームだけを見ます。R3b の `hook_checked` は、IdP が複数なら IdP の名前を含む文か、`{auth0: "…"}` のような IdP ごとの対応で書きます（Keycloak について確かめた文は、Auth0 の確認にならない）。
+- Lite の既定の回答の引き継ぎ（`inherit: idp-default`）は、IdP が 1 つの設計書だけで使えます（止める設定が IdP ごとに違うため）。
+- `claim_lint drift`（Keycloak の設定との比較）は、`keycloak` の要素の `token_types` だけを比べます。
+
+#### 組織が自分で作る発行者（`kind: self_built`）
+
+製品ではない発行者（組織の STS、内部トークンを作る入口など）は、`idp` の要素に `kind: self_built` を書きます（パイロットのシナリオ C の迷い 5）。契機の一覧を決めるのは設計書なので、`trigger_list` に発行者が受ける grant・要求の全項目を書き、`trigger_list_source` には公開の URL の代わりに、一覧を定める文書（`document`：設計書の節・仕様書のパスか名前）と、決めた・確かめた日（`verified_on`）を書きます。まだ作っていない発行者は `planned: true` を足します。存在しない URL を書く必要はありません。R3b（フックが呼ばれるか）と L2（製品が書き換えを許さないクレーム）は、この発行者では見ません。製品の IdP を別の名前で self_built と書くと、その 2 つが黙るので、名前が製品の名前を語として含む（`auth0-tenant` など）と warn です。
+
+```yaml
+idp:
+  - name: org-sts
+    kind: self_built
+    token_types: [AGENT_AT]
+    trigger_list_source: {document: "design.md の 4.（STS が受ける grant の一覧）", verified_on: "2026-11-25", planned: true}
+    trigger_list:
+      - {trigger: "grant_type=urn:ietf:params:oauth:grant-type:token-exchange", events: [I06]}
+```
+
+#### IdP が決めた名前を、入口だけが読む行として書く（`idp_defined`）
+
+入口が照合・名寄せに使う IdP 固有のクレームは、組織のクレームの `upstream_issuer.source_attribute` やホップの `validates.checks` の文に埋めず、台帳の行にします。行にすると、`on_missing`・`identifier_properties`（`usage: identifier` ならスキーマで必須）・`enforced_at` が付き、IdP の AT の `required_claims` と、`render` が作る受け手向けの JSON Schema に反映されます。
+
+L1b は、名前空間なしの未登録名を error にします。`idp_defined` の行は、次のすべてを満たすときだけ info にします。1 つでも欠けると error のままです。
+
+1. `idp_defined.idp` が `catalog_answers.yaml` の `idp` にある
+2. 名前が `tools/claim_lint/idp_claims.yaml` の、その IdP の一覧にある（一次資料で確かめた名前だけを、URL と確かめた日つきで固定している。一覧にない名前は、文書で確かめてから一覧に足す PR を出す。草案の名前の `draft_claims.yaml` と同じ扱い）
+3. `carried_in` が、その IdP が出す AT・ID トークンの種別だけである（内部トークンなど下流の種別に、IdP の名前のまま載せない）
+4. どのホップも、その IdP のトークン以外で運ばず、ヘッダーにも転記しない
+5. `consumers` のすべてが、その種別を入口のホップ（`kind: entry`）で受け取り、組織のトークンに作り直す入口（reissue・exchange のホップの `exchanger`）である。ID トークンに載る行では、その IdP のトークンを持つクライアント（BFF。ID トークンの `aud` の名前か、その IdP の AT を運ぶホップの `from`）も受け手にできる。IdP の AT を直接受け取るサービス（入口の無い設計の API）が IdP の名前を読む行は、この列では書けない（今までどおり、組織の名前空間に写す）
+
+同じ名前を 2 つの IdP が別の形で定めている場合（Entra の `scp` は空白区切りの文字列、Okta の `scp` は配列）は、IdP ごとに行を分けます。「同じ名前の行は型と意味をそろえる」の検査は、`idp_defined` の行では同じ IdP の中だけで行います。
+
+確かめた IdP と名前（2026-11-25。詳細は `idp_claims.yaml`）：
+
+| IdP | 一覧にある名前 | 出どころ |
+| --- | --- | --- |
+| entra | `tid`・`oid`・`scp`・`ver`・`idp`・`wids`・`hasgroups`・`uti`・`appid`・`appidacr`・`azpacr`・`acrs`・`xms_cc`・`aio`・`rh`・`unique_name` | Microsoft identity platform「Access token claims reference」 |
+| okta | `cid`・`uid`・`scp`・`ver` | Okta Developer「OpenID Connect & OAuth 2.0 API」の Access token |
+| cognito | `token_use`・`cognito:groups`・`username`・`device_key`・`version`・`origin_jti`・`event_id` | Amazon Cognito Developer Guide「Understanding the access token」（`version`・`event_id` は見本のペイロードにあるだけで、説明の項は無い） |
+| keycloak | `realm_access`・`resource_access`・`typ`（ペイロード） | 文書ではなく実測（26.8.0 の新しいレルムの既定のマッパーと発行したトークン）。`typ` の値（Bearer・ID）は Keycloak のソース（26.8.0 のタグの `TokenUtil.java`）で読んだ |
+| auth0 | `gty`・`permissions`・`org_id`・`org_name` | Auth0 Docs「Access Token Profiles」（https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles ）。Actions で足す独自クレームは名前空間つきなので、この列は要らない |
+
+Entra のグループの超過の印（`_claim_names`・`_claim_sources`）は IANA の登録名（OpenID Connect Core 1.0 §5.6.2）なので、`registered_ref` で書きます。
+
+L74（warn）は、ホップの `validates.checks` が、そのホップのトークンを出す IdP の一覧にある名前を名指ししているのに、台帳に行が無いことを拾います（パイロットの指摘 B-R1 F01・B-R2 R2-03 に当たる欠け）。拾えるのは、IdP を `token_types` つきで宣言していて、名前が一覧にあり、検証の文にその名前がそのまま書いてある場合だけです。ふつうの語として出る idp・ver・version・username は探しません（`tools/claim_lint/RULES.md` の L74）。
+
+#### 入口で作り直すホップ（`upstream` の配列・`added_claims`・`aud_mapping`）
+
+IdP ごとの AT を受けて 1 つの内部トークンを作るホップは、`upstream` に入口のホップを配列で書きます。L16（下流ほど絞る）は、上流の 1 つずつと aud・scope・authorization_details・寿命・独自クレームを比べます。
+
+```yaml
+- id: H7
+  from: gateway
+  to: orders
+  kind: reissue
+  upstream: [H2, H3, H4, H5, H6]          # IdP ごとの入口のホップ
+  token_type: INTERNAL_TOKEN
+  aud: [orders]
+  custom_claims: [C-roles, C-department]
+  added_claims:
+    - {claim: C-roles, source: upstream_claims, from: [C-kc-realm-access, C-groups, C-cognito-groups, C-auth0-roles],
+       reason: IdP ごとのロール・グループを、入口が組織のロールの語彙に替える}
+    - {claim: C-department, source: external_source, system: 社員台帳（人事）, reason: 部署は IdP の AT に無く、入口が社員台帳から引く}
+  aud_mapping:
+    - {upstream: H3, aud: orders, via: aud, value: "api://orders"}   # Entra は宛先の名前が違う
+    - {upstream: H4, aud: orders, via: scope, value: orders}        # Okta の aud は全 API で共通
+  exchanger: gateway
+```
+
+- `added_claims` を書けるのは、新しいトークンを作るホップ（`kind` が reissue・exchange で `exchanger` がある）だけです。書いたクレームは `custom_claims` にあり、台帳でそのホップの種別に載る行でなければなりません。`upstream_claims` の `from` は、上流のホップの `custom_claims` にある行です。どれかの上流が `from` を 1 つも運ばなければ warn です（その IdP の利用者では値の出どころが無い）。条件を欠くと、今までどおり「独自クレームが上流に無い」の error です。
+- `aud_mapping` で対応づけられるのは、ホップの行き先（`to`）と同じ aud だけです（1 つの上流の値で、いくつもの宛先を足せない）。対応づけは info に出ます。権限のクレーム（roles・groups・scope など）を `external_source` で足すと warn です。
+- `aud_mapping` は作り直しのホップだけで使えます。トークン交換のホップで aud を替えるときは、今までどおり `aud_replacement` と `narrowing_exception.aud` です。
+- 発行されたトークンで同じことを確かめる実行テスト（`tools/runtime_tests/narrowing.py`）は、上流が 1 つの前提のままです（この版では変えていない）。
+
+#### ヘッダーの typ が同じ種別（`kind_discriminator`）と、aud の無い AT（`audience_claim`）
+
+- **typ**：`typ` の列にはヘッダーの値だけを書きます。Keycloak と Entra は、AT と ID トークンのヘッダーの typ がどちらも `JWT` です（Entra は文書で「always JWT」。Keycloak は実測）。Cognito の AT のヘッダーには typ がありません（`(absent)` と書く）。L17 は、種類の違う種別が同じ typ を使うと error にします。同じ typ の種別のすべてに `kind_discriminator` があれば、L17 は種類の違う組ごとに、宣言から排他と言えるかを見ます：同じクレームに別の `value`（その種別に載る台帳の行があり、`on_missing` が拒否で、値を行の `allowed_values.enum` か `value_vocabulary.values` に書いてあるもの。`iss` は種別の `issuers` にある値。時刻・乱数のクレームは使えない）、片方が `absent`（その種別の `required_claims` にも台帳の行にも無いもの）、重ならない `aud`。すべての組で言えれば info、言えない組が 1 つでもあれば error のままです（列を書いただけでは下がりません）（RFC 8725 §3.12 は、明示的な typ のほかに、必須クレームの値・aud・鍵・発行者を変える方法を挙げ、新しい用途には typ を勧めている）。`(absent)` どうしも同じ typ として扱います。typ の無い種別の検証が、typ のある別の種類のトークンを受けないことは、機械では見ていません。
+- **aud の無い AT**：Cognito の AT は、リソースの束縛を求めないかぎり aud を持たず、`client_id` を持ちます。その種別には `audience_claim: client_id` を書き、`required_claims` に `client_id` を入れます（`aud` は入れない）。L27 が aud の欠けを error にしないのは、その種別を出す IdP（`catalog_answers.yaml` の `idp` の `token_types`）のすべてについて `idp_claims.yaml` の `audience_claim` に同じ名前があり、その種別に aud の台帳の行もホップの aud も無いときだけです（リソースの束縛を求めた Cognito の AT は aud を持つので、aud を必須にする）。`typ: at+jwt` の種別では使えません（RFC 9068 §2.2 は aud を REQUIRED とする）。
+
+#### 発行方式の値の、IdP ごとの例外（`exceptions`）
+
+`issuance_profile` の各項目の `value` は設計書の既定で、ある IdP だけ違う値は `exceptions` に書きます（理由は `rationale`）。L62〜L64・L15 と `render` は、`value` か、どれかの例外の値が条件に当たれば、その選択から導かれる要件（7.）が要るものとして読みます（1 つの IdP でも選んでいれば要件が生じる、という保守的な読み方）。要件のうち発行方式そのものを見るもの（FAPI 2.0 の送信者制約、公開クライアントの PKCE など）は、`value` と例外の値のすべてが満たすときだけ合格です。設計書の IdP のすべてに例外を書くと error です（`value` を使う IdP が無いので、`value` を変える）。`exceptions` の `idp` が `catalog_answers.yaml` の `idp` に無い、値が `value` と同じ、同じ IdP が 2 回ある、は L62 の warn です。IdP ごとに発行方式を丸ごと分ける書き方（`issuance_profile` を IdP の数だけ持つ）は採りませんでした。パイロットで違ったのは 1 項目だけで、丸ごと分けると同じ値と理由を IdP の数だけ書くことになるためです。
+
+#### 0.2.0 からの移行
+
+足したのは任意の列と、`upstream`・`idp` に配列の書き方を許す変更だけです。0.2.0 で書いた設計書（記入例のシナリオ A・B、パイロットの 2 つの設計書）は、書き換えずに検査を通り、指摘も変わりません（`tools/tests/test_claim_lint_multi_idp.py`）。新しい書き方を使うときの手順は次のとおりです。
+
+| 今の書き方（回避策） | 0.3.0 の書き方 |
+| --- | --- |
+| `idp` に主な IdP を 1 つ書き、ほかは `outside_enumeration.searched` に URL を書く | `idp` を配列にし、IdP ごとに `token_types` を書く。R3 が求めるもの（Cognito の `trigger_list`、Entra・Okta の文書を探した記録）を IdP ごとにそろえる |
+| IdP 固有のクレームを `upstream_issuer.source_attribute` と `validates.checks` の文に書く | `idp_defined` の行を足し、`on_missing`・`enforced_at`（識別子は `identifier_properties`）を書く。拒否する名前を IdP の AT の `required_claims` に足す |
+| 作り直しのホップの `upstream` を外し、`note` に理由を書く | `upstream` に入口のホップを配列で書き、`added_claims` と、必要なら `aud_mapping` を書く |
+| aud の無い AT の `required_claims` を書かない | `audience_claim` を書き、`required_claims` を書く |
+| `typ` の欄に区別の仕方の文を書く | `typ` をヘッダーの値に戻し、`kind_discriminator` を書く |
+| IdP ごとの例外を `rationale` の文に書く | その項目に `exceptions` を足す |
+
+1 行目の `# template_version` は、新しい列を使うときに 0.3.0 に変えます。
 
 <a id="slide-134-map"></a>
 ## 4. スライド 134 の 12 項目と台帳の列

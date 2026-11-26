@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""claim_lint semantic rules (#6): L1a, L1b, L2-L9, L15-L18, L21-L23, L25, L27, L31, L37, L43, L62-L73.
+"""claim_lint semantic rules (#6): L1a, L1b, L2-L9, L15-L18, L21-L23, L25, L27, L31, L37, L43, L62-L73, and L74 (#58).
 
 Each rule reads the declarations of the design (claims.yaml, token_types.yaml, hops.yaml, catalog_answers.yaml and the
 claim_request_*.md files) and reports what contradicts them. The rules see declarations only: whether a consumer really
@@ -29,6 +29,7 @@ SEV = {
     'L62': WARN, 'L63': WARN, 'L64': WARN, 'L65': ERROR, 'L66': WARN, 'L67': WARN,
     'L68': WARN, 'L69': WARN, 'L70': WARN, 'L71': WARN, 'L72': ERROR,  # #4: the slide-142 gate, required in Lite too; 0 false positives on scenario A (4 claims)
     'L73': WARN,
+    'L74': WARN,  # #58: new rule, starts as warn (RULES.md)
 }
 LITE_WARN = {'L22'}  # issue #6: L22 is warn in Lite
 
@@ -76,6 +77,9 @@ class Ctx:
         self.iana = {x['name']: x for x in (_load(os.path.join(HERE, 'iana_jwt_claims.yaml')).get('claims') or [])}
         self.drafts = _load(os.path.join(HERE, 'draft_claims.yaml')).get('drafts') or {}
         self.reserved = _load(os.path.join(HERE, 'idp_reserved.yaml')).get('idps') or {}
+        self.idp_claims = _load(os.path.join(HERE, 'idp_claims.yaml')).get('idps') or {}  # #58: names an IdP product defines
+        from . import coverage  # the IdPs of the design: one mapping or a list (#58)
+        self.idps = coverage.idp_entries(self.answers)[0]
         self.caps = _load(caps_path or os.path.join(HERE, 'lifetime_caps.yaml')).get('caps') or {}
         self.effects = _load(os.path.join(root, 'templates', 'registry', 'issuance_effects.yaml')).get('effects') or []
         self.kinds = [k['id'] for k in (_load(os.path.join(catalog_dir, 'token_kinds.yaml')).get('kinds') or [])]
@@ -104,15 +108,30 @@ class Ctx:
     def claims_in(self, tid):
         return [c for c in self.adopted_claims() if tid in (c.get('carried_in') or [])]
 
-    def idp(self):
-        idp = self.answers.get('idp')
-        return str(idp.get('name') if isinstance(idp, dict) else idp or '').lower()
+    def issuers_of(self, tid):
+        """The IdP entries that issue the token type: the entries whose token_types name it; a single IdP without
+        token_types issues every access token and ID token of the design."""
+        named = [e for e in self.idps if e['token_types'] is not None and tid in e['token_types']]
+        if named or len(self.idps) != 1 or self.idps[0]['token_types'] is not None:
+            return named
+        return list(self.idps) if (self.tt.get(tid) or {}).get('kind') in IDP_ISSUED else []
 
     def db_services(self):
         return {str(h.get('to', '')).lower() for h in self.hops if h.get('kind') in ('db_connection', 'broker_connection')}
 
     def writers(self, c):
         return list(c.get('authoritative_writer') or []) + list(c.get('modifiers') or [])
+
+
+IDP_ISSUED = ('access_token', 'id_token')  # token kinds an IdP product issues to the organization's clients
+
+
+def upstreams(hop):
+    """The upstream hop IDs of a hop: `upstream` is one ID or, from #58, a list of IDs (several IdPs, one reissue)."""
+    u = (hop or {}).get('upstream')
+    if u is None:
+        return []
+    return list(u) if isinstance(u, list) else [u]
 
 
 def _against(e):
@@ -166,13 +185,73 @@ def _draft_defined(c, drafts):
     return m.group(1)
 
 
+def _idp_defined_problem(x, c):
+    """None when the row may keep a name that an IdP product defines (#58): the IdP is declared, the name is pinned for it
+    in idp_claims.yaml, the row is carried in that IdP's access / ID token types only, no hop passes it on in another token
+    or in a header, and every consumer receives one of those token types."""
+    idp, name = str((c.get('idp_defined') or {}).get('idp') or ''), c.get('name')
+    ent = next((e for e in x.idps if e['name'] == idp), None)
+    if ent is None:
+        return f'idp_defined.idp の {idp} が catalog_answers.yaml の idp にない'
+    if name not in ((x.idp_claims.get(idp) or {}).get('claims') or []):
+        return (f'{name} は tools/claim_lint/idp_claims.yaml の {idp} の一覧にない。IdP の文書で名前を確かめ、出どころと確かめた日を付けて'
+                '一覧に足す（一覧にない名前は組織の名前空間の下に置く）')
+    carried = c.get('carried_in') or []
+    for t in carried:
+        tt = x.tt.get(t) or {}
+        if tt.get('kind') not in IDP_ISSUED or (ent['token_types'] is not None and t not in ent['token_types']):
+            return (f'{t} は IdP {idp} が出す AT・ID トークンの種別でない。IdP が決めた名前のまま、入口より下流のトークンに載せない'
+                    '（組織の名前空間のクレームに写す）')
+    for h in x.hops:
+        if c.get('id') in (h.get('custom_claims') or []) and h.get('token_type') not in carried:
+            return f"ホップ {h.get('id')} が、IdP {idp} のトークンでない {h.get('token_type')} で運んでいる（下流へ名前のまま渡さない）"
+        if any(fh.get('claim') == c.get('id') for fh in h.get('forwarded_headers') or []):
+            return f"ホップ {h.get('id')} がヘッダーに転記している（下流へ名前のまま渡さない）"
+    # (5) only the entry reads it: every consumer receives the IdP's token on an entry hop and mints the organization's
+    # token itself (the exchanger of a reissue / exchange hop). A service that reads the IdP's name directly from the
+    # IdP's token keeps the error (PR #70 check: scenario A's API reading realm_access must not pass)
+    entries = {_service_name(h.get('to')) for h in x.hops if h.get('token_type') in carried and h.get('kind') == 'entry'}
+    minters = {str(h.get('exchanger')) for h in x.hops if _minted(h)}
+    # for an ID token the entry is the client it was issued to (the relying party, a BFF): a name of the token's aud, or
+    # the service that presents this IdP's access tokens (the `from` of a hop that carries one). A row carried in an access
+    # token too is held to the access token's condition for the API side
+    clients = set()
+    idts = [t for t in carried if (x.tt.get(t) or {}).get('kind') == 'id_token']
+    if idts:
+        mine = {t.get('id') for t in x.adopted_tts() if t.get('kind') == 'access_token'
+                and (ent['token_types'] is None or t.get('id') in ent['token_types'])}
+        clients = {_service_name(h.get('from')) for h in x.hops if h.get('token_type') in mine and h.get('kind') == 'entry'}
+        # a service that itself receives this IdP's access token on a hop (an API that forwards it further down) is not
+        # the client: it is held to the access token's condition (PR #70 re-check 3: orders forwarding KC_AT read realm_access)
+        clients -= {_service_name(h.get('to')) for h in x.hops if h.get('token_type') in mine}
+        clients |= {str(a) for t in idts for a in (x.tt.get(t) or {}).get('aud') or []}
+    strangers = [s for s in c.get('consumers') or [] if not (s in entries and s in minters) and s not in clients]
+    if strangers:
+        return (f"受け手 {'・'.join(strangers)} は、このクレームが載る種別（{'・'.join(carried)}）を入口のホップ（kind: entry）で受け取り、"
+                '組織のトークンに作り直す入口（reissue・exchange のホップの exchanger）ではない。IdP が決めた名前を読めるのは入口だけ'
+                '（ID トークンでは、その IdP のトークンを持つクライアント）')
+    return None
+
+
 def rule_l1b(x):
     declared = {n.get('namespace') for n in x.claims_doc.get('namespaces') or []}
     for c in x.adopted_claims():
         cid, ns = c.get('id'), c.get('namespace')
         x.count('L1b')
         if ns is None and c.get('name') not in x.iana:
-            if c.get('decision') == '既定どおり' and not c.get('consumers'):
+            if c.get('idp_defined'):
+                # a name the IdP product defines (Entra tid / oid, Okta uid / cid, Cognito token_use ...; #58): the entry
+                # reads it from the IdP's token. Pinned names only (idp_claims.yaml), and only inside the IdP's tokens
+                problem = _idp_defined_problem(x, c)
+                if problem is None:
+                    idp = c['idp_defined']['idp']
+                    src = ((x.idp_claims.get(idp) or {}).get('source') or {}).get('url', '')
+                    x.add('L1b', cid, f"IdP {idp} が決めた名前 {c.get('name')}（名前空間なし・未登録。tools/claim_lint/idp_claims.yaml、{src}）。"
+                                      f"{'・'.join(c.get('carried_in') or [])} にだけ載り、下流のトークンとヘッダーへは名前のまま渡さない。"
+                                      '一覧にある名前に組織の意味を載せていないかは、レビューで確かめる', INFO)
+                else:
+                    x.add('L1b', cid, f"未登録の名前 {c.get('name')} を idp_defined（IdP が決めた名前）として書いているが、条件を満たさない：{problem}")
+            elif c.get('decision') == '既定どおり' and not c.get('consumers'):
                 x.add('L1b', cid, f"IdP が既定で出す私的名 {c.get('name')}（名前空間なし・未登録）。名前を決めたのは IdP で、受け手は読まない"
                                   '（consumers が空）ので error にしない。読む受け手を足すなら組織の名前空間に写す', INFO)
             elif _draft_defined(c, x.drafts):
@@ -199,8 +278,12 @@ def rule_l1b(x):
                     x.add('L1b', cid, f"{t['id']} は iss {iss} を受け入れるが、このクレームの issuers にない。別の発行者が書いた同名のクレームを信じない")
     groups = {}
     for c in x.adopted_claims():
-        groups.setdefault((c.get('namespace'), c.get('name')), []).append(c)
-    for (ns, name), cs in groups.items():
+        # #58: a name that IdP products define (Entra scp is a space-delimited string, Okta scp an array) cannot be renamed
+        # by the design, so the rows of such a name are compared within one IdP only
+        own = c['idp_defined'].get('idp') if c.get('idp_defined') and c.get('namespace') is None \
+            and c.get('name') not in x.iana and _idp_defined_problem(x, c) is None else None
+        groups.setdefault((c.get('namespace'), c.get('name'), own), []).append(c)
+    for (ns, name, _own), cs in groups.items():
         if len(cs) > 1 and len({(c.get('type'), (c.get('description') or '').strip()) for c in cs}) > 1:
             x.add('L1b', '・'.join(c.get('id') for c in cs),
                   f"同じ名前 {(ns or '') + name} の行が {len(cs)} 行あり、型か意味（description）が違う。発行者ごとに意味が違うなら別の名前にする")
@@ -208,12 +291,18 @@ def rule_l1b(x):
 
 # ------------------------------------------------------------------ L2: IdP-reserved claims
 def rule_l2(x):
-    idp = x.idp()
+    for ent in x.idps:  # #58: every IdP of the design; with token_types, only the claims carried in that IdP's token types
+        if ent['kind'] == 'self_built':
+            continue  # the organization's own issuer: no product restriction to compare with
+        _l2_one(x, ent)
+
+
+def _l2_one(x, ent):
+    idp, scope = ent['name'], ent['token_types']
     block = x.reserved.get(idp)
     if not block:
-        if idp:
-            x.add('L2', 'idp', f'IdP {idp} の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。'
-                               'L2 は確かめていない（IdP モジュール #4 で手で確かめる）', INFO)
+        x.add('L2', ent['target'], f'IdP {idp} の、書き換えを許さないクレームの一覧が tools/claim_lint/idp_reserved.yaml にない。'
+                                   'L2 は確かめていない（IdP モジュール #4 で手で確かめる）', INFO)
         return
     imm = set(block.get('immutable') or [])
     pre = tuple(block.get('prefixes') or [])
@@ -221,6 +310,8 @@ def rule_l2(x):
     sup = tuple(block.get('suppress_only_prefixes') or [])
     src = (block.get('source') or {}).get('url', '')
     for c in x.adopted_claims():
+        if scope is not None and not scope & set(c.get('carried_in') or []):
+            continue
         n = c.get('name') or ''
         locked = n in imm or (n.startswith(pre) and n not in exc) if pre else n in imm
         suppress_only = bool(sup) and n.startswith(sup)
@@ -371,11 +462,17 @@ def rule_l7(x):
             if t.get('format') != 'jwt':
                 continue
             aud = set(t.get('aud') or [])
+            sev = None
             if aud and not aud & set(c.get('consumers') or []):
-                continue  # none of the claim's consumers receives this token type
+                # none of the claim's consumers is an audience of this token type. #58: a claim that the IdP defines is read
+                # by the entry, which a hop delivers the token to although aud names the API behind it (new part: warn)
+                if not (c.get('idp_defined') and any(h.get('token_type') == t['id'] and _service_name(h.get('to')) in (c.get('consumers') or [])
+                                                     for h in x.hops)):
+                    continue
+                sev = WARN
             x.count('L7')
             if not full_names(c) & set(t.get('required_claims') or []):
-                x.add('L7', c.get('id'), f"on_missing が拒否なのに、{t['id']} の required_claims にない（受け手の検証の設定で拒否できない）")
+                x.add('L7', c.get('id'), f"on_missing が拒否なのに、{t['id']} の required_claims にない（受け手の検証の設定で拒否できない）", sev)
 
 
 # ------------------------------------------------------------------ L8: headers copied from claims
@@ -450,9 +547,9 @@ def rule_l9(x):
 
 # ------------------------------------------------------------------ L15: refresh tokens of public clients, cnf
 def rule_l15(x):
-    ct = (x.profile_doc.get('client_type') or {}).get('value')
+    cts = _profile_values(x, 'client_type')  # value and the per-IdP exceptions (#58)
     for t in x.adopted_tts():
-        if t.get('kind') == 'refresh_token' and ct == 'public':
+        if t.get('kind') == 'refresh_token' and 'public' in cts:
             x.count('L15')
             rot = t.get('rt_rotation') or {}
             if not (rot.get('rotation') is True and rot.get('reuse_detection') == 'yes') and t.get('sender_constraint') not in ('dpop', 'mtls'):
@@ -513,13 +610,100 @@ def _aud_replacement_problem(h, up):
     return None
 
 
+AUTHORITY_NAMES = {'roles', 'groups', 'entitlements', 'scope', 'scp', 'permissions'}
+
+
+def _minted(h):
+    """The hop mints a new token (a reissue or an exchange with an exchanger); only such a hop can add or rename anything."""
+    return h.get('kind') in ('reissue', 'exchange') and not _empty(h.get('exchanger'))
+
+
+def _added_claims(x, h, ups, hid):
+    """added_claims (#58): organization claims that the upstream tokens do not carry and the exchanger adds when it mints
+    the new token, from a system that is not a token (external_source) or derived from upstream claims (upstream_claims).
+    Returns the claim IDs accepted; every entry that does not meet the conditions is an error and is not accepted."""
+    entries = h.get('added_claims') or []
+    if not entries:
+        return set()
+    if not _minted(h):
+        x.add('L16', hid, 'added_claims は、新しいトークンを作るホップ（kind が reissue・exchange で、exchanger がある）だけに書ける。'
+                          'そのまま渡すホップは値を足せない', ERROR)
+        return set()
+    ok, notes = set(), []
+    up_claims = set().union(*[set(u.get('custom_claims') or []) for u in ups]) if ups else set()
+    for a in entries:
+        cid = a.get('claim')
+        row = x.cid.get(cid) or {}
+        if cid not in (h.get('custom_claims') or []):
+            x.add('L16', hid, f'added_claims の {cid} が、このホップの custom_claims にない', ERROR)
+            continue
+        if row.get('decision') not in ADOPTED or h.get('token_type') not in (row.get('carried_in') or []):
+            x.add('L16', hid, f"added_claims の {cid} が、台帳でこのホップの種別（{h.get('token_type')}）に載る行でない", ERROR)
+            continue
+        if a.get('source') == 'upstream_claims':
+            src = a.get('from') or []
+            nowhere = [f for f in src if f not in up_claims]
+            if nowhere:
+                x.add('L16', hid, f"added_claims の {cid} の from の {'・'.join(nowhere)} が、どの上流のホップの custom_claims にもない", ERROR)
+                continue
+            for u in ups:
+                if (x.tt.get(u.get('token_type')) or {}).get('kind') != 'session' and not set(src) & set(u.get('custom_claims') or []):
+                    x.add('L16', hid, f"added_claims の {cid}（上流のクレームから導く）の from のどれも、上流（{u.get('id')}）が運ばない。"
+                                      'その経路では値の出どころが無い', SEV_WIDEN)
+            notes.append(f"{cid}（上流の {'・'.join(src)} から導く）")
+        else:
+            if _empty(row.get('source_system')):
+                x.add('L16', hid, f'added_claims の {cid} の台帳の行に source_system（値の出どころ）がない', ERROR)
+                continue
+            # a claim that decides access, added from outside the tokens, widens what the upstream token allowed: the
+            # source must be the one the registry row names, and roles / groups / scope / permissions are always reported
+            sysname, src_sys = str(a.get('system') or '').strip(), str(row.get('source_system') or '')
+            if row.get('name') in AUTHORITY_NAMES:
+                x.add('L16', hid, f"added_claims の {cid}（{row.get('name')}）は権限のクレーム。上流のトークンに無い権限を、トークン以外（{sysname}）から足す。"
+                                  '上流のクレームから導く（source: upstream_claims）か、足す理由と出どころをレビューで確かめる', SEV_WIDEN)
+            elif row.get('usage') == 'authz' and (len(sysname) < 4 or (sysname not in src_sys and src_sys not in sysname)):
+                x.add('L16', hid, f"added_claims の {cid} は認可に使うクレーム（usage: authz）なのに、system（{sysname}）が台帳の行の source_system"
+                                  f"（{src_sys}）と合わない。出どころを台帳と同じ名前で書く", SEV_WIDEN)
+            notes.append(f"{cid}（{a.get('system')}）")
+        ok.add(cid)
+    if notes:
+        x.add('L16', hid, f"上流のトークンに無い独自クレームを、作り直しで足す（added_claims）：{'、'.join(notes)}", INFO)
+    return ok
+
+
 def rule_l16(x):
     for h in x.hops:
-        up = x.hop.get(h.get('upstream'))
-        if not up:
-            continue
+        ups = [x.hop[u] for u in upstreams(h) if u in x.hop]
         hid = f"hop {h.get('id')}"
-        extra = sorted(set(h.get('custom_claims') or []) - set(up.get('custom_claims') or []))
+        if not ups:
+            if h.get('added_claims') or h.get('aud_mapping'):
+                x.add('L16', hid, 'added_claims・aud_mapping を書いたのに upstream が無い。比べる上流が無いので、絞り込み（L16）を確かめていない', SEV_WIDEN)
+            continue
+        added = _added_claims(x, h, ups, hid)
+        for m in h.get('aud_mapping') or []:
+            if h.get('kind') != 'reissue':
+                x.add('L16', hid, 'aud_mapping は作り直し（kind: reissue）のホップだけに書ける（交換のホップは aud_replacement）', SEV_WIDEN)
+                break
+            if m.get('upstream') not in upstreams(h):
+                x.add('L16', hid, f"aud_mapping の upstream {m.get('upstream')} が、このホップの upstream にない", SEV_WIDEN)
+        for up in ups:
+            _l16_against(x, h, up, hid, added)
+
+
+def _aud_mapped(h, up):
+    """aud values of a reissue hop that an aud_mapping entry ties to a value of this upstream hop's aud or scope (#58)."""
+    if h.get('kind') != 'reissue':
+        return set()
+    # the mapped aud must be the hop's destination (as for aud_replacement): one upstream value cannot authorize any
+    # number of audiences (PR #70 check)
+    return {m.get('aud') for m in h.get('aud_mapping') or []
+            if m.get('upstream') == up.get('id') and m.get('via') in ('aud', 'scope') and m.get('value') in (up.get(m['via']) or [])
+            and str(m.get('aud')) == _service_name(h.get('to'))}
+
+
+def _l16_against(x, h, up, hid, added):
+    if True:  # (indentation kept: the body below is the pre-#58 rule for one upstream hop)
+        extra = sorted(set(h.get('custom_claims') or []) - set(up.get('custom_claims') or []) - added)
         up_tt = x.tt.get(up.get('token_type'))
         if up_tt is not None and up_tt.get('kind') != 'session':
             x.count('L16')
@@ -529,14 +713,23 @@ def rule_l16(x):
         exchange_like = h.get('kind') in ('exchange', 'reissue') or (h.get('kind') == 'service' and h.get('token_type') != up.get('token_type'))
         txn_pass = kind == 'txn_token' and up.get('token_type') == h.get('token_type')
         if not exchange_like and not txn_pass:
-            continue
+            return
         if up_tt is None or up_tt.get('kind') == 'session':
-            continue
+            return
         x.count('L16.widen')
         exc = _narrowing_exceptions(h)
         dims = (('scope', 'scope'),) if txn_pass else (('aud', 'aud'), ('scope', 'scope'), ('authorization_details', 'authorization_details'))
         for k, label in dims:
             wide = sorted(set(h.get(k) or []) - set(up.get(k) or []))
+            if k == 'aud' and wide:
+                mapped = _aud_mapped(h, up)
+                used = [a for a in wide if a in mapped]
+                wide = [a for a in wide if a not in mapped]
+                if used:
+                    how = '、'.join(f"{m.get('aud')} ← {m.get('via')} の {m.get('value')}" for m in h.get('aud_mapping') or []
+                                   if m.get('upstream') == up.get('id') and m.get('aud') in used)
+                    x.add('L16', hid, f"aud の {'・'.join(map(str, used))} は上流（{up.get('id')}）の aud に無いが、aud_mapping で上流の値に対応づけた（{how}）。"
+                                      '入口が経路ごとにその値を確かめることは、レビューで確かめる', INFO)
             if not wide:
                 continue
             if k == 'aud' and h.get('aud_replacement') is True:
@@ -584,7 +777,140 @@ def rule_l17(x):
             typs.setdefault(t['typ'].lower(), []).append(t)
     for typ, ts in typs.items():
         if len({t.get('kind') for t in ts}) > 1:
-            x.add('L17', '・'.join(t['id'] for t in ts), f'種類の違うトークン種別が同じ typ（{typ}）を使う。typ で種類を分け、種類ごとに検証の規則を分ける')
+            _l17_same_typ(x, typ, ts)
+
+
+# claims whose value differs from token to token (times, random values, hashes): a required value of such a claim cannot
+# tell two kinds of token apart (re-check of PR #70)
+KD_VOLATILE = {'exp', 'iat', 'nbf', 'auth_time', 'updated_at', 'jti', 'nonce', 'at_hash', 'c_hash', 's_hash', 'sid'}
+
+
+def _norm_value(v):
+    return ('true' if v else 'false') if isinstance(v, bool) else str(v).strip()
+
+
+def _declared_values(row):
+    """The values a registry row says the claim can have (allowed_values.enum, value_vocabulary.values), normalized."""
+    vals = list((row.get('allowed_values') or {}).get('enum') or []) + list((row.get('value_vocabulary') or {}).get('values') or [])
+    return {_norm_value(v) for v in vals}
+
+
+def _kd_forms(t):
+    """kind_discriminator as {claim: ('value', v) | ('absent',) | ('aud', set of the row's aud)}; entries that say neither
+    are left out (returned second)."""
+    forms, vague = {}, []
+    for e in t.get('kind_discriminator') or []:
+        c = e.get('claim')
+        if c == 'iss' and 'value' in e:
+            # iss is compared like aud: as the set of issuers the token type accepts, not as the one value written here
+            # (PR #70 re-check 3: one of five accepted iss values made ID_TOKEN look apart from an access token)
+            forms[c] = ('iss', frozenset(_norm_value(i.get('iss')) for i in t.get('issuers') or []), _norm_value(e['value']))
+        elif 'value' in e:
+            forms[c] = ('value', _norm_value(e['value']))  # 1 and "1" are the same value
+        elif e.get('absent') is True:
+            forms[c] = ('absent',)
+        elif c == 'aud':
+            forms[c] = ('aud', frozenset(map(str, t.get('aud') or [])))
+        else:
+            vague.append(c)
+    return forms, vague
+
+
+def _forms_exclusive(fa, fb):
+    """The validation rules of two token types cannot both accept one token (RFC 8725 §3.12): on some claim, they require
+    different values, one requires a value (or its aud) and the other requires the claim to be absent, or both check aud
+    against sets that do not overlap."""
+    for c in fa.keys() & fb.keys():
+        p, q = fa[c], fb[c]
+        kinds = {p[0], q[0]}
+        if kinds == {'value'} and p[1] != q[1]:
+            return True
+        if 'absent' in kinds and len(kinds) == 2 and ('aud' not in kinds or (p if p[0] == 'aud' else q)[1]):
+            return True
+        if kinds == {'aud'} and p[1] and q[1] and not p[1] & q[1]:
+            return True
+        if kinds == {'iss'} and p[1] and q[1] and not p[1] & q[1]:
+            return True
+    return False
+
+
+def _kd_exclusive(a, b):
+    return _forms_exclusive(_kd_forms(a)[0], _kd_forms(b)[0])
+
+
+def _kd_grounded(x, t):
+    """The kind_discriminator entries that can carry the proof, and what is wrong with the others (PR #70 check): a
+    required value needs a registry row carried in the token type whose on_missing is 拒否 (the issuer sets it and the
+    consumer rejects without it); `absent` must not contradict the token type (required_claims, or a registry row carried
+    in it); {claim: aud} needs the aud column. Returns (forms, problems, contradictions)."""
+    forms, vague = _kd_forms(t)
+    problems = [f'{c} に、求める値（value）も「無いこと」（absent: true）もない' for c in vague]
+    contradictions, ok = [], {}
+    req = set(t.get('required_claims') or [])
+    for c, form in forms.items():
+        rows = [r for r in x.claims_in(t['id']) if c in full_names(r)]
+        if form[0] == 'absent':
+            if c in req or rows:
+                contradictions.append(f"{c} を「無いこと」（absent: true）としたが、この種別の"
+                                      f"{' required_claims ' if c in req else '台帳の行（' + rows[0].get('id', '') + ' の carried_in）'}にある")
+                continue
+        elif form[0] == 'aud':
+            if not form[1]:
+                problems.append('aud を書いたが、この種別の aud（宛先）の列が空')
+                continue
+        elif c in KD_VOLATILE:
+            problems.append(f'{c} はトークンごとに変わる値（時刻・乱数・ハッシュ）。決まった value で種類を区別できない')
+            continue
+        elif not rows:
+            problems.append(f'{c} が、台帳の行（carried_in に {t["id"]}）にない（発行者がその値を載せると言えない）')
+            continue
+        elif any(r.get('on_missing') != '拒否' for r in rows):
+            problems.append(f'{c} の on_missing が拒否でない（区別に使う値が無いトークンを、この種類として受けてしまう）')
+            continue
+        elif c == 'iss':
+            # the issuers the token type accepts are in the inventory: an iss value that is not among them proves nothing
+            if form[0] != 'iss' or form[2] not in form[1]:
+                problems.append(f"iss の value {form[2] if form[0] == 'iss' else form[1]} が、この種別の issuers の iss にない")
+                continue
+        elif any(form[1] not in _declared_values(r) for r in rows):
+            # the value must be one the registry row declares (re-check of PR #70: a made-up value on any claim that has
+            # a row turned the error into info)
+            problems.append(f'{c} の value {form[1]} が、台帳の行（{rows[0].get("id")}）の allowed_values.enum・value_vocabulary.values にない'
+                            '（発行者がその値を載せると、台帳が宣言していない）')
+            continue
+        ok[c] = form
+    return ok, problems, contradictions
+
+
+def _l17_same_typ(x, typ, ts):
+    ids = '・'.join(t['id'] for t in ts)
+    base = f'種類の違うトークン種別が同じ typ（{typ}）を使う。typ で種類を分け、種類ごとに検証の規則を分ける'
+    without = [t['id'] for t in ts if _empty(t.get('kind_discriminator'))]
+    if without:
+        hint = '' if len(without) == len(ts) else f"（kind_discriminator が無い種別：{'・'.join(without)}）"
+        x.add('L17', ids, base + hint)
+        return
+    # #58: the IdP fixes typ (Keycloak and Entra: JWT for access and ID tokens; Cognito: no typ), so the kinds are told
+    # apart by payload values. The error goes away only when the declarations prove every pair of different kinds apart;
+    # a kind_discriminator that does not discriminate leaves the error as it was (no downgrade of an error)
+    grounded = {t['id']: _kd_grounded(x, t) for t in ts}
+    for t in ts:
+        for msg in grounded[t['id']][2]:
+            x.add('L17', f"token_type {t['id']}", f'kind_discriminator の {msg}（矛盾）', ERROR)
+    unproven = [f"{a['id']}／{b['id']}" for i, a in enumerate(ts) for b in ts[i + 1:]
+                if a.get('kind') != b.get('kind') and not _forms_exclusive(grounded[a['id']][0], grounded[b['id']][0])]
+    notes = [f"{t['id']}：kind_discriminator の {p}" for t in ts for p in grounded[t['id']][1]]
+    if unproven:
+        x.add('L17', ids, base + f"（kind_discriminator の宣言からは、次の組を排他と言えない：{'、'.join(unproven)}。同じクレームに別の value、"
+                                 f"片方が absent、重ならない aud のどれかを両方の行に書く。RFC 8725 §3.12"
+                                 + (f"。使えない宣言：{'；'.join(notes)}" if notes else '') + '）')
+        return
+    for t in ts:
+        for p in grounded[t['id']][1]:
+            x.add('L17', f"token_type {t['id']}", f'kind_discriminator の {p}。この要素は区別に使えない', WARN)
+    x.add('L17', ids, f'種類の違うトークン種別が同じ typ（{typ}）を使うが、ペイロードの値と aud で区別する（kind_discriminator。'
+                      'RFC 8725 §3.12 の「必須クレームの値を変える」「aud を変える」）。typ は IdP が決め、設計では選べない。'
+                      'aud の列は自由記述なので、文字列が違っても同じ宛先を指していないかは、レビューで確かめる', INFO)
 
 
 def rule_l25(x):
@@ -596,6 +922,31 @@ def rule_l25(x):
             x.add('L25', f"token_type {t['id']}", 'key_source がない（鍵をどこからだけ取るか。ヘッダーの jku・x5u をたどらず、jwk・x5c を信頼しない：header_key_params: reject）')
 
 
+def _audience_claim_problem(x, t, ac, req):
+    if str(t.get('typ', '')).lower() == 'at+jwt':
+        return 'typ が at+jwt の種別は aud が REQUIRED（RFC 9068 §2.2）'
+    ents = x.issuers_of(t.get('id'))
+    if not ents:
+        return ('この種別を出す IdP の宣言なし。catalog_answers.yaml の idp に、この種別を token_types に持つ IdP を書く'
+                f'（tools/claim_lint/idp_claims.yaml の audience_claim に {ac} がある IdP だけ）')
+    # every IdP that issues the token type must be one whose access token has no aud: a type that an IdP with aud also
+    # issues keeps aud required (PR #70 check B1)
+    bad = [e['name'] for e in ents
+           if ((x.idp_claims.get(e['name']) or {}).get('audience_claim') or {}).get(t.get('kind')) != ac]
+    if bad:
+        return (f"この種別を出す IdP のうち {'・'.join(bad)} について、tools/claim_lint/idp_claims.yaml の audience_claim に {ac} がない"
+                '（種別を出す IdP のすべての AT が aud を持たないときだけ使える）')
+    if ac not in req:
+        return f'required_claims に {ac} がない'
+    # the token does have aud (Cognito: when the client asked for a resource binding)
+    has_row = [c.get('id') for c in x.claims_in(t.get('id')) if c.get('namespace') is None and c.get('name') == 'aud']
+    has_hop = [h.get('id') for h in x.hops if h.get('token_type') == t.get('id') and not _empty(h.get('aud'))]
+    if has_row or has_hop:
+        where = '・'.join(filter(None, [has_row and f"台帳の {'・'.join(has_row)}", has_hop and f"ホップ {'・'.join(has_hop)} の aud"]))
+        return f'この種別は aud を持つと宣言している（{where}）。aud を持つ AT（Cognito ではリソースの束縛を求めた AT）は aud を必須にする'
+    return None
+
+
 def rule_l27(x):
     rejected = {c.get('name') for c in x.claims if c.get('decision') == '却下' and c.get('namespace') is None}
     for t in x.adopted_tts():
@@ -605,6 +956,16 @@ def rule_l27(x):
         tid = f"token_type {t['id']}"
         req = set(t.get('required_claims') or [])
         miss = [n for n in ('exp', 'aud', 'iss') if n not in req]
+        ac = t.get('audience_claim')
+        if ac and 'aud' in miss:
+            # #58: an IdP whose access token has no aud (Amazon Cognito: client_id). Pinned per IdP in idp_claims.yaml
+            problem = _audience_claim_problem(x, t, ac, req)
+            if problem is None:
+                miss.remove('aud')
+                x.add('L27', tid, f'aud の代わりに {ac} で宛先を確かめる（audience_claim。この種別を出す IdP の AT は aud を持たない：'
+                                  'tools/claim_lint/idp_claims.yaml の audience_claim）', INFO)
+            else:
+                x.add('L27', tid, f'audience_claim {ac} を aud の代わりにできない：{problem}')
         if miss:
             x.add('L27', tid, f"required_claims に {'・'.join(miss)} がない（exp を必須にする）")
         sk = t.get('max_clock_skew')
@@ -772,12 +1133,23 @@ def _profile_value(x, field):
     return v.get('value') if isinstance(v, dict) and 'value' in v else v
 
 
+def _profile_values(x, field):
+    """The value of an issuance_profile field and the values of its per-IdP exceptions (#58)."""
+    v = x.profile_doc.get(field)
+    out = [_profile_value(x, field)]
+    if isinstance(v, dict):
+        out += [e.get('value') for e in v.get('exceptions') or [] if isinstance(e, dict)]
+    return out
+
+
 def _when(x, conds):
+    """A condition holds when the value or the value of any per-IdP exception meets it: a requirement applies as soon as
+    one IdP of the design makes the choice (#58)."""
     for w in conds:
-        v = _profile_value(x, w['field'])
-        if 'equals' in w and v != w['equals']:
+        vs = _profile_values(x, w['field'])
+        if 'equals' in w and not any(v == w['equals'] for v in vs):
             return False
-        if 'includes' in w and w['includes'] not in (v or []):
+        if 'includes' in w and not any(w['includes'] in (v or []) for v in vs):
             return False
     return True
 
@@ -824,15 +1196,19 @@ def _check(x, chk):
     if path.startswith('issuance_profile.'):
         parts = path.split('.')[1:]
         v = x.profile_doc.get(parts[0])
-        v = v.get('value') if isinstance(v, dict) and 'value' in v and len(parts) == 1 else v
-        for p in parts[1:]:
-            v = v.get(p) if isinstance(v, dict) else None
+        if len(parts) == 1 and isinstance(v, dict) and 'value' in v:
+            # the effective value of every IdP must pass: value and each per-IdP exception (PR #70 check B4)
+            vs = _profile_values(x, parts[0])
+        else:
+            for p in parts[1:]:
+                v = v.get(p) if isinstance(v, dict) else None
+            vs = [v]
         if op == 'present':
-            return not _empty(v)
+            return all(not _empty(v) for v in vs)
         if op == 'equals':
-            return v in val if isinstance(val, list) else v == val
+            return all((v in val if isinstance(val, list) else v == val) for v in vs)
         if op == 'includes':
-            return val in (v or [])
+            return all(val in (v or []) for v in vs)
         return None
     rows, field = _select(x, path)
     if rows is None:
@@ -868,6 +1244,22 @@ def _check(x, chk):
 
 
 def rule_effects(x):
+    declared = {e['name'] for e in x.idps}
+    for field, v in x.profile_doc.items():
+        exs = (v.get('exceptions') or []) if isinstance(v, dict) else []
+        named = [ex.get('idp') for ex in exs]
+        if declared and declared <= set(named):
+            x.add('L62', f'issuance_profile.{field}', f"exceptions が設計書の IdP のすべて（{'・'.join(sorted(declared))}）にある。value を使う IdP が無いので、"
+                                                       '例外ではなく value を変える（value に書いた値で要件を満たしたことにしない）', ERROR)
+        for dup in sorted({n for n in named if named.count(n) > 1}, key=str):
+            x.add('L62', f'issuance_profile.{field}', f'exceptions に {dup} が 2 回ある', WARN)
+        for ex in exs:
+            x.count('L62')
+            where = f'issuance_profile.{field}'
+            if ex.get('idp') not in declared:
+                x.add('L62', where, f"exceptions の idp {ex.get('idp')} が catalog_answers.yaml の idp にない", WARN)
+            if ex.get('value') == v.get('value'):
+                x.add('L62', where, f"exceptions の {ex.get('idp')} の値が value と同じ（例外でない）", WARN)
     for e in x.effects:
         if not _when(x, e.get('when') or []):
             continue
@@ -1061,9 +1453,40 @@ def rule_l73(x):
                                           'Full の欄で書き直し、--profile を付けずに検査する（templates/README.md の「Lite と Full の判定」）')
 
 
+# ------------------------------------------------------------------ L74: IdP claims a hop checks without a registry row (#58)
+HEADER_PARAMS = {'typ', 'alg', 'kid'}  # also header parameter names: a check that names them usually means the header
+# pinned names that are also everyday words of a validation text ("idp ごとの JWKS", "ver が 2.0", "username は使わない"):
+# matching them gave false positives in the check of PR #70, so L74 does not look for them (a limit, RULES.md)
+L74_GENERIC = {'idp', 'ver', 'version', 'username'}
+
+
+def rule_l74(x):
+    """A hop's validates.checks names a claim that the IdP of the hop's token type defines (idp_claims.yaml), but the
+    registry has no row for it in that token type: on_missing, identifier_properties and required_claims are then not
+    declared for a value the entry relies on (pilot #9, findings B-R1 F01 and B-R2 R2-03). Free text is matched by name,
+    so a check that does not spell the claim name is not seen."""
+    for h in x.hops:
+        t = h.get('token_type')
+        checks = (h.get('validates') or {}).get('checks') or []
+        if not t or not checks:
+            continue
+        text = ' '.join(map(str, checks))
+        have = {c.get('name') for c in x.claims_in(t) if c.get('namespace') is None}
+        for ent in x.issuers_of(t):
+            names = set((x.idp_claims.get(ent['name']) or {}).get('claims') or []) - HEADER_PARAMS - L74_GENERIC
+            if not names:
+                continue
+            x.count('L74')
+            for n in sorted(names):
+                if n not in have and re.search(r'(?<![A-Za-z0-9_:.])' + re.escape(n) + r'(?![A-Za-z0-9_:])', text):
+                    x.add('L74', f"hop {h.get('id')}", f"受け手の検証（validates.checks）が IdP {ent['name']} のクレーム {n} を使うのに、台帳に {t} に載る "
+                                                       f"{n} の行がない。行を足し（idp_defined: {{idp: {ent['name']}}}）、欠落時の扱い（on_missing）と、"
+                                                       '識別子なら identifier_properties を書く')
+
+
 RULES = [rule_l1a, rule_l1b, rule_l2, rule_l3, rule_l4, rule_l5, rule_l6, rule_l7, rule_l8, rule_l9, rule_l15, rule_l16,
          rule_l17, rule_l18, rule_l21, rule_l22, rule_l23, rule_l25, rule_l27, rule_l31, rule_l37, rule_l43, rule_effects,
-         rule_l65, rule_l66, rule_l67, rule_l68_71, rule_l72, rule_l73]
+         rule_l65, rule_l66, rule_l67, rule_l68_71, rule_l72, rule_l73, rule_l74]
 
 
 def run(docs, profile, design_dir, root, catalog_dir, today=None, caps_path=None):

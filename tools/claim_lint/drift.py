@@ -120,13 +120,22 @@ def _ids(obs):
         c['client_id_'] = cid
 
 
+def _kc_tts(d):
+    """Token types of the registry that the observed Keycloak issues. In a design with several IdPs (#58) the keycloak
+    entry of catalog_answers.yaml `idp` names them (token_types); the token types of the other IdPs are not compared."""
+    from . import coverage
+    mine = coverage.idp_token_types(d.get('catalog_answers') or {}, 'keycloak')  # R3 reports a type no entry names
+    return [t for t in render._tts(d) if t.get('decision') in CARRIED and t.get('kind') in KC_TOKEN
+            and (mine is None or t.get('id') in mine)]
+
+
 def scoped_clients(d, obs, explicit=None):
     """Clients whose tokens a registry token type describes (disabled clients are left out, D13):
     an ID token type: the clients its aud names; an access token type: the clients whose Audience mappers (own or
     of their client scopes) write one of its aud values, and the clients of the ID token types (the relying party
     that gets the ID token also gets the access token, so a moved or changed Audience mapper does not drop it).
     Returns {client: {token type id: kc token}}."""
-    tts = [t for t in render._tts(d) if t.get('decision') in CARRIED and t.get('kind') in KC_TOKEN]
+    tts = _kc_tts(d)
     out = {}
     enabled = {cid: c for cid, c in obs['clients'].items() if c['enabled'] and not c['bearer_only']
                and not (explicit and cid not in explicit)}
@@ -584,8 +593,8 @@ def run(design_dir, observed, clients=None, tokens=()):
         f.append(Finding('D0', ERROR, 'clients', '台帳のトークン種別（AT の aud・ID トークンの aud）に当たるクライアントが設定にない。--client で指定する'))
     else:
         covered = {tid for kinds in scope.values() for tid in kinds}
-        for t in render._tts(d):
-            if t.get('decision') in CARRIED and t.get('kind') in KC_TOKEN and t['id'] not in covered:
+        for t in _kc_tts(d):
+            if t['id'] not in covered:
                 f.append(Finding('D0', ERROR, t['id'], f"台帳の {t['id']}（{t['kind']}、aud {t.get('aud')}）を出すクライアントが設定にない"))
     for missing in sorted(set(clients or []) - set(obs['clients'])):
         f.append(Finding('D0', ERROR, missing, f'クライアント {missing} が設定にない'))

@@ -6,6 +6,16 @@
 
 ### 追加
 
+- `registry/`（#58。版は 0.3.0）：複数の IdP と、入口で内部トークンに作り直す設計を、回避策なしに書くための任意の列を足した。パイロット（#9）のシナリオ B で見つかった欠け（`research/template-design/pilot.md` の 6.・7.）への対応。**0.2.0 で書いた設計書は書き換えずに通り、指摘も変わらない**（記入例のシナリオ A・B、パイロットの 2 つの設計書で確かめた）ので、マイナーの変更。列と書き方は `registry/README.md` の 3.5、規則は `tools/claim_lint/RULES.md` の「複数の IdP と作り直しのホップ（#58）」
+  - `claims.schema.json`：`idp_defined`（IdP の製品が決めた名前を、入口だけが読む行として書く。`tid`・`oid`・`uid`・`cid`・`token_use`・`cognito:groups`・`realm_access` など。使える名前は `tools/claim_lint/idp_claims.yaml` に、IdP の文書の URL と確かめた日つきで固定）
+  - `token_types.schema.json`：`kind_discriminator`（ヘッダーの typ が同じ種別を区別するペイロードの値。L17）、`audience_claim`（aud の無い AT で宛先の確認に使うクレーム。Cognito の `client_id`。L27）、`issuance_profile` の各項目の `exceptions`（IdP ごとの例外。L62）。`typ` はヘッダーの値だけを書き、無い種別は `(absent)`
+  - `hops.schema.json`：`upstream` にホップの ID の配列を書ける（IdP ごとの入口のホップを上流にする）。`added_claims`（作り直しで足す独自クレームと出どころ：トークン以外の出どころか、上流のクレームから導く）、`aud_mapping`（宛先の名前が上流と違うときの対応）。L16
+  - `catalog_answers.yaml` の `idp`：1 つの対応のほかに、対応の配列を書ける（IdP ごとに `token_types`）。R3・R3b・L2 が IdP ごとに見る。`kind: self_built`（組織が自分で作る発行者。出どころは URL でなく文書と日付）
+  - claim_lint：新しい規則 L74（warn。検証の文が名指しする IdP 固有のクレームに台帳の行が無い）。L7・L16・L62 に足した検査は warn。error になるのは、もとの error が新しい列の条件を欠いて残る場合（L1b・L16・L17・L27）と、新しい書き方の形の誤り（配列の `idp`、どの IdP にも属さない種別、`kind: self_built`、REF、全 IdP に書いた `exceptions`）だけで、新しい列を使わない設計書には起きない
+  - `tools/tests/fixtures/claim_lint/pilot-b-migrated/`：パイロットのシナリオ B の設計書を、新しい列で写した fixture（`migrate.py` が作る。パイロットの記録は書き換えていない）。回避策を外して error 0・warn 3・info 41
+  - #60・#56 との合わせ（main の取り込み）：`review/triage.yaml` の条件「発行者（IdP）が複数ある」は、`catalog_answers.yaml` の `idp` が名前の違う IdP を 2 つ以上並べた配列のときも成り立つ（`tools/review_triage.py` の `read_traits()` と、エディターの `docs/claims/review.js` の `readTraits()`）。0.3.0 の列を空で書くと、SCHEMA ではなく TODO（#60。重大度は同じ error）になり、空の列は宣言として数えない
+  - **移行（0.2.0 → 0.3.0）**：必須の作業はない。新しい列を使うときは、`registry/README.md` の 3.5 の「0.2.0 からの移行」の表のとおりに書き換え、YAML の 1 行目を `# template_version: 0.3.0` にする。`python tools/new_design.py` が作る骨組みは 0.3.0 になった
+- `profiles/P5_internal_propagation.md` の 1.、`modules/M_token_validation.md` の 7.、`modules/M_idp_keycloak.md` の 5.（#58）：IdP が複数のときの台帳への書き方の問い（IdP の一覧、入口だけが読む IdP 固有のクレーム、aud の無い AT、ヘッダーの typ が同じ種別、作り直しのホップの上流と足す値、IdP ごとの発行方式の例外）と、参照する台帳の列を足した
 - 入口の案内（#75）：`README.md` と `GETTING_STARTED.md` の冒頭に、2 つの始め方（エディターで書く／CLI で書く）を置いた。手順・欄・規則は変えていない
 - 空の設計書と生成の表の誤り（#60。パイロット #9 の結果。`research/template-design/pilot.md` の 7.）：
   - `tools/new_design.py`：作った直後の設計書に、スキーマの違反（SCHEMA）が無くなった。`claims.yaml` に空の `namespaces` を書かない。`--profile lite` を足し、Lite では `hops.yaml` を作らない。**ホップを書かない設計は `hops.yaml` を置かない**（`GETTING_STARTED.md` の手順 1、`00_core.md` の 8.）。`catalog_answers.yaml` に、網羅の節（`idp`・`questions`・`subject_states`・`pairwise`）を、問いの ID・主体の状態・層の名前を鍵にして作る

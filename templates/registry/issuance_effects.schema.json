@@ -1,7 +1,7 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/issuance_effects.schema.json/v0.2.0",
- "$comment": "template_version: 0.2.0. What each issuance_profile choice requires of the registry (#3). Input of L62-L64 of #6; tools/tests/test_registry_v1.py checks that each condition names a value the token_types schema allows.",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/issuance_effects.schema.json/v0.3.0",
+ "$comment": "template_version: 0.3.0. What each issuance_profile choice requires of the registry (#3). Input of L62-L64 of #6; tools/tests/test_registry_v1.py checks that each condition names a value the token_types schema allows.",
  "title": "Issuance effects",
  "type": "object",
  "additionalProperties": false,

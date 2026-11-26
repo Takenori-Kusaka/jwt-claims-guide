@@ -65,7 +65,7 @@ def test_schema_is_valid_2020_12_with_version(name):
     s = schema(name)
     jsonschema.Draft202012Validator.check_schema(s)
     assert s['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
-    assert s['$id'].endswith('/v0.2.0') and s['$comment'].startswith('template_version: 0.2.0')
+    assert s['$id'].endswith('/v0.3.0') and s['$comment'].startswith('template_version: 0.3.0')  # 0.3.0: #58
 
 
 def _arrays(node, path='', out=None):
@@ -93,7 +93,8 @@ def test_yaml_files_start_with_template_version_then_modeline():
                 'templates/examples/scenario-a/claims.yaml', 'templates/examples/scenario-a/token_types.yaml',
                 'templates/examples/scenario-a/hops.yaml'):
         lines = open(os.path.join(ROOT, rel), encoding='utf-8').read().splitlines()
-        assert lines[0] == '# template_version: 0.2.0', rel
+        # the registry is 0.3.0 (#58: optional columns only); scenario A was written for 0.2.0 and is valid as it is
+        assert lines[0] == ('# template_version: 0.3.0' if rel.startswith('templates/registry/') else '# template_version: 0.2.0'), rel
         if rel != 'templates/registry/questions.yaml':
             assert lines[1].startswith('# yaml-language-server: $schema='), rel
 

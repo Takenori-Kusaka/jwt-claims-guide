@@ -214,12 +214,19 @@ def _profile_value(profile, field):
     return v.get('value') if isinstance(v, dict) and 'value' in v else v
 
 
+def _profile_values(profile, field):
+    """The value of the field and the values of its per-IdP exceptions (#58; the same reading as L62's _when)."""
+    v = profile.get(field)
+    exc = v.get('exceptions') or [] if isinstance(v, dict) else []
+    return [_profile_value(profile, field)] + [e.get('value') for e in exc if isinstance(e, dict)]
+
+
 def _when_holds(profile, conds):
     for c in conds:
-        v = _profile_value(profile, c['field'])
-        if 'equals' in c and v != c['equals']:
+        vs = _profile_values(profile, c['field'])
+        if 'equals' in c and not any(v == c['equals'] for v in vs):
             return False
-        if 'includes' in c and not (isinstance(v, list) and c['includes'] in v):
+        if 'includes' in c and not any(isinstance(v, list) and c['includes'] in v for v in vs):
             return False
     return True
 
@@ -283,15 +290,17 @@ def evaluate_check(d, check):
         found = parts[0] in profile
         if found and len(parts) > 1:
             v, found = _get(v, parts[1:])
+        # every effective value must pass: value and each per-IdP exception (#58, the same reading as L62's _check)
+        vs = _profile_values(profile, parts[0]) if found and len(parts) == 1 else [v]
         if op == 'present':
-            return ('satisfied' if found and not core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if found and all(not core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'absent':
-            return ('satisfied' if not found or core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if not found or all(core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'equals':
-            ok = v in value if isinstance(value, list) and not isinstance(v, list) else v == value
+            ok = all((v in value if isinstance(value, list) and not isinstance(v, list) else v == value) for v in vs)
             return ('satisfied' if ok else 'unsatisfied'), []
         if op == 'includes':
-            return ('satisfied' if isinstance(v, list) and value in v else 'unsatisfied'), []
+            return ('satisfied' if all(isinstance(v, list) and value in v for v in vs) else 'unsatisfied'), []
         return 'unknown', []
     m = SEL_RE.match(head)
     if not m:
@@ -370,8 +379,14 @@ def sec_issuance_profile(d):
         if field not in profile:
             continue
         p = profile[field] if isinstance(profile[field], dict) else {'value': profile[field]}
-        rows.append({'field': field, 'label': label, 'value': p.get('value'), 'value_text': _show_profile_value(p.get('value')),
-                     'rationale': p.get('rationale'), 'refs': p.get('refs') or []})
+        row = {'field': field, 'label': label, 'value': p.get('value'), 'value_text': _show_profile_value(p.get('value')),
+               'rationale': p.get('rationale'), 'refs': p.get('refs') or []}
+        if p.get('exceptions'):  # #58: per-IdP exceptions, shown with the value and the reason (only when declared)
+            row['exceptions'] = p['exceptions']
+            row['value_text'] += '。例外：' + '、'.join(f"{e.get('idp')} は {_show_profile_value(e.get('value'))}" for e in p['exceptions'])
+            row['rationale'] = (row['rationale'] or '') + ''.join(f"【{e.get('idp')} の例外】{e.get('rationale')}" for e in p['exceptions'])
+            row['refs'] = row['refs'] + [r for e in p['exceptions'] for r in e.get('refs') or []]
+        rows.append(row)
     effects = issuance_effects(d)
     held = [e for e in effects if e['holds']]
     erows = [{'effect': e['id'], 'id': r['id'], 'text': r['text'], 'status': r['status'],
@@ -402,10 +417,14 @@ def sec_hop_table(d):
     rows = []
     for h in d['hops'].get('hops') or []:
         v = h.get('validates') or {}
+        # #58: claims the exchanger adds when it mints the token (added_claims) are marked with where the value comes from
+        added = {a.get('claim'): ('上流のクレームから導く' if a.get('source') == 'upstream_claims' else a.get('system'))
+                 for a in h.get('added_claims') or []}
         rows.append({'id': h.get('id'), 'hop': f"{h.get('id')} {h.get('from')} → {h.get('to')}", 'kind': h.get('kind'),
                      'token_type': h.get('token_type'), 'upstream': h.get('upstream'), 'aud': h.get('aud') or [],
                      'scope': h.get('scope') or [], 'lifetime': _secs(h.get('max_lifetime')),
-                     'custom_claims': [(cl.get(x) or {}).get('name', x) for x in h.get('custom_claims') or []],
+                     'custom_claims': [(cl.get(x) or {}).get('name', x) + (f'（足す：{added[x]}）' if x in added else '')
+                                       for x in h.get('custom_claims') or []],
                      'exchanger': h.get('exchanger'), 'validates_mode': v.get('mode'), 'validates': v.get('checks') or []})
     cols = [('hop', 'ホップ', 'text'), ('kind', '種類', 'code'), ('token_type', '運ぶトークン', 'code'), ('aud', 'aud', 'codes'),
             ('scope', 'scope', 'codes'), ('lifetime', '寿命', 'text'), ('custom_claims', '運ぶ独自クレーム', 'codes'),

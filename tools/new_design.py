@@ -31,7 +31,7 @@ ROOT = os.path.dirname(TOOLS)
 sys.path.insert(0, TOOLS)
 import catalog_check  # noqa: E402  (the layers, results and states of the subject-state matrix)
 
-VERSION = '0.2.0'  # registry schema version (templates/registry/*.schema.json)
+VERSION = '0.3.0'  # registry schema version (templates/registry/*.schema.json)
 SUBJECT_KINDS = ('利用者', 'ワークロード', 'システム')  # tools/claim_lint/coverage.py (R6), slide:p05-three-principals
 LITE_CRITERIA = ('crosses_boundary', 'multitenant', 'delegation_or_exchange', 'new_issuer', 'regulated')
 

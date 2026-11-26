@@ -1,6 +1,6 @@
 # claim_lint import／drift（IdP の設定と台帳のずれを検出する）
 
-台帳（設計の正本）と、IdP の実際の設定とのずれを検出します（#30）。設計書を YAML で正本にしても、IdP の設定が別に変えられれば、設計書は実態を表さなくなるためです（`research/claims-as-code/notes/claims_as_code_design.md` の 5.）。MVP の対象は Keycloak（26.8）だけです。コードは `tools/claim_lint/keycloak.py`（取り込み）と `tools/claim_lint/drift.py`（比較）です。
+台帳（設計の正本）と、IdP の実際の設定とのずれを検出します（#30）。設計書を YAML で正本にしても、IdP の設定が別に変えられれば、設計書は実態を表さなくなるためです（`research/claims-as-code/notes/claims_as_code_design.md` の 5.）。MVP の対象は Keycloak（26.8）だけです。コードは `tools/claim_lint/keycloak.py`（取り込み）と `tools/claim_lint/drift.py`（比較）です。IdP が複数の設計書（`catalog_answers.yaml` の `idp` が配列。#58）では、`keycloak` の要素の `token_types` に書いたトークン種別だけを比べます（ほかの IdP の AT を「Keycloak の設定に無い」と数えない）。`idp` が 1 つの設計書では、今までどおり AT・ID トークンの全種別を比べます。
 
 ```
 python -m tools.claim_lint import keycloak <realm-export.json> -o <observed.yaml>       # 取り込みと正規化

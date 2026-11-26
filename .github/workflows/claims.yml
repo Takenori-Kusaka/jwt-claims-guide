@@ -89,6 +89,14 @@ jobs:
           python tools/claim_lint render research/pilot/scenario-c --check
           python tools/check_slide_refs.py research/pilot/scenario-b
           python tools/check_slide_refs.py research/pilot/scenario-c
+      # #58: the pilot design of scenario B rewritten with the columns of registry 0.3.0 (several IdPs, IdP-defined claims,
+      # a reissue hop with several upstream hops). The pilot itself is not edited; the fixture is what migrate.py makes of it.
+      # The mutation tests of the new rules (tools/tests/test_claim_lint_multi_idp.py, about 90 lint runs) are run by the trace
+      # workflow with the whole tools/tests suite; this job is close to its 10-minute limit.
+      - name: Pilot B with the 0.3.0 columns (#58) - the fixture is the migration of the pilot and has no error
+        run: |
+          python tools/tests/fixtures/claim_lint/pilot-b-migrated/migrate.py --check
+          python tools/claim_lint tools/tests/fixtures/claim_lint/pilot-b-migrated
       - name: Pilot review records (#9) - the four review.yaml against the schema and the designs, the form of the four reports, the sha256 commitments
         # report --check is not run here: each report is the generated report plus a title label and a hand-written
         # addendum of the reviewer, and the files are kept byte for byte (research/pilot/commitments.txt)

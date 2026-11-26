@@ -461,6 +461,19 @@ class EditorUX(unittest.TestCase):
         designs = (('a', 'templates/examples/scenario-a', None), ('b', 'templates/examples/scenario-b', None),
                    ('pilot-b', 'research/pilot/scenario-b', names), ('pilot-c', 'research/pilot/scenario-c', names),
                    ('pilot-b without hops.yaml', 'research/pilot/scenario-b', names[:2] + names[3:]))
+        # #58: scenario A with two IdPs declared as an array in catalog_answers.yaml (registry 0.3.0). Nothing else in
+        # scenario A says "several IdPs", so the page and review_triage.py must both read the declaration
+        two = tempfile.mkdtemp(prefix='claims-two-idps-')
+        self.addCleanup(shutil.rmtree, two, True)
+        for f in names:
+            shutil.copy(os.path.join(ROOT, 'templates/examples/scenario-a', f), two)
+        with open(os.path.join(two, 'catalog_answers.yaml'), encoding='utf-8') as f:
+            text = f.read()
+        old = 'idp:\n  name: keycloak\n  version: "26.8"\n'
+        self.assertIn(old, text)
+        with open(os.path.join(two, 'catalog_answers.yaml'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text.replace(old, 'idp:\n  - {name: keycloak, version: "26.8", token_types: [AT]}\n  - {name: entra, version: "v2.0", token_types: [IDT]}\n'))
+        designs += (('a with two IdPs', two, names),)
         for key, d, files in designs:
             reg = rt.load_design(os.path.join(ROOT, d))
             if files and 'hops.yaml' not in files:
@@ -507,6 +520,7 @@ class EditorUX(unittest.TestCase):
             self.assertEqual(pg.problems, [])
             pg.close()
         self.assertNotEqual(counts['a'], counts['b'])
+        self.assertGreater(counts['a with two IdPs'], counts['a'])
         self.assertGreaterEqual(counts['pilot-b without hops.yaml'], counts['pilot-b'])
 
     def test_a_review_can_be_recorded_from_the_short_list(self):

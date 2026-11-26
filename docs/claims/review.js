@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = 'ea7e1398a7c9';
+  const BUILD_ID = 'f8622f72ddd2';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -278,7 +278,7 @@
     }
     if (kind === 'hops') {
       if (r.row.token_type) out.push(['token_types:' + r.row.token_type, 'ホップのトークン種別']);
-      if (r.row.upstream) out.push(['hops:' + r.row.upstream, '上流のホップ']);
+      [].concat(r.row.upstream || []).forEach((u) => out.push(['hops:' + u, '上流のホップ']));  // one ID or a list (#58)
     }
     if (kind === 'token_types') CE.anchors().filter((a) => a.kind === 'claims' && a.row && Array.isArray(a.row.carried_in) && a.row.carried_in.includes(id)).slice(0, 40).forEach((a) => out.push([a.anchor, '載る台帳の行']));
     return out;
@@ -740,7 +740,9 @@
     put('org_claims', claims.some((c) => has(c.namespace) || (!has(c.registered_ref) && (c.usage === 'authz' || c.usage === 'identifier'))));
     put('pii', claims.some((c) => c.pii_category && c.pii_category !== '該当なし'));
     const hosts = new Set(); types.forEach((x) => (Array.isArray(x.issuers) ? x.issuers : []).forEach((i) => { if (isObj(i) && host(i.iss)) hosts.add(host(i.iss)); }));
-    put('multi_idp', hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
+    // #58: an idp array of catalog_answers.yaml (registry 0.3.0) that names two or more IdPs
+    const idps = new Set(); (Array.isArray(cat.idp) ? cat.idp : []).forEach((i) => { if (isObj(i) && typeof i.name === 'string' && i.name.trim()) idps.add(i.name.trim().toLowerCase()); });
+    put('multi_idp', idps.size > 1 || hosts.size > 1 || claims.some((c) => has(c.upstream_issuer)));
     put('exchange', kinds.has('exchange') || kinds.has('reissue') || declared(lite, 'delegation_or_exchange', 'answer') === true, noHops);
     put('delegation', names.has('act') || names.has('may_act') || types.some((x) => x.max_delegation_depth !== undefined && x.max_delegation_depth !== null) ||
       declared(asked, 'q-actor', 'needed') === true, declared(asked, 'q-actor', 'needed') === null || declared(lite, 'delegation_or_exchange', 'answer') === true);
