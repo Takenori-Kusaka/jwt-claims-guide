@@ -433,8 +433,8 @@ def test_the_editor_data_start_with_the_short_list():
     # review.js reads the traits with the same rules (the browser test compares the results; here: the function is the
     # one the checklist uses, and it keeps unknown traits)
     js = open(os.path.join(ROOT, 'docs', 'claims', 'review.js'), encoding='utf-8').read()
-    assert "filter((c) => t[c] !== 'off')" in js and "declared(asked, 'q-actor', 'needed')" in js and 'noHops' in js
-    assert 'C.optional_priorities' in js and 'C.max_prompts' in js and "(p.prefer_when || []).some((c) => states[c] === 'on')" in js
+    assert "read[c.id] === 'on' ? true : read[c.id] === 'off' ? false : null" in js and "declared(asked, 'q-actor', 'needed')" in js and 'noHops' in js
+    assert 'short.optional_priorities' in js and '.max_prompts' in js and "(p.prefer_when || []).some((c) => tr[c] === true)" in js
 
 
 # ---------------------------------------------------------------- the pilot findings

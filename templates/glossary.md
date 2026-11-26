@@ -115,7 +115,7 @@
 | 前回の確認から変更あり | 「確認済み」を付けた後に、その行の中身が変わった状態。印は数えず、変わった列の前と後を並べて見せる | stale、再確認が要る、無効化 | tools/review_record.py |
 | コメント | レビュアーが行・列・確認事項に書く意見。提出するまでは「未提出」で自分にだけ見え、提出すると「未解決」、直ったことを確かめたら「解決済み」にする。重大度と種別はレポートの様式の語（`templates/review/report_template.md`） | 指摘（画面では）、所見 | templates/review/review.schema.json |
 | レビューを提出 | 総評と、レビュー全体に 1 つの判定（承認／変更を依頼／コメントのみ）を付けて、1 回だけ行う操作。確認済みの各行の中身の照合用の値を一緒に記録する。提出の後、`review.yaml` を pull request にコミットする | サブミット、エクスポート（提出の意味では） | templates/review/review.schema.json |
-| 確認事項 | 観点書（`templates/review/perspectives.md`）の問いのうち、開いた設計書の性質に当てはまり、人の判断が要るもの。出さなかった問いは件数と理由を見せ、全件も開ける（中身は #56） | 観点のチェックリスト（画面では） | templates/review/perspectives.md |
+| 確認事項 | 観点書（`templates/review/perspectives.md`）の問いのうち、開いた設計書の性質に当てはまり、人の判断が要るもの。既定は優先 1 の問いで、優先 2 は「時間があれば」。出さなかった問いは件数と理由を見せ、全件も開ける（振り分けは #56 の triage.yaml） | 観点のチェックリスト（画面では） | templates/review/perspectives.md |
 | 独立レビュー | 提出するまで、ほかのレビュアーの記録を画面に出さないレビュー | — | templates/review/procedure.md |
 | 段階（core・full） | スライドと成果物の対応表で、要件が中核（core）か全体（full）か（`tier` の値） | tier（画面では） | templates/trace/README.md |
 

@@ -508,7 +508,7 @@ class ReviewFlow(unittest.TestCase):
             # the properties were read from the design
             traits = {el.get_attribute('data-trait'): el.get_attribute('data-trait-value') for el in pg.locator('#rv-traits [data-trait]').all()}
             self.assertEqual(traits['delegation'], 'true' if letter == 'b' else 'false')
-            self.assertEqual(traits, {k: str(v).lower() for k, v in pg.evaluate('() => ClaimsReview.traits()').items() if k != 'always'})
+            self.assertEqual(traits, {k: str(v).lower() for k, v in pg.evaluate('() => ClaimsReview.traitValues()').items() if k != 'always'})
             # all of them are one press away
             pg.click('#rv-q-all')
             self.assertEqual(pg.locator('.rv-q').count(), total)
