@@ -29,15 +29,27 @@
 | 内部トークンの形 | 内部トークンは、完全性を守った短命の切符か | 入口が署名する JWT（短命）／Txn-Token（2.）／参照型 | slide:p05-one-request-carries、slide:p06-edge-exchange |
 | 共通の基準の当て方 | 共通の基準（必須の欠落の拒否など）を、IdP の差を正規化した後に当てるか | 正規化の後に当てる（正規の要求を落とさない）／IdP のトークンにそのまま当てる | slide:p12-priorities-deferrals、jwt-claims-casestudy@080b8da:B16 |
 
+台帳への書き方（IdP が複数のとき。`templates/registry/README.md` の 3.5）：
+
+| 書くこと | 検討の問い | 台帳・目録の ID |
+| --- | --- | --- |
+| IdP の一覧 | 設計書が受ける IdP を、すべて `idp` に書いたか。IdP ごとに、出すトークン種別を結んだか（R3・R3b・L2 が IdP ごとに見る） | `catalog_answers.yaml` の `idp`（配列）・`token_types` |
+| 入口だけが読む IdP 固有のクレーム | 照合・名寄せに使う IdP の名前（`tid`・`oid`・`uid`・`cid`・`token_use` など）を、検証の文に埋めずに台帳の行にしたか。無いときの扱いと、識別子の性質を書いたか | `claims[].idp_defined`・`on_missing`・`identifier_properties`、`token_types[].required_claims` |
+| aud の無い AT | 宛先を何で確かめるかを、目録の列に書いたか | `token_types[].audience_claim` |
+| ヘッダーの typ が同じ種別 | AT と ID トークンを、ペイロードのどの値で区別するかを書いたか | `token_types[].kind_discriminator` |
+| 作り直しのホップの上流 | 作り直しのホップに、IdP ごとの入口のホップを上流として書いたか（寿命・宛先の絞り込みを L16 が比べる） | `hops[].upstream`（配列）・`aud_mapping` |
+| 作り直しで足す値 | 上流のトークンに無い値（社員台帳の部署など）と、上流のクレームから導く値（ロール）を、出どころつきで書いたか | `hops[].added_claims` |
+| IdP ごとの発行方式の例外 | ある IdP だけ違う値（クライアント認証など）を、理由の文ではなく例外として書いたか | `issuance_profile.<項目>.exceptions` |
+
 記入欄（IdP ごとに 1 行）：
 
 | IdP | 利用者のキーの作り方（書き手が書く） | ロール・宛先の写し方（書き手が書く） | 理由（書き手が書く） | 台帳の ID |
 | --- | --- | --- | --- | --- |
-|  |  |  |  | `claims[].upstream_issuer`・`authoritative_writer` |
+|  |  |  |  | `claims[].upstream_issuer`・`authoritative_writer`、IdP 固有のクレームの行（`claims[].idp_defined`） |
 
 | 決めること | 決めたこと（書き手が書く） | 理由（書き手が書く） | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| 交換するか |  |  | `issuance_profile.at_format`、`hops[].kind`（exchange・reissue）・`exchanger` |
+| 交換するか |  |  | `issuance_profile.at_format`、`hops[].kind`（exchange・reissue）・`exchanger`・`upstream`・`added_claims` |
 | グループの超過 |  |  | `claims[].overflow_strategy`（ロールの行） |
 | 内部トークンの形 |  |  | `token_types[]`（kind: internal_token の行） |
 

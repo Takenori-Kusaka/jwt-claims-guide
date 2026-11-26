@@ -11,7 +11,10 @@ ROOT = os.path.dirname(TOOLS)
 sys.path.insert(0, TOOLS)
 import review_check as rc  # noqa: E402
 
-COPY = ['templates', 'deck/slide_ids.json', 'tools/template_sources.yaml', 'tools/claim_lint/RULES.md']
+COPY = ['templates', 'deck/slide_ids.json', 'tools/template_sources.yaml', 'tools/claim_lint/RULES.md',
+        # #56: the files made from templates/review/triage.yaml (V14) and the evidence short_list.md links to
+        '.github/PULL_REQUEST_TEMPLATE/design_doc.md', 'research/template-design/triage-evidence.md',
+        'research/template-design/triage-audit.md']
 PERSP = os.path.join('templates', 'review', 'perspectives.md')
 
 

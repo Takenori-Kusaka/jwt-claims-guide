@@ -249,6 +249,40 @@ class ClaimsEditor(unittest.TestCase):
         self.shot(pg, '01_skeleton')
         self.assertEqual(pg.problems, [])
 
+    def test_a_blank_field_is_shown_once_while_claim_lint_is_stale(self):
+        """#60 / PR #69 check: claim_lint names a blank required field TODO. While its result is stale the browser's
+        schema check shows that field, so the stale TODO (like the stale SCHEMA) must not be shown next to it."""
+        pg = self.open()
+        pg.click('#btn-skeleton')
+        self.poll(pg, '() => ClaimsEditor.state().open')
+        self.go(pg, '#/lint', '問題')  # loads Pyodide and claim_lint
+        self.lint_fresh(pg)
+        fresh = pg.evaluate('() => ClaimsEditor.diagnostics()')
+        self.assertTrue([d for d in fresh if d['source'] == 'claim_lint' and d['rule'] == 'TODO'])
+        self.assertEqual([d for d in fresh if d['source'] == 'schema'], [])
+        self.assertEqual([d for d in fresh if d['rule'] == 'SCHEMA'], [])  # the skeleton has no SCHEMA finding
+        # one edit: claim_lint is stale (or running) until it has checked the new text. The diagnostics are published
+        # again a moment after the edit, so the page records what it shows while claim_lint is not fresh
+        self.assertTrue(pg.evaluate("""() => {
+            window.__staleSeen = [];
+            window.__staleTimer = setInterval(() => {
+              const d = ClaimsEditor.diagnostics();
+              if (ClaimsEditor.state().lint !== 'fresh' && d.some((x) => x.source === 'schema')) window.__staleSeen.push(d);
+            }, 10);
+            return ClaimsEditor.replaceText('claims.yaml', 'scenario: null', 'scenario: x'); }"""))
+        seen = self.poll(pg, '() => window.__staleSeen.length ? window.__staleSeen[0] : null', timeout=20)
+        stale = [d for d in seen if d['source'] == 'claim_lint' and d['rule'] in ('SCHEMA', 'TODO')]
+        self.assertEqual(stale, [], stale[:3])
+        self.assertTrue([d for d in seen if d['source'] == 'schema'])  # the browser's check stands in
+        pg.evaluate('() => clearInterval(window.__staleTimer)')
+        # fresh again: TODO comes back, one per blank field, and the browser's findings are gone
+        self.lint_fresh(pg)
+        again = pg.evaluate('() => ClaimsEditor.diagnostics()')
+        todo = [d for d in again if d['source'] == 'claim_lint' and d['rule'] == 'TODO']
+        self.assertEqual(len(todo), len([d for d in fresh if d['rule'] == 'TODO']) - 1)  # `scenario` is written now
+        self.assertEqual([d for d in again if d['source'] == 'schema'], [])
+        self.assertEqual(pg.problems, [])
+
     def test_entry_samples(self):
         pg = self.open()
         for letter in ('a', 'b'):

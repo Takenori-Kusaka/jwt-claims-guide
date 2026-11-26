@@ -230,9 +230,11 @@ H3 は H2 の部分集合（テナントだけ）で、上流を超えていな�
 <!-- render:arrow-table:begin -->
 ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。
 
+受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける（大文字と小文字は区別しない）。
+
 | ホップ | トークン | 確かめるクレーム | 書き手 | 確かめること | aud | 寿命 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `H1` | `BFFSESSION` | — | — | — | — | 36000 秒 |
+| `H1` | `BFFSESSION` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | — | 36000 秒 |
 | `H2` | `AT` | `iss` | ② Keycloak（テナントのレルム） | 許可リストと完全一致。鍵はその iss の JWKS だけから取る<br>iss から対応表（許可リスト）でテナント ID を引き、app.tenant にはこの値を使う<br>iss のレルム名と tenant_id が一致するか | `saas-api` | 300 秒 |
 | `H2` | `AT` | `sub` | ② Keycloak（basic スコープの sub マッパー） | 文字列であること<br>BOLA：請求書の owner_sub = sub、かつ請求書の tenant_id = iss から引いたテナント | `saas-api` | 300 秒 |
 | `H2` | `AT` | `aud` | ② Keycloak（Audience マッパー aud-saas-api） | aud が saas-api と一致 | `saas-api` | 300 秒 |

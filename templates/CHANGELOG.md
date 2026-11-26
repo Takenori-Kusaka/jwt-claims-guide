@@ -6,6 +6,36 @@
 
 ### 追加
 
+- `registry/`（#58。版は 0.3.0）：複数の IdP と、入口で内部トークンに作り直す設計を、回避策なしに書くための任意の列を足した。パイロット（#9）のシナリオ B で見つかった欠け（`research/template-design/pilot.md` の 6.・7.）への対応。**0.2.0 で書いた設計書は書き換えずに通り、指摘も変わらない**（記入例のシナリオ A・B、パイロットの 2 つの設計書で確かめた）ので、マイナーの変更。列と書き方は `registry/README.md` の 3.5、規則は `tools/claim_lint/RULES.md` の「複数の IdP と作り直しのホップ（#58）」
+  - `claims.schema.json`：`idp_defined`（IdP の製品が決めた名前を、入口だけが読む行として書く。`tid`・`oid`・`uid`・`cid`・`token_use`・`cognito:groups`・`realm_access` など。使える名前は `tools/claim_lint/idp_claims.yaml` に、IdP の文書の URL と確かめた日つきで固定）
+  - `token_types.schema.json`：`kind_discriminator`（ヘッダーの typ が同じ種別を区別するペイロードの値。L17）、`audience_claim`（aud の無い AT で宛先の確認に使うクレーム。Cognito の `client_id`。L27）、`issuance_profile` の各項目の `exceptions`（IdP ごとの例外。L62）。`typ` はヘッダーの値だけを書き、無い種別は `(absent)`
+  - `hops.schema.json`：`upstream` にホップの ID の配列を書ける（IdP ごとの入口のホップを上流にする）。`added_claims`（作り直しで足す独自クレームと出どころ：トークン以外の出どころか、上流のクレームから導く）、`aud_mapping`（宛先の名前が上流と違うときの対応）。L16
+  - `catalog_answers.yaml` の `idp`：1 つの対応のほかに、対応の配列を書ける（IdP ごとに `token_types`）。R3・R3b・L2 が IdP ごとに見る。`kind: self_built`（組織が自分で作る発行者。出どころは URL でなく文書と日付）
+  - claim_lint：新しい規則 L74（warn。検証の文が名指しする IdP 固有のクレームに台帳の行が無い）。L7・L16・L62 に足した検査は warn。error になるのは、もとの error が新しい列の条件を欠いて残る場合（L1b・L16・L17・L27）と、新しい書き方の形の誤り（配列の `idp`、どの IdP にも属さない種別、`kind: self_built`、REF、全 IdP に書いた `exceptions`）だけで、新しい列を使わない設計書には起きない
+  - `tools/tests/fixtures/claim_lint/pilot-b-migrated/`：パイロットのシナリオ B の設計書を、新しい列で写した fixture（`migrate.py` が作る。パイロットの記録は書き換えていない）。回避策を外して error 0・warn 3・info 41
+  - #60・#56 との合わせ（main の取り込み）：`review/triage.yaml` の条件「発行者（IdP）が複数ある」は、`catalog_answers.yaml` の `idp` が名前の違う IdP を 2 つ以上並べた配列のときも成り立つ（`tools/review_triage.py` の `read_traits()` と、エディターの `docs/claims/review.js` の `readTraits()`）。0.3.0 の列を空で書くと、SCHEMA ではなく TODO（#60。重大度は同じ error）になり、空の列は宣言として数えない
+  - **移行（0.2.0 → 0.3.0）**：必須の作業はない。新しい列を使うときは、`registry/README.md` の 3.5 の「0.2.0 からの移行」の表のとおりに書き換え、YAML の 1 行目を `# template_version: 0.3.0` にする。`python tools/new_design.py` が作る骨組みは 0.3.0 になった
+- `profiles/P5_internal_propagation.md` の 1.、`modules/M_token_validation.md` の 7.、`modules/M_idp_keycloak.md` の 5.（#58）：IdP が複数のときの台帳への書き方の問い（IdP の一覧、入口だけが読む IdP 固有のクレーム、aud の無い AT、ヘッダーの typ が同じ種別、作り直しのホップの上流と足す値、IdP ごとの発行方式の例外）と、参照する台帳の列を足した
+- 入口の案内（#75）：`README.md` と `GETTING_STARTED.md` の冒頭に、2 つの始め方（エディターで書く／CLI で書く）を置いた。手順・欄・規則は変えていない
+- 空の設計書と生成の表の誤り（#60。パイロット #9 の結果。`research/template-design/pilot.md` の 7.）：
+  - `tools/new_design.py`：作った直後の設計書に、スキーマの違反（SCHEMA）が無くなった。`claims.yaml` に空の `namespaces` を書かない。`--profile lite` を足し、Lite では `hops.yaml` を作らない。**ホップを書かない設計は `hops.yaml` を置かない**（`GETTING_STARTED.md` の手順 1、`00_core.md` の 8.）。`catalog_answers.yaml` に、網羅の節（`idp`・`questions`・`subject_states`・`pairwise`）を、問いの ID・主体の状態・層の名前を鍵にして作る
+  - claim_lint の `TODO`：スキーマが求める欄がまだ空（null・空の文字列・空の配列・空のオブジェクト）のとき、SCHEMA の代わりに 1 欄に 1 件出す。重大度は SCHEMA と同じ error で、引き下げていない。それまで通っていた設計書が通らなくなることも、その逆も無い（規則の名前の付け替えなのでマイナー）
+  - `claim_lint render`：`flat_prefix` の名前空間のクレームの名前を、ペイロードの JSON Schema・`required_claims` と同じ `<名前空間><名前>` で出す（それまでは間に `.` が入っていた）。矢印ごとの表は、受け手（`hops[].to`）に結びつく `enforced_at.service` が無いホップを空の行にせず、理由を出す。寿命の表の「状態」の列は、台帳のどの行にも `status` が無いとき（縮小 Lite）は出さない
+  - claim_lint の `LOAD`（PR #69 の独立点検）：Full で `hops.yaml` が無い・中身が空のとき、info ではなく warn で知らせる（ホップを読む規則が何も見なくなるため。新しい指摘なので warn から）。Lite は info のまま。中身が空の `hops.yaml`（コメントだけ・`{}`）は、それまで何も出ずに通っていた
+  - `tools/new_design.py --with-hops`：Lite でもホップ（DB・ブローカーの接続など）を書く設計のために、`hops.yaml` を作る。設計書がすでにあるときは、無いときだけ足す
+  - 設計書のエディター（`docs/claims/editor.js`）：claim_lint の結果が古い間は、claim_lint の SCHEMA に加えて TODO も隠す（ブラウザの JSON Schema の指摘と同じ欄が 2 回出ないように）
+  - 生成の区間を作り直した：`examples/scenario-a/design.md`・`examples/scenario-b/design.md`（矢印ごとの表の注と行）。台帳・目録・ホップ・カタログへの回答と、ペイロードの JSON Schema は変えていない
+- 記入欄の置き場所と、Lite／Full の線引き（#61。パイロット #9 の結果）：
+  - `00_core.md`（0.6.0）：付録 D「プロファイルとモジュールの記入欄」（`template:00_core#profile-fill-ins`）を足した。`python tools/new_design.py <設計書> --profile lite|full --use P1,P4,M_token_validation` が、選んだプロファイル・モジュールの記入欄の表を付録 D に足す（すでにある項目は書き換えない。Lite は見出しが〔Lite・Full：記入〕で始まる項目だけ。見出しの〔〕に書く場所がある項目（00_core・台帳）は、表を写さず、その場所に 1 回だけ書くという 1 行を足す）。`profiles/P4_ai_agent_delegation.md`（0.6.0）の冒頭と 1. に、記入欄を書く場所（付録 D）を書いた。冒頭に「使わない記入欄は消さずに『無い』と理由を書く」を足した
+  - `README.md`（0.6.0）：5 問のそれぞれに Yes と No の例を 2 つ以上書いた。問い 1 は組織の境界ではなく信頼の境界で読む（組織の中の信頼しない部品も Yes）、問い 4 は発行者が既存か分からなければ Yes。判定が Full なのに Lite の欄で書いた設計書の扱いを 1 つにした（L73 の warn で知らせ、レビューの段 0 で Full に書き直すよう返す。測定の記録だけが例外）。L73 の重大度は変えていない
+  - `GETTING_STARTED.md`（0.6.0）：手順 1 に `--profile lite` とホップを書かない設計の書き方、手順 3 に記入欄の置き場所と `--use` を足した
+  - 別の LLM のセッションが、シナリオ C の要求で判定から記入欄の置き場所までを辿った記録を `research/template-design/issue-61-walkthrough.md` に書いた（1 回の試行。人による確かめは #20）。その記録を受けて直したこと：付録 D に足す項目の見出しに〔〕の区分を残す、付録 D の見出しを〔Lite・Full：手で書く…〕にする、最初の列が決まった見出しの表での「無い」の書き方、「当てはまらない欄は『無い』、当てはまるが書かない Full の節は 12.」の使い分け、判定の前の lint は `--profile` を付けない
+  - 列を減らす規則（既定どおりで `consumers: []` の行など）が縮小 Lite だけのものであることを、`registry/README.md` の 2. と `tools/claim_lint/RULES.md` と `README.md` に同じ文で書いた（`registry/README.md` は文言の追加だけで、#58 と重ならないよう版の行は変えていない）
+  - **P4 は Full だけにした（案 0。作成者が 2026-11-26 に決定。#61）**。`profiles/P4_ai_agent_delegation.md`：Lite の記入欄を無くした。MCP の必須チェック表の見出しを〔Lite・Full：記入〕から〔Full：記入〕に、2.〜9. の見出しを〔Full：記入／Lite：参照〕から〔Full：記入〕に変えた。信頼の境界を越えず、委任も交換も無いエージェントの設計は、P4 を使わず P5 で書く（5 問がすべて No なら Lite）。`README.md`（5 問の読み方の決まり、プロファイルの表、縮小 Lite の表）・`GETTING_STARTED.md`（手順 3）・`00_core.md`（付録 D）に同じ決まりを書いた。5 問・スキーマ・lint の規則は変えていない。`max_delegation_depth` は「Full のみ」のまま。`tools/new_design.py --profile lite --use P4` は、何も書かずに、`--profile full` を使うよう知らせて終了コード 2 で終わる。PR #69 で入れていた案 1（委任も交換も無い設計だけ P4 を Lite で使える。コミット 1e32b33）は、この決定で置き換えた。4 つの案と決定の記録は `research/template-design/p4-lite-options.md`
+
+- `review/triage.yaml`・`review/short_list.md`（#56）：観点書の 168 問を、A 機械（81。既存の規則だけが決める 44）・B 書き手の自己点検（36）・C 人の判断（47）・D 専門家（4）に振り分け、問いごとに根拠を付けた。レビュアーが答えるのは区分 C の問いだけで、優先（1＝既定、2＝時間があれば、3＝出さない）と出す条件（設計の性質 12 種。台帳と書き手の宣言から機械で読み、読めない性質は問いを出す）を付け、当たるものだけを並べた短い一覧（`short_list.md`。行・経路・設計の全体の順）にした。問いは 1 文で、見る場所と、あわせて確かめることは「手がかり」に分けた。一覧の外を辿る「開いた問い」6 つを足した（パイロット #9 で、問いの一覧の外から出た Major の指摘を元にした）。既定で出すのは優先 1 の問い（設計ごとに 10〜18 問）と開いた問い 3 つで、優先 2 は「時間があれば」。行ごとの問いは、認可・識別子に使う行から 3 行を抜き取って答える（組織独自の認可の行を必ず 1 行。種はレビュアーが決める）。lint を通すために宣言を曲げていないかは、段 0 で確かめる。時間の目安は、問いに答える時間が 30〜60 分、レビューの全体（段 0〜6）が 70〜110 分（筆者の提案と LLM の見積もり。人では測っていない。#20）。`python tools/review_triage.py --check｜--write｜--design <ディレクトリ>｜--load <ディレクトリ>…`。「既存の規則だけが答えを決める」とした 44 問は、記入例の答えを No に書き換えて lint が指摘を出すことを確かめる（`python tools/review_triage_audit.py`、記録は `research/template-design/triage-audit.md`）。`short_list.md`・観点書の「区分」の行・書き手の自己点検・README の区分の表は triage.yaml から作り、`tools/review_check.py` が V14 として食い違いを見る。根拠と測定は `research/template-design/triage-evidence.md`
+- 書き手の提出前の自己点検（#56）：リポジトリの `.github/PULL_REQUEST_TEMPLATE/design_doc.md`（51 行。区分 B の 36 問と、lint の規則がまだ無い・足りない区分 A の 37 問を、同じ確かめごとに 1 行にまとめた）。`GETTING_STARTED.md` に手順 6 を足した。規則の案の一覧は #68
+
 - `glossary.md` の 5.（#53）：設計書のエディターの画面の用語（編集／レビュー・ダッシュボード・書式の検査・設計の規則の検査・レビューの記録・判定・再確認が要る・独立レビュー・段階）。画面・README・テンプレートで同じ名前を使う
 - `glossary.md` の 5. と 5.1（#67）：エディターの画面の語を改めた（レビューを開始・確認済み・前回の確認から変更あり・コメント・レビューを提出・問題・確認事項）。5.1 に、テンプレートの語（台帳・ホップ・観点・lint／検査の結果・出どころ・縮小 Lite・正本）と画面の語の対応の表を足した。置き換えるのは画面だけで、テンプレート・README・観点書・レポートの様式の語は変えていない
 - `review/review.schema.json`（#67）：レビューの記録 `review.yaml` の形を `claims-review/2` に改めた。プルリクエストのレビューの型に合わせて、行ごとの判定（`rows`：承認・修正を求める・保留）をやめ、確認済みの印（`viewed`。行の内容のハッシュに結びつく個人の印で、承認ではない。確認した時の行の値 `snapshot` を持てる）、コメント（`comments`。前の `findings` の欄に、状態 `pending`／`unresolved`／`resolved`・列 `column`・修正の提案 `suggestion`・書いた時の行のハッシュ `hash` を足した）、提出ごとの判定（`submissions`。承認・変更を依頼・コメントのみ と、その時に確認済みだった行のハッシュ）にした。確認事項を絞るための答え（`traits`）を足した。`feedback[].findings` は `feedback[].comments` に改めた。前の形は `review/review.v1.schema.json` に残し、`tools/review_record.py` とエディターは前の形のファイルも読む（読むときに新しい形へ移す。`python tools/review_record.py migrate` で書き直せる。行ごとの判定とコメントは `viewed[].migrated_from` に残る）。`review/README.md`・`CONTRIBUTING.md` の案内を合わせた
@@ -60,6 +90,11 @@
 - `catalog/issue_events.yaml` の I04・I06・I08 と `modules/M_idp_keycloak.md` の既定の列：Keycloak 26.8.0 の実測（#30。#4 の点検の材料の K2・K10）を書き足した。I04 はソースの要約の「REST で項目を省くと ON」が実測と食い違った
 
 ### 変更
+
+- `review/perspectives.md`（#56）：各問いに「区分」の行を足した。区分 A で既存の規則が答えを決める問いは「lint の L? が確かめる（レビュアーは答えない）」と書いた。冒頭を「全問の参照用」に改め、「lint が通っていても問いを省かない」を、区分ごとの分担に書き換えた。問いの文・ID・数（168）は変えていない
+- `review/procedure.md`（#56）：短い一覧を前提に書き直した。段 0 に書き手の自己点検の確認（印の無い行と、3 件の抜き取り：25 問の回答の行と、No なら Blocker の行から 2 件）を、段 1 に設計の性質の表を確かめることを足し、段 3 を「短い一覧の問いに答える」、段 4 に根拠の引用先 3 件の確かめを足し、段 5 を「開いた問いで一覧の外を辿る」にした。段ごとの時間の目安を足した（段 0〜6 で 70〜110 分。LLM の見積もりで、人では測っていない）。段 4 の抜き取りを、道具（`review_record.py sample`）が引く却下の行 3 件に合わせた（これまでの「採用・却下からそれぞれ 5 件」は道具と食い違っていた。採用の行の採点の記録は #62）。段の番号とアンカーは変えていない
+- `review/report_template.md`（#56）：基本情報の「実施した手順の段」「抜き取りの結果」「問いの回答」の書き方と、8. の注記を、短い一覧に合わせた。開いた問いで辿ったことを書く、様式の後ろに足す節を示した。節の見出し・1. の項目・表の見出し・語彙は変えていない（既存のレポートと道具はそのまま通る）
+- 設計書のエディターの「観点のチェックリスト」（#56）：既定で、開いている設計書の性質に当たる短い一覧と開いた問いを出す。全問と区分ごとの問いは「表示する問い」で開ける。画面の作り直しは #67
 
 - claim_lint の目的と仕組みの規則（#18）：L11〜L14（宣言の整合の検査）を足した。`examples/scenario-a/catalog_answers.yaml` に `questions`（問いが要るか）を、`claims.yaml` の C-iss・C-sub に saas-web の `enforced_at` を足した（`design.md` の 13.）
 - claim_lint の意味の規則（#6）：L1a・L1b・L2〜L9・L15〜L18・L21〜L23・L25・L27・L31・L37・L43・L62〜L73 と `claim_lint diff`（L10）を足した。新しい規則は warn から入れ、シナリオ A で機会が 1 以上・誤検知 0 のものだけを error にした（`tools/claim_lint/RULES.md`）。R8 の info から、ID トークンと AT の両方の仕様が定める登録名を外した

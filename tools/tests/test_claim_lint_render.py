@@ -416,3 +416,112 @@ def test_consumer_aud_accepts_string_or_array_issuer_follows_the_registry():
     p['aud'] = ['saas-api', 'other-api']
     assert render.validate_payload(d, p, 'AT', 'consumer') == []
     assert render.validate_payload(d, p, 'AT', 'issuer')  # the registry says shape single
+
+
+# ------------------------------------------------------------------ #60: names, silent dashes
+PILOT_B = os.path.join(ROOT, 'research', 'pilot', 'scenario-b')  # namespaces[].style: flat_prefix
+PILOT_C = os.path.join(ROOT, 'research', 'pilot', 'scenario-c')  # written with the Lite fields: no status column
+
+
+def _shown_names(d):
+    """claim id -> the names that the generated tables show for it (every table that has a claim name column)."""
+    out = {}
+    secs = [render.sec_decision_rows(d), render.sec_data_sources(d), render.sec_arrow_table(d), render.sec_lifecycle(d)]
+    for sec in secs:
+        for t in sec['tables']:
+            for r in t['rows']:
+                cid = r.get('claim_id') or r.get('id')
+                name = r.get('claim') or r.get('candidate')
+                if cid and name:
+                    out.setdefault(cid, set()).add(name)
+    return out
+
+
+def _schema_keys(d):
+    """claim id -> the name of the claim in the issuer payload schemas (top-level key, or <namespace>.<member>)."""
+    out = {}
+    for schemas in render.payload_schemas(d).values():
+        for key, prop in schemas['issuer']['properties'].items():
+            if prop.get('type') == 'object' and '$comment' not in prop:  # an object-style namespace
+                for member, p in prop['properties'].items():
+                    out.setdefault(p['$comment'], set()).add(f'{key}.{member}')
+            else:
+                out.setdefault(prop['$comment'], set()).add(key)
+    return out
+
+
+@pytest.mark.parametrize('design, style', [(PILOT_B, 'flat_prefix'), (EXAMPLE, 'object')])
+def test_shown_names_are_the_names_of_the_payload_schema_and_required_claims(design, style):
+    d = render.load_design(design)
+    assert {n['style'] for n in d['claims']['namespaces']} == {style}
+    shown, keys = _shown_names(d), _schema_keys(d)
+    namespaced = {c['id'] for c in render._claims(d) if c.get('namespace') and c['id'] in keys}
+    assert namespaced
+    for cid in keys:
+        assert shown[cid] == keys[cid], (cid, shown[cid], keys[cid])
+    # every namespaced name of required_claims is a shown name, spelled the same way
+    all_shown = set().union(*shown.values())
+    required = {r for t in render._tts(d) for r in t.get('required_claims') or [] if r.startswith(NS)}
+    assert required and required <= all_shown, required - all_shown
+
+
+def test_flat_prefix_name_has_no_dot_between_namespace_and_name():
+    d = render.load_design(PILOT_B)
+    rows = {r['id']: r for r in render.sec_decision_rows(d)['tables'][0]['rows']}
+    assert rows['C-employee-id']['candidate'] == NS + 'employee_id'
+    text, _ = render._read_text(os.path.join(PILOT_B, 'design.md'))
+    assert NS + '.' not in text and '`' + NS + 'employee_id`' in text
+    # an object-style namespace keeps the path form that required_claims uses
+    assert render._full_name({'namespace': NS, 'name': 'tenant_id'}, render.load_design(EXAMPLE)) == NS + '.tenant_id'
+
+
+def test_arrow_table_says_why_a_hop_has_no_row():
+    """Pilot C: hops[].to is a URL and enforced_at.service a service name, so every row was a silent dash."""
+    sec = render.sec_arrow_table(render.load_design(PILOT_C))
+    rows = sec['tables'][0]['rows']
+    assert rows and all(r.get('unmatched') for r in rows)
+    for r in rows:
+        assert r['claim'] is None and len(r['checks']) == 1
+        assert 'の名前を含む `enforced_at.service` が無い' in r['checks'][0] and 'invoices-api' in r['checks'][0]
+    notice = [n for n in sec['notes'] if '受け手に結びつく行が無いホップ' in n]
+    assert len(notice) == 1 and 'H1・H2・H3' in notice[0]
+    md = render.render_md([sec])
+    assert '| `H1` | `AGENT_AT` | — | — | 結びつく行なし：' in md
+
+
+def test_arrow_table_has_no_notice_when_the_names_meet(tmp_path):
+    d = render.load_design(EXAMPLE)
+    sec = render.sec_arrow_table(d)
+    assert not [n for n in sec['notes'] if '受け手に結びつく行が無いホップ' in n]
+    # a hop whose token carries no registry row (an opaque session) says so, and is not counted as a mismatch
+    h1 = [r for r in sec['tables'][0]['rows'] if r['hop'] == 'H1']
+    assert len(h1) == 1 and h1[0]['checks'] == ['結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`）']
+    # renaming the receiver of a hop breaks the link, and the table says so
+    d2 = copy.deepcopy(d)
+    h2 = next(h for h in d2['hops']['hops'] if h['id'] == 'H2')
+    h2['to'] = 'https://api.example.com'
+    sec2 = render.sec_arrow_table(d2)
+    assert [n for n in sec2['notes'] if '受け手に結びつく行が無いホップ：H2' in n]
+    assert [r for r in sec2['tables'][0]['rows'] if r['hop'] == 'H2'][0]['checks'][0].startswith('結びつく行なし：受け手 `https://api.example.com`')
+
+
+def _definition_table(d):
+    sec = render.sec_lifecycle(d)
+    return sec, next(t for t in sec['tables'] if t['id'] == 'lifecycle-definition')
+
+
+def test_lifecycle_has_no_column_of_dashes_for_status():
+    """Pilot C (Lite fields): no row writes `status`, so the column is left out and a note says why."""
+    sec, t = _definition_table(render.load_design(PILOT_C))
+    assert t['rows'] and all(r['status'] is None for r in t['rows'])
+    assert 'status' not in [c['key'] for c in t['columns']]
+    assert [n for n in sec['notes'] if '「状態」の列は出していない' in n]
+    # scenario A writes status: the column stays and there is no note
+    sec, t = _definition_table(render.load_design(EXAMPLE))
+    assert 'status' in [c['key'] for c in t['columns']] and {r['status'] for r in t['rows']} == {'active'}
+    assert not [n for n in sec['notes'] if '「状態」の列は出していない' in n]
+
+
+@pytest.mark.parametrize('design', [PILOT_B, PILOT_C, os.path.join(ROOT, 'templates', 'examples', 'scenario-b')])
+def test_pilot_designs_and_scenario_b_are_in_sync(design):
+    assert render.check(design, os.path.join(design, 'design.md')) == []

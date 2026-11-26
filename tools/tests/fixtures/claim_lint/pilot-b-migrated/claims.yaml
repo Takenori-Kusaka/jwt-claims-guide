@@ -1,0 +1,2137 @@
+# template_version: 0.3.0
+# yaml-language-server: $schema=../../../../../templates/registry/claims.schema.json
+# 台帳。パイロット #9 のシナリオ B（research/pilot/scenario-b）を、#58 の列で書き直した fixture。migrate.py が作る（手で直さない）
+scenario: scenario-b-pilot-blind
+namespaces:
+- namespace: https://claims.example.com/
+  style: flat_prefix
+  owner: 情報システム部 ID 基盤チーム
+  assignment: この台帳への登録（PR と追加前の 25 問）でだけ名前を割り当てる。入口（内部トークン）と Auth0 の Action だけがこの名前空間の名前を書く
+data_category_vocabulary:
+  name: fideslang
+  version: 3.1.4
+  url: https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv
+  license: CC-BY-4.0
+  verified_on: '2026-11-24'
+data_category_extensions:
+- key: user.workplace.department
+  parent: user.workplace
+  description: 社員の所属部署のコード（社員台帳の値）
+  owner: 人事部
+claims:
+- id: C-iss
+  name: iss
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.1
+  type: string
+  shape: single
+  allowed_values:
+    format: uri
+  description: トークンの発行者
+  not_meaning: 利用者がどの組織に属するかではない。内部トークンの iss は入口で、利用者を認証した IdP ではない
+  decision: 採用
+  rationale: 受け手は発行者ごとに検証の規則（鍵・宛先・種類の確かめ方）を切り替える。入口は 5 つの IdP の iss を完全一致で照合し、Entra は自社のテナントの iss だけを受ける（B10）。サービスは入口の iss だけを受ける（B7）
+  assumption: 受け入れる発行者は、入口の設定に固定した 5 つの IdP と入口だけ
+  revisit_trigger: IdP を足す・外すとき、Entra で別のテナントを受けるとき
+  refs:
+  - kind: spec
+    id: RFC 7519 §4.1.1
+  - kind: guide-slide
+    id: p03-entra-oid-tid
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP（AT・ID トークン・ログアウトトークンの発行時）
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口（内部トークンの作り直し）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  - I09
+  - I21
+  source_system: 各 IdP と入口の設定
+  volatility: never
+  recompute_trigger:
+  - never
+  propagation_delay: 0
+  on_revoke: 発行者を外すときは入口・BFF・サービスの設定から外し、再起動する
+  carried_in:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - orders
+  - invoices
+  consumer_access_path:
+  - consumer: gateway
+    via: token_library
+  - consumer: portal-bff
+    via: token_library
+  - consumer: orders
+    via: token_library
+    note: 組織共通の検証部品
+  - consumer: invoices
+    via: token_library
+    note: 組織共通の検証部品
+  on_missing: 拒否
+  absent_semantics:
+    absent: 検証できないトークンとして拒む
+  enforced_at:
+  - service: gateway
+    check: 5 つの IdP の iss のどれかと完全一致。Entra は自社の tid の iss だけ
+    against:
+    - api_config
+  - service: portal-bff
+    check: ログインを始めた IdP の iss と完全一致
+    against:
+    - api_config
+  - service: orders
+    check: 入口の iss と完全一致
+    against:
+    - api_config
+  - service: invoices
+    check: 入口の iss と完全一致
+    against:
+    - api_config
+  max_bytes: 96
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-sub
+  name: sub
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.2
+  type: string
+  shape: single
+  description: 発行者の中で利用者を一意に表す識別子
+  not_meaning: ログイン名・メールではない。内部トークンの sub は組織の利用者の ID（社員台帳の UUID）で、IdP の sub ではない
+  decision: 採用
+  rationale: 入口は Keycloak・Cognito・Auth0 では iss＋sub、Entra では tid＋oid、Okta では uid を、社員台帳の名寄せの表で組織の利用者の ID に写し、内部トークンの sub にする（Okta の sub は再利用されるので使わない。B13・B14）。サービスは内部トークンの sub で本人のデータを引く
+  assumption: 社員台帳が、IdP ごとの不変のキーと組織の利用者の ID の対応（名寄せの表）を持つ。名寄せは人事の手続きでだけ変える
+  revisit_trigger: IdP の不変のキーが変わったとき（Okta の uid が AT に入らない設定など）、名寄せの表を IdP の属性から自動で作ることにしたとき
+  refs:
+  - kind: guide-slide
+    id: p02-user-identifier
+  - kind: guide-slide
+    id: p03-confusing-differences
+  answers:
+  - q-sub
+  - q-user
+  does_not_answer:
+  - q-agent
+  usage: identifier
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://gw.corp.example.com
+  upstream_issuer:
+    iss:
+    - https://kc.corp.example.com/realms/corp
+    - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+    - https://corp.okta.example.com/oauth2/default
+    - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+    - https://corp.auth0.example.com/
+    source_attribute: Keycloak・Cognito・Auth0 は sub、Entra は tid と oid、Okta は uid（AT のクレーム）
+    normalization: 入口が（iss, IdP の不変のキー）で社員台帳の名寄せの表を引き、組織の利用者の ID（UUID、小文字）に替える。表に無ければ拒む
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP（AT・ID トークンの発行時）
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口（社員台帳の名寄せの表で組織の利用者の ID に替える）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  - I21
+  source_system: 各 IdP の利用者の ID と、社員台帳の名寄せの表
+  verification_method: 名寄せの表は人事の入社の手続きで作り、IdP の属性（メール・ログイン名）から自動で作らない
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 退職・停止は社員台帳の在籍の状態で入口が要求ごとに拒む（db_lookup）
+  carried_in:
+  - KC_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - orders
+  - invoices
+  consumer_access_path:
+  - consumer: gateway
+    via: token_library
+  - consumer: portal-bff
+    via: token_library
+  - consumer: orders
+    via: token_library
+  - consumer: invoices
+    via: token_library
+  on_missing: 拒否
+  absent_semantics:
+    absent: 利用者を決められないので拒む
+  enforced_at:
+  - service: gateway
+    check: （iss・不変のキー）が社員台帳の名寄せの表にあり、在籍していること
+    against:
+    - iss
+    - data_layer
+  - service: portal-bff
+    check: ID トークンの（iss・sub）で BFF のセッションを作る
+    against:
+    - iss
+  - service: orders
+    check: 注文の持ち主が sub と一致する行だけを返す
+    against:
+    - data_layer
+  - service: invoices
+    check: 請求書・経理台帳の操作者を sub で記録し、給与明細は sub の社員番号と照合する
+    against:
+    - data_layer
+  identifier_properties:
+    stable: true
+    reassignable: false
+    pairwise: false
+    id_scheme: opaque
+  value_normalization:
+    case: as_is
+    unicode: none
+    trim: false
+    compare: exact
+    normalized_by: 入口
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.unique_id
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-sub-unread
+  name: sub
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.2
+  type: string
+  shape: single
+  description: 発行者の中で利用者を一意に表す識別子
+  decision: 既定どおり
+  rationale: Okta の AT の sub はログイン名（メール形式）で、退職の後に別の人へ再利用されうる。Entra の AT の sub はアプリごとの仮名。どちらも IdP が既定で出すが、入口は読まない（Okta は uid、Entra は tid＋oid を使う）
+  refs:
+  - kind: guide-slide
+    id: p02-user-identifier
+  issuers:
+  - https://corp.okta.example.com/oauth2/default
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  max_bytes: 256
+  pii_category: 個人情報
+  data_category:
+  - user.unique_id
+  confidential_from: []
+  not_meaning: 入口はこの 2 つの IdP の sub を利用者のキーにしない（Okta は uid、Entra は tid＋oid を使う）
+  usage: protocol
+  authoritative_writer:
+  - stage: ②
+    writer: Okta・Entra ID
+    configurable_by:
+    - platform
+  issue_events:
+  - I01
+  - I02
+  on_missing: 無視
+  overflow_strategy: 上限で固定（超えない値域）
+  log_policy: 記録しない
+  owner: 情報システム部 ID 基盤チーム
+  source_system: Okta のログイン名・Entra のアプリごとの仮名
+  volatility: never
+  propagation_delay: 0
+  status: active
+  carried_in:
+  - OKTA_AT
+  - ENTRA_AT
+  consumers: []
+  note: Okta の sub は再利用されうる（reassignable）。識別子として読まないので usage は protocol とし、identifier_properties を書いていない
+- id: C-aud
+  name: aud
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.3
+  type: string
+  shape: array
+  description: トークンの宛先
+  not_meaning: 利用者に許した操作ではない。Okta の api://default は認可サーバーの宛先で、サービスを区別しない
+  decision: 採用
+  rationale: 入口は経路（注文・請求書）ごとに、IdP ごとの宛先の値（Keycloak の orders・invoices、Entra の api://orders・api://invoices、Auth0 の https://api.example.com）を照合する。請求書宛ての AT を注文の経路で拒む（B3）。内部トークンの aud は 1 つのサービスで、サービスは自分の名前と照合する
+  assumption: BFF はサービスごとに別の AT を取る（Keycloak はクライアントスコープの Audience マッパーで 1 つの宛先にする）
+  revisit_trigger: 1 つの AT で複数のサービスを呼ぶ構成にしたとき
+  refs:
+  - kind: spec
+    id: RFC 7519 §4.1.3
+  - kind: guide-slide
+    id: p06-narrow-downstream
+  answers:
+  - q-resource
+  usage: authz
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://corp.auth0.example.com/
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP（要求された scope・クライアントの設定から）
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口（経路の 1 つのサービスにする）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I01
+  - I02
+  - I09
+  - I21
+  source_system: 各 IdP の API・クライアントスコープの設定と、入口の経路の設定
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 宛先を変えるときは入口の経路の設定を変える
+  carried_in:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - orders
+  - invoices
+  consumer_access_path:
+  - consumer: gateway
+    via: token_library
+  - consumer: portal-bff
+    via: token_library
+  - consumer: orders
+    via: token_library
+  - consumer: invoices
+    via: token_library
+  on_missing: 拒否
+  absent_semantics:
+    absent: 宛先の無いトークンとして拒む（Cognito の AT は aud が無いので、aud の代わりに client_id を照合する別の規則で受ける）
+  enforced_at:
+  - service: gateway
+    check: 経路のサービスに当たる IdP ごとの宛先の値を含む。Okta は aud が共通なので scope の orders・invoices も照合する。ID トークン（aud がポータルのクライアント）を拒む
+    against:
+    - api_config
+  - service: portal-bff
+    check: ID トークン・ログアウトトークンの aud が自分のクライアント ID
+    against:
+    - api_config
+  - service: orders
+    check: aud が orders だけ
+    against:
+    - api_config
+  - service: invoices
+    check: aud が invoices だけ
+    against:
+    - api_config
+  max_bytes: 64
+  max_items: 2
+  typical_items: 1
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-exp
+  name: exp
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.4
+  type: integer
+  shape: single
+  description: トークンの有効期限（NumericDate）
+  not_meaning: セッションの期限ではない。値の鮮度（部署・ロールが正しい期限）でもない
+  decision: 採用
+  rationale: 受け手は exp を過ぎたトークンを拒む（許すずれは目録の max_clock_skew）。入口は exp − iat が種別ごとの寿命の上限を超えるトークンも拒む
+  assumption: 受け手の時計は NTP で合わせ、ずれは 30 秒以内
+  revisit_trigger: ずれが 30 秒を超える受け手が出たとき
+  refs:
+  - kind: spec
+    id: RFC 7519 §4.1.4
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口
+    configurable_by:
+    - platform
+  issue_events:
+  - I01
+  - I02
+  - I09
+  - I21
+  source_system: 発行者の時計と寿命の設定
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 寿命の設定を短くする
+  carried_in:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - orders
+  - invoices
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: exp を過ぎていない。exp − iat が目録の max_lifetime 以下
+    against:
+    - api_config
+  - service: portal-bff
+    check: exp を過ぎていない
+    against:
+    - api_config
+  - service: orders
+    check: exp を過ぎていない。exp − iat が 30 秒以下
+    against:
+    - api_config
+  - service: invoices
+    check: exp を過ぎていない。exp − iat が 30 秒以下
+    against:
+    - api_config
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-iat
+  name: iat
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.6
+  type: integer
+  shape: single
+  description: トークンの発行時刻（NumericDate）
+  not_meaning: 利用者が認証した時刻（auth_time）ではない
+  decision: 採用
+  rationale: 入口は IdP の AT の iat を、社員台帳のログアウトの時刻と比べ、ログアウトより前に出た AT を拒む（B12。どの IdP でも同じ方法で止める）
+  assumption: ログアウト（ポータルのログアウトと Keycloak の Back-Channel Logout）のたびに、BFF が社員台帳のログアウトの時刻を進める
+  revisit_trigger: ポータルを通らない IdP 側のログアウトを止める必要が出たとき
+  refs:
+  - kind: spec
+    id: RFC 7519 §4.1.6
+  - kind: guide-slide
+    id: p08-logout
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口
+    configurable_by:
+    - platform
+  issue_events:
+  - I01
+  - I02
+  - I09
+  - I21
+  source_system: 発行者の時計
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: ログアウトの時刻を進めると、それより前の iat の AT を入口が拒む
+  carried_in:
+  - KC_AT
+  - ENTRA_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - ID_TOKEN
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - orders
+  - invoices
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: iat が社員台帳のログアウトの時刻より後
+    against:
+    - data_layer
+  - service: portal-bff
+    check: ログアウトトークンの iat が 2 分以内
+    against:
+    - api_config
+  - service: orders
+    check: iat が未来でない
+    against:
+    - api_config
+  - service: invoices
+    check: iat が未来でない
+    against:
+    - api_config
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-jti
+  name: jti
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7519 §4.1.7
+  type: string
+  shape: single
+  description: トークンの一意の識別子
+  not_meaning: 利用者・セッションの識別子ではない
+  decision: 採用
+  rationale: ログには全文の代わりに jti だけを残す。経理台帳（重要な操作）では invoices が内部トークンの jti を 1 回だけ受ける。ログアウトトークンの jti の再利用を BFF が拒む
+  assumption: 内部トークンの jti は入口が UUID で作る
+  revisit_trigger: 内部トークンを複数の要求で使い回すことにしたとき
+  refs:
+  - kind: spec
+    id: RFC 7519 §4.1.7
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://corp.okta.example.com/oauth2/default
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP
+    configurable_by:
+    - platform
+  - stage: ③
+    writer: 入口
+    configurable_by:
+    - platform
+  issue_events:
+  - I01
+  - I02
+  - I09
+  - I21
+  source_system: 発行者の乱数
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 該当なし（トークンごとの値）
+  carried_in:
+  - KC_AT
+  - OKTA_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  - LOGOUT_TOKEN
+  - INTERNAL_TOKEN
+  consumers:
+  - gateway
+  - portal-bff
+  - invoices
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: ログに jti だけを残す
+    against:
+    - format
+  - service: portal-bff
+    check: ログアウトトークンの jti を 150 秒の間 1 回だけ受ける
+    against:
+    - format
+  - service: invoices
+    check: 経理台帳の要求で内部トークンの jti を 35 秒の間 1 回だけ受ける
+    against:
+    - format
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-azp
+  name: azp
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: OpenID Connect Core 1.0 §2
+  type: string
+  shape: single
+  description: トークンを求めたクライアント（Keycloak の AT）
+  not_meaning: 利用者ではない。宛先（aud）でもない
+  decision: 採用
+  rationale: 入口は Keycloak の AT の azp がポータル（portal）であることを確かめ、ほかのクライアントが取った AT を受けない
+  assumption: Keycloak で注文・請求書のサービスを呼んでよいクライアントはポータルだけ
+  revisit_trigger: ほかのクライアント（バッチなど）がサービスを呼ぶとき
+  refs:
+  - kind: spec
+    id: OpenID Connect Core 1.0 §2
+  - kind: guide-slide
+    id: p02-registered-claims
+  answers:
+  - q-agent
+  does_not_answer:
+  - q-user
+  usage: authz
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  authoritative_writer:
+  - stage: ②
+    writer: Keycloak
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Keycloak のクライアントの登録
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: クライアントを無効にする
+  carried_in:
+  - KC_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: azp が portal
+    against:
+    - api_config
+  max_bytes: 32
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: OpenID Foundation
+- id: C-client-id
+  name: client_id
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 8693 §4.3
+  type: string
+  shape: single
+  description: トークンを求めたクライアント（Cognito・Auth0 の AT）
+  not_meaning: 利用者ではない。Cognito では aud の代わりに照合するが、宛先そのものではない
+  decision: 採用
+  rationale: Cognito の AT には aud が無いので、入口は client_id をポータルのアプリクライアントの ID と照合して宛先の確認に代える（B16 を受ける）。Auth0 の AT でもポータルのクライアントだけを受ける
+  assumption: Cognito のポータルのアプリクライアントは、注文・請求書のサービスのためだけに使う
+  revisit_trigger: Cognito で同じアプリクライアントをほかの API にも使うとき
+  refs:
+  - kind: spec
+    id: RFC 9068 §2.2
+  - kind: guide-slide
+    id: p03-cognito-token-use
+  answers:
+  - q-agent
+  does_not_answer:
+  - q-user
+  usage: authz
+  issuers:
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  authoritative_writer:
+  - stage: ②
+    writer: Cognito・Auth0
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Cognito・Auth0 のクライアントの登録
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: アプリクライアントを消す
+  carried_in:
+  - COGNITO_AT
+  - AUTH0_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: ポータルのクライアント ID と完全一致。Cognito は加えて token_use が access
+    against:
+    - api_config
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 8693）
+- id: C-scope
+  name: scope
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 8693 §4.2
+  type: string
+  shape: space_delimited
+  description: クライアントに許された権限の範囲（空白区切り）
+  not_meaning: 利用者のロールではない。scope があっても、利用者がその操作をしてよいとは限らない
+  decision: 採用
+  rationale: 入口は経路ごとに orders・invoices の scope を求め、宛先の確認を補う（Cognito は aud が無く、Okta は aud が共通のため）。利用者の権限の判断にはロール（C-roles）を使う
+  assumption: BFF はサービスごとに 1 つの scope で AT を取る
+  revisit_trigger: scope を細かい操作の単位に分けるとき
+  refs:
+  - kind: spec
+    id: RFC 9068 §2.2.3
+  - kind: guide-slide
+    id: p03-absorb-idp-differences
+  answers:
+  - q-authorized
+  does_not_answer:
+  - q-user
+  usage: authz
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  authoritative_writer:
+  - stage: ②
+    writer: 各 IdP（要求された scope と同意）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: 各 IdP のクライアントスコープ・API の設定
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: クライアントスコープの割り当てを外す（次の取り直しで反映）
+  carried_in:
+  - KC_AT
+  - COGNITO_AT
+  - AUTH0_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: 経路のサービスの scope（orders・invoices）を含む。Okta・Entra は scp で同じことを確かめる
+    against:
+    - api_config
+  max_bytes: 512
+  max_items: 20
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 8693）
+- id: C-groups
+  name: groups
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 9068 §2.2.3.1
+  type: string
+  shape: array
+  description: 利用者が属する IdP のグループ（Entra はグループの ID、Okta はグループの名前）
+  not_meaning: 組織のロールそのものではない。Entra で groups が無いことは「所属なし」を意味しない（超過して外れたかもしれない）
+  decision: 採用
+  rationale: 入口は IdP ごとの写しの表で、グループを組織のロール（C-roles）に替える。Entra で groups が消えて _claim_names・_claim_sources があるときは、Microsoft Graph（GRAPH_AT）で所属を引いてから替える。B9 の管理者は受け、B8 の一般社員は admins を得ない
+  assumption: Entra のグループの超過の上限は 200（模擬の値）。Okta の groups は Everyone を含むようにグループの絞り込みを設定する
+  revisit_trigger: Graph の遅れ・障害で正規の要求が落ちるとき（Entra のアプリロールに切り替える）
+  refs:
+  - kind: guide-slide
+    id: p03-entra-scp-roles-groups
+  - kind: guide-slide
+    id: p02-roles-groups-entitlements
+  usage: authz
+  issuers:
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  authoritative_writer:
+  - stage: ②
+    writer: Entra ID・Okta（グループの所属から）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I01
+  - I02
+  source_system: Entra ID・Okta のグループ
+  volatility: 900
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 630
+  on_revoke: グループから外す。次の取り直しで反映し、最悪は Entra の AT の受け入れの上限（630 秒）
+  carried_in:
+  - ENTRA_AT
+  - OKTA_AT
+  consumers:
+  - gateway
+  on_missing: 無視
+  absent_semantics:
+    absent: Entra で _claim_names に groups があれば超過として Graph で解決する。それ以外は所属なしとし、ロールを空にする（既定のロールを使わない）
+    empty_array: 所属なし
+  enforced_at:
+  - service: gateway
+    check: 写しの表にあるグループだけを組織のロールに替える。超過なら Graph で引き、Graph が失敗すれば拒む
+    against:
+    - api_config
+  max_bytes: 64
+  max_items: 200
+  typical_items: 15
+  overflow_strategy: 問い合わせに切り替える
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.authorization
+  log_policy: 記録しない
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7643・RFC 9068）
+- id: C-auth0-roles
+  name: roles
+  namespace: https://claims.example.com/
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: array
+  description: Auth0 の Action が組織の名前空間に書く、利用者の Auth0 のロール
+  not_meaning: 内部トークンの roles（C-roles）ではない。名前空間の無い roles とも違う（Auth0 は名前空間の無い roles を黙って外す）
+  decision: 採用
+  rationale: Auth0 は名前空間の無い予約名を黙って外すので、Action は組織の名前空間つきの名前で書く。入口はこれを写しの表で組織のロールに替える。無いときは既定のロール（editor）を使わず、ロールを空にする（B20）
+  assumption: Action は Auth0 の管理者だけが変えられる
+  revisit_trigger: Auth0 が名前空間なしのクレームの扱いを変えたとき
+  refs:
+  - kind: guide-slide
+    id: p03-auth0-namespace
+  - kind: guide-slide
+    id: p04-namespace
+  usage: authz
+  issuers:
+  - https://corp.auth0.example.com/
+  authoritative_writer:
+  - stage: ②
+    writer: Auth0 の Action（post-login）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I01
+  - I02
+  source_system: Auth0 のロールの割り当て
+  volatility: 900
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 330
+  on_revoke: ロールを外す。次の取り直しで反映（最悪 330 秒）
+  carried_in:
+  - AUTH0_AT
+  consumers:
+  - gateway
+  on_missing: 無視
+  absent_semantics:
+    absent: ロールなしとし、内部トークンの roles を空にする。既定のロールを使わない
+    empty_array: ロールなし
+  enforced_at:
+  - service: gateway
+    check: 写しの表にあるロールだけを組織のロールに替える
+    against:
+    - api_config
+  value_vocabulary:
+    values:
+    - admins
+    - editor
+    - viewer
+    - approver
+    owner: 情報システム部 ID 基盤チーム
+    extensible: false
+  max_bytes: 32
+  max_items: 20
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.authorization
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: 情報システム部 ID 基盤チーム
+- id: C-roles
+  name: roles
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 9068 §2.2.3.1
+  type: string
+  shape: array
+  description: 入口が正規化した、組織のロール（内部トークン）
+  not_meaning: IdP のグループ・ロールの写しそのものではない。部署（C-department）でもない
+  decision: 採用
+  rationale: 入口が IdP ごとのロール・グループ（Keycloak の realm_access.roles、Entra・Okta の groups、Cognito の cognito:groups、Auth0 の名前空間つきの roles）を組織の語彙に替えて書く。orders は admins で管理操作、editor で編集を許す。custom:* の属性は使わない（B18）。元の値が無ければ空にし、既定のロールを使わない（B19・B20）
+  assumption: 写しの表は情報システム部が管理し、IdP の管理者は組織のロールを直接書けない
+  revisit_trigger: 管理操作を重要な操作に含めることにしたとき（社員台帳の問い合わせに切り替える）
+  refs:
+  - kind: guide-slide
+    id: p03-absorb-idp-differences
+  - kind: guide-slide
+    id: p04-reject-missing-required
+  does_not_answer:
+  - q-authorized
+  usage: authz
+  issuers:
+  - https://gw.corp.example.com
+  upstream_issuer:
+    iss:
+    - https://kc.corp.example.com/realms/corp
+    - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+    - https://corp.okta.example.com/oauth2/default
+    - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+    - https://corp.auth0.example.com/
+    source_attribute: Keycloak は realm_access.roles、Entra・Okta は groups（C-groups）、Cognito は cognito:groups、Auth0 は https://claims.example.com/roles（C-auth0-roles）
+    normalization: IdP ごとの写しの表で組織の語彙（admins・editor・viewer・approver）に替える。表に無い値は捨てる。元の値が無ければ空の配列。Entra の超過は Graph で解決してから替える
+  authoritative_writer:
+  - stage: ③
+    writer: 入口（内部トークンの作り直し）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I21
+  source_system: 各 IdP のロール・グループと、入口の写しの表
+  volatility: 900
+  recompute_trigger:
+  - reissue
+  propagation_delay: 665
+  on_revoke: IdP でロール・グループを外す。最悪は IdP の AT の受け入れの上限（Entra で 630 秒）＋内部トークンの 35 秒
+  carried_in:
+  - INTERNAL_TOKEN
+  consumers:
+  - orders
+  - invoices
+  consumer_access_path:
+  - consumer: orders
+    via: token_library
+  - consumer: invoices
+    via: token_library
+  on_missing: 拒否
+  absent_semantics:
+    absent: 入口が必ず書くので、無ければ内部トークンを拒む
+    empty_array: ロールなし（全社員に許す注文の読み取りだけができる）
+  enforced_at:
+  - service: orders
+    check: 管理操作は admins、編集は editor を含むこと
+    against:
+    - api_config
+  - service: invoices
+    check: 請求書の承認は approver を含むこと（経理台帳と給与明細はロールでなく台帳と本人で判断する）
+    against:
+    - api_config
+  value_vocabulary:
+    values:
+    - admins
+    - editor
+    - viewer
+    - approver
+    owner: 情報システム部 ID 基盤チーム
+    extensible: false
+  max_bytes: 16
+  max_items: 10
+  typical_items: 2
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.authorization
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 7643・RFC 9068）
+- id: C-employee-id
+  name: employee_id
+  namespace: https://claims.example.com/
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  allowed_values:
+    pattern: ^[0-9]{1,20}$
+  description: 社員番号（社員台帳の値、数字だけの文字列）
+  not_meaning: 数値ではない（JSON の数値として読まない）。IdP の利用者の ID でもない
+  decision: 採用
+  rationale: invoices は給与明細を社員番号で引く。入口は社員番号を IdP からではなく社員台帳から組織の利用者の ID で引き、数字の文字列で書く。IdP が数値で出す社員番号（Auth0）は使わない（B22。2^53 を超える値を JavaScript が丸めて別の社員の明細を引くことを防ぐ）
+  assumption: 社員番号は退職の後も再利用しない
+  revisit_trigger: 社員番号の体系を変えるとき
+  refs:
+  - kind: guide-slide
+    id: p04-type
+  - kind: guide-slide
+    id: p04-immutable-identifiers
+  answers:
+  - q-user
+  does_not_answer:
+  - q-agent
+  usage: identifier
+  issuers:
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ③
+    writer: 入口（社員台帳から引く）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I21
+  source_system: 社員台帳（人事システム）
+  verification_method: 人事の入社の手続きで採番する
+  source_max_length:
+    value: 20
+    unit: bytes
+    basis: 社員台帳の社員番号の欄は 20 桁までの数字
+  volatility: never
+  recompute_trigger:
+  - reissue
+  propagation_delay: 0
+  on_revoke: 退職は在籍の状態で入口が拒む
+  carried_in:
+  - INTERNAL_TOKEN
+  consumers:
+  - invoices
+  consumer_access_path:
+  - consumer: invoices
+    via: token_library
+    note: 文字列として読み、数値に変換しない
+  on_missing: 拒否
+  absent_semantics:
+    absent: 入口が必ず書くので、無ければ内部トークンを拒む
+  enforced_at:
+  - service: invoices
+    check: 給与明細の行の社員番号と文字列で完全一致
+    against:
+    - data_layer
+    - format
+  identifier_properties:
+    stable: true
+    reassignable: false
+    pairwise: false
+    id_scheme: employee_number
+  value_normalization:
+    case: as_is
+    unicode: none
+    trim: true
+    compare: exact
+    normalized_by: 入口
+  max_bytes: 20
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.unique_id
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 人事部
+  change_controller: 情報システム部 ID 基盤チーム
+- id: C-department
+  name: department
+  namespace: https://claims.example.com/
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  allowed_values:
+    enum:
+    - finance
+    - sales
+    - general
+    - it
+    - hr
+  description: 社員の所属部署のコード（社員台帳の値）
+  not_meaning: ロールではない。経理台帳の許可の根拠ではない（経理台帳は invoices が要求ごとに社員台帳を引く）
+  decision: 採用
+  rationale: orders は社内文書を、部署が sales か finance の社員に許す。入口は部署を IdP（Okta のフック・Cognito の custom:* の属性・Keycloak の属性）からではなく社員台帳から要求ごとに引くので、フックの打ち切りや本人の書き換えの影響を受けない（B15・B18）。無ければ既定の部署を使わず、部署で絞る操作を拒む
+  assumption: 社員台帳は異動を発令の時点で反映する。入口は社員台帳をキャッシュしない
+  revisit_trigger: 入口で社員台帳の応答をキャッシュすることにしたとき、社内文書を重要な操作に含めるとき
+  refs:
+  - kind: guide-slide
+    id: p04-split-by-writer
+  - kind: guide-slide
+    id: p08-stale-claims
+  usage: authz
+  issuers:
+  - https://gw.corp.example.com
+  authoritative_writer:
+  - stage: ③
+    writer: 入口（社員台帳から引く）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I21
+  source_system: 社員台帳（人事システム）
+  verification_method: 異動の発令で人事部が更新する
+  last_verified: '2026-11-24'
+  source_max_length:
+    value: 16
+    unit: bytes
+    basis: 部署のコードは英小文字 16 字まで（この設計で決める）
+  volatility: 60
+  recompute_trigger:
+  - reissue
+  propagation_delay: 35
+  on_revoke: 社員台帳を更新すると、次の要求から反映（内部トークンの受け入れの上限 35 秒）。経理台帳は invoices が要求ごとに引き直す（遅れ 0）
+  carried_in:
+  - INTERNAL_TOKEN
+  consumers:
+  - orders
+  consumer_access_path:
+  - consumer: orders
+    via: token_library
+  on_missing: 無視
+  absent_semantics:
+    absent: 部署の無い社員（契約社員など）。部署で絞る操作は拒む。既定の部署を使わない
+    empty_string: 部署の無い社員と同じ
+  enforced_at:
+  - service: orders
+    check: 社内文書は sales か finance のときだけ
+    against:
+    - api_config
+  max_bytes: 16
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.workplace.department
+  log_policy: 記録する
+  status: active
+  owner: 人事部
+  change_controller: 情報システム部 ID 基盤チーム
+- id: C-nonce
+  name: nonce
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: OpenID Connect Core 1.0 §2
+  type: string
+  shape: single
+  description: 認証要求と ID トークンを結びつける値
+  not_meaning: 再送の防止の一般の仕組みではない
+  decision: 採用
+  rationale: BFF は ID トークンの nonce を、認可要求で送った値と照合する
+  assumption: BFF はログインごとに nonce を作り、セッションに留める
+  revisit_trigger: ログインの方式を変えるとき
+  refs:
+  - kind: spec
+    id: OpenID Connect Core 1.0 §3.1.3.7
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  - https://corp.okta.example.com/oauth2/default
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  - https://corp.auth0.example.com/
+  authoritative_writer:
+  - stage: ①
+    writer: 各 IdP（認可要求の値を写す）
+    configurable_by:
+    - platform
+  issue_events:
+  - I01
+  source_system: BFF が作る乱数
+  volatility: never
+  recompute_trigger:
+  - login
+  propagation_delay: 0
+  on_revoke: 該当なし（ログインごとの値）
+  carried_in:
+  - ID_TOKEN
+  consumers:
+  - portal-bff
+  on_missing: 拒否
+  enforced_at:
+  - service: portal-bff
+    check: 認可要求で送った値と一致
+    against:
+    - other_claim
+    - format
+    with: C-sub
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.authentication
+  log_policy: 記録しない
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: OpenID Foundation
+- id: C-sid
+  name: sid
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: OpenID Connect Front-Channel Logout 1.0 §3
+  type: string
+  shape: single
+  description: IdP のセッションの識別子（ログアウトトークン）
+  not_meaning: 利用者の識別子ではない
+  decision: 採用
+  rationale: BFF はログアウトトークンの sid で、終えるべき BFF のセッションを探す
+  assumption: BFF はログインのときに Keycloak の sid をセッションに覚える
+  revisit_trigger: Keycloak がログアウトトークンに sid を入れない設定になったとき
+  refs:
+  - kind: spec
+    id: OpenID Connect Back-Channel Logout 1.0 §2.4
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  authoritative_writer:
+  - stage: ②
+    writer: Keycloak
+    configurable_by:
+    - platform
+  issue_events:
+  - I09
+  source_system: Keycloak のセッション
+  volatility: never
+  recompute_trigger:
+  - never
+  propagation_delay: 0
+  on_revoke: 該当なし（セッションごとの値）
+  carried_in:
+  - LOGOUT_TOKEN
+  consumers:
+  - portal-bff
+  on_missing: 拒否
+  enforced_at:
+  - service: portal-bff
+    check: 覚えた sid と一致するセッションだけを終える
+    against:
+    - data_layer
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.authentication
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: OpenID Foundation
+- id: C-events
+  name: events
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 8417 §2.2
+  type: object
+  shape: single
+  description: ログアウトトークンのイベントの種類
+  not_meaning: ほかのセキュリティイベントではない
+  decision: 採用
+  rationale: BFF は events に Back-Channel Logout のイベントの種類があることを確かめ、ほかの JWT をログアウトトークンとして受けない
+  assumption: Keycloak のログアウトトークンは仕様どおりの events を持つ
+  revisit_trigger: 共有シグナル（SET）を受けることにしたとき
+  refs:
+  - kind: spec
+    id: OpenID Connect Back-Channel Logout 1.0 §2.4
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  authoritative_writer:
+  - stage: ②
+    writer: Keycloak
+    configurable_by:
+    - platform
+  issue_events:
+  - I09
+  source_system: Keycloak
+  volatility: never
+  recompute_trigger:
+  - never
+  propagation_delay: 0
+  on_revoke: 該当なし
+  carried_in:
+  - LOGOUT_TOKEN
+  consumers:
+  - portal-bff
+  on_missing: 拒否
+  enforced_at:
+  - service: portal-bff
+    check: http://schemas.openid.net/event/backchannel-logout のメンバーがある
+    against:
+    - format
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: IETF（RFC 8417）
+- id: C-entra-oid
+  name: oid
+  namespace: null
+  idp_defined:
+    idp: entra
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: Entra ID のテナントの中で、利用者（かサービスプリンシパル）を表す不変の ID（GUID）
+  not_meaning: sub ではない（Entra の sub はアプリごとに違う）。テナントが違えば同じ人でも別の値になるので、tid と組で使う
+  decision: 既定どおり
+  rationale: 入口は Entra の AT では（tid, oid）で社員台帳の名寄せの表を引く（P5 の 1.）。無ければ利用者を決められないので拒む（パイロットの指摘 B-R1 F01・B-R2 R2-03）
+  refs:
+  - &id001
+    kind: spec
+    id: Microsoft identity platform「Access token claims reference」
+    url: https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+    verified_on: '2026-11-25'
+  usage: identifier
+  issuers:
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  authoritative_writer:
+  - stage: ②
+    writer: entra（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Entra ID の利用者のオブジェクト
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 退職・停止は社員台帳の在籍の状態で入口が要求ごとに拒む（db_lookup）
+  carried_in:
+  - ENTRA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: （tid, oid）が社員台帳の名寄せの表にあり、在籍していること
+    against:
+    - iss
+    - data_layer
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.unique_id
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: entra（製品が決めた名前）
+  identifier_properties: &id002
+    stable: true
+    reassignable: false
+    pairwise: false
+    id_scheme: opaque
+  value_normalization: &id003
+    case: as_is
+    unicode: none
+    trim: false
+    compare: exact
+    normalized_by: 入口
+  absent_semantics: &id004
+    absent: 利用者を決められないので拒む
+- id: C-entra-tid
+  name: tid
+  namespace: null
+  idp_defined:
+    idp: entra
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: 利用者がサインインした Entra ID のテナントの ID（GUID）
+  not_meaning: 組織の顧客のテナントではない（この設計はマルチテナントでない）。iss の中のテナントの ID と同じ値
+  decision: 既定どおり
+  rationale: 入口は tid が自社のテナントの ID と一致することを確かめ、oid と組で名寄せに使う。別のテナントの AT を拒む
+  refs:
+  - *id001
+  usage: authz
+  issuers:
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  authoritative_writer:
+  - stage: ②
+    writer: entra（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Entra ID のテナント
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: アプリクライアントを消す
+  carried_in:
+  - ENTRA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: 自社のテナントの ID と完全一致し、iss の中のテナントの ID とも一致する
+    against:
+    - api_config
+    - iss
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: entra（製品が決めた名前）
+- id: C-entra-scp
+  name: scp
+  namespace: null
+  idp_defined:
+    idp: entra
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: space_delimited
+  description: クライアントが同意を得た、API のスコープ（空白区切りの 1 つの文字列）
+  not_meaning: 利用者のロールではない。Okta の scp（配列）とは形が違う
+  decision: 既定どおり
+  rationale: 入口は scp が経路のサービスのスコープを含むことを確かめる
+  refs:
+  - *id001
+  usage: authz
+  issuers:
+  - https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+  authoritative_writer:
+  - stage: ②
+    writer: entra（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Entra ID のアプリ登録（公開するスコープ）
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: クライアントスコープの割り当てを外す（次の取り直しで反映）
+  carried_in:
+  - ENTRA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: 経路のサービス（orders・invoices）のスコープを含む
+    against:
+    - api_config
+  max_bytes: 32
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: entra（製品が決めた名前）
+  max_items: 10
+- id: C-okta-uid
+  name: uid
+  namespace: null
+  idp_defined:
+    idp: okta
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: Okta の利用者を一意に表す ID
+  not_meaning: sub ではない（Okta の AT の sub は再利用されうるログイン名で、この設計は読まない）。利用者に結びつかない AT には載らない
+  decision: 既定どおり
+  rationale: 入口は Okta の AT では uid で社員台帳の名寄せの表を引く（P5 の 1.）。無ければ拒む（client credentials の AT を利用者の要求として受けない）
+  refs:
+  - &id005
+    kind: spec
+    id: Okta Developer「OpenID Connect & OAuth 2.0 API」Access token
+    url: https://developer.okta.com/docs/api/openapi/okta-oauth/guides/overview/
+    verified_on: '2026-11-25'
+  usage: identifier
+  issuers:
+  - https://corp.okta.example.com/oauth2/default
+  authoritative_writer:
+  - stage: ②
+    writer: okta（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Okta の利用者のプロファイル
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  - reissue
+  propagation_delay: 0
+  on_revoke: 退職・停止は社員台帳の在籍の状態で入口が要求ごとに拒む（db_lookup）
+  carried_in:
+  - OKTA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: （iss, uid）が社員台帳の名寄せの表にあり、在籍していること
+    against:
+    - iss
+    - data_layer
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.unique_id
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: okta（製品が決めた名前）
+  identifier_properties: *id002
+  value_normalization: *id003
+  absent_semantics: *id004
+- id: C-okta-cid
+  name: cid
+  namespace: null
+  idp_defined:
+    idp: okta
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: AT を求めたクライアントの ID
+  not_meaning: 利用者ではない。宛先（aud）でもない
+  decision: 既定どおり
+  rationale: Okta の aud は api://default で注文と請求書に共通なので、入口は cid がポータルのクライアントであることを確かめる
+  refs:
+  - *id005
+  usage: authz
+  issuers:
+  - https://corp.okta.example.com/oauth2/default
+  authoritative_writer:
+  - stage: ②
+    writer: okta（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Okta のアプリの登録
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: アプリクライアントを消す
+  carried_in:
+  - OKTA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: ポータルのクライアント ID と完全一致
+    against:
+    - api_config
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: okta（製品が決めた名前）
+- id: C-okta-scp
+  name: scp
+  namespace: null
+  idp_defined:
+    idp: okta
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: array
+  description: AT に認められたスコープの配列
+  not_meaning: 利用者のロールではない。Entra の scp（空白区切りの文字列）とは形が違う
+  decision: 既定どおり
+  rationale: Okta の aud は共通なので、入口は scp で経路のサービスを確かめる
+  refs:
+  - *id005
+  usage: authz
+  issuers:
+  - https://corp.okta.example.com/oauth2/default
+  authoritative_writer:
+  - stage: ②
+    writer: okta（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Okta の認可サーバーのスコープ
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: クライアントスコープの割り当てを外す（次の取り直しで反映）
+  carried_in:
+  - OKTA_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: 経路のサービス（orders・invoices）のスコープを含む
+    against:
+    - api_config
+  max_bytes: 32
+  overflow_strategy: 発行を失敗させる
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: okta（製品が決めた名前）
+  max_items: 10
+- id: C-cognito-token-use
+  name: token_use
+  namespace: null
+  idp_defined:
+    idp: cognito
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: トークンの用途。AT では access
+  not_meaning: 権限ではない。ID トークンでは id になる
+  decision: 既定どおり
+  rationale: Cognito の AT と ID トークンはヘッダーで区別できないので、入口は token_use が access のものだけを AT として受ける（ID トークンを API に出す取り違えを拒む）
+  refs:
+  - &id006
+    kind: spec
+    id: Amazon Cognito Developer Guide「Understanding the access token」
+    url: https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html
+    verified_on: '2026-11-25'
+  - kind: spec
+    id: Amazon Cognito Developer Guide「Verifying JSON web tokens」
+    url: https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html
+    verified_on: '2026-11-25'
+  usage: protocol
+  issuers:
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  authoritative_writer:
+  - stage: ②
+    writer: cognito（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Cognito（発行時に付ける）
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: アプリクライアントを消す
+  carried_in:
+  - COGNITO_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: access と完全一致
+    against:
+    - api_config
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: cognito（製品が決めた名前）
+  allowed_values:
+    enum:
+    - access
+- id: C-cognito-groups
+  name: cognito:groups
+  namespace: null
+  idp_defined:
+    idp: cognito
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: array
+  description: 利用者が属するユーザープールのグループの名前
+  not_meaning: 組織のロールそのものではない。入口が写しの表でロールに替える
+  decision: 既定どおり
+  rationale: 入口は Cognito のグループを組織のロール（C-roles）に替える。グループの無い利用者（B16）はロールなしで通す
+  refs:
+  - *id006
+  usage: authz
+  issuers:
+  - https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_EXAMPLE
+  authoritative_writer:
+  - stage: ②
+    writer: cognito（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I01
+  - I02
+  source_system: Cognito のユーザープールのグループ
+  volatility: 900
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 630
+  on_revoke: グループから外す。次の取り直しで反映し、最悪は Entra の AT の受け入れの上限（630 秒）
+  carried_in:
+  - COGNITO_AT
+  consumers:
+  - gateway
+  on_missing: 無視
+  enforced_at:
+  - service: gateway
+    check: 写しの表にあるグループだけを組織のロールに替える
+    against:
+    - api_config
+  max_bytes: 64
+  overflow_strategy: 問い合わせに切り替える
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.authorization
+  log_policy: 記録しない
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: cognito（製品が決めた名前）
+  max_items: 50
+  typical_items: 3
+  absent_semantics:
+    absent: グループに属さない利用者。ロールを空にする（既定のロールを使わない）
+- id: C-kc-realm-access
+  name: realm_access
+  namespace: null
+  idp_defined:
+    idp: keycloak
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: object
+  shape: single
+  description: Keycloak のレルムのロール（realm_access.roles の配列）を入れるオブジェクト
+  not_meaning: 組織のロールそのものではない。入口が写しの表でロールに替える
+  decision: 既定どおり
+  rationale: 入口は realm_access.roles を組織のロール（C-roles）に替える。サービスには Keycloak の形のまま渡さない
+  refs:
+  - kind: guide-slide
+    id: p03-keycloak-mappers
+  usage: authz
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  authoritative_writer:
+  - stage: ②
+    writer: keycloak（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 管理者が設定した値
+  issue_events:
+  - I01
+  - I02
+  source_system: Keycloak のレルムのロールの割り当て
+  volatility: 900
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 630
+  on_revoke: グループから外す。次の取り直しで反映し、最悪は Entra の AT の受け入れの上限（630 秒）
+  carried_in:
+  - KC_AT
+  consumers:
+  - gateway
+  on_missing: 無視
+  enforced_at:
+  - service: gateway
+    check: 写しの表にあるロールだけを組織のロールに替える
+    against:
+    - api_config
+  max_bytes: 1024
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 個人情報
+  data_category:
+  - user.authorization
+  log_policy: 記録しない
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: keycloak（製品が決めた名前）
+  absent_semantics:
+    absent: レルムのロールの無い利用者。ロールを空にする（既定のロールを使わない）
+- id: C-kc-typ
+  name: typ
+  namespace: null
+  idp_defined:
+    idp: keycloak
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  description: Keycloak がペイロードに書くトークンの種類。AT では Bearer
+  not_meaning: ヘッダーの typ（JWT）ではない。ID トークンでは ID になる
+  decision: 既定どおり
+  rationale: Keycloak の AT と ID トークンはヘッダーの typ が同じ JWT なので、入口はペイロードの typ が Bearer のものだけを AT として受ける
+  refs:
+  - kind: spec
+    id: RFC 8725 §3.12
+  usage: protocol
+  issuers:
+  - https://kc.corp.example.com/realms/corp
+  authoritative_writer:
+  - stage: ②
+    writer: keycloak（AT の発行時）
+    configurable_by:
+    - platform
+  provenance: 発行者が確かめた値
+  issue_events:
+  - I01
+  - I02
+  source_system: Keycloak（発行時に付ける）
+  volatility: never
+  recompute_trigger:
+  - login
+  - refresh
+  propagation_delay: 0
+  on_revoke: アプリクライアントを消す
+  carried_in:
+  - KC_AT
+  consumers:
+  - gateway
+  on_missing: 拒否
+  enforced_at:
+  - service: gateway
+    check: Bearer と完全一致
+    against:
+    - api_config
+  max_bytes: 64
+  overflow_strategy: 上限で固定（超えない値域）
+  confidential_from: []
+  pii_category: 該当なし
+  data_category:
+  - system.operations
+  log_policy: 記録する
+  status: active
+  owner: 情報システム部 ID 基盤チーム
+  change_controller: keycloak（製品が決めた名前）
+  allowed_values:
+    enum:
+    - Bearer
+- id: C-cognito-custom-role
+  name: custom:role
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  decision: 却下
+  rejection_kind: 禁止
+  alt:
+  - C-roles
+  rationale: Cognito の custom:* の属性は、書き込みを許すと利用者本人が書き換えられる。認可に使えば、本人が admins を書いて管理操作を呼べる（B18）。できなくなること：Cognito の属性でロールを渡すこと（cognito:groups を使う）
+  assumption: Cognito のロールは管理者が設定するグループ（cognito:groups）だけで表す
+  revisit_trigger: custom:* の属性の書き込みを全クライアントで禁じたと確かめたとき
+  refs:
+  - kind: guide-slide
+    id: p04-split-by-writer
+  - kind: guide-slide
+    id: p03-cognito-token-use
+- id: C-auth0-plain-roles
+  name: roles
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: array
+  decision: 却下
+  rejection_kind: IdP が出さない
+  alt:
+  - C-auth0-roles
+  rationale: Auth0 は Action が名前空間なしの予約名（roles）で足した値を黙って外す。これに頼ると値が無くなり、既定のロールが使われる（B20）。できなくなること：なし（名前空間つきの名前で同じ値を運ぶ）
+  assumption: Auth0 の名前空間の規則は変わらない
+  revisit_trigger: Auth0 が名前空間なしの roles を出すようになったとき
+  refs:
+  - kind: guide-slide
+    id: p03-auth0-namespace
+- id: C-auth0-employee-number
+  name: employee_number
+  namespace: https://claims.example.com/
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: number
+  shape: single
+  decision: 却下
+  rejection_kind: 禁止
+  alt:
+  - C-employee-id
+  rationale: Auth0 が社員番号を数値で出すと、2^53 を超える値は JavaScript で丸まり、別の社員の給与明細を引ける（B22）。できなくなること：IdP から社員番号を受け取ること（社員台帳から引く）
+  assumption: 社員番号は社員台帳にある
+  revisit_trigger: 社員台帳を引けない受け手が社員番号を要るとき
+  refs:
+  - kind: guide-slide
+    id: p04-type
+- id: C-idp-department
+  name: department
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  type: string
+  shape: single
+  decision: 却下
+  rejection_kind: 代替あり
+  alt:
+  - C-department
+  rationale: IdP が出す部署（Keycloak の利用者の属性、Okta のインラインフック、Cognito の custom:* の属性）は、フックの打ち切りで欠ける（B15）、本人が書き換えられる（B18）、異動の後に古いまま残る（B11）。できなくなること：なし（入口が社員台帳から引いて内部トークンに書く）
+  assumption: 入口が社員台帳を要求ごとに引ける
+  revisit_trigger: 社員台帳が止まったときにも社内文書を開く必要が出たとき
+  refs:
+  - kind: guide-slide
+    id: p04-split-by-writer
+  - kind: guide-slide
+    id: p08-stale-claims
+- id: C-email
+  name: email
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: OpenID Connect Core 1.0 §5.1
+  type: string
+  shape: single
+  decision: 却下
+  rejection_kind: 不要
+  rationale: ポータルはログイン画面で氏名・メールを表示しない（7. の曖昧な点 9 の決定）。識別子にも使わない。できなくなること：ID トークンからの表示名・メールの表示（要るなら社員台帳から BFF が引く）
+  assumption: 各 IdP のクライアントで profile・email の scope を求めない（Keycloak は既定のクライアントスコープから外す）
+  revisit_trigger: ポータルが氏名・メールを表示することにしたとき
+  refs:
+  - kind: guide-slide
+    id: p09-do-not-carry
+- id: C-cnf
+  name: cnf
+  namespace: null
+  catalog_refs: []
+  catalog_refs_reason: ブラインド記入（#9 のパイロット）のため、ケーススタディの一覧表を参照していない
+  registered_ref:
+    kind: spec
+    id: RFC 7800 §3.1
+  type: object
+  shape: single
+  decision: 却下
+  rejection_kind: 不要
+  rationale: 送信者制約を見送る（issuance_profile.sender_constraint）。できなくなること：漏れた AT の別の端末からの再送を止めること（B23）
+  assumption: AT は BFF と入口のサーバーの中に留まる
+  revisit_trigger: B23 の型の悪用が観測されたとき、AT を端末に置くとき
+  refs:
+  - kind: spec
+    id: RFC 9449 §6.1
+  - kind: guide-slide
+    id: p12-priorities-deferrals

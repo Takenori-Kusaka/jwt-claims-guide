@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = '523463319fd2';
+  const BUILD_ID = '3aa849987540';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;
@@ -315,7 +315,8 @@
     if (coll === 'claims' && key === 'carried_in') return Array.isArray(v) && v.length ? h('span', { class: 'codes' }, v.map(tokenLink)) : value(v, col);
     if (key === 'answers' || key === 'does_not_answer') return Array.isArray(v) && v.length ? h('ul', null, v.map((x) => h('li', null, questionLabel(x)))) : value(v, col);
     if (key === 'issue_events') return Array.isArray(v) && v.length ? h('ul', null, v.map((x) => h('li', null, eventLabel(x)))) : value(v, col);
-    if (coll === 'hops' && key === 'upstream') return v ? hopLink(v) : none();
+    // upstream is one hop ID or a list of IDs (#58: a reissue hop that receives the tokens of several IdPs)
+    if (coll === 'hops' && key === 'upstream') return [].concat(v || []).length ? h('span', null, [].concat(v || []).map((x, i) => [i ? '、' : null, hopLink(x)])) : none();
     if (coll === 'hops' && key === 'token_type') return v ? tokenLink(v) : none();
     return value(v, col);
   }
@@ -813,14 +814,15 @@
   }
   // per hop: what changed against its upstream hop (fewer aud / scope / claims, shorter lifetime)
   function narrowing() {
-    const hs = hops().filter((x) => x.upstream);
+    // one row per (hop, upstream hop): upstream may be a list (#58)
+    const hs = hops().flatMap((x) => [].concat(x.upstream || []).map((up) => [x, up]));
     if (!hs.length) return null;
     const diff = (a, b) => arr(a).filter((x) => !arr(b).includes(x));
     return [h('h2', null, '上流との比較（絞り込み）'),
       h('p', { class: 'muted' }, '「減った」は上流にあって下流に無いもの、「増えた」は下流で足されたもの（増えたら理由が要る。検査の正は claim_lint の L16）。'),
       h('div', { class: 'tablewrap' }, h('table', { 'data-table': 'narrowing' }, h('thead', null, h('tr', null, ['経路', '上流', 'aud', 'scope', '寿命', '独自クレーム'].map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, hs.map((x) => {
-          const u = hopById(x.upstream) || {};
+        h('tbody', null, hs.map(([x, up]) => {
+          const u = hopById(up) || {};
           const cmp = (k) => {
             const less = diff(u[k], x[k]); const more = diff(x[k], u[k]);
             return h('td', null, less.length ? h('div', null, badge('ok', '−', '減った'), ' ', less.join('、')) : null,
@@ -829,7 +831,7 @@
           const lt = typeof x.max_lifetime === 'number' && typeof u.max_lifetime === 'number'
             ? (x.max_lifetime < u.max_lifetime ? [badge('ok', '↓', '短い'), ` ${u.max_lifetime} → ${x.max_lifetime} 秒`] : x.max_lifetime > u.max_lifetime ? [badge('warn', '↑', '長い'), ` ${u.max_lifetime} → ${x.max_lifetime} 秒`] : `同じ（${x.max_lifetime} 秒）`)
             : '—';
-          return h('tr', { 'data-row': x.id, 'data-anchor': anchorOf('hops', x.id) }, h('th', { scope: 'row' }, hopLink(x.id), ' ', h('span', { class: 'muted' }, `${x.from} → ${x.to}`)), h('td', null, hopLink(x.upstream)),
+          return h('tr', { 'data-row': x.id, 'data-anchor': anchorOf('hops', x.id) }, h('th', { scope: 'row' }, hopLink(x.id), ' ', h('span', { class: 'muted' }, `${x.from} → ${x.to}`)), h('td', null, hopLink(up)),
             cmp('aud'), cmp('scope'), h('td', null, lt), cmp('custom_claims'));
         }))))];
   }

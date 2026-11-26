@@ -98,9 +98,19 @@ def _carried(c):
     return c.get('decision') in CARRIED_DECISIONS
 
 
-def _full_name(c):
+def _ns_styles(d):
+    return {n.get('namespace'): n.get('style', 'object') for n in d['claims'].get('namespaces') or []}
+
+
+def _full_name(c, d=None):
+    """The claim's name as the payload schema and `required_claims` spell it (#60): `<namespace>.<name>` inside an
+    object-style namespace (a path), `<namespace><name>` (one top-level JSON key) in a flat_prefix namespace."""
     ns = c.get('namespace')
-    return f"{ns}.{c.get('name')}" if ns else c.get('name')
+    if not ns:
+        return c.get('name')
+    if d is not None and _ns_styles(d).get(ns, 'object') == 'flat_prefix':
+        return f"{ns}{c.get('name')}"
+    return f"{ns}.{c.get('name')}"
 
 
 def _secs(v):
@@ -120,7 +130,7 @@ def sec_decision_rows(d):
         decision = c.get('decision')
         if c.get('rejection_kind'):
             decision += f"（{c['rejection_kind']}）"
-        rows.append({'id': c.get('id'), 'candidate': _full_name(c), 'decision': decision, 'rationale': c.get('rationale'),
+        rows.append({'id': c.get('id'), 'candidate': _full_name(c, d), 'decision': decision, 'rationale': c.get('rationale'),
                      'assumption': c.get('assumption'), 'refs': c.get('refs') or [], 'evidence': c.get('evidence') or [],
                      'alt': c.get('alt') or [], 'revisit_trigger': c.get('revisit_trigger')})
     cols = [('id', 'ID', 'code'), ('candidate', '候補', 'code'), ('decision', '採否', 'text'), ('alt', '代わりの行', 'codes'),
@@ -141,7 +151,7 @@ def sec_data_sources(d):
         writers = [f"{w.get('stage')} {w.get('writer')}" + (f"（設定できる主体：{'・'.join(w['configurable_by'])}）"
                                                           if w.get('configurable_by') else '')
                    for w in c.get('authoritative_writer') or []]
-        rows.append({'id': c.get('id'), 'claim': _full_name(c), 'source_system': c.get('source_system'), 'writers': writers,
+        rows.append({'id': c.get('id'), 'claim': _full_name(c, d), 'source_system': c.get('source_system'), 'writers': writers,
                      'issue_events': c.get('issue_events') or [], 'recompute_trigger': c.get('recompute_trigger') or [],
                      'volatility': c.get('volatility'), 'propagation_delay': c.get('propagation_delay')})
     cols = [('id', 'ID', 'code'), ('claim', 'クレーム', 'code'), ('source_system', 'データ源', 'text'),
@@ -204,12 +214,19 @@ def _profile_value(profile, field):
     return v.get('value') if isinstance(v, dict) and 'value' in v else v
 
 
+def _profile_values(profile, field):
+    """The value of the field and the values of its per-IdP exceptions (#58; the same reading as L62's _when)."""
+    v = profile.get(field)
+    exc = v.get('exceptions') or [] if isinstance(v, dict) else []
+    return [_profile_value(profile, field)] + [e.get('value') for e in exc if isinstance(e, dict)]
+
+
 def _when_holds(profile, conds):
     for c in conds:
-        v = _profile_value(profile, c['field'])
-        if 'equals' in c and v != c['equals']:
+        vs = _profile_values(profile, c['field'])
+        if 'equals' in c and not any(v == c['equals'] for v in vs):
             return False
-        if 'includes' in c and not (isinstance(v, list) and c['includes'] in v):
+        if 'includes' in c and not any(isinstance(v, list) and c['includes'] in v for v in vs):
             return False
     return True
 
@@ -273,15 +290,17 @@ def evaluate_check(d, check):
         found = parts[0] in profile
         if found and len(parts) > 1:
             v, found = _get(v, parts[1:])
+        # every effective value must pass: value and each per-IdP exception (#58, the same reading as L62's _check)
+        vs = _profile_values(profile, parts[0]) if found and len(parts) == 1 else [v]
         if op == 'present':
-            return ('satisfied' if found and not core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if found and all(not core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'absent':
-            return ('satisfied' if not found or core._empty(v) else 'unsatisfied'), []
+            return ('satisfied' if not found or all(core._empty(v) for v in vs) else 'unsatisfied'), []
         if op == 'equals':
-            ok = v in value if isinstance(value, list) and not isinstance(v, list) else v == value
+            ok = all((v in value if isinstance(value, list) and not isinstance(v, list) else v == value) for v in vs)
             return ('satisfied' if ok else 'unsatisfied'), []
         if op == 'includes':
-            return ('satisfied' if isinstance(v, list) and value in v else 'unsatisfied'), []
+            return ('satisfied' if all(isinstance(v, list) and value in v for v in vs) else 'unsatisfied'), []
         return 'unknown', []
     m = SEL_RE.match(head)
     if not m:
@@ -360,8 +379,14 @@ def sec_issuance_profile(d):
         if field not in profile:
             continue
         p = profile[field] if isinstance(profile[field], dict) else {'value': profile[field]}
-        rows.append({'field': field, 'label': label, 'value': p.get('value'), 'value_text': _show_profile_value(p.get('value')),
-                     'rationale': p.get('rationale'), 'refs': p.get('refs') or []})
+        row = {'field': field, 'label': label, 'value': p.get('value'), 'value_text': _show_profile_value(p.get('value')),
+               'rationale': p.get('rationale'), 'refs': p.get('refs') or []}
+        if p.get('exceptions'):  # #58: per-IdP exceptions, shown with the value and the reason (only when declared)
+            row['exceptions'] = p['exceptions']
+            row['value_text'] += '。例外：' + '、'.join(f"{e.get('idp')} は {_show_profile_value(e.get('value'))}" for e in p['exceptions'])
+            row['rationale'] = (row['rationale'] or '') + ''.join(f"【{e.get('idp')} の例外】{e.get('rationale')}" for e in p['exceptions'])
+            row['refs'] = row['refs'] + [r for e in p['exceptions'] for r in e.get('refs') or []]
+        rows.append(row)
     effects = issuance_effects(d)
     held = [e for e in effects if e['holds']]
     erows = [{'effect': e['id'], 'id': r['id'], 'text': r['text'], 'status': r['status'],
@@ -392,10 +417,14 @@ def sec_hop_table(d):
     rows = []
     for h in d['hops'].get('hops') or []:
         v = h.get('validates') or {}
+        # #58: claims the exchanger adds when it mints the token (added_claims) are marked with where the value comes from
+        added = {a.get('claim'): ('上流のクレームから導く' if a.get('source') == 'upstream_claims' else a.get('system'))
+                 for a in h.get('added_claims') or []}
         rows.append({'id': h.get('id'), 'hop': f"{h.get('id')} {h.get('from')} → {h.get('to')}", 'kind': h.get('kind'),
                      'token_type': h.get('token_type'), 'upstream': h.get('upstream'), 'aud': h.get('aud') or [],
                      'scope': h.get('scope') or [], 'lifetime': _secs(h.get('max_lifetime')),
-                     'custom_claims': [(cl.get(x) or {}).get('name', x) for x in h.get('custom_claims') or []],
+                     'custom_claims': [(cl.get(x) or {}).get('name', x) + (f'（足す：{added[x]}）' if x in added else '')
+                                       for x in h.get('custom_claims') or []],
                      'exchanger': h.get('exchanger'), 'validates_mode': v.get('mode'), 'validates': v.get('checks') or []})
     cols = [('hop', 'ホップ', 'text'), ('kind', '種類', 'code'), ('token_type', '運ぶトークン', 'code'), ('aud', 'aud', 'codes'),
             ('scope', 'scope', 'codes'), ('lifetime', '寿命', 'text'), ('custom_claims', '運ぶ独自クレーム', 'codes'),
@@ -412,7 +441,7 @@ def sec_arrow_table(d):
     """Per arrow (hop): carried token x the claims the receiving side checks x writer x aud x lifetime."""
     tts = {t.get('id'): t for t in _tts(d)}
     cl = _claim_by_id(d)
-    rows = []
+    rows, unmatched = [], []
     for h in d['hops'].get('hops') or []:
         tid = h.get('token_type')
         if tid:
@@ -432,19 +461,36 @@ def sec_arrow_table(d):
                 # the token's protection ends (integrity_until), so the token's writer is not shown as the writer here
                 writers = [f"{h.get('from')}（トークンなし。書き先：{u.get('target')}）" + (f"。{u['trust_boundary']}" if u.get('trust_boundary') else '')
                            for u in c.get('integrity_until') or []] or [f"{h.get('from')}（トークンなし）"]
-            rows.append({'hop': h.get('id'), 'token_type': tid, 'claim_id': c.get('id'), 'claim': _full_name(c),
+            rows.append({'hop': h.get('id'), 'token_type': tid, 'claim_id': c.get('id'), 'claim': _full_name(c, d),
                          'writers': writers,
                          'checks': checks, 'aud': h.get('aud') or (tts.get(tid) or {}).get('aud') or [],
                          'lifetime': _secs(h.get('max_lifetime'))})
         if not hit:
+            # #60: no claim is tied to the receiver of this hop. Say why instead of a row of dashes: the names of
+            # `hops[].to` and `enforced_at.service` do not meet, or the registry has no row for this hop at all
+            services = sorted({str(e.get('service')) for c in cands for e in c.get('enforced_at') or [] if e.get('service')})
+            if not cands:
+                why = ('このホップのトークンに載る台帳の行が無い（`carried_in`）' if tid
+                       else 'トークンのないホップで、`custom_claims` に台帳の行が無い')
+            elif not services:
+                why = 'このホップで運ぶ台帳の行のどれにも `enforced_at` が無い'
+            else:
+                why = (f"受け手 `{h.get('to')}` の名前を含む `enforced_at.service` が無い"
+                       f"（運ぶ行の service：{'・'.join(services)}）。名前をそろえるか、受け手の確かめを台帳に書く")
+            if cands:  # rows exist for this hop but none meets the receiver: the case that used to be silent
+                unmatched.append(str(h.get('id')))
             rows.append({'hop': h.get('id'), 'token_type': tid, 'claim_id': None, 'claim': None, 'writers': [],
-                         'checks': [], 'aud': h.get('aud') or [], 'lifetime': _secs(h.get('max_lifetime'))})
+                         'checks': [f'結びつく行なし：{why}'], 'aud': h.get('aud') or [],
+                         'lifetime': _secs(h.get('max_lifetime')), 'unmatched': True})
     cols = [('hop', 'ホップ', 'code'), ('token_type', 'トークン', 'code'), ('claim', '確かめるクレーム', 'code'),
             ('writers', '書き手', 'list'), ('checks', '確かめること', 'list'), ('aud', 'aud', 'codes'), ('lifetime', '寿命', 'text')]
     return {'id': 'arrow-table', 'title': '矢印ごとの表',
             'notes': ['ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。'
                       'トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、'
-                      '書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。'],
+                      '書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。',
+                      '受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける（大文字と小文字は区別しない）。']
+                     + ([f"**運ぶ行はあるのに、受け手に結びつく行が無いホップ：{'・'.join(unmatched)}**（{len(unmatched)} 件。理由は各行の「確かめること」）。"
+                         '受け手が何も確かめないホップなのか、名前の食い違いで結びつかないだけなのかを確かめる。'] if unmatched else []),
             'tables': [_table('arrow-table', cols, rows)]}
 
 
@@ -502,7 +548,7 @@ def sec_lifecycle(d):
                              if r.get('method') != 'exp_only' and r.get('delay_seconds') is not None
                              and r['delay_seconds'] <= vol]
         over = bool(over_tts)
-        t2.append({'id': c.get('id'), 'claim': _full_name(c), 'carried_in': c.get('carried_in') or [],
+        t2.append({'id': c.get('id'), 'claim': _full_name(c, d), 'carried_in': c.get('carried_in') or [],
                    'acceptance': _secs(worst), 'volatility': vol, 'propagation_delay': c.get('propagation_delay'),
                    'recompute_trigger': c.get('recompute_trigger') or [], 'on_revoke': c.get('on_revoke'),
                    'exceeds': over, 'exceeds_text': (f"超える（{'・'.join(over_tts)} > 許容 {vol} 秒）" if over
@@ -522,9 +568,14 @@ def sec_lifecycle(d):
         if h.get('kind') in ('db_connection', 'broker_connection'):
             t3.append({'id': f"{h.get('id')}（{h.get('kind')}）", 'idle': None, 'max_lifetime': h.get('connection_max_lifetime'),
                        'rotation': None, 'reuse_detection': None, 'revocation': []})
-    t4 = [{'id': c.get('id'), 'claim': _full_name(c), 'status': c.get('status'), 'sunset_on': c.get('sunset_on'),
+    t4 = [{'id': c.get('id'), 'claim': _full_name(c, d), 'status': c.get('status'), 'sunset_on': c.get('sunset_on'),
            'owner': c.get('owner'), 'change_controller': c.get('change_controller')}
           for c in _claims(d) if _carried(c)]
+    # #60: `status` is a column that a Lite design does not write (templates/registry/README.md 2., 「生成」). When no
+    # carried row has it, the column is left out instead of a column of dashes
+    has_status = any(r['status'] is not None for r in t4)
+    t4_cols = [('claim', 'クレーム', 'code')] + ([('status', '状態', 'code')] if has_status else []) + [
+        ('sunset_on', '廃止の期限', 'text'), ('owner', '持ち主', 'text'), ('change_controller', '変更を決める者', 'text')]
     ns = ['名前空間 `{}` の構造の版：{}'.format(n.get('namespace'), n.get('namespace_version') or NONE)
           for n in d['claims'].get('namespaces') or []]
     return {'id': 'lifecycle', 'title': '寿命の 4 つの層（台帳から引いた分）',
@@ -533,7 +584,10 @@ def sec_lifecycle(d):
                       '2. の `volatility` は「値が変わってから反映されるまでに許す秒数」（`templates/registry/README.md` の 3.）で、'
                       '0 は即時の反映が要ること、`never` はトークンの寿命の間に値が変わらないことを表す。載るトークンの受け入れの最大（寿命＋時計のずれ）がこれを超える行に「超える」と出し、'
                       '目録の `revocation` のうち遅れが許容以内の手段（`exp_only` を除く）を並べる。その手段がこのクレームの変化に効くかは'
-                      '機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。'],
+                      '機械では読まないので、台帳の `on_revoke` で確かめる。検査の正は L5（#6）で、この表は検査ではない。']
+                     + ([] if has_status or not t4 else
+                        ['4. の「状態」の列は出していない：台帳のどの行にも `status` が無い（縮小 Lite では書かない列。'
+                         '`templates/registry/README.md` の 2.）。廃止予定（deprecated）・廃止（sunset）の行があるときは、Lite でも `status` と `sunset_on` を書く。']),
             'tables': [
                 _table('lifecycle-token', [('id', 'トークン', 'code'), ('max_lifetime', '寿命', 'seconds'), ('skew', '時計のずれ', 'seconds'),
                                            ('set_by', '寿命を変えられる主体', 'codes'), ('hops', 'ホップでの寿命', 'list')], t1,
@@ -549,9 +603,7 @@ def sec_lifecycle(d):
                                              ('max_lifetime', '最大', 'seconds'), ('rotation', 'ローテーション', 'text'),
                                              ('reuse_detection', '再利用の検知', 'code'), ('revocation', '失効の手段（遅れ）', 'list')], t3,
                        '3. セッションと RT の寿命'),
-                _table('lifecycle-definition', [('claim', 'クレーム', 'code'), ('status', '状態', 'code'), ('sunset_on', '廃止の期限', 'text'),
-                                                ('owner', '持ち主', 'text'), ('change_controller', '変更を決める者', 'text')], t4,
-                       '4. クレームの定義の寿命')],
+                _table('lifecycle-definition', t4_cols, t4, '4. クレームの定義の寿命')],
             'after': ns}
 
 

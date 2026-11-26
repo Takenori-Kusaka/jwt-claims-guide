@@ -1,7 +1,7 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/claims.schema.json/v0.2.0",
- "$comment": "template_version: 0.2.0. Registry v1 (#3). Column headings in Japanese, meaning, evidence and the reduced-Lite marker per column are in templates/registry/README.md. Which columns must be filled for which decision beyond the conditions below is rule R1 of claim_lint (tools/claim_lint/RULES.md), so that a missing column is reported with a rule ID.",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/claims.schema.json/v0.3.0",
+ "$comment": "template_version: 0.3.0. Registry v1 (#3). Column headings in Japanese, meaning, evidence and the reduced-Lite marker per column are in templates/registry/README.md. Which columns must be filled for which decision beyond the conditions below is rule R1 of claim_lint (tools/claim_lint/RULES.md), so that a missing column is reported with a rule ID.",
  "title": "Claim registry v1",
  "type": "object",
  "additionalProperties": false,
@@ -280,6 +280,25 @@
     "registered_ref": {
      "$ref": "#/$defs/ref",
      "$comment": "Trace: req:p02-roles-groups-entitlements.R1 req:p10-four-questions.R7 req:p02-registered-claims.R7"
+    },
+    "idp_defined": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "idp"
+     ],
+     "properties": {
+      "idp": {
+       "type": "string",
+       "pattern": "^[a-z0-9][a-z0-9_-]*$"
+      },
+      "note": {
+       "type": "string",
+       "minLength": 1,
+       "pattern": "\\S"
+      }
+     },
+     "description": "The name was chosen by an IdP product, not by the organization (Entra tid / oid, Okta uid / cid, Cognito token_use / cognito:groups, Keycloak realm_access): the row describes a claim of that IdP's token that the entry reads and never passes downstream under that name (#58). idp is a name declared in catalog_answers.yaml (idp). L1b accepts the unregistered top-level name only when tools/claim_lint/idp_claims.yaml lists it for that IdP, the row is carried in that IdP's token types only, and no hop passes it on"
     },
     "type": {
      "enum": [

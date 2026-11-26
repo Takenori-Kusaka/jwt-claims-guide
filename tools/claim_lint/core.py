@@ -95,14 +95,28 @@ def load_yaml(path):
         return yaml.load(f, Loader=_Loader)
 
 
+# #60: what to do about a blank field whose way out is not "write a value"
+TODO_HINTS = {'hops:hops': '。ホップを書く。ホップの無い設計（Lite）は hops.yaml を置かない（templates/GETTING_STARTED.md の手順 1）',
+              'claims:namespaces': '。組織の名前空間を使わない設計は namespaces のキーを書かない'}
+
+
 def schema_check(doc, schema_path, where):
     import jsonschema
     with open(schema_path, encoding='utf-8') as f:
         schema = json.load(f)
     v = jsonschema.Draft202012Validator(schema)
-    out = []
+    out, todo = [], set()
     for e in sorted(v.iter_errors(doc), key=lambda e: list(e.absolute_path)):
         loc = '/'.join(str(p) for p in e.absolute_path) or '(root)'
+        if e.absolute_path and _empty(e.instance):
+            # #60: a value that is not written yet (null, '', [] or {}: what tools/new_design.py leaves blank) is the
+            # author's to-do list, not a broken file. It is reported once per field as TODO, still an error (no
+            # severity is lowered); SCHEMA is kept for values that are written and wrong
+            if loc not in todo:
+                todo.add(loc)
+                hint = TODO_HINTS.get(f'{where}:{loc}', '')
+                out.append(Finding('TODO', ERROR, f'{where}:{loc}', f'まだ書いていない欄（{e.message}）{hint}'))
+            continue
         out.append(Finding('SCHEMA', ERROR, f'{where}:{loc}', e.message))
     return out
 
@@ -160,6 +174,7 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
     out = []
     sev = WARN if profile == 'lite' else ERROR
     idp = coverage.idp_name(answers_doc)
+    idp_count = len(coverage.idp_entries(answers_doc)[0])
     answers = {}
     for a in (answers_doc or {}).get('answers', []) or []:
         eid = a.get('event')
@@ -178,7 +193,7 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
             if a.get('inherit') != coverage.INHERIT:
                 out.append(Finding('R2', sev, eid, f"inherit に書けるのは {coverage.INHERIT} だけ（あるのは {a.get('inherit')!r}）"))
             else:
-                out += coverage.r2_inherit(a, known[eid], idp, profile, sev)
+                out += coverage.r2_inherit(a, known[eid], idp, profile, sev, idp_count)
             continue
         if tt_ids is not None:
             for t in a.get('token_types') or []:
@@ -203,6 +218,23 @@ def rule_r2(answers_doc, catalog, profile, tt_ids=None):
 
 
 # ------------------------------------------------------------------ REF (#3)
+upstreams = semantic.upstreams  # `upstream` is one hop ID or a list of IDs (#58)
+
+
+def _upstream_cycle(hop, by_id):
+    """The first path from the hop back to a hop already on the path (itself included), or None."""
+    def walk(cur, seen):
+        for u in upstreams(by_id.get(cur)):
+            if u in seen:
+                return seen + [u]
+            if u in by_id:
+                found = walk(u, seen + [u])
+                if found:
+                    return found
+        return None
+    return walk(hop.get('id'), [hop.get('id')])
+
+
 def load_questions(path):
     doc = load_yaml(path) or {}
     return {q['id'] for q in doc.get('questions') or []}, {q['id'] for q in doc.get('pending') or []}
@@ -250,15 +282,18 @@ def rule_ref(claims_doc, token_types, hops_doc, questions):
         if hids.count(h.get('id')) > 1:
             out.append(Finding('REF', ERROR, hid, 'ホップの id が重複している'))
         need(hid, 'token_type', h.get('token_type'), tids, 'トークン目録（token_types.yaml）')
-        need(hid, 'upstream', h.get('upstream'), set(hids), ' hops.yaml')
-        seen, cur = [h.get('id')], h.get('upstream')
+        for u in upstreams(h):
+            need(hid, 'upstream', u, set(hids), ' hops.yaml')
         by_id = {x.get('id'): x for x in hops}
-        while cur is not None and cur in by_id:
-            if cur in seen:
-                out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(seen + [cur])}）"))
-                break
-            seen.append(cur)
-            cur = by_id[cur].get('upstream')
+        cyc = _upstream_cycle(h, by_id)
+        if cyc:
+            out.append(Finding('REF', ERROR, hid, f"upstream が循環している（{' → '.join(cyc)}）"))
+        for a in h.get('added_claims') or []:
+            need(hid, 'added_claims.claim', a.get('claim'), cids, '台帳')
+            for x in a.get('from') or []:
+                need(hid, 'added_claims.from', x, cids, '台帳')
+        for m in h.get('aud_mapping') or []:
+            need(hid, 'aud_mapping.upstream', m.get('upstream'), set(hids), ' hops.yaml')
         for x in h.get('custom_claims') or []:
             need(hid, 'custom_claims', x, cids, '台帳')
         for fh in h.get('forwarded_headers') or []:
@@ -395,6 +430,12 @@ def rule_slides(docs, files, root):
 
 
 # ------------------------------------------------------------------ driver
+# no hops.yaml, or an empty one. Index: [Full, Lite]
+NO_HOPS = ('hops.yaml {}。Full では経路のホップを書く（templates/README.md の「記入の順序」の 7.）。ホップを読む規則'
+           '（L8・L15・L16・L21・L23・L43・L67）は、何も見ていない',
+           'hops.yaml {}（ホップごとの宣言。ホップを書かない Lite の設計では置かない。DB・ブローカーの接続などホップを書くなら 1 行以上）')
+
+
 def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROOT, extra_files=(), today=None, caps_path=None):
     catalog_dir = catalog_dir or os.path.join(root, 'templates', 'catalog')
     limits_path = limits_path or os.path.join(HERE, 'path_limits.yaml')
@@ -404,7 +445,9 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     docs = {}
     for k, p in paths.items():
         if k == 'hops' and not os.path.isfile(p):
-            findings.append(Finding('LOAD', INFO, k, 'hops.yaml がない（ホップごとの宣言。交換・作り直しのホップがあれば書く）'))
+            # PR #69 check: a Full design writes its hops; without the file the hop rules (L8, L15, L16, L21, L23, L43,
+            # L67) see nothing, so Full says it as a warning (a new finding starts as warn). Lite: info, as before
+            findings.append(Finding('LOAD', INFO if profile == 'lite' else WARN, k, NO_HOPS[profile == 'lite'].format('がない')))
             docs[k] = {}
             continue
         if not os.path.isfile(p):
@@ -416,6 +459,10 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
         except yaml.YAMLError as e:
             findings.append(Finding('LOAD', ERROR, k, f'YAML の誤り: {e}'))
             docs[k] = {}
+            continue
+        if k == 'hops' and not docs[k]:
+            # a hops.yaml with comments only (or `{}`) is the same as no file: it must not pass in silence
+            findings.append(Finding('LOAD', INFO if profile == 'lite' else WARN, k, NO_HOPS[profile == 'lite'].format('が空（中身がない）')))
     findings += schema_check(docs['claims'], os.path.join(reg, 'claims.schema.json'), 'claims')
     findings += schema_check(docs['token_types'], os.path.join(reg, 'token_types.schema.json'), 'token_types')
     if docs['hops']:
@@ -428,7 +475,7 @@ def run(design_dir, catalog_dir=None, limits_path=None, profile='full', root=ROO
     findings += rule_r1(claims, tts, profile)
     findings += rule_ref(docs['claims'], tts, docs['hops'], load_questions(os.path.join(reg, 'questions.yaml')))
     findings += rule_r2(docs['catalog_answers'], catalog, profile, {t.get('id') for t in tts})
-    findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir)
+    findings += coverage.rule_r3(docs['catalog_answers'], catalog_dir, tts)
     findings += coverage.rule_r3b(claims, docs['catalog_answers'], catalog, catalog_dir, tts)
     findings += coverage.rule_r4(docs['catalog_answers'], tts, catalog_dir, profile)
     findings += coverage.rule_r6(docs['catalog_answers'], catalog)

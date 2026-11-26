@@ -42,6 +42,10 @@ Checks (all errors):
       `[r]: target` and `<a href>` included; anchors are counted in any quoting, `id` or `name`); in perspectives.md a bold question-ID line
       (`**q-…**`, `**ap-…**` …) that does not match the question form (full-width space after the ID) is an error, and
       見る欄・つながり must quote every ref (`template:`, `registry:`, `catalog:`, `review:`, `lint:`, `test:`) in backticks
+  V14 templates/review/triage.yaml (#56) gives every question a class (A machine / B author self-check / C human
+      judgement / D expert) with a reason; the lint rules cited for class A exist in RULES.md, proposed rules are planned
+      items or N<n> entries; the 区分 line of every question, short_list.md and the PR template for design docs are
+      what tools/review_triage.py makes from it (T1-T9 there)
   V12 the table between `<!-- counts:begin -->` and `<!-- counts:end -->` of templates/review/README.md equals the number
       of questions per stage (and the total)
 
@@ -71,7 +75,7 @@ ID_PREFIXES = ('q-', 'ap-', 'pa-', 'dc-', 'cf-', 'cd-')
 Q_START = re.compile(r'^\*\*([^*]+)\*\*　(.+)$')
 ID_OK = re.compile(r'^[a-z0-9][a-z0-9-]*$')
 ANCHOR_LINE = re.compile(r'^<a id="([^"]+)"></a>\s*$')
-FIELD_RE = re.compile(r'^- (見る欄|No なら|つながり|根拠)：\s*(.*)$')
+FIELD_RE = re.compile(r'^- (見る欄|No なら|つながり|根拠|区分)：\s*(.*)$')
 REF_IN_TICKS = re.compile(r'`((?:review|template|registry|catalog|lint|test|calib):[A-Za-z0-9_][A-Za-z0-9_./-]*(?:#[A-Za-z0-9_][A-Za-z0-9_.-]*)?)`(（未実装）)?')
 QID_IN_TICKS = re.compile(r'`((?:q|ap|pa|dc|cf|cd)-[a-z0-9-]+)`')
 STAGES = [('stage-definition', '1. 定義'), ('stage-issuance', '2. 発行'), ('stage-propagation', '3. 伝搬'),
@@ -294,6 +298,11 @@ def check(root):
             if '根拠：' not in (scope or ''):
                 errors.append(('V11', 'decision_tree.md', f'節 {a} に根拠が無い'))
     errors += check_links_and_forms(root, files)
+    # V14 the triage of the questions (#56): templates/review/triage.yaml classifies every question, the lint rules it
+    # cites exist, and the files generated from it (the 区分 lines here, short_list.md, the PR template) match
+    import review_triage
+    # (the generated files are compared only when nothing else is wrong: a broken question would show up twice)
+    errors += [('V14', w, f'{r} {m}') for r, w, m in review_triage.check(root, questions, generated_files=not errors)]
     readme = os.path.join(root, REVIEW_DIR, 'README.md')
     if os.path.isfile(readme):
         m = re.search(r'<!-- counts:begin -->(.*?)<!-- counts:end -->', trace_check._read(readme), re.S)

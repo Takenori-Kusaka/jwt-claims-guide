@@ -1,7 +1,7 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/hops.schema.json/v0.2.0",
- "$comment": "template_version: 0.2.0. Registry v1 (#3): per-hop declarations of slide:p06-narrow-downstream (downstream never wider than upstream): aud, scope, lifetime, organization claims, exchanger. Checked by L16 of #6.",
+ "$id": "https://github.com/Takenori-Kusaka/jwt-claims-guide/templates/registry/hops.schema.json/v0.3.0",
+ "$comment": "template_version: 0.3.0. Registry v1 (#3): per-hop declarations of slide:p06-narrow-downstream (downstream never wider than upstream): aud, scope, lifetime, organization claims, exchanger. Checked by L16 of #6.",
  "title": "Hops v1",
  "type": "object",
  "additionalProperties": false,
@@ -49,9 +49,23 @@
      ]
     },
     "upstream": {
-     "type": "string",
-     "pattern": "^H[0-9]+$",
-     "description": "Hop whose token this hop narrows (for exchange / reissue / service)"
+     "description": "Hop (or, for a hop that receives tokens of several IdPs and mints one token, the list of hops: #58) whose token this hop narrows (for exchange / reissue / service). L16 compares this hop with every upstream hop",
+     "oneOf": [
+      {
+       "type": "string",
+       "pattern": "^H[0-9]+$"
+      },
+      {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^H[0-9]+$"
+       },
+       "minItems": 1,
+       "maxItems": 20,
+       "uniqueItems": true
+      }
+     ]
     },
     "token_type": {
      "anyOf": [
@@ -108,6 +122,83 @@
      "uniqueItems": true,
      "description": "Registry rows of organization claims carried on this hop (or the values copied, for a DB hop)",
      "$comment": "Trace: req:p06-narrow-downstream.R2 req:p06-step-up-approval.R3 req:p09-minimize-derived.R4 req:p09-checklist.R4"
+    },
+    "added_claims": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 50,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "claim",
+       "source",
+       "reason"
+      ],
+      "properties": {
+       "claim": {
+        "type": "string",
+        "pattern": "^C-[a-z0-9-]+$"
+       },
+       "source": {
+        "enum": [
+         "external_source",
+         "upstream_claims"
+        ]
+       },
+       "system": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+       },
+       "from": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "pattern": "^C-[a-z0-9-]+$"
+        },
+        "minItems": 1,
+        "maxItems": 20,
+        "uniqueItems": true
+       },
+       "reason": {
+        "type": "string",
+        "minLength": 10,
+        "pattern": "\\S"
+       }
+      },
+      "allOf": [
+       {
+        "if": {
+         "properties": {
+          "source": {
+           "const": "external_source"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "system"
+         ]
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "source": {
+           "const": "upstream_claims"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "from"
+         ]
+        }
+       }
+      ]
+     },
+     "description": "Organization claims of custom_claims that the upstream token does not carry and the exchanger of a reissue / exchange hop adds when it mints the new token (#58). source external_source: the value comes from a system that is not a token (the employee directory, a database, an API), named in system. source upstream_claims: the value is derived from the upstream claims listed in from (IdP-specific role and group claims normalized into the organization's roles). L16 accepts only these as claims missing upstream"
     },
     "authorization_details": {
      "type": "array",
@@ -217,6 +308,44 @@
        }
       }
      ]
+    },
+    "aud_mapping": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 100,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "upstream",
+       "aud",
+       "via",
+       "value"
+      ],
+      "properties": {
+       "upstream": {
+        "type": "string",
+        "pattern": "^H[0-9]+$"
+       },
+       "aud": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+       },
+       "via": {
+        "enum": [
+         "aud",
+         "scope"
+        ]
+       },
+       "value": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+       }
+      }
+     },
+     "description": "On a reissue hop whose new issuer names audiences differently from the upstream issuer (#58): for an aud value of this hop that is not literally in an upstream hop's aud, the upstream value that authorizes it (via aud: an upstream aud value such as api://orders; via scope: an upstream scope such as orders, for an IdP whose token has one aud for every API or no aud). L16 checks that the value is in that upstream hop's aud / scope"
     },
     "aud_replacement": {
      "description": "A token-exchange hop (kind exchange) that replaces aud with one concrete audience equal to the hop's destination service, when the upstream token addressed the requesting service (narrowing by replacement, slide:p06-narrow-downstream). Needs narrowing_exception.aud. Not for reissue hops, which keep a subset of the upstream aud (L16)",

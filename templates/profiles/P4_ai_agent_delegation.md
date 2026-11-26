@@ -1,16 +1,17 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.6.0 -->
 # P4 AI エージェントの委任（profiles/P4_ai_agent_delegation）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
 
 - 使う場面：AI エージェントが利用者の代理で、または自分の権限で、ツール（MCP サーバーなど）や API を呼ぶ境界。`00_core.md` の「範囲と信頼の境界」で、エージェントの実行基盤・ツールサーバー・上流の API の境界に P4 を書く
 - 組み合わせ：利用者のログインは P1、組織の内側の伝搬（Txn-Token・サービス間）は P5。送信者制約は `template:modules/M_sender_constraint`、承認の内容の照合は `template:modules/M_authz_pdp`
-- Lite での扱い：委任・トークン交換がある設計は、#4 の判定（5 問）で Full になります。MCP の必須チェック表（1.）だけは〔Lite・Full：記入〕で、MCP を使うなら必ず確かめます。ほかは〔Full：記入／Lite：参照〕
+- Lite での扱い：**P4 は Full だけです。Lite の記入欄はありません**（#61。作成者が 2026-11-26 に決定。ほかの案と理由は `research/template-design/p4-lite-options.md`）。AI エージェントの設計は、たいてい信頼の境界をまたぐか（README の 5 問の 1）、利用者の代理（委任）・トークン交換を含む（5 問の 3）ので、判定（`template:README#lite-criteria`）は Full になります。P4 を使う設計では、1.〜9. のすべてを書きます（当てはまらない記入欄は、消さずに「無い」と理由を書く）。**信頼の境界を越えず、委任も交換も無いエージェントの設計は、P4 を使わず P5（`template:profiles/P5_internal_propagation`）で書きます**（5 問がすべて No なら Lite）。`python tools/new_design.py <設計書のディレクトリ> --profile lite --use P4` は、何も書かずに、`--profile full` を使うよう知らせて終わります（終了コード 2）
+- 記入欄を書く場所：設計書（`design.md`）の付録 D（`template:00_core#profile-fill-ins`）です。`python tools/new_design.py <設計書のディレクトリ> --profile full --use P4` が、記入欄の表を付録 D に足します
 - 問いの区別：「誰の権限で」（`sub`）、「誰が代理して実行しているか」（`act`）、「どの取引か」（Txn-Token の `txn`）、「直接の通信相手は誰か」（mTLS・ワークロードの ID）は別々の問いです。`00_core.md` の「問い × 仕組み」で別々の行に書きます（`templates/registry/questions.yaml` の q-sub・q-actor・q-txn・q-peer）
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています。人による点検は未実施。
 
 <a id="mcp-checklist"></a>
-## 1. MCP の認可の必須チェック表〔Lite・Full：記入〕
+## 1. MCP の認可の必須チェック表〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#mcp-checklist`
 <!-- req:p10-mcp-authorization.R1 req:p10-mcp-authorization.R2 req:p10-mcp-authorization.R4 req:p10-mcp-authorization.R5 req:p10-mcp-authorization.R6 req:p08-rotation.R6 -->
@@ -29,7 +30,7 @@
 | 8 | AT はすべての要求の Authorization ヘッダーで送り、URI のクエリに入れない | MCP クライアント | MUST・MUST NOT | MCP Authorization（2026-07-28）「Token Requirements」 |
 | 9 | MCP サーバーは Protected Resource Metadata（RFC 9728）を公開する | MCP サーバー | MUST | MCP Authorization（2026-07-28）「Overview」、RFC 9728 §3 |
 
-記入欄（MCP を使う設計では Lite でも書く）：
+記入欄（MCP を使う設計で書く。書く場所は `design.md` の付録 D）：
 
 | # | 確かめ方（書き手が書く） | 確かめた結果（書き手が書く） | 台帳・目録・試験の ID |
 | --- | --- | --- | --- |
@@ -46,7 +47,7 @@
 根拠：MCP Authorization（2026-07-28）「Resource Parameter Implementation」、MCP Authorization Security Considerations（2026-07-28）「Access Token Privilege Restriction」、RFC 8707 §2、RFC 9207 §2.4、slide:p10-mcp-authorization
 
 <a id="agent-identity"></a>
-## 2. エージェントの ID〔Full：記入／Lite：参照〕
+## 2. エージェントの ID〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#agent-identity`
 <!-- req:p10-agent-identity.R1 req:p10-agent-checklist.R1 -->
@@ -70,7 +71,7 @@
 根拠：slide:p10-agent-identity、RFC 8693 §1.1、CoSAI Agentic IAM v1.0 §1.2
 
 <a id="delegation-mode"></a>
-## 3. 自律・委任・なりすましの型〔Full：記入／Lite：参照〕
+## 3. 自律・委任・なりすましの型〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#delegation-mode`
 <!-- req:p10-agent-identity.R2 req:p10-agent-identity.R4 -->
@@ -93,7 +94,7 @@
 根拠：slide:p10-agent-identity、RFC 8693 §4.1、templates/registry/questions.yaml の q-actor
 
 <a id="delegation-policy"></a>
-## 4. 交換の方針（may_act と委任の理由）〔Full：記入／Lite：参照〕
+## 4. 交換の方針（may_act と委任の理由）〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#delegation-policy`
 <!-- req:p02-delegation-client.R3 req:p02-delegation-client.R4 -->
@@ -118,7 +119,7 @@
 根拠：RFC 8693 §4.4、slide:p02-delegation-client、slide:p10-token-exchange-not-narrowing
 
 <a id="human-approval"></a>
-## 5. 人の承認〔Full：記入／Lite：参照〕
+## 5. 人の承認〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#human-approval`
 <!-- req:p06-step-up-approval.R4 req:p10-human-approval-evidence.R1 req:p10-human-approval-evidence.R5 -->
@@ -144,7 +145,7 @@
 根拠：slide:p10-human-approval-evidence、RFC 9396 §2.2、OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0 §7.1
 
 <a id="tool-scopes"></a>
-## 6. ツールごとのスコープと引き上げ〔Full：記入／Lite：参照〕
+## 6. ツールごとのスコープと引き上げ〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#tool-scopes`
 <!-- req:p10-per-tool-scopes.R2 -->
@@ -168,11 +169,13 @@
 根拠：slide:p10-per-tool-scopes、MCP Authorization（2026-07-28）「Scope Challenge Handling」、NIST IR 8587 §5.3.1.6
 
 <a id="delegation-depth"></a>
-## 7. 委任の連鎖の深さ〔Full：記入／Lite：参照〕
+## 7. 委任の連鎖の深さ〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#delegation-depth`
 
 決めること：`act` の入れ子の深さの上限と、それを強制する場所。RFC 8693 は入れ子の `act` を記録の情報とし、深さの上限も縮小も定めていません。上限は組織の規則として決めます。
+
+P4 は Full だけなので、この項目と `token_types[].max_delegation_depth`（台帳の README の印は「Full のみ」）は、委任のある設計で必ず書きます。Lite で書く場面はありません。委任の無い設計（エージェントが自分の権限だけで呼ぶ）では、記入欄に「無い」と理由を書きます。
 
 | 観点 | 検討の問い | 候補 | 根拠 |
 | --- | --- | --- | --- |
@@ -190,7 +193,7 @@
 根拠：RFC 8693 §4.1、slide:p10-delegation-chain-depth
 
 <a id="audit-correlation"></a>
-## 8. 監査の相関〔Full：記入／Lite：参照〕
+## 8. 監査の相関〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#audit-correlation`
 <!-- req:p10-agent-identity.R5 req:p10-per-tool-scopes.R3 req:p10-human-approval-evidence.R4 req:p11-pre-add-questions-2.R9 req:p10-agent-checklist.R9 -->
@@ -218,7 +221,7 @@
 根拠：slide:p06-audit-trail、slide:p10-agent-identity、draft-ietf-oauth-transaction-tokens-11 §9.2、筆者の提案：委任の監査の項目を問いごとに 1 行にする（追跡 #4）
 
 <a id="chain-revocation"></a>
-## 9. 委任の一括失効〔Full：記入／Lite：参照〕
+## 9. 委任の一括失効〔Full：記入〕
 
 項目 ID：`template:profiles/P4_ai_agent_delegation#chain-revocation`
 <!-- req:p10-delegation-chain-depth.R3 -->

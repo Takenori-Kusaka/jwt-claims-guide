@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.6.0 -->
 # JWT クレームの設計書テンプレート一式
 
 ガイド（JWT クレーム設計ガイド）に沿って、JWT のクレームの設計書を一通り書くためのテンプレートです。設計書は、ユースケースで答えるべき問いと信頼の境界から書き始め、発行方式とトークンを決めてから、その上に載せるクレームを書きます。分割の主軸は「主体 × フロー」（プロファイル）で、認可方式などは部品（モジュール）の判断表にしました（調査レポート Q3。`research/template-design/report.md`）。
@@ -7,6 +7,19 @@
 
 - 初めての人は [GETTING_STARTED.md](GETTING_STARTED.md)（空の設計書を作り、判定・プロファイルの選択・最初の 3 欄の下書き・claim-lint の実行まで）
 - 用語は [glossary.md](glossary.md)（ガイドと同じ訳語）
+
+## 2 つの始め方
+
+どちらも同じファイル（YAML と Markdown）を作ります。途中で行き来できます。
+
+| 始め方 | 最初にすること | 向いている場合 |
+| --- | --- | --- |
+| **エディターで書く** | 設計書のエディター（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ ）を開き、「空の雛形から始める」を押す。記入例は「サンプルを開く」で読める | まず試したい。Python を入れずに始めたい。書きながら検査の結果を見たい |
+| **CLI で書く** | このリポジトリを clone し、`python tools/new_design.py designs/my-service` を実行する。手順は [GETTING_STARTED.md](GETTING_STARTED.md) | 自分のリポジトリで、PR と CI に載せて書きたい |
+
+- エディターは、ブラウザの中だけで動きます。開いたファイルを外部に送信しません。書き終えたら、ファイルか zip で書き出します
+- エディターで書いた設計書も、書き出した後は CLI で検査できます。CLI で作った設計書は、エディターの「フォルダを開く」で開けます
+- 選んだプロファイルとモジュールの記入欄を足す操作（`new_design.py --use`）と、生成の節を埋める操作（`claim_lint render --write`）は、CLI で行います
 
 ## 約束の範囲
 
@@ -47,17 +60,30 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 
 次の 5 問に Yes／No で答えます。**1 つでも Yes なら Full** にします。答えは `catalog_answers.yaml` の `lite_criteria` に書き（#6 の L73 が `--profile lite` のときに確かめる）、設計書の冒頭にも写します。
 
-| # | 問い（キー） | Yes の例 | 根拠 |
-| --- | --- | --- | --- |
-| 1 | トークンが信頼の境界を越えるか（`crosses_boundary`） | 取引先・外部の IdP・別の組織のサービスにトークンが渡る | slide:p07-trust-boundary、slide:p06-edge-exchange |
-| 2 | マルチテナントか（`multitenant`） | 1 つの発行者・API が複数の顧客のテナントを扱う | slide:p05-multitenancy |
-| 3 | 委任・トークン交換があるか（`delegation_or_exchange`） | エージェントの代理、RFC 8693 の交換、入口での作り直し | slide:p10-agent-identity、RFC 8693 §2.1 |
-| 4 | 新しい発行者か（`new_issuer`） | 組織で初めて使う IdP・トークン発行サービス・TTS | slide:p04-single-issuer |
-| 5 | 規制の対象か（`regulated`） | FAPI・金融・医療・要配慮個人情報 | FAPI 2.0 Security Profile（Final）§5.3.2.1、slide:p09-checklist |
+| # | 問い（キー） | Yes の例 | No の例 | 根拠 |
+| --- | --- | --- | --- | --- |
+| 1 | トークンが信頼の境界を越えるか（`crosses_boundary`） | ① 取引先・別の組織のサービスにトークンが渡る ② 外部の IdP が発行したトークンを受け入れる ③ **組織の中でも、信頼しない部品にトークンが渡る**（第三者が作ったツールサーバー・プラグインなど、乗っ取りや悪意を前提に設計する部品） | ① 同じ組織が運用する BFF・入口・API だけがトークンを受け取る ② 別のチームのサービスに渡るが、同じ組織の検証の基準と運用の下にあり、信頼しない部品が経路にいない | slide:p07-trust-boundary、slide:p06-edge-exchange |
+| 2 | マルチテナントか（`multitenant`） | ① 1 つの発行者・API が複数の顧客のテナントを扱う ② テナントごとに発行者（レルム）を分けるが、API は共通 | ① 1 つの組織の社員だけが使う社内システム ② 部署ごとに見える範囲を変えるが、顧客ごとにデータを分けるテナントは無い | slide:p05-multitenancy |
+| 3 | 委任・トークン交換があるか（`delegation_or_exchange`） | ① エージェント・サービスが利用者の代理で API を呼ぶ（`act`） ② RFC 8693 のトークン交換 ③ 入口での内部トークンへの作り直し | ① BFF が、利用者のログインで得たトークンをそのまま API に渡す（交換も作り直しもしない） ② サービスやエージェントが自分の権限（client credentials）だけで呼び、利用者の代理をしない | slide:p10-agent-identity、RFC 8693 §2.1 |
+| 4 | 新しい発行者か（`new_issuer`） | ① 組織で初めて使う IdP ② この設計のために作るトークン発行サービス（STS・TTS） ③ **発行者が既存か新設かを確かめられない**（要求に書かれていない。確かめるまで Yes とし、既存と分かったら見直す） | ① すでに別のシステムが本番で使っている IdP に、クライアントを足すだけ ② 既存の発行者の `iss` と署名鍵をそのまま使い、発行の種類（grant）も増やさない | slide:p04-single-issuer |
+| 5 | 規制の対象か（`regulated`） | ① FAPI への適合が要る金融の API ② 医療の情報・要配慮個人情報を、クレームか承認の内容として運ぶ | ① 適合を求められる規格・業界の基準が無い社内の業務システム ② 個人情報は社員の ID だけで、要配慮個人情報を運ばない | FAPI 2.0 Security Profile（Final）§5.3.2.1、slide:p09-checklist |
 
-判定がずれるとき（例：マルチテナントだが Lite の欄で書きたい）は、Full にしてから、書かない Full の節を 00_core の 12.（書き手が自信のない点）に理由とともに書きます。シナリオ A の記入例は、Lite の欄がどれだけで書けるかを測るために、Full に当たるケースを Lite で書いています（`examples/scenario-a/design.md` の冒頭）。
+読み方の決まり（パイロットで書き手が迷った点。`research/template-design/pilot.md` の 6.）：
 
-根拠：research/template-design/gate1.md の 5.（A17）、筆者の提案：5 問の判定と「1 つでも Yes なら Full」の規則（追跡 #4）
+- 問い 1 の「境界」は、組織の境界ではなく**信頼の境界**です。組織が 1 つでも、信頼しない部品にトークンが渡るなら Yes です
+- 問い 4 は、答えが分からないときは Yes にします。No と書くのは、既存の発行者だと確かめたときだけです
+- 例に無い場合は、どちらに倒したかと理由を `lite_criteria` の `reason` に書きます。迷ったら Yes（Full）にします
+- **P4（AI エージェントの委任）を使う設計は Full です。P4 に Lite はありません**（#61。作成者が 2026-11-26 に決定）。AI エージェントの設計は、たいてい問い 1（信頼の境界）か問い 3（委任・交換）が Yes になります。信頼の境界を越えず、委任も交換も無いエージェントの設計（問い 3 の No の例 ②）は、P4 を使わず P5 で書きます。その設計は、5 問がすべて No なら Lite です。5 問そのものは変えていません
+
+**判定と、書く欄と、検査の profile をそろえます**（#61）。扱いは次の 1 つだけです。
+
+1. 5 問に 1 つでも Yes があれば Full です。Full の欄で書き、`--profile` を付けない claim_lint を error 0 にします
+2. Yes があるのに Lite の欄で書いた設計書は、`--profile lite` の claim_lint が L73（warn）で知らせ、レビューの受け付け（`review/procedure.md` の段 0）で、Full に書き直すよう返します。L73 を残したままレビューに進む道はありません
+3. Full の節のうち書かないものがあるとき（例：マルチテナントだが、付録を書かない）は、Full にしたうえで、書かない節と理由を 00_core の 12.（書き手が自信のない点）に書きます。台帳の列（YAML）は Full の必須の列を書きます
+
+例外は、欄の量を測るための記録だけです。シナリオ A の記入例（`examples/scenario-a/design.md` の冒頭）と、パイロットのシナリオ C（`research/pilot/scenario-c/`）は、Full に当たるケースを Lite の欄で書いています。どちらも測定の記録で、設計書の手本にはしません。L73 を error にしていないのは、この 2 つの記録を CI で検査し続けるためと、error の規則を足すと版がメジャーになるためです（`CONTRIBUTING.md` の「版の管理」）。
+
+根拠：research/template-design/gate1.md の 5.（A17）、research/template-design/pilot.md の 6. と 8.、筆者の提案：5 問の判定と「1 つでも Yes なら Full」の規則（追跡 #4）、筆者の提案：問い 1 を信頼の境界で読み、分からない発行者を Yes に倒す（追跡 #61）
 
 <a id="reduced-lite"></a>
 ## Lite で書くもの（縮小 Lite）
@@ -69,11 +95,12 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 | 区分 | 00_core の節 |
 | --- | --- |
 | **手で書く節（5 つ）** | 2. 範囲と信頼の境界（2.1 主体の種類を含む）、3. 既定から外れた点（3.1 重点と見送り、3.2 共通の基準は満たさないものがあるときだけ）、6. 問い × 仕組み、9. ライフサイクル表（9.1。9.2 は寿命が許容を超える行の対策だけ、9.3 は廃止予定の行があるときだけ）、12. 書き手が自信のない点。括弧の中の小節は、gate1.md の 10. の 5 節より書く量を増やすので、ここに明記する |
-| 生成する節（`claim_lint render --write`） | 1. CI の結果、4. 発行方式の選択（既定から外れた点だけ 3. に手で書く）、5. トークン目録、8. ホップの表（交換・作り直しのホップがあれば手で書く）、10. 判断の行、11. カタログへの回答の集計 |
-| Full だけの節 | 7. シーケンス図、9.3 クレームの定義の寿命（廃止予定の行があれば Lite でも書く）、付録 |
+| 生成する節（`claim_lint render --write`） | 1. CI の結果、4. 発行方式の選択（既定から外れた点だけ 3. に手で書く）、5. トークン目録、8. ホップの表（`hops.yaml` に書いたホップ。Lite でホップを書かない設計は `hops.yaml` を置かない。DB・ブローカーの接続などのホップを書くなら置く。交換・作り直しのホップがある設計は Full）、10. 判断の行、11. カタログへの回答の集計 |
+| Full だけの節 | 7. シーケンス図、9.3 クレームの定義の寿命（廃止予定の行があれば Lite でも書く）、付録 A〜C |
 | **Lite でも必須の様式** | 追加前の 25 問（[claim_request.md](claim_request.md)）。共有クレームを足す・変えるたびに 1 ファイル |
+| **Lite でも書く、プロファイル・モジュールの記入欄** | 見出しが〔Lite・Full：記入〕で始まる項目だけ（P4 には無い。P4 は Full だけ）。`design.md` の付録 D に書く（`python tools/new_design.py <設計書> --profile lite --use <選んだもの>` が表を足す） |
 
-台帳の欄（YAML）は、`templates/registry/README.md` の 2.「縮小 Lite の印」に列ごとの扱い（手で書く・生成・Full のみ）があります。`python tools/claim_lint <設計書> --profile lite` は、R1 の必須の列をこの印に合わせて減らします（`tools/claim_lint/RULES.md` の「R1 の必須の列」）。
+台帳の欄（YAML）は、`templates/registry/README.md` の 2.「縮小 Lite の印」に列ごとの扱い（手で書く・生成・Full のみ）があります。**列を減らす規則は、縮小 Lite（`claim_lint --profile lite`）だけのものです。Full（`--profile` を付けない）では、既定どおりで `consumers: []` の行にも、トークンに載せる行の必須の列をすべて書きます。**`python tools/claim_lint <設計書> --profile lite` は、R1 の必須の列をこの印に合わせて減らします（`tools/claim_lint/RULES.md` の「R1 の必須の列」）。
 
 カタログの「対象外」：IdP モジュールの既定の回答を引き継げるのは、クライアントの設定のスイッチ 1 つで止めていて、指摘が出ていないイベントだけです（カタログの行の `lite_inherit: true`。Keycloak の I03・I04・I05・I07）。引き継ぐ行にも「設定を確かめた」の欄（`setting_checked`）を 1 つ書きます。指摘が出た行、レルム・クライアントの既定に依存する行（I08 など）、利用イベントは手で書きます。
 
@@ -86,10 +113,12 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 
 プロファイルは「主体 × フロー」の型で、**信頼の境界ごとに 1 つ**選びます（00_core の 2. の図に、境界ごとに書く）。1 つの設計書で複数のプロファイルを組み合わせてかまいません（例：社員のブラウザの境界は P1、組織の網の中は P5、エージェントが利用者の代わりに呼ぶ経路は P4）。判断そのものは台帳に 1 回だけ書き、プロファイル・モジュールからは台帳の ID で参照します（#4 の方針）。
 
+**記入欄を書く場所**：プロファイル・モジュールの「記入欄」の表は、設計書（`design.md`）の付録 D「プロファイルとモジュールの記入欄」（`template:00_core#profile-fill-ins`）に書きます。`python tools/new_design.py <設計書のディレクトリ> --profile lite|full --use P1,P4,M_token_validation` が、選んだものの表を付録 D に足します（すでにある項目は書き換えません）。Full は記入欄のあるすべての項目、Lite は見出しが〔Lite・Full：記入〕で始まる項目だけです。P4 は Full だけなので、`--profile lite --use P4` は何も書かずに、`--profile full` を使うよう知らせて終わります。当てはまらない記入欄は消さずに、「無い」と理由を書きます（00_core の冒頭）。
+
 | 境界・フロー | プロファイル |
 | --- | --- |
 | 人がブラウザでログインし、Web アプリ・API を使う | P1_human_web |
-| AI エージェントが利用者の代わりに、ツール（MCP）・API を呼ぶ | P4_ai_agent_delegation |
+| AI エージェントが利用者の代わりに、または自分の権限で、ツール（MCP）・API を呼ぶ | P4_ai_agent_delegation（**Full だけ**。信頼の境界を越えず、委任も交換も無いエージェントの設計は、P4 を使わず P5 で書く） |
 | 入口の内側で、サービスからサービスへ利用者の文脈を運ぶ | P5_internal_propagation |
 | モバイル・ネイティブ（P2）、M2M だけの API 公開（P3）、取引先との API（P6） | #21（後回し） |
 
@@ -105,7 +134,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 | M_data_layer | クレームを DB の文脈・行単位の制御に写すとき、DB・ブローカーにトークンで接続するとき |
 | M_idp_keycloak | 発行者が Keycloak のとき（ほかの IdP は #21） |
 
-根拠：research/template-design/report.md の Q3、筆者の提案：境界ごとに 1 つのプロファイルを選び、条件に当てはまるモジュールを足す（追跡 #4）
+根拠：research/template-design/report.md の Q3、research/template-design/pilot.md の 6. と 7.、筆者の提案：境界ごとに 1 つのプロファイルを選び、条件に当てはまるモジュールを足す（追跡 #4）
 
 <a id="writing-order"></a>
 ## 記入の順序
@@ -113,12 +142,12 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 項目 ID：`template:README#writing-order`
 
 1. **判定**：上の 5 問で Lite か Full かを決める
-2. **範囲と信頼の境界**（00_core の 2.）：境界を図にし、境界ごとにプロファイルを選ぶ。あわせて **問い × 仕組みの下書き**（00_core の 6.）として、ユースケースごとにどの問いが要るかだけを決める（仕組みは 5. で決める）
+2. **範囲と信頼の境界**（00_core の 2.）：境界を図にし、境界ごとにプロファイルを選ぶ。選んだプロファイルとモジュールの記入欄を、`new_design.py --use` で付録 D に足す（書くのは、台帳を書いた後の 10. の前でよい）。あわせて **問い × 仕組みの下書き**（00_core の 6.）として、ユースケースごとにどの問いが要るかだけを決める（仕組みは 5. で決める）
 3. **発行方式の選択**（`token_types.yaml` の `issuance_profile`。00_core の 4.）：既定の組み合わせから外れる点を決める。送信者制約などの選択で、台帳に要るものが変わる（`registry/issuance_effects.yaml`）
 4. **トークン目録**（`token_types.yaml` の `token_types`。00_core の 5.）：17 種類のすべてに採否を付ける
 5. **問い × 仕組み**（00_core の 6.）：ユースケースごとに 11 問へ答える仕組みを決める
 6. **台帳**（`claims.yaml`）：クレームの行を書く。組織の名前空間に共有クレームを足すなら、先に追加前の 25 問（`claim_request_<名前>.md`）
-7. **ホップ**（`hops.yaml`。00_core の 8.）：交換・作り直しのホップがあれば手で書く
+7. **ホップ**（`hops.yaml`。00_core の 8.）：Full では経路のホップを書く（`hops.yaml` が無い・空だと claim_lint が warn で知らせる）。Lite でホップを書かない設計は `hops.yaml` を置かない。Lite でも DB・ブローカーの接続などのホップを書くなら、`new_design.py --with-hops` で足して書く
 8. **ライフサイクル表**（00_core の 9.）：トークン・セッション・接続、クレームの鮮度、定義の寿命
 9. **カタログへの回答**（`catalog_answers.yaml`）：全イベントに該当か対象外（前提と崩れる条件）
 10. **検査と生成**：`python tools/claim_lint <設計書のディレクトリ> --profile lite`（Full なら `--profile` なし）を error 0 件まで直し、`python tools/claim_lint render <設計書のディレクトリ> --write` で生成の節を埋める。設計書のエディター（https://takenori-kusaka.github.io/jwt-claims-guide/claims/ 。「フォルダを開く」で設計書のディレクトリを開く）でも、書きながら JSON Schema と claim_lint で検査し、表として読める。ファイルはブラウザの中だけで読み、送信しない
@@ -194,7 +223,7 @@ P2・P3・P6 のプロファイルと、Keycloak 以外の IdP のモジュー�
 ## 検査
 
 ```
-python tools/new_design.py designs/my-service   # 空の設計書を作る（#4）
+python tools/new_design.py designs/my-service   # 空の設計書を作る（#4。--profile lite、--use P1,M_token_validation で記入欄を付録 D に足す）
 python tools/template_check.py                  # テンプレートの項目 ID・根拠の形と実在・記入欄が空か（#4）
 python tools/check_slide_refs.py templates      # slide:<id> の実在
 python tools/review_check.py                    # レビュー教材の問い ID・見る欄・根拠・リンクと、対応表の印（#5）

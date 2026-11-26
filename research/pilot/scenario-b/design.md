@@ -580,9 +580,11 @@ sequenceDiagram
 <!-- render:arrow-table:begin -->
 ホップの受け手（`to`）が `enforced_at` で確かめるクレームを、ホップのトークン（トークンのないホップでは `custom_claims`）から引いた。トークンのあるホップの書き手は `authoritative_writer`。トークンのないホップでは、値を書くのは送り手（`from`）なので、書き手の列には送り手と、台帳の `integrity_until`（書き先と、署名の保護が外れる境界）を出す。
 
+受け手は、`enforced_at.service` の名前が `hops[].to` の文字列に含まれるかで結びつける（大文字と小文字は区別しない）。
+
 | ホップ | トークン | 確かめるクレーム | 書き手 | 確かめること | aud | 寿命 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `H1` | `BFF_SESSION` | — | — | — | `portal-bff` | 36000 秒 |
+| `H1` | `BFF_SESSION` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | `portal-bff` | 36000 秒 |
 | `H2` | `KC_AT` | `iss` | ② 各 IdP（AT・ID トークン・ログアウトトークンの発行時）<br>③ 入口（内部トークンの作り直し） | 5 つの IdP の iss のどれかと完全一致。Entra は自社の tid の iss だけ | `orders`・`invoices` | 300 秒 |
 | `H2` | `KC_AT` | `sub` | ② 各 IdP（AT・ID トークンの発行時）<br>③ 入口（社員台帳の名寄せの表で組織の利用者の ID に替える） | （iss・不変のキー）が社員台帳の名寄せの表にあり、在籍していること | `orders`・`invoices` | 300 秒 |
 | `H2` | `KC_AT` | `aud` | ② 各 IdP（要求された scope・クライアントの設定から）<br>③ 入口（経路の 1 つのサービスにする） | 経路のサービスに当たる IdP ごとの宛先の値を含む。Okta は aud が共通なので scope の orders・invoices も照合する。ID トークン（aud がポータルのクライアント）を拒む | `orders`・`invoices` | 300 秒 |
@@ -617,14 +619,14 @@ sequenceDiagram
 | `H6` | `AUTH0_AT` | `jti` | ② 各 IdP<br>③ 入口 | ログに jti だけを残す | `https://api.example.com` | 300 秒 |
 | `H6` | `AUTH0_AT` | `client_id` | ② Cognito・Auth0 | ポータルのクライアント ID と完全一致。Cognito は加えて token_use が access | `https://api.example.com` | 300 秒 |
 | `H6` | `AUTH0_AT` | `scope` | ② 各 IdP（要求された scope と同意） | 経路のサービスの scope（orders・invoices）を含む。Okta・Entra は scp で同じことを確かめる | `https://api.example.com` | 300 秒 |
-| `H6` | `AUTH0_AT` | `https://claims.example.com/.roles` | ② Auth0 の Action（post-login） | 写しの表にあるロールだけを組織のロールに替える | `https://api.example.com` | 300 秒 |
+| `H6` | `AUTH0_AT` | `https://claims.example.com/roles` | ② Auth0 の Action（post-login） | 写しの表にあるロールだけを組織のロールに替える | `https://api.example.com` | 300 秒 |
 | `H7` | `INTERNAL_TOKEN` | `iss` | ② 各 IdP（AT・ID トークン・ログアウトトークンの発行時）<br>③ 入口（内部トークンの作り直し） | 入口の iss と完全一致 | `orders` | 30 秒 |
 | `H7` | `INTERNAL_TOKEN` | `sub` | ② 各 IdP（AT・ID トークンの発行時）<br>③ 入口（社員台帳の名寄せの表で組織の利用者の ID に替える） | 注文の持ち主が sub と一致する行だけを返す | `orders` | 30 秒 |
 | `H7` | `INTERNAL_TOKEN` | `aud` | ② 各 IdP（要求された scope・クライアントの設定から）<br>③ 入口（経路の 1 つのサービスにする） | aud が orders だけ | `orders` | 30 秒 |
 | `H7` | `INTERNAL_TOKEN` | `exp` | ② 各 IdP<br>③ 入口 | exp を過ぎていない。exp − iat が 30 秒以下 | `orders` | 30 秒 |
 | `H7` | `INTERNAL_TOKEN` | `iat` | ② 各 IdP<br>③ 入口 | iat が未来でない | `orders` | 30 秒 |
 | `H7` | `INTERNAL_TOKEN` | `roles` | ③ 入口（内部トークンの作り直し） | 管理操作は admins、編集は editor を含むこと | `orders` | 30 秒 |
-| `H7` | `INTERNAL_TOKEN` | `https://claims.example.com/.department` | ③ 入口（社員台帳から引く） | 社内文書は sales か finance のときだけ | `orders` | 30 秒 |
+| `H7` | `INTERNAL_TOKEN` | `https://claims.example.com/department` | ③ 入口（社員台帳から引く） | 社内文書は sales か finance のときだけ | `orders` | 30 秒 |
 | `H8` | `INTERNAL_TOKEN` | `iss` | ② 各 IdP（AT・ID トークン・ログアウトトークンの発行時）<br>③ 入口（内部トークンの作り直し） | 入口の iss と完全一致 | `invoices` | 30 秒 |
 | `H8` | `INTERNAL_TOKEN` | `sub` | ② 各 IdP（AT・ID トークンの発行時）<br>③ 入口（社員台帳の名寄せの表で組織の利用者の ID に替える） | 請求書・経理台帳の操作者を sub で記録し、給与明細は sub の社員番号と照合する | `invoices` | 30 秒 |
 | `H8` | `INTERNAL_TOKEN` | `aud` | ② 各 IdP（要求された scope・クライアントの設定から）<br>③ 入口（経路の 1 つのサービスにする） | aud が invoices だけ | `invoices` | 30 秒 |
@@ -632,12 +634,12 @@ sequenceDiagram
 | `H8` | `INTERNAL_TOKEN` | `iat` | ② 各 IdP<br>③ 入口 | iat が未来でない | `invoices` | 30 秒 |
 | `H8` | `INTERNAL_TOKEN` | `jti` | ② 各 IdP<br>③ 入口 | 経理台帳の要求で内部トークンの jti を 35 秒の間 1 回だけ受ける | `invoices` | 30 秒 |
 | `H8` | `INTERNAL_TOKEN` | `roles` | ③ 入口（内部トークンの作り直し） | 請求書の承認は approver を含むこと（経理台帳と給与明細はロールでなく台帳と本人で判断する） | `invoices` | 30 秒 |
-| `H8` | `INTERNAL_TOKEN` | `https://claims.example.com/.employee_id` | ③ 入口（社員台帳から引く） | 給与明細の行の社員番号と文字列で完全一致 | `invoices` | 30 秒 |
-| `H9` | `GRAPH_AT` | — | — | — | `https://graph.microsoft.com` | 3600 秒 |
-| `H10` | — | — | — | — | — | — |
-| `H11` | — | — | — | — | — | — |
-| `H12` | — | — | — | — | — | — |
-| `H13` | — | — | — | — | — | — |
+| `H8` | `INTERNAL_TOKEN` | `https://claims.example.com/employee_id` | ③ 入口（社員台帳から引く） | 給与明細の行の社員番号と文字列で完全一致 | `invoices` | 30 秒 |
+| `H9` | `GRAPH_AT` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | `https://graph.microsoft.com` | 3600 秒 |
+| `H10` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
+| `H11` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
+| `H12` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
+| `H13` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
 <!-- render:arrow-table:end -->
 
 根拠：slide:p06-narrow-downstream、templates/registry/README.md の 3.4、RFC 8693 §5
@@ -715,10 +717,10 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `client_id` | `COGNITO_AT`・`AUTH0_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | アプリクライアントを消す |
 | `scope` | `KC_AT`・`COGNITO_AT`・`AUTH0_AT` | 330 秒 | `never` | 0 秒 | `login`・`refresh` | 寿命の間に変わらない（never） | — | クライアントスコープの割り当てを外す（次の取り直しで反映） |
 | `groups` | `ENTRA_AT`・`OKTA_AT` | 630 秒 | 900 秒 | 630 秒 | `login`・`refresh` | — | — | グループから外す。次の取り直しで反映し、最悪は Entra の AT の受け入れの上限（630 秒） |
-| `https://claims.example.com/.roles` | `AUTH0_AT` | 330 秒 | 900 秒 | 330 秒 | `login`・`refresh` | — | — | ロールを外す。次の取り直しで反映（最悪 330 秒） |
+| `https://claims.example.com/roles` | `AUTH0_AT` | 330 秒 | 900 秒 | 330 秒 | `login`・`refresh` | — | — | ロールを外す。次の取り直しで反映（最悪 330 秒） |
 | `roles` | `INTERNAL_TOKEN` | 35 秒 | 900 秒 | 665 秒 | `reissue` | — | — | IdP でロール・グループを外す。最悪は IdP の AT の受け入れの上限（Entra で 630 秒）＋内部トークンの 35 秒 |
-| `https://claims.example.com/.employee_id` | `INTERNAL_TOKEN` | 35 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 退職は在籍の状態で入口が拒む |
-| `https://claims.example.com/.department` | `INTERNAL_TOKEN` | 35 秒 | 60 秒 | 35 秒 | `reissue` | — | — | 社員台帳を更新すると、次の要求から反映（内部トークンの受け入れの上限 35 秒）。経理台帳は invoices が要求ごとに引き直す（遅れ 0） |
+| `https://claims.example.com/employee_id` | `INTERNAL_TOKEN` | 35 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 退職は在籍の状態で入口が拒む |
+| `https://claims.example.com/department` | `INTERNAL_TOKEN` | 35 秒 | 60 秒 | 35 秒 | `reissue` | — | — | 社員台帳を更新すると、次の要求から反映（内部トークンの受け入れの上限 35 秒）。経理台帳は invoices が要求ごとに引き直す（遅れ 0） |
 | `nonce` | `ID_TOKEN` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし（ログインごとの値） |
 | `sid` | `LOGOUT_TOKEN` | 150 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし（セッションごとの値） |
 | `events` | `LOGOUT_TOKEN` | 150 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
@@ -750,10 +752,10 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `client_id` | `active` | — | 情報システム部 ID 基盤チーム | IETF（RFC 8693） |
 | `scope` | `active` | — | 情報システム部 ID 基盤チーム | IETF（RFC 8693） |
 | `groups` | `active` | — | 情報システム部 ID 基盤チーム | IETF（RFC 7643・RFC 9068） |
-| `https://claims.example.com/.roles` | `active` | — | 情報システム部 ID 基盤チーム | 情報システム部 ID 基盤チーム |
+| `https://claims.example.com/roles` | `active` | — | 情報システム部 ID 基盤チーム | 情報システム部 ID 基盤チーム |
 | `roles` | `active` | — | 情報システム部 ID 基盤チーム | IETF（RFC 7643・RFC 9068） |
-| `https://claims.example.com/.employee_id` | `active` | — | 人事部 | 情報システム部 ID 基盤チーム |
-| `https://claims.example.com/.department` | `active` | — | 人事部 | 情報システム部 ID 基盤チーム |
+| `https://claims.example.com/employee_id` | `active` | — | 人事部 | 情報システム部 ID 基盤チーム |
+| `https://claims.example.com/department` | `active` | — | 人事部 | 情報システム部 ID 基盤チーム |
 | `nonce` | `active` | — | 情報システム部 ID 基盤チーム | OpenID Foundation |
 | `sid` | `active` | — | 情報システム部 ID 基盤チーム | OpenID Foundation |
 | `events` | `active` | — | 情報システム部 ID 基盤チーム | IETF（RFC 8417） |
@@ -868,16 +870,16 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-client-id` | `client_id` | 採用 | — | Cognito の AT には aud が無いので、入口は client_id をポータルのアプリクライアントの ID と照合して宛先の確認に代える（B16 を受ける）。Auth0 の AT でもポータルのクライアントだけを受ける | Cognito のポータルのアプリクライアントは、注文・請求書のサービスのためだけに使う | RFC 9068 §2.2<br>`slide:p03-cognito-token-use` | — | Cognito で同じアプリクライアントをほかの API にも使うとき |
 | `C-scope` | `scope` | 採用 | — | 入口は経路ごとに orders・invoices の scope を求め、宛先の確認を補う（Cognito は aud が無く、Okta は aud が共通のため）。利用者の権限の判断にはロール（C-roles）を使う | BFF はサービスごとに 1 つの scope で AT を取る | RFC 9068 §2.2.3<br>`slide:p03-absorb-idp-differences` | — | scope を細かい操作の単位に分けるとき |
 | `C-groups` | `groups` | 採用 | — | 入口は IdP ごとの写しの表で、グループを組織のロール（C-roles）に替える。Entra で groups が消えて _claim_names・_claim_sources があるときは、Microsoft Graph（GRAPH_AT）で所属を引いてから替える。B9 の管理者は受け、B8 の一般社員は admins を得ない | Entra のグループの超過の上限は 200（模擬の値）。Okta の groups は Everyone を含むようにグループの絞り込みを設定する | `slide:p03-entra-scp-roles-groups`<br>`slide:p02-roles-groups-entitlements` | — | Graph の遅れ・障害で正規の要求が落ちるとき（Entra のアプリロールに切り替える） |
-| `C-auth0-roles` | `https://claims.example.com/.roles` | 採用 | — | Auth0 は名前空間の無い予約名を黙って外すので、Action は組織の名前空間つきの名前で書く。入口はこれを写しの表で組織のロールに替える。無いときは既定のロール（editor）を使わず、ロールを空にする（B20） | Action は Auth0 の管理者だけが変えられる | `slide:p03-auth0-namespace`<br>`slide:p04-namespace` | — | Auth0 が名前空間なしのクレームの扱いを変えたとき |
+| `C-auth0-roles` | `https://claims.example.com/roles` | 採用 | — | Auth0 は名前空間の無い予約名を黙って外すので、Action は組織の名前空間つきの名前で書く。入口はこれを写しの表で組織のロールに替える。無いときは既定のロール（editor）を使わず、ロールを空にする（B20） | Action は Auth0 の管理者だけが変えられる | `slide:p03-auth0-namespace`<br>`slide:p04-namespace` | — | Auth0 が名前空間なしのクレームの扱いを変えたとき |
 | `C-roles` | `roles` | 採用 | — | 入口が IdP ごとのロール・グループ（Keycloak の realm_access.roles、Entra・Okta の groups、Cognito の cognito:groups、Auth0 の名前空間つきの roles）を組織の語彙に替えて書く。orders は admins で管理操作、editor で編集を許す。custom:* の属性は使わない（B18）。元の値が無ければ空にし、既定のロールを使わない（B19・B20） | 写しの表は情報システム部が管理し、IdP の管理者は組織のロールを直接書けない | `slide:p03-absorb-idp-differences`<br>`slide:p04-reject-missing-required` | — | 管理操作を重要な操作に含めることにしたとき（社員台帳の問い合わせに切り替える） |
-| `C-employee-id` | `https://claims.example.com/.employee_id` | 採用 | — | invoices は給与明細を社員番号で引く。入口は社員番号を IdP からではなく社員台帳から組織の利用者の ID で引き、数字の文字列で書く。IdP が数値で出す社員番号（Auth0）は使わない（B22。2^53 を超える値を JavaScript が丸めて別の社員の明細を引くことを防ぐ） | 社員番号は退職の後も再利用しない | `slide:p04-type`<br>`slide:p04-immutable-identifiers` | — | 社員番号の体系を変えるとき |
-| `C-department` | `https://claims.example.com/.department` | 採用 | — | orders は社内文書を、部署が sales か finance の社員に許す。入口は部署を IdP（Okta のフック・Cognito の custom:* の属性・Keycloak の属性）からではなく社員台帳から要求ごとに引くので、フックの打ち切りや本人の書き換えの影響を受けない（B15・B18）。無ければ既定の部署を使わず、部署で絞る操作を拒む | 社員台帳は異動を発令の時点で反映する。入口は社員台帳をキャッシュしない | `slide:p04-split-by-writer`<br>`slide:p08-stale-claims` | — | 入口で社員台帳の応答をキャッシュすることにしたとき、社内文書を重要な操作に含めるとき |
+| `C-employee-id` | `https://claims.example.com/employee_id` | 採用 | — | invoices は給与明細を社員番号で引く。入口は社員番号を IdP からではなく社員台帳から組織の利用者の ID で引き、数字の文字列で書く。IdP が数値で出す社員番号（Auth0）は使わない（B22。2^53 を超える値を JavaScript が丸めて別の社員の明細を引くことを防ぐ） | 社員番号は退職の後も再利用しない | `slide:p04-type`<br>`slide:p04-immutable-identifiers` | — | 社員番号の体系を変えるとき |
+| `C-department` | `https://claims.example.com/department` | 採用 | — | orders は社内文書を、部署が sales か finance の社員に許す。入口は部署を IdP（Okta のフック・Cognito の custom:* の属性・Keycloak の属性）からではなく社員台帳から要求ごとに引くので、フックの打ち切りや本人の書き換えの影響を受けない（B15・B18）。無ければ既定の部署を使わず、部署で絞る操作を拒む | 社員台帳は異動を発令の時点で反映する。入口は社員台帳をキャッシュしない | `slide:p04-split-by-writer`<br>`slide:p08-stale-claims` | — | 入口で社員台帳の応答をキャッシュすることにしたとき、社内文書を重要な操作に含めるとき |
 | `C-nonce` | `nonce` | 採用 | — | BFF は ID トークンの nonce を、認可要求で送った値と照合する | BFF はログインごとに nonce を作り、セッションに留める | OpenID Connect Core 1.0 §3.1.3.7 | — | ログインの方式を変えるとき |
 | `C-sid` | `sid` | 採用 | — | BFF はログアウトトークンの sid で、終えるべき BFF のセッションを探す | BFF はログインのときに Keycloak の sid をセッションに覚える | OpenID Connect Back-Channel Logout 1.0 §2.4 | — | Keycloak がログアウトトークンに sid を入れない設定になったとき |
 | `C-events` | `events` | 採用 | — | BFF は events に Back-Channel Logout のイベントの種類があることを確かめ、ほかの JWT をログアウトトークンとして受けない | Keycloak のログアウトトークンは仕様どおりの events を持つ | OpenID Connect Back-Channel Logout 1.0 §2.4 | — | 共有シグナル（SET）を受けることにしたとき |
 | `C-cognito-custom-role` | `custom:role` | 却下（禁止） | `C-roles` | Cognito の custom:* の属性は、書き込みを許すと利用者本人が書き換えられる。認可に使えば、本人が admins を書いて管理操作を呼べる（B18）。できなくなること：Cognito の属性でロールを渡すこと（cognito:groups を使う） | Cognito のロールは管理者が設定するグループ（cognito:groups）だけで表す | `slide:p04-split-by-writer`<br>`slide:p03-cognito-token-use` | — | custom:* の属性の書き込みを全クライアントで禁じたと確かめたとき |
 | `C-auth0-plain-roles` | `roles` | 却下（IdP が出さない） | `C-auth0-roles` | Auth0 は Action が名前空間なしの予約名（roles）で足した値を黙って外す。これに頼ると値が無くなり、既定のロールが使われる（B20）。できなくなること：なし（名前空間つきの名前で同じ値を運ぶ） | Auth0 の名前空間の規則は変わらない | `slide:p03-auth0-namespace` | — | Auth0 が名前空間なしの roles を出すようになったとき |
-| `C-auth0-employee-number` | `https://claims.example.com/.employee_number` | 却下（禁止） | `C-employee-id` | Auth0 が社員番号を数値で出すと、2^53 を超える値は JavaScript で丸まり、別の社員の給与明細を引ける（B22）。できなくなること：IdP から社員番号を受け取ること（社員台帳から引く） | 社員番号は社員台帳にある | `slide:p04-type` | — | 社員台帳を引けない受け手が社員番号を要るとき |
+| `C-auth0-employee-number` | `https://claims.example.com/employee_number` | 却下（禁止） | `C-employee-id` | Auth0 が社員番号を数値で出すと、2^53 を超える値は JavaScript で丸まり、別の社員の給与明細を引ける（B22）。できなくなること：IdP から社員番号を受け取ること（社員台帳から引く） | 社員番号は社員台帳にある | `slide:p04-type` | — | 社員台帳を引けない受け手が社員番号を要るとき |
 | `C-idp-department` | `department` | 却下（代替あり） | `C-department` | IdP が出す部署（Keycloak の利用者の属性、Okta のインラインフック、Cognito の custom:* の属性）は、フックの打ち切りで欠ける（B15）、本人が書き換えられる（B18）、異動の後に古いまま残る（B11）。できなくなること：なし（入口が社員台帳から引いて内部トークンに書く） | 入口が社員台帳を要求ごとに引ける | `slide:p04-split-by-writer`<br>`slide:p08-stale-claims` | — | 社員台帳が止まったときにも社内文書を開く必要が出たとき |
 | `C-email` | `email` | 却下（不要） | — | ポータルはログイン画面で氏名・メールを表示しない（7. の曖昧な点 9 の決定）。識別子にも使わない。できなくなること：ID トークンからの表示名・メールの表示（要るなら社員台帳から BFF が引く） | 各 IdP のクライアントで profile・email の scope を求めない（Keycloak は既定のクライアントスコープから外す） | `slide:p09-do-not-carry` | — | ポータルが氏名・メールを表示することにしたとき |
 | `C-cnf` | `cnf` | 却下（不要） | — | 送信者制約を見送る（issuance_profile.sender_constraint）。できなくなること：漏れた AT の別の端末からの再送を止めること（B23） | AT は BFF と入口のサーバーの中に留まる | RFC 9449 §6.1<br>`slide:p12-priorities-deferrals` | — | B23 の型の悪用が観測されたとき、AT を端末に置くとき |
@@ -899,10 +901,10 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-client-id` | `client_id` | Cognito・Auth0 のクライアントの登録 | ② Cognito・Auth0（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-scope` | `scope` | 各 IdP のクライアントスコープ・API の設定 | ② 各 IdP（要求された scope と同意）（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | `never` | 0 秒 |
 | `C-groups` | `groups` | Entra ID・Okta のグループ | ② Entra ID・Okta（グループの所属から）（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | 900 秒 | 630 秒 |
-| `C-auth0-roles` | `https://claims.example.com/.roles` | Auth0 のロールの割り当て | ② Auth0 の Action（post-login）（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | 900 秒 | 330 秒 |
+| `C-auth0-roles` | `https://claims.example.com/roles` | Auth0 のロールの割り当て | ② Auth0 の Action（post-login）（設定できる主体：platform） | `I01`・`I02` | `login`・`refresh` | 900 秒 | 330 秒 |
 | `C-roles` | `roles` | 各 IdP のロール・グループと、入口の写しの表 | ③ 入口（内部トークンの作り直し）（設定できる主体：platform） | `I21` | `reissue` | 900 秒 | 665 秒 |
-| `C-employee-id` | `https://claims.example.com/.employee_id` | 社員台帳（人事システム） | ③ 入口（社員台帳から引く）（設定できる主体：platform） | `I21` | `reissue` | `never` | 0 秒 |
-| `C-department` | `https://claims.example.com/.department` | 社員台帳（人事システム） | ③ 入口（社員台帳から引く）（設定できる主体：platform） | `I21` | `reissue` | 60 秒 | 35 秒 |
+| `C-employee-id` | `https://claims.example.com/employee_id` | 社員台帳（人事システム） | ③ 入口（社員台帳から引く）（設定できる主体：platform） | `I21` | `reissue` | `never` | 0 秒 |
+| `C-department` | `https://claims.example.com/department` | 社員台帳（人事システム） | ③ 入口（社員台帳から引く）（設定できる主体：platform） | `I21` | `reissue` | 60 秒 | 35 秒 |
 | `C-nonce` | `nonce` | BFF が作る乱数 | ① 各 IdP（認可要求の値を写す）（設定できる主体：platform） | `I01` | `login` | `never` | 0 秒 |
 | `C-sid` | `sid` | Keycloak のセッション | ② Keycloak（設定できる主体：platform） | `I09` | `never` | `never` | 0 秒 |
 | `C-events` | `events` | Keycloak | ② Keycloak（設定できる主体：platform） | `I09` | `never` | `never` | 0 秒 |

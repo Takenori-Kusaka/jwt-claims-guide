@@ -1,4 +1,4 @@
-# template_version: 0.2.0
+# template_version: 0.3.0
 # yaml-language-server: $schema=./issuance_effects.schema.json
 # 発行方式の選択（token_types.yaml の issuance_profile）ごとに、台帳で必要になるもの（#3）。#6 の L62（ここで導かれる要件を台帳が満たして
 # いない）・L63（FAPI 2.0）・L64（mTLS を入口で終端するときの信頼境界）の入力にする。
