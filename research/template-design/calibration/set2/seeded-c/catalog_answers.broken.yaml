@@ -164,7 +164,7 @@ pairwise:
     - {subject: 利用者, event: I09, stage: ②, note: 担当者の無効化・パスワードの再設定でセッションが消えると、ログアウトトークンが出る}
     - {subject: ワークロード, event: I09, stage: ②, note: repair-console がログアウトトークンを受け、sid で BFF のセッションを消す。委任の REPAIR_DELEG_AT の交換し直しも止まる}
     - {subject: システム, event: I09, stage: ②, note: hr-sync がセッションを消す操作が、ログアウトトークンの契機になる}
-    - {subject: 利用者, event: I11, stage: ②, note: aoba-as のセッションが残っている間の再ログインは認証を省くが、auth_time は元のままなので、承認の追加の認証の判断は変わらない}
+    - {subject: 利用者, event: I11, stage: ②, note: aoba-as のセッションが残っている間の再ログインは認証を省くが、CONSOLE_AT の auth_time は元のまま。承認の追加の認証の判断は APPROVAL_AT の auth_time で行う}
     - {subject: ワークロード, event: I11, stage: ②, note: repair-console は prompt=none を使わない。BFF のセッションが切れたら、画面からログインし直してもらう}
     - {subject: システム, event: I11, stage: ②, note: システムはセッションを持たない}
     - {subject: 利用者, event: I12, stage: ①, note: 承認の操作で approval-svc が 401 を返すと、コンソールが acr_values=mfa・max_age=300 で担当者・上長に認証し直してもらう}
@@ -236,7 +236,7 @@ answers:
   answer: 該当
   token_types: [CONSOLE_AT, LOGIN_ID_TOKEN, CONSOLE_RT]
   note: >-
-    aoba-as のセッションが残っている間の再ログインは認証を省く。auth_time は元のログインのままなので、承認の判断（auth_time から 300 秒）は変わらない。
+    aoba-as のセッションが残っている間の再ログインは認証を省く。CONSOLE_AT の auth_time は元のログインのまま。承認の判断（auth_time から 300 秒）は APPROVAL_AT の auth_time で行う。
     repair-console は prompt=none を使わない
 - event: I12
   answer: 該当
@@ -340,7 +340,7 @@ answers:
   note: 各ツールと approval-svc が Authorization の Bearer でトークンを受け、mTLS の相手の証明書と cnf を照合する
 - event: U02
   answer: 対象外
-  assumption: テナントが無く、トークンの値で DB の文脈（SET LOCAL など）を設定しない。ツールは自分の DB アカウントで台帳を引き、対象が repair_id の修繕依頼のものかを照合する
+  assumption: テナントが無く、トークンの値で DB の文脈（SET LOCAL など）を設定しない。ツールは自分の DB アカウントで台帳を引く（order-tool・contact-tool・lock-tool は、対象が repair_id の修繕依頼のものかを照合する）
   breaks_when: 物件の持ち主ごとにデータを分けるとき
 - event: U03
   answer: 該当

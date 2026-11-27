@@ -97,7 +97,7 @@ claims:
     - {stage: ③, writer: agent-sts（subject_token から写すだけ）, configurable_by: [platform]}
   issue_events: [I01, I02, I06, I09]
   source_system: aoba-as の利用者（hr-sync が人事の台帳の在籍の記録から作る。ID は aoba-as が割り当てる。利用者を作り社員番号の属性を書けるのは hr-sync の証明書の API だけで、aoba-as の管理の画面では作れない）
-  verification_method: hr-sync が人事の台帳の在籍の記録から利用者を作る。メールのドメインや自己登録では作らない。aoba-pdp は sub から社員番号の属性を引いて人事の台帳と突き合わせる
+  verification_method: hr-sync が人事の台帳の在籍の記録から利用者を作る。メールのドメインや自己登録では作らない。aoba-pdp は sub（agent-sts からの問い合わせはログイン名）から社員番号の属性を引いて人事の台帳と突き合わせる
   volatility: never
   recompute_trigger: [never]
   propagation_delay: 0
@@ -155,7 +155,7 @@ claims:
     - "https://sts.aoba-sumai.example"
   authoritative_writer:
     - {stage: ②, writer: aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）, configurable_by: [platform]}
-    - {stage: ③, writer: agent-sts（交換の要求の resource を、リソースの表と照合してから書く）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く）, configurable_by: [platform]}
   issue_events: [I01, I02, I06, I09, I12]
   source_system: aoba-as のクライアントの登録、agent-sts のリソースの表（認証基盤チームが持つ）
   volatility: never
@@ -345,7 +345,7 @@ claims:
   decision: 採用
   answers: [q-agent]
   rationale: >-
-    agent-sts は client_id を、交換を求めた mTLS の相手のクライアントの登録から書き、要求の値を使わない。ツールは client_id が act の最も外側の行為者と
+    agent-sts は client_id を、REPAIR_DELEG_AT の交換では交換を求めた mTLS の相手のクライアントの登録から書き、CONSOLE_AT の交換では CONSOLE_AT の client_id（repair-console）を写し、要求の値を使わない。ツールは client_id が act の最も外側の行為者と
     同じエージェントであることを確かめる。approval-svc は client_id が repair-console で act が無い（エージェントの経路で承認させない）ことを確かめる
   refs:
     - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
@@ -357,7 +357,7 @@ claims:
     - "https://sts.aoba-sumai.example"
   authoritative_writer:
     - {stage: ②, writer: aoba-as（mTLS で認証したクライアント）, configurable_by: [platform]}
-    - {stage: ③, writer: agent-sts（mTLS で認証した交換を求めたクライアント）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す）, configurable_by: [platform]}
   issue_events: [I01, I02, I06, I12]
   source_system: aoba-as と agent-sts のクライアントの登録（認証基盤チームが持つ）
   volatility: never
@@ -575,7 +575,7 @@ claims:
     - {service: contact-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
     - {service: payment-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
     - {service: lock-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
-    - {service: approval-svc, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致（repair-console の証明書）, against: [other_claim], with: C-cnf}
+    - {service: approval-svc, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致（APPROVAL_AT を交換で求めた者の証明書）, against: [other_claim], with: C-cnf}
   max_bytes: 60
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 該当なし
@@ -643,8 +643,8 @@ claims:
   registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
   type: integer
   shape: single
-  description: 担当者が最後に認証した時刻（UNIX 時刻。aoba-as の時計）
-  not_meaning: トークンの発行の時刻ではない（それは iat）。リフレッシュで新しくならない
+  description: 担当者が最後に認証した時刻（UNIX 時刻。CONSOLE_AT・ID トークンは aoba-as が書き、APPROVAL_AT は agent-sts が書く）
+  not_meaning: 認証の強さではない（それは acr）。CONSOLE_AT の値はリフレッシュで新しくならない
   usage: authz
   decision: 採用
   rationale: >-
@@ -662,11 +662,11 @@ claims:
     - {stage: ①, writer: aoba-as, configurable_by: [platform]}
     - {stage: ③, writer: agent-sts（APPROVAL_AT では交換した時刻を書く）, configurable_by: [platform]}
   issue_events: [I01, I06, I12]
-  source_system: aoba-as の認証の記録
+  source_system: aoba-as の認証の記録（APPROVAL_AT は agent-sts の交換の時刻）
   volatility: never
-  recompute_trigger: [login]
+  recompute_trigger: [login, exchange]
   propagation_delay: 0
-  on_revoke: ログインごとの値
+  on_revoke: ログインごとの値（APPROVAL_AT は交換ごと）
   carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, APPROVAL_AT]
   consumers: [repair-console, agent-sts, approval-svc]
   on_missing: 拒否
@@ -742,7 +742,7 @@ claims:
   owner: 管理部の修繕課のシステム担当
   change_controller: 認証基盤チーム（台帳の持ち主）
   note: >-
-    部屋の ID・時間帯は、修繕依頼の台帳と突き合わせると入居者と在宅の時間が分かるので、作業員の氏名はそれ自体で、個人情報として扱う。ログには残さず、ログの approval_ref から approval-svc の記録を引く。
+    部屋の ID・時間帯は、修繕依頼の台帳と突き合わせると入居者と在宅の時間が分かるので、作業員の氏名はそれ自体で、個人情報として扱う。ログには残さない（承認の内容は approval-svc の記録にある）。
     生成の発行側のスキーマ（schemas/）はオブジェクトの中のメンバーの型を表さないので、メンバーの型は agent-sts と受け手の共通の部品の試験で確かめる（design.md の 3.1）
 # ---------------------------------------------------------------- 組織の名前空間
 - id: C-repair-id
@@ -1136,7 +1136,7 @@ claims:
   rejection_kind: 禁止
   rationale: >-
     解錠コードは秘密の値で、協力会社の作業員にだけ届ける（REQ-06）。トークン（JWS は読める）・エージェント・担当者の画面・ログに出さない。lock-tool が lock-svc で
-    作らせ、通知の基盤で作業員の登録の番号に直接送り、エージェントには発行の参照（code_ref）だけを返す
+    作らせ、通知の基盤で作業員の登録の番号に直接送り、エージェントには発行の参照（code_ref。lock-tool が発行ごとに採番する乱数で、lock-svc にも approval-svc にも渡さない）だけを返す
   refs:
     - {kind: guide-slide, id: p09-jws-is-readable}
     - {kind: guide-slide, id: p09-do-not-carry}
@@ -1152,7 +1152,7 @@ claims:
   decision: 却下
   rejection_kind: 不要
   rationale: >-
-    トークンに載せない。受け手は社員番号で判断せず、aoba-pdp が sub から aoba-as の利用者の属性で引く。突き合わせの鍵としての性質は次のとおり：人事の台帳が採番し、
+    トークンに載せない。受け手は社員番号で判断せず、aoba-pdp が sub（agent-sts からの問い合わせはログイン名）から aoba-as の利用者の属性で引く。突き合わせの鍵としての性質は次のとおり：人事の台帳が採番し、
     付け替え・再利用をしない（再雇用でも新しい番号。人事部に確かめた。2026-11-20）。属性が無い・人事の台帳に無い番号なら、aoba-pdp は在籍なしとして拒否する。
     属性の最後の変更が hr-sync のアプリの DB アカウントでない利用者は、aoba-as の利用者の API が返さない（design.md の 3.1）
   refs:

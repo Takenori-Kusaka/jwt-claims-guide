@@ -62,7 +62,7 @@
    "type": "string"
   },
   "auth_time": {
-   "description": "担当者が最後に認証した時刻（UNIX 時刻。aoba-as の時計）",
+   "description": "担当者が最後に認証した時刻（UNIX 時刻。CONSOLE_AT・ID トークンは aoba-as が書き、APPROVAL_AT は agent-sts が書く）",
    "$comment": "C-auth-time",
    "type": "integer"
   }

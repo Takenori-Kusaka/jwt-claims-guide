@@ -71,7 +71,7 @@ warn の行ごとの理由（抑止はしていない。lint の出力のとお�
 | 規則 | 対象 | 書き手の判断 |
 | --- | --- | --- |
 | `L16` | `hop H5`・`hop H8` | 上流の REPAIR_DELEG_AT には承認の内容が無く、agent-sts が交換のときに approval-svc の承認済みの記録から `authorization_details` を作って足す。この値は、それが無ければ拒否される操作（10 万円を超える発注の確定・予約、解錠コードの発行）を通すもので、トークンでできることを上流（H4）より**広げる**。広げてよい根拠は上流のトークンではなく、別の権限の元である人の承認の記録（approval-svc。上長か担当者本人が、追加の認証のうえで 1 件の発注・1 回の解錠について承認したもの）で、広がるのはその 1 件の分だけ。agent-sts は承認済みの記録からだけ作り、受け手は approval-svc で承認を条件つきで使用済みにして確かめる（台帳の `C-authorization-details`・`C-approval-ref` の `enforced_at`）。委任の REPAIR_DELEG_AT は承認の無い時点で出すので、上流に承認の内容を載せる手段が無い。解錠のコードの送り直し（H8 で最大 3 回）も、同じ承認の記録（lock-tool が使用済みにした、取り消していない、not_after の前）から同じ 1 回の解錠の内容を作り直すだけで、新しいコードは作らない（4. の表）。このホップの warn は、この根拠があるときだけ受け入れる（承認の記録に依らずに authorization_details を足すホップには当てはめない） |
-| `L16` | `hop H8`（scope） | 上流の REPAIR_DELEG_AT は approvals:decide を持たない（H3 で外した）。作業が延びたとき、repair-agent が lock-tool を通じて解錠の時間帯を延ばす（approval-svc の承認の記録の not_after を 4 時間の内側で更新する）ため、H8 で approvals:decide を足す。担当者は CONSOLE_AT で同じ権限を持つので、担当者の権限を広げない（`hops.yaml` の H8 の `note`） |
+| `L16` | `hop H8`（scope） | 上流の REPAIR_DELEG_AT は approvals:decide を持たない（H3 で外した）。作業が延びたとき、repair-agent が lock-tool を通じて解錠の時間帯を延ばす（approval-svc の承認の記録の not_after を 4 時間の内側で更新する）ため、H8 で approvals:decide を足す。承認の操作でなく、承認済みの記録の not_after の更新（lock-tool が approval-svc の更新の口で行う）。担当者は CONSOLE_AT で同じ権限を持つので、担当者の権限を広げない（`hops.yaml` の H8 の `note`） |
 
 根拠：templates/CONTRIBUTING.md の 2.、tools/claim_lint/RULES.md、tools/claim_lint/RENDER.md の 1.
 
@@ -327,7 +327,7 @@ agent-sts が頼る先が止まったとき（どれも止める側に倒す。�
 
 | 頼る先 | 止まったときの agent-sts | 業務への影響と、許す時間 |
 | --- | --- | --- |
-| aoba-as（イントロスペクションと、aoba-pdp が引く sub と社員番号の対応） | CONSOLE_AT の交換を拒否する（temporarily_unavailable）。REPAIR_DELEG_AT の交換は、aoba-pdp が答えられる間（対応のキャッシュの 60 秒）だけ続く | 新しい委任と承認の操作が止まり、進行中の委任も最悪 60 秒の後に止まる。REQ-13 の 60 分まで電話の手配 |
+| aoba-as（イントロスペクションと、aoba-pdp が引く利用者と社員番号の対応） | CONSOLE_AT の交換を拒否する（temporarily_unavailable）。REPAIR_DELEG_AT の交換は、aoba-pdp が答えられる間（対応のキャッシュの 60 秒）だけ続く | 新しい委任と承認の操作が止まり、進行中の委任も最悪 60 秒の後に止まる。REQ-13 の 60 分まで電話の手配 |
 | aoba-pdp | すべての交換を拒否する | エージェントの操作と承認が止まる。同上 |
 | 修繕依頼の台帳 | すべての交換を拒否する（担当と委任の欄を確かめられない） | 同上 |
 | approval-svc | authorization_details を求める交換と APPROVAL_AT の交換を拒否する。ほかの交換は続く | 承認の要る発注・解錠と承認の操作が止まる。下書き・連絡・承認の要らない発注は続く |
@@ -418,7 +418,7 @@ agent-sts が頼る先が止まったとき（どれも止める側に倒す。�
 
 | 数字 | 出どころ |
 | --- | --- |
-| ツールのトークン・REPAIR_DELEG_AT の 300 秒（受け入れの上限 330 秒） | REQ-08・REQ-09 の「そのほかの操作は 10 分」。剥奪から下書きが止まるまで、aoba-pdp のキャッシュ 60 秒＋手元のトークン 330 秒＝390 秒で 600 秒の内側（連絡の 2 つはロールで絞らない。9.2）。委任の停止は 330 秒 |
+| ツールのトークン・REPAIR_DELEG_AT の 300 秒（受け入れの上限 330 秒） | REQ-08・REQ-09 の「そのほかの操作は 10 分」。剥奪から下書きが止まるまで、aoba-pdp のキャッシュ 60 秒＋手元のトークン 330 秒＝390 秒で 600 秒の内側（連絡の 2 つはロールで絞らない。9.2）。委任の停止は 330 秒（開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running） |
 | CONSOLE_AT の 300 秒 | 交換のたびにイントロスペクションするので短さは剥奪に効かないが、REPAIR_DELEG_AT・APPROVAL_AT の上流として、下流の寿命を上流以下にそろえる |
 | APPROVAL_AT の 120 秒 | 1 回の承認の操作（画面で押してから approval-svc が受けるまで）に足りる長さ。追加の認証の 300 秒（REQ-07）は auth_time で別に確かめる |
 | aoba-pdp のキャッシュ 60 秒 | REQ-08 の「重要な操作は 2 分」の半分。aoba-pdp の負荷の見込み（未計測、12.）から、0 にしない |
@@ -438,7 +438,7 @@ agent-sts が頼る先が止まったとき（どれも止める側に倒す。�
 | UC1 | q-req-wl | 不要 | — | Txn-Token を使わない。交換を求めたワークロードは agent-sts が mTLS で認証する |
 | UC1 | q-peer | 要る | mTLS の相手の wl-ca の証明書（URI の SAN） | 各ツールが TLS の層で確かめ、`C-cnf` と `C-act` に照らす |
 | UC1 | q-via | 要る | agent-sts の交換の監査ログと、各ツールの監査ログ | 交換の元の jti と出した jti を結ぶ |
-| UC1 | q-txn | 要る | `C-repair-id` | 全ツールの対象の照合と監査ログ |
+| UC1 | q-txn | 要る | `C-repair-id` | ツールの対象の照合（payment-tool は M_authz_pdp の 3.）と、全ツールの監査ログ |
 | UC1 | q-user | 要る | `C-sub` | 監査ログ（鍵つきのハッシュ） |
 | UC1 | q-agent | 要る | `C-act`、`C-client-id` | 各ツール |
 | UC1 | q-authorized | 要る | `C-scope`、`C-authorization-details`、`C-approval-ref` | scope は各ツール、承認は order-tool・lock-tool と approval-svc |
@@ -634,7 +634,7 @@ sequenceDiagram
 
 項目 ID：`template:00_core#hop-table`
 
-交換のホップ（H3・H5〜H9・H11・H12）は、新しいトークンを出す agent-sts を `from` に書き、トークンを運ぶ者（repair-console・repair-agent・visit-subagent）を括弧に書きました。ツールと approval-svc 宛ての交換では aud が 1 つの宛先に置き換わり（`aud_replacement`）、scope は上流の部分集合、寿命は上流（300 秒）以下です。H13・H14 は予約の実行の経路で、トークンを運ばず、予約の記録の値（修繕依頼 ID・承認 ID）を運びます。
+交換のホップ（H3・H5〜H9・H11・H12）は、新しいトークンを出す agent-sts を `from` に書き、トークンを運ぶ者（repair-console・repair-agent・visit-subagent）を括弧に書きました。ツールと approval-svc 宛ての交換では aud が 1 つの宛先に置き換わり（`aud_replacement`）、scope は上流の部分集合（H8 の approvals:decide は除く。1.）、寿命は上流（300 秒）以下です。H13・H14 は予約の実行の経路で、トークンを運ばず、予約の記録の値（修繕依頼 ID・承認 ID）を運びます。
 
 <!-- render:hop-table:begin -->
 `hops.yaml` の宣言。トークンのないホップの「運ぶトークン」は —。
@@ -652,7 +652,7 @@ sequenceDiagram
 | H9 https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent） → visit-subagent | `exchange` | `REPAIR_DELEG_AT` | `https://sts.aoba-sumai.example` | `tenant.message:send`・`tenant.message:read` | 300 秒 | `repair_id` | agent-sts | `local` | visit-subagent は REPAIR_DELEG_AT を検証せずに保持する（宛先は agent-sts）<br>repair-agent との間は mTLS |
 | H10 visit-subagent → https://sts.aoba-sumai.example（agent-sts。委任の 2 段目の交換） | `service` | `REPAIR_DELEG_AT` | `https://sts.aoba-sumai.example` | `tenant.message:send`・`tenant.message:read` | 300 秒 | `repair_id` | — | `local` | 署名（agent-sts の JWKS）<br>aud が agent-sts<br>may_act.sub が mTLS の相手の証明書の URI（visit-subagent）<br>委任の表に repair-agent → visit-subagent がある<br>深さが 2 を超えない<br>修繕依頼の台帳で担当が sub で委任の欄が有効<br>aoba-pdp で担当者の在籍とロール<br>resource が contact-tool だけ |
 | H11 https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは visit-subagent） → https://contact-tool.aoba-sumai.example/mcp | `exchange` | `CONTACT_TOOL_AT` | `https://contact-tool.aoba-sumai.example/mcp` | `tenant.message:send`・`tenant.message:read` | 300 秒 | `repair_id` | agent-sts | `local` | 署名（agent-sts の JWKS）<br>iss が agent-sts、exp − iat が 300 秒以下<br>aud が contact-tool だけ<br>mTLS の相手の証明書と cnf の x5t#S256<br>act の入れ子の深さが 2 以下<br>client_id が visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）<br>最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある（visit-subagent）。内側の act は記録だけ<br>scope に操作がある<br>連絡の相手を repair_id の修繕依頼の入居者に限る（最も外側が visit-subagent なので協力会社の窓口は拒否。宛先は通知の基盤が引く）<br>返信の読み取りは、repair_id の修繕依頼の入居者とのやり取りだけ（違えば 404） |
-| H12 https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console） → https://approval.aoba-sumai.example（approval-svc） | `exchange` | `APPROVAL_AT` | `https://approval.aoba-sumai.example` | `approvals:decide` | 120 秒 | `repair_id（足す：repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳）`・`approval_ref（足す：approval-svc）` | agent-sts | `local` | 署名（agent-sts の JWKS）<br>iss が agent-sts、exp − iat が 120 秒以下<br>aud が approval-svc だけ<br>mTLS の相手の証明書と cnf の x5t#S256（repair-console）<br>client_id が repair-console で act が無い<br>scope に approvals:decide<br>解錠の承認では not_after − not_before が 4 時間以内<br>承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）<br>承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致<br>aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）<br>一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の上長にだけ返す<br>取り下げ・却下は、承認した人・依頼の担当者・同じ課の上長だけ<br>承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態） |
+| H12 https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console） → https://approval.aoba-sumai.example（approval-svc） | `exchange` | `APPROVAL_AT` | `https://approval.aoba-sumai.example` | `approvals:decide` | 120 秒 | `repair_id（足す：repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳）`・`approval_ref（足す：approval-svc）` | agent-sts | `local` | 署名（agent-sts の JWKS）<br>iss が agent-sts、exp − iat が 120 秒以下<br>aud が approval-svc だけ<br>mTLS の相手の証明書と cnf の x5t#S256（APPROVAL_AT を交換で求めた者）<br>client_id が repair-console で act が無い<br>scope に approvals:decide<br>解錠の承認では not_after − not_before が 4 時間以内<br>承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）<br>承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致<br>aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）<br>一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の上長にだけ返す<br>取り下げ・却下は、承認した人・依頼の担当者・同じ課の上長だけ<br>承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態） |
 | H13 order-scheduler（予約の発注の実行） → aoba-pdp | `service` | — | — | — | — | `repair_id` | — | `none` | mTLS の相手が order-scheduler の証明書で、aoba-pdp の呼び出し元の許可リストにある<br>予約の記録の担当者（sub）が在籍し、修繕担当のロールを持ち、修繕依頼の担当である<br>（order-scheduler が問い合わせの前に確かめる）予約の記録の act の連鎖の行為者が、agent-sts と同じクライアントの登録の表に今も登録されている<br>（同じく）予約の記録を作ったのが変更の記録の表で order-tool の DB アカウントで、作った後に書き換えられていない<br>（同じく）修繕依頼の台帳の委任の欄が有効で、世代が予約の記録の世代と同じ（予約の後に委任を止めていない）<br>（同じく）予約の後に担当の履歴に付け替えが無い |
 | H14 order-scheduler（予約の発注の実行） → https://approval.aoba-sumai.example（approval-svc） | `service` | — | — | — | — | `repair_id`・`approval_ref` | — | `none` | mTLS の相手が order-scheduler の証明書で、approval-svc の呼び出し元の許可リストにある<br>承認の記録が予約済みで、結んだ発注 ID・修繕依頼・担当者が予約の記録と一致<br>予約済みを使用済みにする条件つきの更新（取り下げてあれば失敗） |
 <!-- render:hop-table:end -->
@@ -671,33 +671,33 @@ sequenceDiagram
 | `H1` | `CONSOLE_SESSION` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | `repair-console` | 32400 秒 |
 | `H2` | `CONSOLE_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | subject_token の iss が、CONSOLE_AT なら aoba-as、REPAIR_DELEG_AT なら自分と完全一致 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で同じ課の上長であること（承認者の条件そのものは approval-svc が確かめる） | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H2` | `CONSOLE_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H2` | `CONSOLE_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | subject_token の exp を確かめ、出すトークンの exp を subject_token の exp より後にしない | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `iat` | ② aoba-as<br>③ agent-sts | 未来の iat（ずれ 30 秒を超える）を拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `jti` | ② aoba-as<br>③ agent-sts | 交換の記録に元の jti と出した jti を残す | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H2` | `CONSOLE_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H2` | `CONSOLE_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 出す scope が subject_token の scope と、宛先の操作の表と、aoba-pdp のロールの積（連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）。空になれば拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `acr` | ① aoba-as（認証の段）<br>③ agent-sts（CONSOLE_AT から写すだけ） | CONSOLE_AT の acr を APPROVAL_AT に写すだけ（判断しない） | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H2` | `CONSOLE_AT` | `auth_time` | ① aoba-as<br>③ agent-sts（APPROVAL_AT では交換した時刻を書く） | APPROVAL_AT の auth_time に交換した時刻を書く（CONSOLE_AT の auth_time は、無ければ交換を拒否するだけで写さない） | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H3` | `REPAIR_DELEG_AT` | — | — | 結びつく行なし：受け手 `repair-agent` の名前を含む `enforced_at.service` が無い（運ぶ行の service：agent-sts・aoba-pdp・approval-svc・contact-tool・lock-tool・order-tool・payment-tool・repair-console）。名前をそろえるか、受け手の確かめを台帳に書く | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | subject_token の iss が、CONSOLE_AT なら aoba-as、REPAIR_DELEG_AT なら自分と完全一致 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で同じ課の上長であること（承認者の条件そのものは approval-svc が確かめる） | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H4` | `REPAIR_DELEG_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H4` | `REPAIR_DELEG_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | subject_token の exp を確かめ、出すトークンの exp を subject_token の exp より後にしない | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `iat` | ② aoba-as<br>③ agent-sts | 未来の iat（ずれ 30 秒を超える）を拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `jti` | ② aoba-as<br>③ agent-sts | 交換の記録に元の jti と出した jti を残す | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H4` | `REPAIR_DELEG_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H4` | `REPAIR_DELEG_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 出す scope が subject_token の scope と、宛先の操作の表と、aoba-pdp のロールの積（連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）。空になれば拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 2 段目の REPAIR_DELEG_AT の最も外側の act.sub が repair-agent で、mTLS の相手が may_act の主体。深さ 3 になる交換は拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `may_act` | ③ agent-sts（委任の表から） | may_act.sub が mTLS の相手の証明書の URI と一致し、委任の表にある | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H4` | `REPAIR_DELEG_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で同じ課の上長か | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 確定（orders:place）のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる。下書きは監査ログに残すだけ | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H5` | `ORDER_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://order-tool.aoba-sumai.example/mcp だけ。配列にほかの値があれば拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H5` | `ORDER_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://order-tool.aoba-sumai.example/mcp だけ。配列にほかの値があれば拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 300 秒以下 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 300 秒以下。未来の iat を拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H5` | `ORDER_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（agent-sts と同じクライアントの登録の表（client_id とワークロードの URI の対応。設定の配布で受け手に渡し、5 分ごとに読み直す）で対応を引く） | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H5` | `ORDER_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（agent-sts と同じクライアントの登録の表（client_id とワークロードの URI の対応。設定の配布で受け手に渡し、5 分ごとに読み直す）で対応を引く） | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 下書きは orders:draft、確定・予約は orders:place が要る。足りなければ 403 insufficient_scope | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 最も外側の act.sub が mTLS の相手の証明書の URI で、発注の行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H5` | `ORDER_TOOL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
@@ -706,33 +706,33 @@ sequenceDiagram
 | `H5` | `ORDER_TOOL_AT` | `https://aoba-sumai.example/claims/approval_ref` | ⑥ agent-sts（approval-svc の承認済みの記録から。解錠のコードの送り直しだけは、lock-tool が使用済みにした取り消していない not_after の前の解錠の承認から。記録の修繕依頼・担当者・宛先が合わなければ載せない） | approval-svc で、承認の記録の発注 ID・修繕依頼・担当者（sub）が要求と一致し、承認済み・未使用・期限内なら使用済み（発注 ID に結ぶ）にする条件つきの更新が成功するときだけ確定。approval-svc が応答しなければ拒否 | `https://order-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 監査ログに残す。連絡の相手の範囲（入居者と協力会社の窓口。visit-subagent なら入居者だけ）は C-repair-id の照合で決める | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H6` | `CONTACT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://contact-tool.aoba-sumai.example/mcp だけ | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H6` | `CONTACT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://contact-tool.aoba-sumai.example/mcp だけ | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 300 秒以下 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 300 秒以下。未来の iat を拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H6` | `CONTACT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H6` | `CONTACT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 送信は tenant.message:send、返信の読み取りは tenant.message:read が要る | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。最も外側が visit-subagent なら、連絡の相手は入居者だけ（協力会社の窓口は拒否。REQ-04）。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H6` | `CONTACT_TOOL_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（最も外側の act.sub が visit-subagent なら入居者だけ）。要求は相手の種類だけを受け、電話番号・宛先を受けない。宛先は通知の基盤が repair_id と相手の種類から台帳で引く。返信の読み取り（tenant.message:read）は、repair_id の修繕依頼のやり取りだけを返し（visit-subagent なら入居者とのやり取りだけ）、違う ID には 404 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 支払いの依頼のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H7` | `PAYMENT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://payment-tool.aoba-sumai.example/mcp だけ | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H7` | `PAYMENT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://payment-tool.aoba-sumai.example/mcp だけ | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 300 秒以下 | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 300 秒以下。未来の iat を拒否 | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H7` | `PAYMENT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H7` | `PAYMENT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | payments:request が要る | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 最も外側の act.sub が mTLS の相手で、支払いの行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否 | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致 | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H7` | `PAYMENT_TOOL_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 支払いの対象の発注が確定済みで完了の報告がある（発注の修繕依頼と repair_id は照合しない。発注 ID は発注の台帳で一意なので）。手作業の発注で 10 万円を超えるものは、事後の確認が「確認済み」になるまで支払いを依頼しない（不適切とされたものは支払わない）。額は発注の台帳の確定額で、要求の額を使わない | `https://payment-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 解錠コードの発行のたびに aoba-pdp に sub を渡し、在籍・鍵の取り扱いのロール・修繕依頼の担当を問い合わせる | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H8` | `LOCK_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://lock-tool.aoba-sumai.example/mcp だけ | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H8` | `LOCK_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://lock-tool.aoba-sumai.example/mcp だけ | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 300 秒以下 | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 300 秒以下。未来の iat を拒否 | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H8` | `LOCK_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H8` | `LOCK_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | lock.code:issue が要る | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 最も外側の act.sub が mTLS の相手で、解錠の行為者の許可リスト（repair-agent）にある。visit-subagent は拒否。act の入れ子の深さが 2 を超えれば拒否 | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H8` | `LOCK_TOOL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致 | `https://lock-tool.aoba-sumai.example/mcp` | 300 秒 |
@@ -742,35 +742,35 @@ sequenceDiagram
 | `H9` | `REPAIR_DELEG_AT` | — | — | 結びつく行なし：受け手 `visit-subagent` の名前を含む `enforced_at.service` が無い（運ぶ行の service：agent-sts・aoba-pdp・approval-svc・contact-tool・lock-tool・order-tool・payment-tool・repair-console）。名前をそろえるか、受け手の確かめを台帳に書く | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | subject_token の iss が、CONSOLE_AT なら aoba-as、REPAIR_DELEG_AT なら自分と完全一致 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で同じ課の上長であること（承認者の条件そのものは approval-svc が確かめる） | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H10` | `REPAIR_DELEG_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H10` | `REPAIR_DELEG_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | subject_token の exp を確かめ、出すトークンの exp を subject_token の exp より後にしない | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `iat` | ② aoba-as<br>③ agent-sts | 未来の iat（ずれ 30 秒を超える）を拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `jti` | ② aoba-as<br>③ agent-sts | 交換の記録に元の jti と出した jti を残す | `https://sts.aoba-sumai.example` | 300 秒 |
-| `H10` | `REPAIR_DELEG_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
+| `H10` | `REPAIR_DELEG_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 出す scope が subject_token の scope と、宛先の操作の表と、aoba-pdp のロールの積（連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）。空になれば拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 2 段目の REPAIR_DELEG_AT の最も外側の act.sub が repair-agent で、mTLS の相手が may_act の主体。深さ 3 になる交換は拒否 | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `may_act` | ③ agent-sts（委任の表から） | may_act.sub が mTLS の相手の証明書の URI と一致し、委任の表にある | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H10` | `REPAIR_DELEG_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で同じ課の上長か | `https://sts.aoba-sumai.example` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | 監査ログに残す。連絡の相手の範囲（入居者と協力会社の窓口。visit-subagent なら入居者だけ）は C-repair-id の照合で決める | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H11` | `CONTACT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://contact-tool.aoba-sumai.example/mcp だけ | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H11` | `CONTACT_TOOL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://contact-tool.aoba-sumai.example/mcp だけ | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 300 秒以下 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 300 秒以下。未来の iat を拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
-| `H11` | `CONTACT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
+| `H11` | `CONTACT_TOOL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く） | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | 送信は tenant.message:send、返信の読み取りは tenant.message:read が要る | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `act` | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない） | 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。最も外側が visit-subagent なら、連絡の相手は入居者だけ（協力会社の窓口は拒否。REQ-04）。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H11` | `CONTACT_TOOL_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（最も外側の act.sub が visit-subagent なら入居者だけ）。要求は相手の種類だけを受け、電話番号・宛先を受けない。宛先は通知の基盤が repair_id と相手の種類から台帳で引く。返信の読み取り（tenant.message:read）は、repair_id の修繕依頼のやり取りだけを返し（visit-subagent なら入居者とのやり取りだけ）、違う ID には 404 | `https://contact-tool.aoba-sumai.example/mcp` | 300 秒 |
 | `H12` | `APPROVAL_AT` | `iss` | ② 各発行者（aoba-as・agent-sts）の設定 | iss が agent-sts と完全一致。aoba-as のトークンは拒否 | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `sub` | ① aoba-as（ローカルの利用者の ID）<br>③ agent-sts（subject_token から写すだけ） | aoba-pdp で承認者の在籍とロールを引き、承認の種類ごとの承認者の条件と照合する。発注の承認は、承認者の sub が承認の記録の担当者（依頼したときの sub）と違い、修繕依頼の台帳の担当の履歴（今と過去の担当）にも無いこと。解錠の承認は、承認者の sub が承認の記録の担当者で、今も修繕依頼の担当であること | `https://approval.aoba-sumai.example` | 120 秒 |
-| `H12` | `APPROVAL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く） | aud が https://approval.aoba-sumai.example だけ | `https://approval.aoba-sumai.example` | 120 秒 |
+| `H12` | `APPROVAL_AT` | `aud` | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く） | aud が https://approval.aoba-sumai.example だけ | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `exp` | ② aoba-as（クライアントごとの寿命の設定）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう） | exp を確かめ、exp − iat が 120 秒以下 | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `iat` | ② aoba-as<br>③ agent-sts | exp − iat が 120 秒以下。未来の iat を拒否 | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `jti` | ② aoba-as<br>③ agent-sts | 監査ログに残す | `https://approval.aoba-sumai.example` | 120 秒 |
-| `H12` | `APPROVAL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント） | client_id が repair-console。APPROVAL_AT に act が無いことも確かめる（エージェントが承認の操作をする経路を作らない） | `https://approval.aoba-sumai.example` | 120 秒 |
+| `H12` | `APPROVAL_AT` | `client_id` | ② aoba-as（mTLS で認証したクライアント）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す） | client_id が repair-console。APPROVAL_AT に act が無いことも確かめる（エージェントが承認の操作をする経路を作らない） | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `scope` | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける） | approvals:decide が要る | `https://approval.aoba-sumai.example` | 120 秒 |
-| `H12` | `APPROVAL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致（repair-console の証明書） | `https://approval.aoba-sumai.example` | 120 秒 |
+| `H12` | `APPROVAL_AT` | `cnf` | ③ agent-sts（交換を求めた mTLS の相手の証明書から） | mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致（APPROVAL_AT を交換で求めた者の証明書） | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `acr` | ① aoba-as（認証の段）<br>③ agent-sts（CONSOLE_AT から写すだけ） | 承認の操作（承認済みにする操作）と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは止める操作なので求めない）、acr が mfa でなければ 401 insufficient_user_authentication（acr_values=mfa・max_age=300） | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `auth_time` | ① aoba-as<br>③ agent-sts（APPROVAL_AT では交換した時刻を書く） | 承認の操作と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは除く）、approval-svc の時計で今 − auth_time が 300 秒を超えれば 401 insufficient_user_authentication | `https://approval.aoba-sumai.example` | 120 秒 |
 | `H12` | `APPROVAL_AT` | `https://aoba-sumai.example/claims/repair_id` | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない） | 一覧の参照（approval_ref の無い APPROVAL_AT）では、トークンの repair_id の修繕依頼の承認の記録だけを返し、sub がその修繕依頼の担当者か、aoba-pdp で同じ課の上長でなければ返さない（担当の履歴にある課長も、解錠の取り消しのために参照できる。承認・事後の確認の操作は担当の履歴に無い課長だけ）。APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致 | `https://approval.aoba-sumai.example` | 120 秒 |
@@ -792,13 +792,13 @@ sequenceDiagram
 
 | 層・種別（目録の ID） | 寿命（idle／最大） | リフレッシュ | RT のローテーションと再利用の検知 | 失効の手段 | 剥奪が届くまでの秒数 | 長時間の処理での扱い |
 | --- | --- | --- | --- | --- | --- | --- |
-| CONSOLE_SESSION | 1800／32400 | 操作で idle を延ばす | — | ログアウト・Back-Channel Logout | 0 | エージェントに任せている間も、担当者が 30 分操作しなければ切れ、REPAIR_DELEG_AT の交換し直しが止まる（REQ-02・REQ-03）。エージェントはその後、手元のトークンで最悪 330 秒動く（REQ-03 の 10 分の内側）。予約の実行はセッションに依らない |
+| CONSOLE_SESSION | 1800／32400 | 操作で idle を延ばす | — | ログアウト・Back-Channel Logout | 0 | エージェントに任せている間も、担当者が 30 分操作しなければ切れ、REPAIR_DELEG_AT の交換し直しが止まる（REQ-02・REQ-03）。エージェントはその後、手元のトークンで最悪 330 秒動く（REQ-03 の 10 分の内側。開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running）。予約の実行はセッションに依らない |
 | aoba-as のセッション | 1800／32400 | 利用で idle を延ばす | — | ログアウト・hr-sync によるセッションの削除 | 0 | — |
 | CONSOLE_RT | 1800／32400 | 使うたびにローテーション | ローテーションあり。再利用の検知は仕様にあるが未試験（3.1・12.） | ログアウト・失効の端点・セッションの削除 | 0 | エージェントに渡さない |
 | CONSOLE_AT | —／300 | repair-console が CONSOLE_RT で取り直す | — | agent-sts のイントロスペクション（0 秒）と aoba-pdp（60 秒） | 交換は 0〜60、手元は 330（CONSOLE_AT だけでは何も呼べない） | エージェントに渡さない |
 | REPAIR_DELEG_AT | —／300（subject_token の残りが短ければそれ以下） | なし。repair-console が残り 60 秒の前に交換し直して渡す | RT なし | 交換のたびに修繕依頼の台帳の委任の欄（0 秒）と担当（キャッシュ 3600 秒）と aoba-pdp（60 秒） | 委任の停止は 0（次の交換）、担当の付け替えは 3600、剥奪は 60、手元は 330 | 担当者のセッションが終われば交換し直されず、最悪 330 秒で止まる（REQ-03 の 10 分の内側） |
 | ORDER_TOOL_AT・PAYMENT_TOOL_AT・LOCK_TOOL_AT | —／300（REPAIR_DELEG_AT の残りが短ければそれ以下） | なし。手順ごとに交換し直す | RT なし | 確定・予約・支払い・発行は aoba-pdp（60 秒）、承認の要る操作は approval-svc（0 秒）。下書き・承認の依頼は exp まで | 重要な操作は 60、下書きは 390（aoba-pdp 60＋手元 330） | 予約の発注では保存しない（order-scheduler が予約の記録と自分の証明書で、実行の時点に確かめ直す） |
-| CONTACT_TOOL_AT | —／300 | なし | RT なし | exp まで。次の交換は agent-sts が拒否 | 330（委任の停止）。ロールの剥奪では止まらない（連絡の 2 つはロールで絞らない。9.2） | — |
+| CONTACT_TOOL_AT | —／300 | なし | RT なし | exp まで。次の交換は agent-sts が拒否 | 330（委任の停止）。ロールの剥奪では止まらない（連絡の 2 つはロールで絞らない。9.2） | 開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running |
 | APPROVAL_AT | —／120 | なし。承認の操作ごとに交換する | RT なし | approval-svc が操作のたびに aoba-pdp（60 秒） | 60 | — |
 | LOGIN_ID_TOKEN・CONSOLE_LOGOUT・LOGIN_CODE | 300・120・60 | — | — | 保存しない・1 回限り | — | — |
 | 予約の記録（発注の台帳） | 実行の時刻まで（最大 24 時間。承認の期限を超える予約は受けない） | — | — | 実行の時点で aoba-pdp・修繕依頼の台帳・approval-svc を引き直す。委任の欄の世代を予約の記録と比べるので、委任を止めれば、その後に有効にし直しても止める前の予約は実行しない。担当者は画面から予約を取り消せない（取り消しはエージェントに頼むか、委任を止める） | 実行の時点で確かめるので 0（実行より前に止めたいときは委任を止める） | REQ-09・REQ-10 |
@@ -842,7 +842,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `may_act` | `REPAIR_DELEG_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 委任の表から外すと、次の REPAIR_DELEG_AT から出なくなる。出した REPAIR_DELEG_AT は最悪 330 秒 |
 | `cnf` | `ORDER_TOOL_AT`・`CONTACT_TOOL_AT`・`PAYMENT_TOOL_AT`・`LOCK_TOOL_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 証明書は 24 時間で、残り 8 時間で更新する。更新した証明書の接続では、新しい証明書で交換し直したトークンだけを使う（共通のクライアント部品が、証明書と トークンを組で管理する。design.md の付録 D の M_sender_constraint の 4.） |
 | `acr` | `LOGIN_ID_TOKEN`・`CONSOLE_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | ログインごとの値。リフレッシュでは変わらない |
-| `auth_time` | `LOGIN_ID_TOKEN`・`CONSOLE_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | ログインごとの値 |
+| `auth_time` | `LOGIN_ID_TOKEN`・`CONSOLE_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `login`・`exchange` | 寿命の間に変わらない（never） | — | ログインごとの値（APPROVAL_AT は交換ごと） |
 | `authorization_details` | `ORDER_TOOL_AT`・`LOCK_TOOL_AT` | 330 秒 | 0 秒 | 0 秒 | `exchange` | 超える（ORDER_TOOL_AT 330 秒・LOCK_TOOL_AT 330 秒 > 許容 0 秒） | ORDER_TOOL_AT：DB の確認（0 秒）<br>LOCK_TOOL_AT：DB の確認（0 秒） | 承認の取り下げは、order-tool・lock-tool が実行のたびに approval-svc で承認を条件つきで使用済みにする（取り下げてあれば失敗する）ことで、すぐに止める |
 | `https://aoba-sumai.example/claims/repair_id` | `REPAIR_DELEG_AT`・`ORDER_TOOL_AT`・`CONTACT_TOOL_AT`・`PAYMENT_TOOL_AT`・`LOCK_TOOL_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | 委任の停止は、次の交換で agent-sts が拒否する。担当の付け替えは、agent-sts が修繕依頼の台帳の担当を 3600 秒キャッシュするので、下書き・連絡は最悪 3930 秒で止まる。発注の確定・解錠・支払いは、ツールが aoba-pdp で担当を確かめ直す（最悪 60 秒） |
 | `https://aoba-sumai.example/claims/approval_ref` | `ORDER_TOOL_AT`・`LOCK_TOOL_AT`・`APPROVAL_AT` | 330 秒 | `never` | 0 秒 | `exchange` | 寿命の間に変わらない（never） | — | ID そのものは変わらない。承認の取り下げは、受け手の approval-svc への条件つきの更新が失敗することで反映する |
@@ -906,7 +906,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-authorization-details` | 0（REQ-05：取り下げたら直ちに止める） | ORDER_TOOL_AT・LOCK_TOOL_AT 330 | order-tool・lock-tool が実行のたびに approval-svc で承認を条件つきで使用済みにする（キャッシュしない）。取り下げてあれば失敗する。approval-svc が応答しなければ拒否する | `ORDER_TOOL_AT.revocation`・`LOCK_TOOL_AT.revocation`（db_lookup 0 秒）、`C-authorization-details.on_revoke` |
 | 担当者の在籍・ロール・担当（トークンに載せない） | 120（REQ-08：重要な操作は、人事の台帳で確定してから・担当の付け替えを登録してから 2 分） | — | 重要な操作のツールと approval-svc は、呼び出しのたびに aoba-pdp に問い合わせる。aoba-pdp は人事の台帳と修繕依頼の台帳を直接引き、結果を 60 秒キャッシュする（最悪 60 秒）。人事の台帳の API が応答しないときは、最後に引いた結果を最大 24 時間返す。hr-sync（aoba-as への写し）は経路に入らない | `token_types[].revocation`（db_lookup 60 秒）、付録 D の M_authz_pdp の 5. |
 | 修繕依頼の担当（トークンに載せない） | 600（REQ-08：担当の付け替えの登録から、下書き・連絡は 10 分） | REPAIR_DELEG_AT・ツールのトークン 330 | agent-sts は交換のたびに修繕依頼の台帳の担当を確かめるが、台帳の負荷を下げるため担当を 3600 秒キャッシュする。重要な操作はツールが aoba-pdp で担当を引く（60 秒） | `REPAIR_DELEG_AT.revocation`（db_lookup 3600 秒）、`C-repair-id.on_revoke` |
-| 委任の欄（トークンに載せない） | 600（REQ-09） | REPAIR_DELEG_AT・ツールのトークン 330 | agent-sts は交換のたびに修繕依頼の台帳の委任の欄を引く（キャッシュしない）。手元のトークンは最悪 330 秒。予約は order-scheduler が実行の時点で引く | `REPAIR_DELEG_AT.revocation`（db_lookup 0 秒）、`hops.yaml` の H13 |
+| 委任の欄（トークンに載せない） | 600（REQ-09） | REPAIR_DELEG_AT・ツールのトークン 330 | agent-sts は交換のたびに修繕依頼の台帳の委任の欄を引く（キャッシュしない）。手元のトークンは最悪 330 秒（開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running）。予約は order-scheduler が実行の時点で引く | `REPAIR_DELEG_AT.revocation`（db_lookup 0 秒）、`hops.yaml` の H13 |
 
 元のデータからの経路（op-source-change の出どころ）：人事の台帳の在籍・職位・所属・研修の記録は、人事部の担当者が人事システムの画面で登録し、人事部の承認者がもう 1 人で承認したときに確定する（人事システムの 2 人の手順。別の設計書）。aoba-pdp は確定した値だけを人事の台帳の API で読む（REQ-08 の起点は確定の時点。登録から確定までは人事部の手順で、3.1 の見送りの行）。修繕依頼の担当は、修繕課の課長が repair-console の「担当の割り当て」の画面で割り当て、修繕依頼の台帳が担当の履歴に追記する（2.2）。aoba-pdp には、ロールを手で書き換える画面も API も無く、ロールは人事の台帳の値から導くだけ（修繕担当＝修繕課に在籍、上長＝修繕課の課長以上、鍵の取り扱い＝研修の記録が有効）。aoba-pdp は、ツール・approval-svc からはトークンの sub で、agent-sts からは CONSOLE_AT の preferred_username（ログイン名）で、人事の台帳の社員番号を aoba-as の利用者の属性で引く（社員番号の性質は台帳の C-staff-number）。この属性を書けるのは hr-sync の証明書の API だけで、aoba-as の管理の画面では書けない（2.2。DB の管理者の直接の書き込みは 3.1 の見送りの行）。導き方の規則は認証基盤チームが設定のリポジトリの PR（2 人の承認）で変える。
 
@@ -937,7 +937,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-exp` | `exp` | 採用 | — | 受け手は exp を時計のずれ 30 秒まで許して確かめる。agent-sts は交換で出すトークンの exp を、自分の寿命の上限と subject_token の exp の早いほうにする （下流の寿命が上流を超えない）。ツールは exp − iat が種別の寿命以下であることも確かめる | 発行者と受け手の時計は組織の NTP に合わせる | [RFC 7519 §4.1.4](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4)<br>`slide:p08-choosing-lifetime` | — | 組織の網の外の受け手を足すとき |
 | `C-iat` | `iat` | 採用 | — | 受け手は exp − iat で寿命の上限を確かめ、未来の iat（時計のずれ 30 秒を超える）を拒否する。ログアウトトークンは iat から 120 秒で受け入れを打ち切る | 発行者と受け手の時計は組織の NTP に合わせる | [RFC 7519 §4.1.6](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6) | — | 組織の網の外の受け手を足すとき |
 | `C-jti` | `jti` | 採用 | — | agent-sts は交換の記録に、元のトークンの jti と出したトークンの jti を結んで残す。ツールと approval-svc は jti を監査ログに残し、どのトークンで 操作したかをたどる。ログアウトトークンは jti で再送を拒否する。業務の操作の重複は、発注 ID・承認 ID などの業務の ID で防ぐ（jti に頼らない） | 発行者は UUID の version 4 で jti を作る | [RFC 7519 §4.1.7](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7)<br>`slide:p06-audit-trail` | — | jti で 1 回限りの使用を強制する種別を足すとき |
-| `C-client-id` | `client_id` | 採用 | — | agent-sts は client_id を、交換を求めた mTLS の相手のクライアントの登録から書き、要求の値を使わない。ツールは client_id が act の最も外側の行為者と 同じエージェントであることを確かめる。approval-svc は client_id が repair-console で act が無い（エージェントの経路で承認させない）ことを確かめる | クライアントは 3 つ（repair-console・repair-agent・visit-subagent）で、それぞれ wl-ca の証明書 1 つに対応する | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>[RFC 8693 §4.3](https://www.rfc-editor.org/rfc/rfc8693#section-4.3) | — | エージェントを足すとき |
+| `C-client-id` | `client_id` | 採用 | — | agent-sts は client_id を、REPAIR_DELEG_AT の交換では交換を求めた mTLS の相手のクライアントの登録から書き、CONSOLE_AT の交換では CONSOLE_AT の client_id（repair-console）を写し、要求の値を使わない。ツールは client_id が act の最も外側の行為者と 同じエージェントであることを確かめる。approval-svc は client_id が repair-console で act が無い（エージェントの経路で承認させない）ことを確かめる | クライアントは 3 つ（repair-console・repair-agent・visit-subagent）で、それぞれ wl-ca の証明書 1 つに対応する | [RFC 9068 §2.2](https://www.rfc-editor.org/rfc/rfc9068#section-2.2)<br>[RFC 8693 §4.3](https://www.rfc-editor.org/rfc/rfc8693#section-4.3) | — | エージェントを足すとき |
 | `C-scope` | `scope` | 採用 | — | CONSOLE_AT の scope は repair-console が求めた範囲の上限で、agent-sts は交換のたびに、宛先のツールの操作だけ、かつ aoba-pdp が返す担当者のロールで 許す操作だけに絞る（上流の部分集合）。連絡の 2 つ（tenant.message:send・tenant.message:read）はロールで絞らず、委任の表でエージェントに許した範囲で付ける（修繕担当のロールが外れても、担当の修繕依頼の入居者への連絡を止めない）。 訪問の調整のサブエージェントには連絡の 2 つだけを渡す。ワイルドカードは作らない | aoba-pdp は人事の台帳から導いたロールを 60 秒以内の新しさで返す | [RFC 8693 §4.2](https://www.rfc-editor.org/rfc/rfc8693#section-4.2)<br>`slide:p10-per-tool-scopes`<br>`slide:p05-scope-vs-role` | — | ツールを足すとき・ロールの区分を変えるとき |
 | `C-act` | `act` | 採用 | — | ツールは最も外側の act.sub だけで行為者を判断する（RFC 8693 §4.1）。最も外側の act.sub を mTLS の相手の証明書の URI と照合し、 ツールの操作ごとの行為者の許可リスト（発注・支払い・解錠は repair-agent だけ、連絡は repair-agent と visit-subagent）と照合する。内側の act は監査ログに残すだけ | 委任の深さは 2 まで（repair-agent → visit-subagent）。agent-sts は 3 段目の交換を拒否する | [RFC 8693 §4.1](https://www.rfc-editor.org/rfc/rfc8693#section-4.1)<br>`slide:p10-four-questions`<br>`slide:p10-delegation-chain-depth` | — | visit-subagent がさらに別のエージェントに任せる要望が出たとき |
 | `C-may-act` | `may_act` | 採用 | — | agent-sts は、1 段目の REPAIR_DELEG_AT の may_act に repair-agent を、2 段目に visit-subagent を、委任の表から入れる。REPAIR_DELEG_AT の交換では、 mTLS の相手が may_act の主体と同じことを確かめる。ほかのワークロードが REPAIR_DELEG_AT を手に入れても交換できない | 任せてよい相手は agent-sts の委任の表（repair-console → repair-agent、repair-agent → visit-subagent）で決まり、エージェントの申告では決まらない | [RFC 8693 §4.4](https://www.rfc-editor.org/rfc/rfc8693#section-4.4)<br>`slide:p02-delegation-client` | — | 任せる相手のエージェントを足すとき |
@@ -957,8 +957,8 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-email` | `email` | 却下（不要） | — | コンソールもツールも担当者のメールを使わない。照合は sub、表示は name で足りる。載せると手元とログに個人情報が増える | 担当者への通知はこの設計の外の社内の連絡の仕組みで行う | `slide:p09-do-not-carry` | — | ツールが担当者にメールを送る要望が出たとき |
 | `C-tenant-phone` | `https://aoba-sumai.example/claims/tenant_phone` | 却下（代替あり） | `C-repair-id` | 入居者への連絡は、contact-tool が repair_id と相手の種類（入居者）を通知の基盤に渡し、通知の基盤が修繕依頼の台帳から宛先を引いて送る（REQ-12。contact-tool も宛先を持たない）。トークンに載せると、 エージェントの実行基盤・全ツールの手元に入居者の電話番号が残り、エージェントが任意の番号に送る経路にもなる | 通知の基盤は repair_id と相手の種類から、修繕依頼の台帳で宛先を引ける | `slide:p09-do-not-carry`<br>`slide:p09-jws-is-readable` | — | 修繕依頼の台帳を引けないツールが入居者の連絡先を必要とするとき |
 | `C-unit-address` | `https://aoba-sumai.example/claims/unit_address` | 却下（代替あり） | `C-authorization-details` | 解錠の照合に要るのは部屋の ID（authorization_details の unit_id）だけで、住所は要らない。住所と解錠の時間帯が同じトークンに並ぶと、漏れたときに いつどの部屋が開くかが読める | lock-tool は部屋の ID で、スマートロックの管理の仕組み（lock-svc）の錠を引ける | `slide:p09-do-not-carry` | — | 住所を表示するツールを足すとき（そのときも修繕依頼の台帳から引く） |
-| `C-unlock-code` | `https://aoba-sumai.example/claims/unlock_code` | 却下（禁止） | — | 解錠コードは秘密の値で、協力会社の作業員にだけ届ける（REQ-06）。トークン（JWS は読める）・エージェント・担当者の画面・ログに出さない。lock-tool が lock-svc で 作らせ、通知の基盤で作業員の登録の番号に直接送り、エージェントには発行の参照（code_ref）だけを返す | lock-svc は、承認 ID ごとにコードを 1 つだけ作り、not_after まで暗号化して持ち、同じ承認 ID の再要求には同じコードを返す。lock-tool はコードを保存しない | `slide:p09-jws-is-readable`<br>`slide:p09-do-not-carry` | — | 作業員がアプリで解錠する方式（コードを使わない）に替えるとき |
-| `C-staff-number` | `https://aoba-sumai.example/claims/staff_number` | 却下（不要） | — | トークンに載せない。受け手は社員番号で判断せず、aoba-pdp が sub から aoba-as の利用者の属性で引く。突き合わせの鍵としての性質は次のとおり：人事の台帳が採番し、 付け替え・再利用をしない（再雇用でも新しい番号。人事部に確かめた。2026-11-20）。属性が無い・人事の台帳に無い番号なら、aoba-pdp は在籍なしとして拒否する。 属性の最後の変更が hr-sync のアプリの DB アカウントでない利用者は、aoba-as の利用者の API が返さない（design.md の 3.1） | 人事の台帳は社員番号を付け替えない | `slide:p04-immutable-identifiers` | — | 人事の台帳の採番の規則が変わるとき |
+| `C-unlock-code` | `https://aoba-sumai.example/claims/unlock_code` | 却下（禁止） | — | 解錠コードは秘密の値で、協力会社の作業員にだけ届ける（REQ-06）。トークン（JWS は読める）・エージェント・担当者の画面・ログに出さない。lock-tool が lock-svc で 作らせ、通知の基盤で作業員の登録の番号に直接送り、エージェントには発行の参照（code_ref。lock-tool が発行ごとに採番する乱数で、lock-svc にも approval-svc にも渡さない）だけを返す | lock-svc は、承認 ID ごとにコードを 1 つだけ作り、not_after まで暗号化して持ち、同じ承認 ID の再要求には同じコードを返す。lock-tool はコードを保存しない | `slide:p09-jws-is-readable`<br>`slide:p09-do-not-carry` | — | 作業員がアプリで解錠する方式（コードを使わない）に替えるとき |
+| `C-staff-number` | `https://aoba-sumai.example/claims/staff_number` | 却下（不要） | — | トークンに載せない。受け手は社員番号で判断せず、aoba-pdp が sub（agent-sts からの問い合わせはログイン名）から aoba-as の利用者の属性で引く。突き合わせの鍵としての性質は次のとおり：人事の台帳が採番し、 付け替え・再利用をしない（再雇用でも新しい番号。人事部に確かめた。2026-11-20）。属性が無い・人事の台帳に無い番号なら、aoba-pdp は在籍なしとして拒否する。 属性の最後の変更が hr-sync のアプリの DB アカウントでない利用者は、aoba-as の利用者の API が返さない（design.md の 3.1） | 人事の台帳は社員番号を付け替えない | `slide:p04-immutable-identifiers` | — | 人事の台帳の採番の規則が変わるとき |
 | `C-order-limit` | `https://aoba-sumai.example/claims/order_limit` | 却下（不要） | — | 承認が要るかは担当者ごとの上限ではなく、部屋ごとの直近 30 日の累計で決める（REQ-05）。累計は発注の台帳の値で、order-tool が確定のたびに数える。 トークンに上限を載せると、寿命の間に累計が変わっても古い値で通る | 承認の要否の規則は部屋ごとの累計だけで、担当者ごとに変えない | `slide:p04-carry-or-query` | — | 担当者の職位で承認の要否を変える要望が出たとき |
 | `C-txn` | `txn` | 却下（代替あり） | `C-repair-id` | 監査で結ぶ単位は修繕依頼（何日もかけて多くの呼び出しをまたぐ）で、1 つの呼び出しの連鎖ではない。Txn-Token を使わず、修繕依頼 ID・発注 ID・承認 ID・jti で結ぶ | ツールの先に、トークンで文脈を伝えるサービスの連鎖が無い | [draft-ietf-oauth-transaction-tokens-11 §9.2](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-11#section-9.2) | — | ツールの先に複数のサービスを呼ぶ処理を足すとき |
 <!-- render:decision-rows:end -->
@@ -970,17 +970,17 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `C-iss` | `iss` | 各発行者の設定（認証基盤チームが持つ） | ② 各発行者（aoba-as・agent-sts）の設定（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
 | `C-sub` | `sub` | aoba-as の利用者（hr-sync が人事の台帳の在籍の記録から作る。ID は aoba-as が割り当てる。利用者を作り社員番号の属性を書けるのは hr-sync の証明書の API だけで、aoba-as の管理の画面では作れない） | ① aoba-as（ローカルの利用者の ID）（設定できる主体：platform）<br>③ agent-sts（subject_token から写すだけ）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09` | `never` | `never` | 0 秒 |
-| `C-aud` | `aud` | aoba-as のクライアントの登録、agent-sts のリソースの表（認証基盤チームが持つ） | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）（設定できる主体：platform）<br>③ agent-sts（交換の要求の resource を、リソースの表と照合してから書く）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
+| `C-aud` | `aud` | aoba-as のクライアントの登録、agent-sts のリソースの表（認証基盤チームが持つ） | ② aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）（設定できる主体：platform）<br>③ agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
 | `C-exp` | `exp` | 発行者の時計と寿命の設定 | ② aoba-as（クライアントごとの寿命の設定）（設定できる主体：platform）<br>③ agent-sts（種別の寿命と subject_token の exp の早いほう）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
 | `C-iat` | `iat` | 発行者の時計 | ② aoba-as（設定できる主体：platform）<br>③ agent-sts（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
 | `C-jti` | `jti` | 発行者の乱数 | ② aoba-as（設定できる主体：platform）<br>③ agent-sts（設定できる主体：platform） | `I01`・`I02`・`I06`・`I09`・`I12` | `never` | `never` | 0 秒 |
-| `C-client-id` | `client_id` | aoba-as と agent-sts のクライアントの登録（認証基盤チームが持つ） | ② aoba-as（mTLS で認証したクライアント）（設定できる主体：platform）<br>③ agent-sts（mTLS で認証した交換を求めたクライアント）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I12` | `never` | `never` | 0 秒 |
+| `C-client-id` | `client_id` | aoba-as と agent-sts のクライアントの登録（認証基盤チームが持つ） | ② aoba-as（mTLS で認証したクライアント）（設定できる主体：platform）<br>③ agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I12` | `never` | `never` | 0 秒 |
 | `C-scope` | `scope` | aoba-as のクライアントの登録（上限）、aoba-pdp のロール（人事の台帳から導く） | ② aoba-as（repair-console に登録した scope の上限の中で要求の値）（設定できる主体：platform）<br>③ agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）（設定できる主体：platform） | `I01`・`I02`・`I06`・`I12` | `exchange` | 600 秒 | 390 秒 |
 | `C-act` | `act` | agent-sts が mTLS で認証した相手の証明書（wl-ca が出す。URI の SAN にワークロードの URI） | ③ agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない）（設定できる主体：platform） | `I06` | `exchange` | `never` | 0 秒 |
 | `C-may-act` | `may_act` | agent-sts の委任の表（認証基盤チームが PR で持つ） | ③ agent-sts（委任の表から）（設定できる主体：platform） | `I06` | `exchange` | `never` | 0 秒 |
 | `C-cnf` | `cnf` | agent-sts への交換の要求の mTLS の相手の証明書 | ③ agent-sts（交換を求めた mTLS の相手の証明書から）（設定できる主体：platform） | `I06`・`I29` | `exchange` | `never` | 0 秒 |
 | `C-acr` | `acr` | aoba-as の認証の記録 | ① aoba-as（認証の段）（設定できる主体：platform）<br>③ agent-sts（CONSOLE_AT から写すだけ）（設定できる主体：platform） | `I01`・`I06`・`I12` | `login` | `never` | 0 秒 |
-| `C-auth-time` | `auth_time` | aoba-as の認証の記録 | ① aoba-as（設定できる主体：platform）<br>③ agent-sts（APPROVAL_AT では交換した時刻を書く）（設定できる主体：platform） | `I01`・`I06`・`I12` | `login` | `never` | 0 秒 |
+| `C-auth-time` | `auth_time` | aoba-as の認証の記録（APPROVAL_AT は agent-sts の交換の時刻） | ① aoba-as（設定できる主体：platform）<br>③ agent-sts（APPROVAL_AT では交換した時刻を書く）（設定できる主体：platform） | `I01`・`I06`・`I12` | `login`・`exchange` | `never` | 0 秒 |
 | `C-authorization-details` | `authorization_details` | approval-svc の承認の記録（承認の依頼は order-tool・lock-tool が自分の記録から作り、上長・担当者が repair-console で承認する） | ⑥ agent-sts（approval-svc の承認済みの記録から。エージェントの申告では作らない）（設定できる主体：platform） | `I06`・`I14` | `exchange` | 0 秒 | 0 秒 |
 | `C-repair-id` | `https://aoba-sumai.example/claims/repair_id` | 修繕依頼の台帳（管理業務システム）。APPROVAL_AT では repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳（承認の記録の値は写さない） | ③ agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない）（設定できる主体：platform） | `I06` | `exchange` | `never` | 0 秒 |
 | `C-approval-ref` | `https://aoba-sumai.example/claims/approval_ref` | approval-svc の承認の記録 | ⑥ agent-sts（approval-svc の承認済みの記録から。解錠のコードの送り直しだけは、lock-tool が使用済みにした取り消していない not_after の前の解錠の承認から。記録の修繕依頼・担当者・宛先が合わなければ載せない）（設定できる主体：platform） | `I06`・`I14` | `exchange` | `never` | 0 秒 |
@@ -1006,7 +1006,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `I02` | リフレッシュトークンでの再発行（ローテーションを含む） | `CONSOLE_AT`・`CONSOLE_RT` | repair-console が CONSOLE_RT で CONSOLE_AT を取り直す。RT は使うたびにローテーション |
 | `I06` | トークン交換（RFC 8693。委任・なりすまし・エージェントの委任）での発行 | `REPAIR_DELEG_AT`・`ORDER_TOOL_AT`・`CONTACT_TOOL_AT`・`PAYMENT_TOOL_AT`・`LOCK_TOOL_AT`・`APPROVAL_AT` | agent-sts の RFC 8693 の交換（委任の 1 段目・2 段目、ツールのトークン、承認の操作）。aoba-as では交換しない |
 | `I09` | Back-Channel Logout のログアウトトークンの発行 | `CONSOLE_LOGOUT` | repair-console の Back-Channel Logout の受け口を登録し、セッションの終了（無効化・パスワードの再設定・ログアウト）を BFF のセッションに届ける |
-| `I11` | サイレント再認証（prompt=none）・SSO セッションの再利用での発行 | `CONSOLE_AT`・`LOGIN_ID_TOKEN`・`CONSOLE_RT` | aoba-as のセッションが残っている間の再ログインは認証を省く。auth_time は元のログインのままなので、承認の判断（auth_time から 300 秒）は変わらない。 repair-console は prompt=none を使わない |
+| `I11` | サイレント再認証（prompt=none）・SSO セッションの再利用での発行 | `CONSOLE_AT`・`LOGIN_ID_TOKEN`・`CONSOLE_RT` | aoba-as のセッションが残っている間の再ログインは認証を省く。CONSOLE_AT の auth_time は元のログインのまま。承認の判断（auth_time から 300 秒）は APPROVAL_AT の auth_time で行う。 repair-console は prompt=none を使わない |
 | `I12` | 追加認証（step-up。RFC 9470）での発行 | `CONSOLE_AT`・`LOGIN_ID_TOKEN` | 承認の操作で approval-svc が insufficient_user_authentication を返すと、コンソールが acr_values=mfa・max_age=300 で認証し直してもらう |
 | `I14` | 承認・同意の内容（RAR の authorization_details）を載せた発行 | `ORDER_TOOL_AT`・`LOCK_TOOL_AT` | agent-sts が approval-svc の承認済みの記録から authorization_details を作り、locations と同じ宛先のツールのトークンにだけ載せる。aoba-as は authorization_details を出さない |
 | `I25` | サインアップ・招待・初回ログインでの発行 | `CONSOLE_AT`・`LOGIN_ID_TOKEN`・`CONSOLE_RT` | hr-sync が作った担当者の初回のログイン（パスワードと TOTP を登録）。出るトークンはほかのログインと同じ |
@@ -1061,7 +1061,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `I32` | 署名つきの認可応答（JARM）の発行 | 認可応答に JARM を使わない。応答はコードと iss だけで、PKCE と PAR で守る | FAPI に合わせる必要が出たとき |
 | `I33` | JWT 形式のイントロスペクションの応答（RFC 9701）の発行 | agent-sts は aoba-as のイントロスペクションの応答を JSON で受け、JWT の応答を求めない | イントロスペクションの応答を別のサービスに渡す必要が出たとき |
 | `I34` | OID4VCI の Pre-Authorized Code での発行（検証可能な資格情報の発行のための AT） | 検証可能な資格情報を出さない | 作業員の資格を資格情報として出すとき |
-| `U02` | API がテナントを決め、DB の文脈（SET LOCAL など）を設定して行を絞る（RLS・接続プール） | テナントが無く、トークンの値で DB の文脈（SET LOCAL など）を設定しない。ツールは自分の DB アカウントで台帳を引き、対象が repair_id の修繕依頼のものかを照合する | 物件の持ち主ごとにデータを分けるとき |
+| `U02` | API がテナントを決め、DB の文脈（SET LOCAL など）を設定して行を絞る（RLS・接続プール） | テナントが無く、トークンの値で DB の文脈（SET LOCAL など）を設定しない。ツールは自分の DB アカウントで台帳を引く（order-tool・contact-tool・lock-tool は、対象が repair_id の修繕依頼のものかを照合する） | 物件の持ち主ごとにデータを分けるとき |
 | `U08` | クライアントが AT で UserInfo を呼ぶ | repair-console は UserInfo を呼ばない。表示名は ID トークンの name で足りる | ID トークンに無い属性を画面に出すとき |
 | `U11` | 入口が外部のトークンを検証し、ヘッダーに転記して内側へ渡す | 入口でトークンをヘッダーに転記しない。ツールはトークンをそのまま検証する | ツールの手前に入口を置くとき |
 | `U16` | 受け手が状態リスト（Token Status List）で失効を確かめる | 状態リストを使わない | 寿命の長いトークンを出すとき |
@@ -1272,7 +1272,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | order-tool | orders:draft | 確定・予約を決めたら orders:place を含めて交換し直す。足りなければ 403 insufficient_scope。agent-sts の交換の監査ログに引き上げを残す | `C-scope`、`ORDER_TOOL_AT.max_lifetime`（300 秒） |
 | contact-tool | tenant.message:send・tenant.message:read | 引き上げない。連絡の相手は修繕依頼の台帳から決まる | `C-scope` |
 | payment-tool | payments:request | 引き上げない。支払いの額は発注の台帳の確定額 | `C-scope` |
-| lock-tool | lock.code:issue | 発行は承認があるときだけ（authorization_details と approval_ref を含めて交換し直す）。作業が延びて解錠の時間帯を延ばすときは approvals:decide を含めて交換し直す | `C-scope`、`hops.yaml` の H8 |
+| lock-tool | lock.code:issue | 発行は承認があるときだけ（authorization_details と approval_ref を含めて交換し直す）。作業が延びて解錠の時間帯を延ばすときは approvals:decide を含めて交換し直す（承認の操作でなく、承認済みの記録の not_after の更新） | `C-scope`、`hops.yaml` の H8 |
 | すべて | ワイルドカードを作らない。手順ごとに宛先 1 つ・300 秒・RT なしで作り直す。visit-subagent には連絡の 2 つだけ | — | `token_types[]`（ツールのトークン 4 種） |
 
 #### P4_ai_agent_delegation：7. 委任の連鎖の深さ〔Full：記入〕
@@ -1302,7 +1302,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 観点 | 決めたこと | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | 止める手段 | 根元は修繕依頼の台帳の委任の欄と、担当者の aoba-as のセッション。担当者が委任を止めると（委任の欄を停止）、agent-sts は 1 段目・2 段目の REPAIR_DELEG_AT の交換を次から拒否する。セッションが終わると、repair-console が REPAIR_DELEG_AT を交換し直さない。予約は order-scheduler が実行の時点で委任の欄を引き、停止か、世代が予約のときと違えば（止めて有効にし直した）実行しない。止めた後の交換は agent-sts が拒否する（止めて有効にし直す前の REPAIR_DELEG_AT の扱いは 3.1） | エージェントは RT を持たないので、交換を止めれば委任の全体が止まる | `token_types[].revocation`（REPAIR_DELEG_AT・ツールのトークンの行）、`hops.yaml` の H13 |
-| 許す遅れ | 委任の停止から、交換は 0 秒、手元のツールのトークンは最悪 330 秒（REQ-09 の 10 分の内側）。重要な操作は剥奪なら aoba-pdp で 60 秒 | REQ-08・REQ-09 | `token_types[].revocation[].delay_seconds` |
+| 許す遅れ | 委任の停止から、交換は 0 秒、手元のツールのトークンは最悪 330 秒（REQ-09 の 10 分の内側。開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running）。重要な操作は剥奪なら aoba-pdp で 60 秒 | REQ-08・REQ-09 | `token_types[].revocation[].delay_seconds` |
 
 #### M_token_validation：1. 検証の順序〔Full：記入／Lite：参照〕
 
@@ -1357,7 +1357,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 種別 | 許すずれ・寿命の確かめ方・時刻を比べる箇所と時計・1 回だけ受ける値の記録先 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | すべての JWT | ずれ 30 秒。ツールは exp − iat が 300 秒以下、approval-svc は 120 秒以下を確かめる。時計はすべて組織の NTP（発行者・受け手・approval-svc・order-scheduler・DB） | 発行者の設定の誤りで長いトークンが出ても受けない | `token_types[].max_clock_skew`・`max_lifetime`、`C-exp`・`C-iat` |
-| 時刻を比べるほかの箇所 | auth_time（aoba-as の時計）と今の時刻（approval-svc の時計）。承認の期限・予約の実行の時刻・not_before・not_after は approval-svc・order-scheduler・lock-tool が自分の時計で比べる（承認の期限は approval-svc の時計だけで書いて比べる）。NTP からのずれが 1 秒を超えたサーバーは監視で外す | 別の時計の値を比べる箇所を数え、ずれたら止める側に倒す（追加の認証はずれの 30 秒を足さない） | `C-auth-time`、`C-authorization-details` |
+| 時刻を比べるほかの箇所 | auth_time（APPROVAL_AT では agent-sts が交換の時刻を書く）と今の時刻（approval-svc の時計）。承認の期限・予約の実行の時刻・not_before・not_after は approval-svc・order-scheduler・lock-tool が自分の時計で比べる（承認の期限は approval-svc が書いて比べる。比べる時刻は 11. の U30）。NTP からのずれが 1 秒を超えたサーバーは監視で外す | 別の時計の値を比べる箇所を数え、ずれたら止める側に倒す（追加の認証はずれの 30 秒を足さない） | `C-auth-time`、`C-authorization-details` |
 | 1 回だけ受ける値 | ログアウトトークンの jti は repair-console のセッションの保存先に 150 秒。承認は approval-svc の条件つきの更新（P4 の 5.）。支払いの依頼は、payment-tool が発注の台帳で「依頼済み」でないことを確かめてから経理の仕組みに送り、送った後に「依頼済み」にする（1 つの発注に 1 回）。認可コードは aoba-as が 1 回限り | — | `CONSOLE_LOGOUT.jti_policy`、`C-approval-ref` |
 
 #### M_token_validation：7. 種類（typ）〔Full：記入／Lite：参照〕
@@ -1395,8 +1395,8 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 受け手 | ライブラリと版 | 明示した設定 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- | --- |
 | agent-sts・ツール 4 つ | 組織の共通の検証部品（aoba-jwt-guard 1.x。中で使う JOSE のライブラリの版は部品の README に固定） | alg の許可リスト、iss の許可リスト、aud、ずれ 30 秒、typ、必須クレーム、ヘッダーの鍵のパラメータの拒否、authorization_details のメンバーの型 | ライブラリの既定に頼らない | `claims[].enforced_at`、`token_types[].alg_allowlist`・`max_clock_skew` |
-| approval-svc | 承認の画面の Web の枠組みに付いている JWT の検証（版は枠組みに任せる） | iss・aud・exp・cnf の照合を枠組みの設定に書き、alg と typ と必須クレームは枠組みの既定に任せる | 承認の画面の枠組みに合わせ、部品を 2 つ持たない | `claims[].enforced_at` |
 | repair-console | OIDC のライブラリ（BFF の枠組みの版に固定） | 同上に nonce | — | 同上 |
+| approval-svc | 承認の画面の Web の枠組みに付いている JWT の検証（版は枠組みに任せる） | iss・aud・exp・cnf の照合を枠組みの設定に書き、alg と typ と必須クレームは枠組みの既定に任せる | 承認の画面の枠組みに合わせ、部品を 2 つ持たない | `claims[].enforced_at` |
 
 #### M_token_validation：11. 組織共通の検証部品〔Full：記入／Lite：参照〕
 
@@ -1404,7 +1404,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | 決めること | 決めたこと | 理由 | 台帳の ID |
 | --- | --- | --- | --- |
-| 配るか・部品の名前と版 | 配る。aoba-jwt-guard 1.x を agent-sts・4 つのツールで使う（approval-svc は 10. のとおり） | 5 つの受け手の検証をそろえる | `claims[].consumer_access_path`（書いていない。全受け手が同じ部品のため） |
+| 配るか・部品の名前と版 | 配る。aoba-jwt-guard 1.x を agent-sts・4 つのツールで使う（approval-svc は 10. のとおり） | 5 つの受け手の検証をそろえる | `claims[].consumer_access_path`（書いていない。approval-svc のほかは同じ部品のため） |
 | 固定する項目 | iss・alg・typ・aud・ずれ・必須クレーム・cnf の照合・act の最も外側の取り出し・authorization_details のメンバーの型 | 委任の読み方（最も外側だけ）と承認の内容の型を部品で固定し、ツールごとに書かせない | — |
 
 #### M_token_validation：12. ネストした JWT（署名＋暗号化）〔Full：記入／Lite：参照〕
@@ -1522,7 +1522,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 承認の状態 | approval-svc（キャッシュしない） | 取り下げを直ちに反映 | `C-approval-ref.source_system` |
 | 金額・協力会社・部屋 | 発注の台帳の下書きと修繕依頼の台帳（PEP の order-tool・lock-tool が authorization_details と照合） | 要求の値を使わない | `C-authorization-details` |
 
-PEP は agent-sts（交換）・4 つのツール・approval-svc で、PDP は aoba-pdp です。aoba-pdp・approval-svc・修繕依頼の台帳が応答しないときは、それを入力にする操作を拒否します（4. の表と 3.1）。aoba-pdp を呼べる相手は、証明書の許可リスト（agent-sts・repair-console・order-tool・payment-tool・lock-tool・approval-svc・order-scheduler）だけ（repair-console は、担当の割り当ての前の課長の確かめと、画面のボタンの出し分けに使う）、approval-svc の承認の依頼・使用済み・予約済みの口を呼べる相手は order-tool・lock-tool・order-scheduler だけ、記録の参照の口は agent-sts だけ、使用済みの確かめの口は lock-svc だけ（解錠のコードを作る前）、承認の操作の口は APPROVAL_AT だけで受けます。許可リストは証明書の URI で持ちます（3.1 の wl-ca の行）。
+PEP は agent-sts（交換）・4 つのツール・approval-svc で、PDP は aoba-pdp です。aoba-pdp・approval-svc・修繕依頼の台帳が応答しないときは、それを入力にする操作を拒否します（4. の表と 3.1）。aoba-pdp を呼べる相手は、証明書の許可リスト（agent-sts・repair-console・order-tool・payment-tool・lock-tool・approval-svc・order-scheduler）だけ（repair-console は、担当の割り当ての前の課長の確かめと、画面のボタンの出し分けに使う）、approval-svc の承認の依頼・使用済み・予約済みの口を呼べる相手は order-tool・lock-tool・order-scheduler だけ、解錠の承認済みの記録の not_after の更新の口は lock-tool だけ、記録の参照の口は agent-sts だけ、使用済みの確かめの口は lock-svc だけ（解錠のコードを作る前）、承認の操作の口は APPROVAL_AT だけで受けます。許可リストは証明書の URI で持ちます（3.1 の wl-ca の行）。
 
 #### M_privacy_minimization：1. 個人情報保護法の判断表〔Lite・Full：記入〕
 
@@ -1570,7 +1570,7 @@ PEP は agent-sts（交換）・4 つのツール・approval-svc で、PDP は a
 
 | 決めること | 選んだ候補 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| API で渡す属性と受け手 | 入居者・協力会社の窓口・作業員の宛先は、通知の基盤だけが修繕依頼の台帳・協力会社の台帳から引く。contact-tool・lock-tool は repair_id・相手の種類・作業員の ID を渡すだけ。lock-tool が協力会社の台帳から受けるのは作業員の番号の鍵つきのハッシュだけ（承認の後の書き換えの検出） | REQ-12。宛先を使うのは送信の時だけ | `C-tenant-phone`（却下・代替あり）、`C-repair-id` |
+| API で渡す属性と受け手 | 入居者・協力会社の窓口・作業員の宛先は、通知の基盤だけが修繕依頼の台帳・協力会社の台帳から引く。contact-tool・lock-tool は repair_id・相手の種類・作業員の ID を渡す（lock-tool は SMS の本文に入れる作業員の氏名も渡す）。lock-tool が協力会社の台帳から受けるのは作業員の番号の鍵つきのハッシュだけ（承認の後の書き換えの検出） | REQ-12。宛先を使うのは送信の時だけ | `C-tenant-phone`（却下・代替あり）、`C-repair-id` |
 | API のトークンの送信者制約 | contact-tool・lock-tool 宛てのトークンは mTLS で束縛 | — | `token_types[].sender_constraint` |
 | 受け手が持つ期間 | contact-tool・lock-tool は宛先を持たない。通知の基盤は送信の間だけ宛先を持ち、送信の記録には宛先の鍵つきのハッシュだけを残す。lock-tool は解錠コードを保存しない（lock-svc が not_after まで暗号化して持つ） | — | `C-unlock-code` |
 

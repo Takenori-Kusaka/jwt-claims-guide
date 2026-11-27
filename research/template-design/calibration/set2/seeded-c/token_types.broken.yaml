@@ -400,7 +400,7 @@ token_types:
   long_running: >-
     入居者の返信を待つ間（最大 2 日）、visit-subagent・repair-agent は CONTACT_TOOL_AT で開いた返信の購読（contact-tool の WebSocket）を開いたままにし、contact-tool は開いた後にトークンの期限・委任の停止を確かめない（返信を取りこぼさないため）
   revocation:
-    - {method: exp_only, delay_seconds: 330, note: "連絡は exp まで残る（最悪 330 秒）。次の交換は agent-sts が修繕依頼の台帳（委任の欄・担当）で拒否する。連絡の 2 つはロールで絞らないので、ロールの剥奪では止まらない"}
+    - {method: exp_only, delay_seconds: 330, note: "連絡は exp まで残る（最悪 330 秒。開いた返信の購読は long_running のとおり）。次の交換は agent-sts が修繕依頼の台帳（委任の欄・担当）で拒否する。連絡の 2 つはロールで絞らないので、ロールの剥奪では止まらない"}
   jti_policy: {unique_scope: per_issuer, replay_check: false}
   subject_type: public
   stored_at: service_memory
