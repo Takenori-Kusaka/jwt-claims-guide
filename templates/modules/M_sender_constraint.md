@@ -1,4 +1,4 @@
-<!-- template_version: 0.3.0 -->
+<!-- template_version: 0.4.0 -->
 # 送信者制約（modules/M_sender_constraint）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（claims.yaml など）に 1 回だけ書き、ここからは ID で参照します。
@@ -103,14 +103,16 @@
 | FAPI の対象 | 送信者制約のある機密クライアントで、ローテーションを止めるか | ローテーションしない（例外を除く） | FAPI 2.0 Security Profile（Final）§5.3.2.1 |
 | MCP の AS | MCP の公開クライアントに RT を出す AS は、ローテーションするか | ローテーションする（MCP の仕様は MUST） | MCP Authorization Security Considerations（2026-07-28）「Token Theft」 |
 | 再利用の検知 | 無効にした RT が来たら、RT の系列全体を失効させるか。試験で確かめたか | 失効させる（確かめた）／確かめていない | slide:p08-rotation、RFC 9700 §4.14.2 |
+| 証明書・鍵の更新 | 証明書・DPoP の鍵を更新したとき、束縛した AT と RT はどうなるか。証明書の寿命と RT の寿命の関係は。更新のたびに利用者の再同意が一斉に要らないか（#63 で足した。パイロット #9 の O9） | AT は更新の後に取り直す（RFC 8705 §6.3）／機密クライアントの RT はクライアントの認証に結び、証明書・鍵の更新で使えなくしない／公開クライアントの RT は証明書・鍵に結ぶので、更新で取り直しになる | RFC 8705 §4・§6.3、RFC 9449 §5 |
 
 記入欄：
 
 | 決めること | 決めたこと（書き手が書く） | 理由（書き手が書く） | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | RT の守り方 |  |  | `issuance_profile.rt_strategy`、`token_types[].rt_rotation`・`sender_constraint`（RT の行） |
+| 証明書・鍵の更新 |  |  | `token_types[].sender_constraint`・`max_lifetime`（AT・RT の行）、`claims[].enforced_at`（cnf の行） |
 
-根拠：RFC 9700 §4.14.2、RFC 9449 §5、FAPI 2.0 Security Profile（Final）§5.3.2.1、slide:p08-rotation
+根拠：RFC 9700 §4.14.2、RFC 9449 §5、FAPI 2.0 Security Profile（Final）§5.3.2.1、slide:p08-rotation、RFC 8705 §4・§6.3
 
 <a id="registry-effects"></a>
 ## 5. 選択で台帳・目録がどう変わるか

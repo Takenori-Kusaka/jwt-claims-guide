@@ -273,7 +273,7 @@ def test_bundle_is_deterministic_and_shares_rows_with_markdown(lint):
     assert [r['id'] for r in inv['rows']] == [t['id'] for t in d['token_types']['token_types']]
     assert all({'key', 'label', 'fmt'} <= set(c) for c in inv['columns'])
     cat = next(s for s in b1['sections'] if s['id'] == 'catalog-summary')['counts']
-    assert cat['total'] == 62 and cat['out_of_scope'] == 50 and cat['out_of_scope_pct'] == 81 and cat['missing'] == []
+    assert cat['total'] == 64 and cat['out_of_scope'] == 51 and cat['out_of_scope_pct'] == 80 and cat['missing'] == []  # U29・U30 (#63)
     json.dumps(b1)  # serialisable without default=
 
 

@@ -72,8 +72,9 @@ def load_design(design_dir):
     d['kinds'] = {k['id']: k for k in (_load(os.path.join(CATALOG, 'token_kinds.yaml'), {}) or {}).get('kinds') or []}
     events = []
     for name in ('issue_events', 'use_events'):
-        events += [dict(e, _file=name) for e in (_load(os.path.join(CATALOG, name + '.yaml'), {}) or {}).get('events') or []]
-    d['events'] = events
+        events += [dict(e, _file=name) for e in core.catalog_events(_load(os.path.join(CATALOG, name + '.yaml'), {}))]
+    # the events this design is asked (#63: a frozen record is not asked the events added after it, core.asked_events)
+    d['events'] = core.asked_events(events, d['catalog_answers'], core.frozen_entry(design_dir))[0]
     # the $id of a payload schema names the design by its directory name, so that a copy of the directory generates
     # the same schema files (the files are compared by --check)
     d['_design'] = os.path.basename(os.path.abspath(design_dir).rstrip('/\\'))
@@ -645,10 +646,14 @@ def lint_result(design_dir, doc_path=None):
 def sec_ci_result(d, lint):
     if lint is None:
         return {'id': 'ci-result', 'title': 'CI の結果', 'notes': ['（lint の結果を渡していない）'], 'tables': []}
-    c = lint['counts']
+    # the notice that a frozen record is not asked the newer events (core.frozen_findings) stays out of the generated
+    # section, so that the section of a frozen record stays what it was when recorded. claim_lint itself prints it
+    shown = [f for f in lint['findings'] if not (f['rule'] == 'FROZEN' and f['severity'] == core.INFO)]
+    c = dict(lint['counts'])
+    c[core.INFO] = c.get(core.INFO, 0) - (len(lint['findings']) - len(shown))
     design = lint.get('design')
     rows = [{'rule': f['rule'], 'severity': f['severity'], 'target': f['target'], 'message': f['message']}
-            for f in lint['findings']]
+            for f in shown]
     after = []
     for rep in lint.get('r8') or []:
         budgets = '、'.join(f"{b['limit']} {b['used']}／{b['bytes']} バイト" for b in rep.get('budgets') or [])

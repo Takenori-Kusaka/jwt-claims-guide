@@ -5,7 +5,7 @@
 # 手で書く（tools/count_lite_fields.py の STRUCTURAL）
 # 記入例（シナリオ A：マルチテナント SaaS、Keycloak 26.8）。推奨ではない。この前提での一例。
 # カタログ（templates/catalog/issue_events.yaml・use_events.yaml。#2 で全体に広げた）の全イベントへの回答。
-# 対象外 50 件／全 62 件（81%。I34 は PR #33 の独立点検で足した Keycloak の grant の一覧から）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
+# 対象外 51 件／全 64 件（80%。U29・U30 は #63 で足した。I34 は PR #33 の独立点検で足した Keycloak の grant の一覧から）。v0 の 19 件（関門 1 の記入時間の数え方の対象）は、対象外 11 件／19 件（58%）
 # #17（網羅の規則）で足した節：idp（R3・R3b）、subject_states（R4）、pairwise（R6）、outside_enumeration（R9）。
 # どれも claim_lint の新しい規則が求める欄で、それまでの回答（answers）は変えていない。足した中身は design.md の 11. と 13.
 idp:
@@ -368,3 +368,12 @@ answers:
     answer: 対象外
     assumption: 分析基盤にクレームを複製しない
     breaks_when: 利用の分析のために、sub やテナントを含むログ・データを分析基盤に送るとき
+  # U29・U30 は #63 で足したイベント（台帳の版 0.3.0。パイロット #9 のカタログ外の質問から）
+  - event: U29
+    answer: 対象外
+    assumption: 新しく作る SaaS で、置き換える旧い入口・旧い形式のトークン・API キーが無い。台帳に廃止予定（deprecated）の行も無い
+    breaks_when: 既存の API キーや旧い認証の仕組みから saas-api へ移す、または台帳の行を廃止予定にして新旧を並行させるとき
+  - event: U30
+    answer: 該当
+    token_types: [AT]
+    note: saas-api が受ける発行者は、本番の 2 つのレルム（t1・t2）の iss と jwks_uri だけ（token_types の issuers）。拒否のテストの鍵は tools/runtime_tests がその場で作り、本番の許可リストに載せない。時刻を進める口・認証を飛ばす口は持たない

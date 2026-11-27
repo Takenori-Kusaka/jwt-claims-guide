@@ -1,0 +1,15 @@
+# Frozen design records (#63): designs kept as evidence that must not be edited. Only a design listed here, whose
+# catalog_answers.yaml still has the recorded sha256 (CRLF read as LF), is not asked the catalogue events added after
+# `version` (the registry version it was written against; rows with a later `asked_from`). claim_lint then prints an
+# info finding (FROZEN) naming the events it did not ask. Every other design is asked every event, whatever the version
+# comment of its files says, so the author of a design cannot exempt it. A changed catalog_answers.yaml loses the
+# exemption (FROZEN warn). Adding an entry is a deliberate change in a PR, with the reason (tools/claim_lint/RULES.md R2).
+designs:
+  - path: research/pilot/scenario-b
+    catalog_answers_sha256: 2a729f75483becde04b48dd28f103441ab27d3c635ce914d8bfcba729f3d81b3
+    version: "0.2.0"
+    reason: "パイロット（#9）のブラインド記入の記録（2026-11-24）。レビューの記録と sha256 で結ばれていて変えない"
+  - path: research/pilot/scenario-c
+    catalog_answers_sha256: 235f123b5fd9f47a82cff40ce78c509ba50eba652caa2a18584a7b6a8eeb5157
+    version: "0.2.0"
+    reason: "パイロット（#9）のブラインド記入の記録（2026-11-24）。レビューの記録と sha256 で結ばれていて変えない"

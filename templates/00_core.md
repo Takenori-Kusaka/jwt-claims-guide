@@ -1,4 +1,4 @@
-<!-- template_version: 0.6.0 -->
+<!-- template_version: 0.7.0 -->
 # 設計書の共通部分（00_core）
 
 > テンプレートです。候補と検討の問いだけを載せ、採否の理由の見本は載せません（理由の写し書きを防ぐため。#4 の方針）。判断は台帳（`claims.yaml`・`token_types.yaml`・`hops.yaml`・`catalog_answers.yaml`）に 1 回だけ書き、ここからは ID で参照します。
@@ -88,12 +88,13 @@ flowchart LR
 | 利用者 | 社員・顧客・取引先の担当者 | 安定したキーは何か（iss と sub の組、Entra は oid＋tid） | IdP の `sub`、組織の `user_id` | slide:p05-three-principals、slide:p02-user-identifier |
 | ワークロード | サービス・ジョブ・エージェント | 利用者のトークンと区別できるか | client credentials の `sub`・`client_id`、SPIFFE ID、マネージド ID | slide:p05-three-principals、RFC 9700 §4.15.1 |
 | システム・基盤 | 運用者・バッチ・クラウドのサービス | 誰の操作かが監査に残るか | サービスの ID、委任のトークンの `act` | slide:p05-system-privileges |
+| 要求の言葉の区分 | 正社員・契約社員・派遣・休職中・退職の手続き中・委託先 | 要求が「社員」「利用者」「管理者」と呼ぶ人に、どの区分が入るか。区分ごとに、通す・止める値が設計にあるか（#63 で足した。パイロット #9 の O2） | 区分を元のデータ（人事の台帳など）から引いて判断に入れる／区分を問わない（要求の持ち主に確かめた記録を書く） | research/template-design/pilot.md の 4. |
 
 記入欄：
 
-| 主体 | 種類 | 表すクレーム（台帳の ID） | 利用者のトークンと区別する手段（書き手が書く） |
-| --- | --- | --- | --- |
-|  |  |  |  |
+| 主体 | 種類 | 表すクレーム（台帳の ID） | 利用者のトークンと区別する手段（書き手が書く） | 要求の言葉と、入る区分・入らない区分（書き手が書く） |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
 
 根拠：slide:p05-three-principals、RFC 9068 §2.2、RFC 9700 §4.15.1、templates/catalog/subject_state_matrix.md
 
@@ -281,6 +282,8 @@ flowchart LR
 | どのリソース向けか（`q-resource`） | `aud`（resource indicator で絞る） | `scope` | slide:p06-narrow-downstream、RFC 8707 §2 |
 | 誰が持つべきか（`q-holder`） | 送信者制約（`cnf`） | `sub` | template:modules/M_sender_constraint#dpop-vs-mtls、RFC 9449 §6.1 |
 
+ユースケースごとに、要求の出どころ（要求の文書の節）を表の前に 1 行書きます。要求に無いユースケース・操作を設計で足したときは「要求に無い」と書き、足した理由を書きます（#63 で足した。パイロット #9 の O6：設計が足した操作が、要求と突き合わされずに残った）。
+
 記入欄（ユースケースごとに 1 表。問いの行は 11 行すべて書く）：
 
 | ユースケース | 問い（ID） | 要るか | 仕組み（台帳の行の ID か、クレームでない仕組み） | 不要の理由・照合する場所（書き手が書く） |
@@ -418,6 +421,7 @@ Lite でホップを 1 つも書かない設計は、`hops.yaml` を置きませ
 | 問い合わせに切り替える | 重要な判断で PDP・DB・イントロスペクションに都度問い合わせる | 台帳の `on_revoke`・`enforced_at` | slide:p08-stale-claims、template:modules/M_authz_pdp#carry-or-query |
 | 失効を伝える | CAEP の token-claims-change などのイベントで受け手に伝える | 目録の `revocation` | slide:p08-stale-claims、slide:p08-revocation-propagation |
 | 再発行の契機 | 利用者の状態が変わったら新しいトークンを取り直す | 台帳の `recompute_trigger` | slide:p08-reissue-triggers |
+| 元のデータからの経路 | IdP の手前（人事の台帳など）で変わる値は、IdP のグループ・属性に届くまでの経路（SCIM・人事の連携・人手）と遅れを、反映までの秒数に含める。人手なら上限が無いことを書く（#63 で足した。パイロット #9 の O5） | 台帳の `source_system`・`volatility`・`propagation_delay` | RFC 7644、research/template-design/pilot.md の 4. |
 
 記入欄（生成の表で「超える」と出た行だけ）：
 

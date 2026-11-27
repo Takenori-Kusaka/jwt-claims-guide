@@ -93,7 +93,9 @@ def test_migrated_pilot_b_has_no_error_without_the_workarounds(migrated):
     warns = sorted((f['rule'], f['target']) for f in migrated['findings'] if f['severity'] == 'warn')
     # L11 and L69 are the two warnings the pilot's author left. R3b I26 is new: the pilot named Keycloak only, so nothing
     # compared Auth0's Actions with the claim that Auth0 adds (C-auth0-roles); what its author confirmed is about Keycloak
-    assert warns == [('L11', 'C-sub-unread'), ('L69', 'C-groups'), ('R3b', 'I26')]
+    # R2 U29・U30 (#63): events added for designs of registry 0.3.0 and later; the fixture is 0.3.0 and the pilot did not
+    # answer them (the pilot itself is 0.2.0, so they are not asked of it)
+    assert warns == [('L11', 'C-sub-unread'), ('L69', 'C-groups'), ('R2', 'U29'), ('R2', 'U30'), ('R3b', 'I26')]
 
 
 def test_the_workarounds_are_gone_from_the_fixture():
@@ -118,8 +120,13 @@ def test_the_workarounds_are_gone_from_the_fixture():
     (PILOT_C, 'lite', {'error': 0, 'warn': 3, 'info': 9}),
 ])
 def test_committed_pilot_designs_give_the_same_result_as_before(design, profile, counts):
-    """The pilot designs were written against 0.2.0 and are not edited; their design.md embeds the lint result."""
-    assert core.run(design, profile=profile, today=TODAY)['counts'] == counts
+    """The pilot designs were written against 0.2.0 and are not edited; their design.md embeds the lint result. They are
+    frozen records (tools/claim_lint/frozen_designs.yaml, #63): the one FROZEN info that says U29 and U30 are not asked is
+    the only new finding, and render keeps it out of the generated section."""
+    res = core.run(design, profile=profile, today=TODAY)
+    frozen = [f for f in res['findings'] if f['rule'] == 'FROZEN']
+    assert [f['severity'] for f in frozen] == ['info']
+    assert dict(res['counts'], info=res['counts']['info'] - 1) == counts
 
 
 @pytest.mark.parametrize('name', ('claims', 'token_types', 'hops'))

@@ -1,4 +1,4 @@
-# template_version: 0.1.0
+# template_version: 0.3.0
 # 利用イベントのカタログ（#2）
 #
 # 種になる一覧との関係と、カタログの範囲（Keycloak 26.8 と Auth0）は issue_events.yaml の冒頭と同じ。
@@ -9,9 +9,17 @@
 #                  （クレームが生まれる場所）には当てはまらないため
 #   tokens_used    使う・受けるトークンの種類（token_kinds.yaml の id）とセッションの層
 #   claims_read    このイベントで読む・確かめるクレーム。IANA JWT Claims の名前は seeds.yaml の項目にひもづく
+#   asked_from     マイナーの版で末尾に足した行に付ける。値は、その行を足した台帳の版（templates/registry/*.schema.json の
+#                  template_version。tools/new_design.py が新しい設計書に書く版。版はこの 1 つの軸だけを使う）。下の _added に
+#                  その版で載る行だけが持てる（tools/catalog_check.py の ASKED）。claim_lint の R2 は、台帳の今のマイナーの版が
+#                  asked_from と同じ間だけ、回答が無いことを warn にし、次のマイナーの版から error にする（猶予はマイナーの版 1 つ）。
+#                  回答を問わないのは、tools/claim_lint/frozen_designs.yaml に載る凍結した記録だけ（設計書の版のコメントでは外せない）
 #   idp.<IdP>      occurs は、この利用に IdP が関わるか（イントロスペクション・リフレッシュなど）。hook_invoked は、この利用で IdP の
 #                  フックが呼ばれるか（受け手だけで完結する利用は no）
-# 件数：利用イベント 28 件。「ガイドの空白」0 件（#10 で 4 件を埋めた）、一部だけ扱う 0 件
+# 件数：利用イベント 30 件。「ガイドの空白」0 件（#10 で 4 件を埋めた）、一部だけ扱う 2 件（U29・U30。#63 で足した）
+# 版の歴史（#63）：台帳の版ごとに、その版で末尾に足した行。ここに載る行だけが asked_from を持てる（tools/catalog_check.py の ASKED）
+_added:
+  "0.3.0": [U29, U30]
 _refs:
   kc_introspect_aud: &kc_introspect_aud {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Token introspection audience validation」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: 2026-11-22}
   kc_oidc_layers: &kc_oidc_layers {kind: spec, id: "Keycloak Securing Applications（26.8.2）「OpenID Connect」Introspection endpoint・Token Revocation endpoint", url: "https://www.keycloak.org/securing-apps/oidc-layers", verified_on: 2026-11-22}
@@ -582,3 +590,49 @@ events:
     verified_on: 2026-11-22
     review_by: 2027-02-20
     owner: "#2"
+
+  # U29・U30 は #63 で足した（台帳の版 0.3.0）。パイロット（#9）の「カタログ外の質問」から出た指摘で、4 回のレビューのうち
+  # 3 回（U29）と 2 回（U30）で出た場面を、q-outside-catalog の問いの例から行に上げた（research/template-design/feedback-63.md）。
+  # asked_from: "0.3.0"：台帳の版が 0.3 の間は、回答が無いと R2 の warn。0.4.0 から error。パイロットの 2 つは凍結した記録なので問わない（FROZEN の info）
+  - id: U29
+    name: 移行の期間に、受け手が旧い経路（旧い入口・旧いヘッダー・旧いトークンや資格情報）の要求も受け続ける
+    actor: リソースサーバー（API）・入口
+    asked_from: "0.3.0"
+    standard_refs_none: 標準の仕様はない（経路の移行は組織の運用。指針は OWASP API Security Top 10 2023 の API9）
+    standard_refs:
+      - {kind: guidance, id: "OWASP API Security Top 10 2023 API9:2023 Improper Inventory Management", url: "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/", verified_on: 2026-11-27}
+    phase: 運用
+    tokens_used: [access_token, internal_token]
+    claims_read: []
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。旧い経路を閉じるまで、新しい経路の守り（入口での検証・ヘッダーの除去・内部トークンの照合）を通らない要求が受け手に届く"}
+    seeds: [pilot-outside/migration-old-path]
+    guide: {status: partial, slides: [p11-change-procedure, p06-header-forwarding],
+            note: "クレームの形式を変える手順（受け手が先、発行者が後）と、入口での同名ヘッダーの除去は扱う。旧い入口・旧い資格情報を並行して残す期間の守り、閉じる順序と期日、閉じたことの確かめ方は扱っていない（2026-11-27 に 2 枚の本文とノートを目で読んだ）"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手と入口での処理"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手と入口での処理"}
+    verified_on: 2026-11-27
+    review_by: 2027-02-25
+    owner: "#63"
+
+  - id: U30
+    name: 試験用の発行者・鍵・時計・口（認証を飛ばす口、時刻を進める口、試験の利用者）が本番に残り、受け手がそれを受け入れる
+    actor: リソースサーバー（API）・入口・組織の発行者（STS）
+    asked_from: "0.3.0"
+    standard_refs_none: 標準の仕様はない（設定と配備の管理。近い指針は ASVS v5.0.0-13.4.2 の「本番で debug を無効にする」で、試験用の鍵・発行者を名指しする要件は無い。事故の例は CVE-2024-8105）
+    standard_refs:
+      - {kind: guidance, id: "ASVS v5.0.0-13.4.2"}
+      - {kind: incident, id: "CVE-2024-8105", url: "https://kb.cert.org/vuls/id/455367", verified_on: 2026-11-27}
+    phase: 検証
+    tokens_used: [access_token, internal_token, jwt]
+    claims_read: [iss, iat, exp]
+    lifetime_impact: {issued: [], recomputed: [], revoked: [], note: "なし。試験の鍵で署名したトークン・試験の時計で作った期限が、本番の受け手で通る。発行者の許可リストと JWKS に試験の鍵が残る限り続く"}
+    seeds: [pilot-outside/test-path-in-production]
+    guide: {status: partial, slides: [p07-db-token-auth, p01-key-rotation-jwks],
+            note: "DB・ブローカーの開発用の既定の実装（署名を確かめない）を本番で使わないことと、鍵を設定した発行者の jwks_uri から取ることは扱う。試験用の発行者・鍵・時計・認証を飛ばす口が本番の設定に残ること、その確かめ方は扱っていない（2026-11-27 に 2 枚の本文とノートを目で読んだ）"}
+    idp:
+      keycloak: {occurs: "no", hook_invoked: "no", hook_note: "受け手・入口・組織の発行者の設定。IdP の試験用のレルム・テナントが本番の許可リストに残る場合も、受け手の側で起きる"}
+      auth0: {occurs: "no", hook_invoked: "no", hook_note: "受け手・入口・組織の発行者の設定。IdP の試験用のテナントが本番の許可リストに残る場合も、受け手の側で起きる"}
+    verified_on: 2026-11-27
+    review_by: 2027-02-25
+    owner: "#63"

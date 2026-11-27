@@ -12,7 +12,7 @@
 ## 1. CI の結果　〔縮小 Lite：生成〕
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 3、info 6**（claims 26・token_types 18・catalog_events 62）。OK
+`python tools/claim_lint templates/examples/scenario-a --also-scan templates/examples/scenario-a/design.md`（profile full）：**error 0、warn 3、info 6**（claims 26・token_types 18・catalog_events 64）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -402,7 +402,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 ## 11. カタログへの回答　〔縮小 Lite：生成〕
 
 <!-- render:catalog-summary:begin -->
-`catalog_answers.yaml`：全 62 件（発行 34・利用 28）のうち 62 件に回答。該当 12 件、**対象外 50 件／全 62 件（81%）**。
+`catalog_answers.yaml`：全 64 件（発行 34・利用 30）のうち 64 件に回答。該当 13 件、**対象外 51 件／全 64 件（80%）**。
 
 **該当**
 
@@ -420,6 +420,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `U09` | 受け手が未知の kid を見て JWKS を取り直す（署名鍵のローテーションと JWKS のキャッシュ） | `AT`・`IDT` | 未知の kid を見たら、その iss の JWKS を取り直す。取り直しは iss ごとに最短 300 秒に 1 回まで、取り直しても無い kid は 300 秒の負のキャッシュ、キャッシュの TTL は 3600 秒。新しい鍵は署名に使う前に 3900 秒より長く公開しておく（token_types の AT の key_rotation） |
 | `U14` | ログ・監査・トレースにクレームを残す | `AT` | saas-api のログに AT そのものを残さない。残すクレーム（sub・テナント）はこの記入例では決めていない |
 | `U27` | 受け手が拒否して再挑戦を求める（WWW-Authenticate、insufficient_user_authentication） | `AT` | saas-api は検証に失敗したら 401 と WWW-Authenticate を返し、BFF が RT で取り直す（U04）。追加認証の要求（insufficient_user_authentication）は使わない（I12 は対象外） |
+| `U30` | 試験用の発行者・鍵・時計・口（認証を飛ばす口、時刻を進める口、試験の利用者）が本番に残り、受け手がそれを受け入れる | `AT` | saas-api が受ける発行者は、本番の 2 つのレルム（t1・t2）の iss と jwks_uri だけ（token_types の issuers）。拒否のテストの鍵は tools/runtime_tests がその場で作り、本番の許可リストに載せない。時刻を進める口・認証を飛ばす口は持たない |
 
 **対象外**
 
@@ -475,6 +476,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `U25` | エージェントがツール（MCP のサーバー）を呼ぶ | エージェント・MCP のサーバーから呼ばれない | テナントの利用者が、エージェントに saas-api を操作させるとき |
 | `U26` | 送信者制約つきのトークンを使う（DPoP の proof・mTLS の証明書と cnf を照合する） | 送信者制約を使わない（I29 と同じ前提） | I29 を該当にしたとき |
 | `U28` | 分析基盤・データウェアハウスにクレームを複製する | 分析基盤にクレームを複製しない | 利用の分析のために、sub やテナントを含むログ・データを分析基盤に送るとき |
+| `U29` | 移行の期間に、受け手が旧い経路（旧い入口・旧いヘッダー・旧いトークンや資格情報）の要求も受け続ける | 新しく作る SaaS で、置き換える旧い入口・旧い形式のトークン・API キーが無い。台帳に廃止予定（deprecated）の行も無い | 既存の API キーや旧い認証の仕組みから saas-api へ移す、または台帳の行を廃止予定にして新旧を並行させるとき |
 <!-- render:catalog-summary:end -->
 
 #2 でカタログを全体に広げる前の 19 件（v0）では、対象外 11 件／19 件（58%）だった。

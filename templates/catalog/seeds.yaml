@@ -1,4 +1,4 @@
-# template_version: 0.1.0
+# template_version: 0.3.0
 # 種になる一覧（#2）。カタログの行（issue_events・use_events・token_kinds）と行列（subject_state_matrix.md）は、
 # ここの項目に `<一覧の id>/<項目の id>` でひもづける（行の seeds、IANA JWT Claims は claims_produced・claims_read のクレーム名）。
 # どの行にもひもづかない項目は out_of_scope（assumption：起きない前提、breaks_when：崩れる条件）を持つ。
@@ -537,3 +537,14 @@ seed_lists:
       - {id: "U19", value: "送信者制約での利用"}
       - {id: "U20", value: "拒否と再挑戦"}
       - {id: "U21", value: "分析基盤へのクレームの複製"}
+  - id: pilot-outside
+    name: "パイロット（#9）の「カタログ外の質問」から出た場面（research/template-design/pilot.md の 4. の Q1・Q2。#63 で足した）"
+    kind: research
+    url: "research/template-design/pilot.md"
+    verified_on: 2026-11-27
+    review_by: 2027-02-25
+    owner: "#63"
+    expected: {count: 2, source: "research/template-design/pilot.md の 4. の表の「カタログ外の質問から」の行（Q1・Q2）", verified_on: 2026-11-27}
+    items:
+      - {id: "migration-old-path", value: "移行の期間の旧い経路（旧い入口・ヘッダー・資格情報）", note: "B-R1 T3、B-R2 R2-07、C-R2 F06"}
+      - {id: "test-path-in-production", value: "試験用の口・時計・鍵が本番に残る", note: "B-R2 R2-24、C-R2 F27"}

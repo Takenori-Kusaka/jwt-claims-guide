@@ -6,6 +6,14 @@
 
 ### 追加
 
+- パイロットのテンプレート外の指摘を戻した（#63。パイロット #9 の結果。`research/template-design/pilot.md` の 4.、`research/template-design/feedback-63.md`）。**人に渡す問いは足していない**（既定の短い一覧の問いの数は、記入例 A・B、パイロット B・C で変わらない）。書き手が書く欄・カタログの行・規則の案に戻した
+  - `catalog/`（0.3.0。版は台帳の版にそろえた）：利用イベント U29（移行の期間の旧い経路）と U30（試験用の発行者・鍵・時計・口が本番に残る）を足した（30 件）。種の一覧 `pilot-outside`（2 項目）。マイナーの版で末尾に足した行の `asked_from`（その行を足した台帳の版）と、ファイルの `_added`（版の歴史）を足した。台帳のマイナーの版が `asked_from` と同じ間は、回答が無いことを R2 の warn にし、次のマイナーの版から error にする（猶予はマイナーの版 1 つ）。`tools/catalog_check.py` の ASKED が、今の版より後の値と、`_added` に載らない行・既存の行への `asked_from` を error にする。回答を問わないのは、`tools/claim_lint/frozen_designs.yaml` に載る凍結した記録（パイロットの 2 つ。sha256 つき）だけで、そのときは FROZEN の info を出す（`tools/claim_lint/RULES.md` の R2）。`subject_state_matrix.md` の「権限変更」に、IdP の手前の区間が行列の外にあることを書いた
+  - `00_core.md`（0.7.0）：2.1 に「要求の言葉の区分」の行と記入欄の列、6. に要求の出どころの 1 行、9.2 に「元のデータからの経路」の行
+  - `modules/M_token_validation.md`（0.4.0）：6. に「別の時計の時刻との比較」「1 回だけ受ける値」、8. に「保管と持ち主」「漏えい時」。`modules/M_sender_constraint.md`（0.4.0）：4. に「証明書・鍵の更新」
+  - `profiles/P4_ai_agent_delegation.md`（0.7.0）：4. に「許す宛先」、5. に「消費の競合と再送」。`profiles/P5_internal_propagation.md`（0.4.0）：1. に「作り直しで消える値」
+  - `registry/README.md`：`source_system` の意味に、IdP の手前の元のデータと経路を書くことを足した（文言だけ。版の行は変えていない）
+  - `review/triage.yaml`：規則の案 N19〜N23（#68）。開いた問い（`op-*`）と `q-outside-catalog` の手がかりが、書き手の書いた欄を指すようにした（問いの文・数・優先は変えていない）
+  - 記入例 A・B の `catalog_answers.yaml` に U29・U30 の回答を足し、生成の区間を作り直した。`review/escaped_defects.md`（0.5.0）にパイロットの 12 行を記録した
 - `registry/`（#58。版は 0.3.0）：複数の IdP と、入口で内部トークンに作り直す設計を、回避策なしに書くための任意の列を足した。パイロット（#9）のシナリオ B で見つかった欠け（`research/template-design/pilot.md` の 6.・7.）への対応。**0.2.0 で書いた設計書は書き換えずに通り、指摘も変わらない**（記入例のシナリオ A・B、パイロットの 2 つの設計書で確かめた）ので、マイナーの変更。列と書き方は `registry/README.md` の 3.5、規則は `tools/claim_lint/RULES.md` の「複数の IdP と作り直しのホップ（#58）」
   - `claims.schema.json`：`idp_defined`（IdP の製品が決めた名前を、入口だけが読む行として書く。`tid`・`oid`・`uid`・`cid`・`token_use`・`cognito:groups`・`realm_access` など。使える名前は `tools/claim_lint/idp_claims.yaml` に、IdP の文書の URL と確かめた日つきで固定）
   - `token_types.schema.json`：`kind_discriminator`（ヘッダーの typ が同じ種別を区別するペイロードの値。L17）、`audience_claim`（aud の無い AT で宛先の確認に使うクレーム。Cognito の `client_id`。L27）、`issuance_profile` の各項目の `exceptions`（IdP ごとの例外。L62）。`typ` はヘッダーの値だけを書き、無い種別は `(absent)`
