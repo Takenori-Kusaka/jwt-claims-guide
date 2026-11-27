@@ -1,0 +1,903 @@
+# 2 組目の埋め込んだ誤りの一覧（正解）。#12 の再測定（#82）の採点に使う。レビュアーに渡さない
+# この一覧は、設計書の誤りを説明するもので、それ自体は設計に使う教材ではない（誤りを含む設計書は seeded-c/・seeded-d/）
+#
+# LLM による作成。人による検証ではない。2 組目の測定より前に、別のコミットで固定する（protocol.md の「固定の記録」、commitments.sha256）。
+# 測定の後には直さない。誤りが見つかったら、初回の手順（../protocol.md）の 7.「正解の訂正」として記録し、訂正の前と後の両方で採点する。
+#
+# 列の意味は初回の一覧（../seeded_errors.yaml の冒頭）と同じ。2 組目で足した列（protocol.md の 3.1・3.2・4.）：
+#   channel_priority   channel が short_list のとき、channel_question の最初の問いの優先（1 か 2）
+#   form               present（誤った文・値が書いてある）／absent（あるべきものが無い。初回の A12 の型）
+#   salience_phrase    present の誤りの文を表す短い句。対照には無い。copies はこの句を含む行の数（materialize した seeded の全ファイル）
+#   copies・masked_by・salience  protocol.md の 3.1 の規則で機械が決めた値（calibration_check.py の C8 が設計書から数え直して比べる）
+#   hint_derived       初回の誤りのうち、#80 の手がかりが核を言い換えた型（A01・A03・A17・B02・B03・B05・B14）と同じ型なら、その ID。結果では再現率を分けて出す
+#   hint_note          hint_derived の誤りで、初回とどこ（場所・列・言い回し）を変えたか
+#   side_effect_note   埋め込みの副作用の確かめ（protocol.md の 8.2）で足した・直したこと
+#
+# 書き方の決まり（#82 のコメント）：core は 1 つの事実。also_accepted には、同じ取り違えを別の面から問う ID も入れる。
+# ただし also_accepted に 1 枚の優先 1 の問いを足すと手がかり（signpost）が変わり、難しさが変わる（protocol.md の 3.：手がかりは confused_questions と
+# also_accepted の問いで数える）。そのため一部の誤りでは、優先 1 の問いを also_accepted に入れていない（各件の channel_note に書いた）。
+version: 1
+set: set2
+fixed_on: "2026-11-28"
+protocol: protocol.md
+sheet_seed: 12
+errors:
+- id: D01
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H29
+    column: validates
+    quote: どの SPIFFE ID からでも PAY_MSG_CTX の要求を受ける
+  - file: claims.yaml
+    row: C-tctx
+    column: enforced_at
+    quote: TXN_STAFF を出した網の中のサービスなら
+  - file: catalog_answers.yaml
+    section: idp の shirogane-tts の trigger_list
+    quote: TXN_STAFF を出した網の中のサービスなら
+  - file: design.md
+    heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
+    quote: assessment-svc など、TXN_STAFF を受け取った内側のサービス
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+    quote: PAY_MSG_CTX から作り直せるのは決まったワークロードだけ
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  core: TTS が PAY_MSG_CTX（支払いの指示の文脈）を、assessment-svc に限らず、TXN_STAFF を持つ網の中のどのサービスの要求にも出す
+  wrong: PAY_MSG_CTX を頼める相手の一覧を持たず、TXN_STAFF を subject_token に出した網の中のサービスなら、どの SPIFFE ID からでも PAY_MSG_CTX を出す。査定の確定の TXN_STAFF を受け取る claim-svc など、査定を確定しないサービスも支払いの指示の文脈を作れる
+  clean: TTS は mTLS の相手が assessment-svc のときだけ PAY_MSG_CTX の要求を受ける（頼める相手の許可リスト。claim-svc など同じ TXN_STAFF を受け取るほかのサービスからは受けない）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-no-passthrough
+  also_accepted:
+  - q-authorize-service-and-user
+  - keep-sub-exchange
+  perspectives_section:
+  - 3.3 渡し方
+  contrasts:
+  - act-txn-workload
+  severity: Major
+  evidence:
+  - kind: spec
+    id: draft-ietf-oauth-transaction-tokens-11 §11.5
+  - kind: guide-slide
+    id: p06-transaction-tokens
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-no-passthrough
+  channel_priority: 1
+  channel_note: q-no-passthrough の手がかりの「交換の規則の節」に当たるのが、この設計では 4. の「TTS が受ける要求」の表と H29・H30（exchanger は tts）。誤りの文は 4. の表と H29 の validates にある
+  form: present
+  salience_phrase: どの SPIFFE ID からでも PAY_MSG_CTX の要求を受ける
+  copies: 6
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D02
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: claims.yaml
+    row: C-agency-code
+    column: enforced_at
+    quote: agency_code があれば claim_id で引いて返す
+  - file: claims.yaml
+    row: C-sub
+    column: enforced_at
+    quote: 照会では agency_code があれば claim_id で引いて返す
+  - file: hops.yaml
+    row: H7
+    column: validates
+    quote: 請求の照会は、agency_code があれば claim_id で引いて返す
+  - file: claim_request_agency_code.md
+    quote: ほかの代理店の証券の請求の受付を 404 にする
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+    quote: claim-svc が受付で証券の取扱代理店と agency_code を照らす
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: M_authz_pdp：1. RBAC・ABAC・関係ベース（併用）の判断表〔Full：記入／Lite：参照〕
+  - file: design.md
+    heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
+  core: claim-svc は代理店の担当者の請求の照会で、請求の証券の取扱代理店が agency_code と同じかを照らさず、agency_code があれば claim_id だけで請求を返す
+  wrong: 請求の受付と書類の登録では取扱代理店と agency_code を照らすが、照会（claim.read）は「受付のときに確かめた」として、agency_code があれば claim_id で引いて返す。代理店の担当者が別の代理店の扱う証券の請求の ID を指定すると、その請求が読める（BOLA）
+  clean: agst_ の sub は、受付・照会とも、証券の取扱代理店（契約管理の仕組みの値）が agency_code と一致する証券の請求だけを受ける（ほかの代理店の証券の請求は 404）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-object-level-authz
+  also_accepted:
+  - carry-vs-query#m-4
+  - signed-vs-enforced#m-8
+  - q-validity-not-authz
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - carry-vs-query#m-4
+  - signed-vs-enforced#m-8
+  severity: Blocker
+  evidence:
+  - kind: spec
+    id: OWASP API Security Top 10 2023 API1
+  - kind: guide-slide
+    id: p05-bola
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-object-level-authz
+  channel_priority: 1
+  form: present
+  salience_phrase: agency_code があれば claim_id で引いて返す
+  copies: 12
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D03
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: claims.yaml
+    row: C-cnf
+    column: on_revoke
+    quote: 取り直せるまで前の CRL で受け続ける（口を止めない）
+  - file: hops.yaml
+    row: H5
+    column: validates
+    quote: 取り直せるまで前の CRL で受け続ける（口を止めない）
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 代理店の口の可用性を優先する
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+  core: 代理店向けの CA の CRL を取り直せない間、front-gw・shirogane-as は期限を設けずに前の CRL で受け続け、失効させた代理店の証明書がいつまでも通る
+  wrong: CRL の取り直しに失敗している間は、取り直せるまで前の CRL で受け続け、口を止めない（可用性を優先）。失効させた証明書（盗まれた代理店の鍵）が、CRL の配信が止まっている間ずっと使える。止めるまでの上限が無い
+  clean: 取り直しに失敗している間は前の CRL を使い、失敗が 3600 秒続いたら代理店の口を止める（失効した証明書を最長 3600 秒受けうる限界を、可用性と引き換えに受け入れる）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-dependency-outage
+  also_accepted:
+  - q-revocation-delivery
+  perspectives_section:
+  - 6.2 鍵と障害
+  contrasts:
+  - four-lifetimes
+  severity: Major
+  evidence:
+  - kind: spec
+    id: RFC 5280 §6.3
+  - kind: spec
+    id: RFC 8705 §3
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-dependency-outage
+  channel_priority: 1
+  form: present
+  salience_phrase: 取り直せるまで前の CRL で受け続ける
+  copies: 5
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D04
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: claims.yaml
+    row: C-acr
+    column: source_system・authoritative_writer
+    quote: 2 本目からの鍵は、社員本人がパスワードでログインした shirogane-sso の画面から、登録の番号なしで足せる
+  - file: catalog_answers.yaml
+    row: I26
+    quote: 2 本目からの鍵は、社員本人がパスワードでログインした shirogane-sso の画面から
+  - file: design.md
+    heading: 2.2 システムの権限〔Full だけ〕
+    quote: 2 本目からの鍵は、社員本人がパスワードでログインした shirogane-sso の画面から
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
+  - file: design.md
+    heading: 11. カタログへの回答〔Lite：生成（集計）〕
+  core: 2 本目からのセキュリティキーは、パスワードでログインしただけの画面から登録の番号なしで足せるので、パスワードを知る者が自分の鍵で acr を phr にできる
+  wrong: 1 本目の鍵だけを 2 人の操作の登録の番号と窓口の本人確認で登録させ、2 本目からは社員本人がパスワードでログインした shirogane-sso の画面から番号なしで足せる。パスワードを盗んだ者は自分の鍵を足し、その鍵での認証で acr が phr になり、100 万円以上の承認・管理の操作の追加の認証（REQ-05）を通る
+  clean: どの鍵の登録にも、窓口で本人を確かめた後に 2 人の操作で発行した 1 回だけの登録の番号が要る（設計書の 2.2）。configurable_by は platform だけ
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - ap-1-7
+  also_accepted:
+  - signed-vs-enforced#m-5
+  - q-writer-distinguished
+  - pa-11
+  perspectives_section:
+  - 2. 発行
+  contrasts:
+  - signed-vs-enforced#m-5
+  severity: Blocker
+  evidence:
+  - kind: guide-slide
+    id: p12-antipatterns-1
+  - kind: guide-slide
+    id: p04-split-by-writer
+  - kind: spec
+    id: RFC 9470 §3
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - ap-1-7
+  channel_priority: 1
+  form: present
+  salience_phrase: 2 本目からの鍵は、社員本人がパスワードでログインした
+  copies: 5
+  masked_by: []
+  salience: high
+  hint_derived: []
+  lint_note: authoritative_writer の ① に end_user を足したが、C-acr の enforced_at が api_config と照らすので L31 は出ない（鍵の登録の経路は lint が読まない）
+- id: D05
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: design.md
+    heading: 2.2 システムの権限〔Full だけ〕
+    quote: 元の操作の行の sub と txn のまま上書きする
+  - file: design.md
+    heading: 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕
+    quote: 変更の番号は基盤の変更の記録に残し、毎月監査部が読む
+  core: DB の管理者が直した業務の記録の行は、元の利用者の sub と txn のまま上書きされ、運用者の修正を利用者の操作と見分けられない
+  wrong: DB の直接の修正は、直した行を元の操作の行の sub と txn のまま上書きし（書いた者の列を変えない）、変更の番号と DB の管理者は基盤の変更の記録にだけ残す。承認の記録・保留の印・代理店の登録を直しても、業務の記録の上では利用者（上長・社員）がその操作をしたように見える
+  clean: 直した行の「書いた者」の列に変更の番号と DB の管理者を残し（利用者の操作の行は sub と txn）、毎月、変更の番号のある行を監査部が変更の記録と突き合わせる
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-operator-act
+  also_accepted:
+  - act-txn-workload#m-4
+  - q-audit-correlation
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - act-txn-workload#m-4
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p05-system-privileges
+  - kind: spec
+    id: RFC 8693 §4.1
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-operator-act
+  channel_priority: 1
+  form: present
+  salience_phrase: 元の操作の行の sub と txn のまま上書きする
+  copies: 1
+  masked_by: []
+  salience: low
+  hint_derived: []
+- id: D06
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: design.md
+    heading: 2. 範囲と信頼の境界〔Lite：手で書く〕
+    quote: 呼び出し元を一覧と照らさずに受ける
+  - file: claims.yaml
+    row: C-agency-code
+    column: assumption・note
+    quote: 代理店管理部が as-admin-api で書く
+  - file: claim_request_agency_code.md
+    quote: 登録は代理店管理部が as-admin-api で書き
+  core: shirogane-as の管理の書き込みの API（代理店の登録・契約者のアカウントの状態）が、呼び出し元を as-admin-api に限らず、網の中のどのサービスの mTLS でも受ける
+  wrong: 管理の書き込みの API は、網の中の X.509-SVID の mTLS なら呼び出し元を一覧と照らさずに受ける（網の中の部品は as-admin-api と同じ扱い）。as-admin-api の 2 人の操作・追加の認証を通らずに、網の中のどの部品からも代理店の登録（代理店コード・証明書）や契約者のアカウントの状態を書き換えられる
+  clean: shirogane-as の管理の書き込みの API は as-admin-api の SPIFFE ID だけを受ける（ほかの部品・管理の画面からは書けない）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-authorize-service-and-user
+  also_accepted:
+  - q-outside-catalog
+  - peer-mtls
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - act-txn-workload
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p06-validation-split
+  - kind: guide-slide
+    id: p05-one-request-carries
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-authorize-service-and-user
+  channel_priority: 1
+  channel_note: 誤りの文は 2. の「トークンを運ばない内部の呼び出し」の表にある。q-authorize-service-and-user の見る欄（P5 の 3.・q-peer）は 2. を名指さないが、also_accepted の q-outside-catalog（優先 1）の見る欄 template:00_core#scope-boundary が名指す（手がかりの「サービス間の直接の呼び出し」「管理用の口」）
+  form: present
+  salience_phrase: 呼び出し元を一覧と照らさずに受ける
+  copies: 1
+  masked_by:
+  - D07
+  salience: low
+  hint_derived: []
+- id: D07
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: design.md
+    heading: 2. 範囲と信頼の境界〔Lite：手で書く〕
+    quote: 保守の委託先の踏み台
+  - file: catalog_answers.yaml
+    row: U30
+    quote: 試験用に認証を飛ばす口・時刻を進める口は本番のビルドに入れない
+  core: 保守の委託先の網から SSH の踏み台で、Txn-Token を確かめない payment-svc・claim-svc の保守の口に届く入口がある
+  wrong: 網の外から届く入口に、保守の委託先の踏み台（委託先の網から SSH で入り、payment-svc・claim-svc の保守の口に転送する）がある。保守の口は Txn-Token を確かめずに設定の変更・再起動・業務の記録の問い合わせを受け、範囲の図にも無く、閉じる日も決めていない。front-gw・TTS の守りが掛からない
+  clean: 網の外から届く入口は front-gw の代理店の口と、claim-portal・staff-console の画面だけ
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-outside-catalog
+  also_accepted:
+  - signed-vs-enforced#m-7
+  - q-gateway-bypass-path
+  - cf-07
+  perspectives_section:
+  - 2. 発行
+  contrasts:
+  - signed-vs-enforced#m-7
+  severity: Major
+  evidence:
+  - kind: spec
+    id: OWASP API Security Top 10 2023 API9
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-outside-catalog
+  channel_priority: 1
+  form: present
+  salience_phrase: 保守の委託先の踏み台
+  copies: 1
+  masked_by:
+  - D06
+  salience: low
+  hint_derived: []
+- id: D08
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H24
+    column: validates
+    quote: 同じ請求の後の支払いにも、その承認を使う
+  - file: hops.yaml
+    row: H23
+    column: validates
+    quote: 同じ請求の後の支払いにも、その承認を使う
+  - file: claims.yaml
+    row: C-tctx
+    column: enforced_at
+    quote: 同じ請求の後の支払いにも、その承認を使う
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 同じ請求の後の支払いにも、その承認を使う
+  - file: design.md
+    heading: 7. シーケンス図〔Full だけ〕
+    quote: 承認の記録・振込先を確かめて「実行済み」に書き
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
+  core: 承認の記録が支払いごとでなく請求ごとで、同じ請求の後の支払い（100 万円以上）も前の承認で実行される
+  wrong: 承認の記録は請求ごと（承認者の sub・txn・時刻・claim_id）で、金額・振込先・payment_id に結びつかない。承認待ちの指示は、その請求に有効な承認があれば承認済みとして扱い、実行の取引でも請求の承認の記録だけを見るので、同じ請求の追加の支払いが、上長が見ていない金額・振込先で通る（REQ-05）
+  clean: 承認の記録（承認者の sub・txn・時刻・金額・振込先の payee_ref）は payment_id に結びつき、実行の取引で承認の記録の金額・payee_ref が支払いの記録と一致することを確かめる
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-approval-from-as
+  also_accepted:
+  - op-one-time
+  - scope-vs-role#m-3
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - scope-vs-role#m-3
+  severity: Blocker
+  evidence:
+  - kind: guide-slide
+    id: p10-human-approval-evidence
+  - kind: spec
+    id: RFC 9396 §2
+  signpost: P1
+  span: '1'
+  difficulty: easy
+  channel: short_list
+  channel_question:
+  - q-approval-from-as
+  channel_priority: 1
+  form: present
+  salience_phrase: 同じ請求の後の支払いにも、その承認を使う
+  copies: 11
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D09
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H24
+    column: validates
+    quote: 実行の取引では見ない
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+    quote: 受け付けた後の保留は実行を止めない
+  - file: hops.yaml
+    row: H25
+    column: validates
+    quote: 印は請求ごとで、指示の受け付け（H22）の取引が確かめる
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 実行の取引では見ない
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕
+    quote: 指示の受け付けの取引の中で確かめる
+  - file: design.md
+    heading: A. 運用で測る指標〔Full だけ〕
+    quote: 指示の受け付けの可否の正
+  core: 保留の印は指示を受け付けるときだけ確かめ、受け付けた後にかけた保留では、実行の前でも支払いが止まらない
+  wrong: payment-svc は保留の印を指示の受け付けの取引（H22）でだけ確かめ、実行の取引では見ない。指示を受け付けた後（夜間の実行の前）に不正の疑いで保留にしても、その支払いは実行される。REQ-04（保留は支払いの実行の前なら必ず効く）を満たさない
+  clean: 指示の受け付けと実行の取引が同じ集計の行をロックして保留の印を確かめ、実行の前の保留は必ず効く（H22・H24・H25）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-revocation-delivery
+  also_accepted:
+  - q-freshness-mitigation
+  - lifetime-by-situation
+  perspectives_section:
+  - 6.1 寿命（Part 8）
+  contrasts:
+  - carry-vs-query
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p08-revocation-propagation
+  - kind: guide-slide
+    id: p01-self-contained-vs-reference
+  signpost: P1
+  span: 2+
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-revocation-delivery
+  channel_priority: 1
+  channel_note: 主の場所（H24）が D08 と同じで、D08 の文の方が多く写される（B14・B15 の型）。9.1 の止める単位の表と、要求の表の REQ-04 を突き合わせて分かる
+  form: present
+  salience_phrase: 実行の取引では見ない
+  copies: 5
+  masked_by:
+  - D08
+  salience: low
+  hint_derived: []
+- id: D10
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H14
+    column: validates
+  - file: token_types.yaml
+    row: TXN_PROXY
+    column: revocation
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+  - file: design.md
+    heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  core: TTS は TXN_PROXY を出すときに通話の記録の契約者のアカウントの状態を引かないので、止めた契約者の名での電話の代理受付が止まらない
+  wrong: 代理受付の経路で、TTS は通話の記録（本人確認・時刻・終話・担当の社員）と社員の台帳だけを引き、記録の契約者のアカウントが有効かを確かめない。9.1 の止める単位「契約者」にも TXN_PROXY が無い。お客さま窓口の上長が契約者のアカウントを止めても、電話の代理受付ではその契約者の名で請求を出せ続ける（REQ-01 は電話の代理受付も 900 秒以内に止める）
+  clean: TTS は代理受付の発行のたびに、記録の契約者のアカウントが有効なこと（キャッシュ 60 秒）を確かめる。止めた契約者の TXN_PROXY は最悪 90 秒（9.1 の止める単位「契約者」の行）
+  kind: 候補の漏れ
+  confused_questions:
+  - q-revocation-delivery
+  also_accepted:
+  - q-relies-on-at-expiry
+  - lifetime-by-situation
+  perspectives_section:
+  - 6.1 寿命（Part 8）
+  contrasts:
+  - four-lifetimes
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p08-revocation-propagation
+  - kind: spec
+    id: draft-ietf-oauth-transaction-tokens-11 §11.5
+  signpost: P1
+  span: 2+
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-revocation-delivery
+  channel_priority: 1
+  channel_note: 要求の表の REQ-01（電話の代理受付も止める）と、9.1 の止める単位「契約者」・H14 の代理受付の確かめを突き合わせて、無いことで分かる
+  form: absent
+  copies: 0
+  masked_by: []
+  salience: low
+  hint_derived:
+  - B14
+  hint_note: B14（止める要求に対して、TTS が発行のときに主体の状態を見ない）と同じ型。場所を代理受付の経路（TXN_PROXY・H14）にし、書いてある文ではなく確かめが無いこと（absent）にした
+- id: D11
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: claims.yaml
+    row: C-sub
+    column: upstream_issuer
+    quote: AGENCY_ASSERTION の emp_no（代理店の IdP が担当者の属性として入れる社員番号）
+  - file: hops.yaml
+    row: H31
+    column: validates
+    quote: (iss
+    emp_no): null
+  - file: token_types.yaml
+    row: AGENCY_ASSERTION
+    column: assumption
+    quote: 担当者の社員番号（emp_no）
+  - file: catalog_answers.yaml
+    section: questions の q-user
+    quote: (iss
+    emp_no)（代理店の IdP の iss と社員番号）: null
+  - file: catalog_answers.yaml
+    row: I15
+    quote: (iss
+    emp_no) を代理店の担当者の ID に替える: null
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 同じ社員番号（assertion の emp_no）を別の人に付け替えた
+  - file: design.md
+    heading: 3.2 共通の基準〔Lite：手で書く（満たさないものがあるときだけ）〕
+    quote: (iss
+    emp_no): null
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+    quote: (iss
+    emp_no): null
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
+  - file: design.md
+    heading: 11. カタログへの回答〔Lite：生成（集計）〕
+  - file: design.md
+    heading: 12. 書き手が自信のない点〔Lite：手で書く〕
+    quote: (iss
+    emp_no): null
+  - file: design.md
+    heading: P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕
+    quote: (iss
+    emp_no): null
+  - file: design.md
+    heading: M_privacy_minimization：6. 社内の ID と外部に出す ID〔Full：記入／Lite：参照〕
+    quote: 上流の社員番号を付け替えると
+  core: shirogane-as は代理店の担当者を、台帳の行の無い assertion の emp_no（代理店の社員番号）で引いている（行のある sub で引くべき）
+  wrong: 代理店の担当者の ID を、(代理店の IdP の iss, assertion の emp_no) の組で代理店の担当者の表から引く。emp_no は claims.yaml に行が無く（identifier_properties・on_missing が無い）、AGENCY_ASSERTION の required_claims にも無い。代理店が付け直せる社員番号で、しろがねの主体の
+    ID が決まる
+  clean: (代理店の IdP の iss, assertion の sub) の組で代理店の担当者の表を引く（C-sub の upstream_issuer の source_attribute は AGENCY_ASSERTION の sub）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-identifier-choice
+  also_accepted:
+  - name-vs-identifier#m-1
+  - ap-1-6
+  perspectives_section:
+  - 1.4 識別子
+  contrasts:
+  - name-vs-identifier#m-1
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p02-user-identifier
+  - kind: guide-slide
+    id: p04-immutable-identifiers
+  - kind: spec
+    id: RFC 7523 §3
+  signpost: P1
+  span: 2+
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-identifier-choice
+  channel_priority: 1
+  channel_note: H31 の validates と C-sub の upstream_issuer に出る emp_no を、claims.yaml の行と照らして初めて分かる（q-identifier-choice の手がかりのとおりの突き合わせ）
+  form: present
+  salience_phrase: (iss, emp_no)
+  copies: 15
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D12
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H19
+    column: token_type・validates
+    quote: 自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ
+  - file: design.md
+    heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕
+    quote: 自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: 2. 範囲と信頼の境界〔Lite：手で書く〕
+    quote: assessment-svc → document-svc（要配慮の書類の閲覧。H19）
+  - file: claims.yaml
+    row: C-scope
+    column: enforced_at
+    quote: 要配慮の書類の閲覧は Txn-Token を受けない。H19
+  - file: claims.yaml
+    row: C-sub
+    column: enforced_at
+    quote: 書類の登録の記録に sub を残す
+  - file: design.md
+    heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
+    quote: 自分の資格情報で呼ぶ
+  - file: design.md
+    heading: A. 運用で測る指標〔Full だけ〕
+    quote: 書類の登録と、請求の持ち主・取扱代理店の突き合わせ
+  core: assessment-svc が要配慮の書類を、査定担当者の TXN_STAFF を渡さず自分の資格情報（SVID の mTLS）だけで document-svc から読む
+  wrong: H19 はトークンを運ばず、assessment-svc が自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ。document-svc は呼び出し元だけを見て書類を返し、閲覧の記録に読んだ社員（sub）も txn も残らない。仲介の assessment-svc の権限ですべての請求の要配慮の書類が読め、閲覧と割り当ての突き合わせ（付録
+    A）もできない
+  clean: assessment-svc は受けた TXN_STAFF を改変せずに渡し、document-svc は相手が assessment-svc で scope に documents:read-sensitive があることを確かめ、閲覧の記録に sub と txn を残す
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-original-principal
+  also_accepted:
+  - act-txn-workload#m-11
+  - keep-sub-exchange
+  - q-sub
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - act-txn-workload#m-11
+  severity: Major
+  evidence:
+  - kind: spec
+    id: draft-ietf-oauth-transaction-tokens-11 §12.2
+  - kind: guide-slide
+    id: p06-transaction-tokens
+  signpost: P2
+  span: '1'
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-original-principal
+  channel_priority: 2
+  channel_note: 見る欄の registry:hops#token_type（H19 の運ぶトークンが無い）と P5 の 3. が名指す。q-authorize-service-and-user（優先 1）の手がかりの hops の validates も H19 に当たるが、問いが違う（直接の相手は確かめている）ので also_accepted に入れていない
+  form: present
+  salience_phrase: 自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ
+  copies: 4
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D13
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H21
+    column: validates
+    quote: 期限を決めずに残す
+  - file: design.md
+    heading: DB・ブローカーの接続の層
+    quote: 期限を決めずに残す
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  core: 滞留のキューの PAY_MSG_CTX（sub・金額・振込先の参照を含む）の写しを期限を決めずに残し、写しが消える時点が無い
+  wrong: 期限を過ぎた PAY_MSG_CTX のメッセージを移す滞留のキューは、後から調べるために期限を決めずに残し、消すのは当番の手作業。トークンの写し（社員の ID・請求の ID・金額・振込先の参照 ID）が、元のトークンの期限の後もいつまでも残る
+  clean: 滞留のキューは 7 日で消える（ブローカーの保持の設定）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-copies-outlive
+  also_accepted:
+  - four-lifetimes#m-8
+  - cd-08
+  perspectives_section:
+  - 6.1 寿命（Part 8）
+  contrasts:
+  - four-lifetimes#m-8
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p08-copies-outlive-token
+  - kind: guide-slide
+    id: p08-async-processing
+  signpost: P2
+  span: '1'
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-copies-outlive
+  channel_priority: 2
+  channel_note: q-revocation-delivery（優先 1）の見る欄も template:00_core#lifecycle-db-connection を名指すが、問うのは止めるまでの時間で、写しの期限ではないので also_accepted に入れていない
+  form: present
+  salience_phrase: 期限を決めずに残す
+  copies: 3
+  masked_by: []
+  salience: high
+  hint_derived: []
+- id: D14
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: claims.yaml
+    row: C-acr
+    column: enforced_at・consumers
+    quote: 保留の解除はこの画面の確かめだけで受ける
+  - file: claims.yaml
+    row: C-auth-time
+    column: enforced_at・consumers
+    quote: 保留の解除はこの画面の確かめだけで受ける
+  - file: design.md
+    heading: B. 追加認証〔Full だけ〕
+    quote: 保留の解除はこの画面の確かめだけで受ける
+  - file: hops.yaml
+    row: H17
+    column: validates
+    quote: assessment.unhold の認証の強さは staff-console の画面が確かめ、assessment-svc は acr・auth_time を見ない
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  core: 保留の解除（assessment.unhold）の追加の認証を staff-console の画面だけが確かめ、操作を受ける assessment-svc は acr・auth_time を見ない
+  wrong: 保留の解除は、staff-console が画面を出す前に認証し直させるだけで、assessment-svc は acr・auth_time を確かめない（C-acr・C-auth-time の assessment-svc の行が無い）。staff-console の画面を通らない要求や、画面の確かめの誤りで、ハードウェアの鍵の認証なしに止めていた支払いを夜間の実行に戻せる
+  clean: assessment-svc が、assessment.unhold で acr が phr で受けた時刻 − auth_time が 300 秒以内のときだけ受け、足りなければ 401（付録 B の照合する受け手は assessment-svc）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-step-up-by-rs
+  also_accepted:
+  - q-auth-strength
+  perspectives_section:
+  - 5. 認可
+  contrasts:
+  - four-lifetimes
+  severity: Major
+  evidence:
+  - kind: spec
+    id: RFC 9470 §3
+  - kind: guide-slide
+    id: p06-step-up-approval
+  signpost: P2
+  span: '1'
+  difficulty: medium
+  channel: short_list
+  channel_question:
+  - q-step-up-by-rs
+  channel_priority: 2
+  channel_note: 主の場所（C-acr）が D04 と同じで、D04 の文の方が多く写される。q-step-up-path-coverage（優先 1）も付録 B と hops の validates を名指すが、問うのは経路ごとの条件のそろいで、判断する受け手ではないので also_accepted に入れていない（入れると P1・easy になる）
+  form: present
+  salience_phrase: 保留の解除はこの画面の確かめだけで受ける
+  copies: 3
+  masked_by:
+  - D04
+  salience: low
+  hint_derived: []
+- id: D15
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: hops.yaml
+    row: H30
+    column: max_lifetime・note
+    quote: assessment-svc に渡すまでの 300 秒
+  - file: design.md
+    heading: 5.1 寿命の上限の方針〔Full だけ〕
+    quote: assessment-svc に渡すまでの 300 秒
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+    quote: assessment-svc に渡すまでの 300 秒
+  - file: design.md
+    heading: 1. CI の結果〔Lite：生成〕
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+  core: H30 の寿命を、運ぶ PAY_MSG_CTX の寿命（3600 秒）でなく assessment-svc に渡すまでの 300 秒と宣言し、上流（TXN_STAFF 300 秒）を超える寿命を L16 に見せていない
+  wrong: H30 の max_lifetime を「TTS が PAY_MSG_CTX を assessment-svc に渡すまでの 300 秒」として書き、narrowing_exception を外した。PAY_MSG_CTX は 3600 秒有効で（目録・H20・H21）、上流の TXN_STAFF の 300 秒を超えるのに、L16 の warn が消え、1. の warn の理由からも
+    5.1 からも寿命の例外が見えない（lint を通すために数値を上流に合わせた形）
+  clean: H30 の寿命は 3600 秒で、narrowing_exception に理由を書き、L16 の warn として残す（1. の warn の理由、5.1）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-lint-workaround
+  also_accepted:
+  - q-hop-lifetime
+  - q-limit-consistency
+  - four-lifetimes#m-6
+  perspectives_section:
+  - 6.4 検査と記述の整合
+  contrasts:
+  - four-lifetimes#m-6
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p06-narrow-downstream
+  - kind: spec
+    id: draft-ietf-oauth-transaction-tokens-11 §13.6
+  signpost: なし
+  span: '1'
+  difficulty: hard
+  channel: none
+  channel_note: 1 枚に q-lint-workaround は出ない（優先 3）。sheet.md の 7. の段 0 の確かめ（数値を上限に合わせる）は問いではない。L16 の warn が消えるので lint の経路も無い
+  form: present
+  salience_phrase: assessment-svc に渡すまでの 300 秒
+  copies: 3
+  masked_by: []
+  salience: high
+  hint_derived:
+  - A03
+  hint_note: A03（下流の寿命が上流を超え、例外の理由が弱い）と同じ寿命の型。例外を書く代わりに、ホップの寿命の数値を上流に合わせて規則を黙らせる形にし、場所を H30 の max_lifetime・note と 5.1 にした
+  lint_note: H30 の max_lifetime を 300 にして narrowing_exception を外したので、control にあった L16 の warn（H30）が消える（warn 9 → 8）。H20・H21 は broker_connection で、L16 は寿命を比べない
+- id: D16
+  design: seeded-d
+  control: control-d
+  locations:
+  - file: token_types.yaml
+    row: TXN_TOKEN
+    column: key_rotation
+    quote: Txn-Token の受け入れの上限（330 秒）が過ぎてから外す
+  - file: token_types.yaml
+    row: PAY_MSG_CTX
+    column: key_rotation
+  - file: token_types.yaml
+    row: TXN_STAFF
+    column: key_rotation
+  - file: token_types.yaml
+    row: TXN_PROXY
+    column: key_rotation
+  - file: design.md
+    heading: M_token_validation：8. 鍵のローテーション〔Full：記入／Lite：参照〕
+    quote: 古い鍵は目録の retire_after_seconds の後に外す
+  core: TTS の古い署名の鍵を、同じ鍵で署名した PAY_MSG_CTX の受け入れの上限（3630 秒）より前の 330 秒で JWKS から外す
+  wrong: TTS の鍵の retire_after_seconds を 330 秒（Txn-Token の受け入れの上限）にした。TTS の鍵は PAY_MSG_CTX（3600 秒、ブローカーで待つ）も署名するので、30 日ごとの切り替えの後、待っている PAY_MSG_CTX の署名を TTS が確かめられず、作り直せずに滞留のキューに移る（正しい支払いの指示が落ちる）
+  clean: 古い鍵は PAY_MSG_CTX の受け入れの上限（3630 秒）が過ぎてから外す（retire_after_seconds 3630）
+  kind: 目的と仕組みの不一致
+  confused_questions:
+  - q-key-rotation
+  also_accepted:
+  - op-key-custody
+  perspectives_section:
+  - 6.2 鍵と障害
+  contrasts:
+  - signed-vs-enforced
+  severity: Major
+  evidence:
+  - kind: guide-slide
+    id: p01-key-rotation-jwks
+  signpost: P2
+  span: 2+
+  difficulty: hard
+  channel: none
+  channel_note: 鍵の保管と回し方の問い q-key-rotation は区分 A（lint の L17 は unknown_kid・jwks_cache_ttl だけを見る）で 1 枚に出ない。開いた問い op-key-custody は 1 枚の「さらに」の欄に出るが、指示が辿らせる開いた問い 3 つには入らないので、経路は none とした。op-key-custody の手がかりは種別の
+    key_rotation と M_token_validation の 8. を名指すので、手がかりは P2（読む場所は 2+ で hard のまま）
+  form: present
+  salience_phrase: Txn-Token の受け入れの上限（330 秒）が過ぎてから外す
+  copies: 1
+  masked_by: []
+  salience: low
+  hint_derived: []
+  lint_note: claim_lint は key_rotation の retire_after_seconds を見ない（warn も出ない）
