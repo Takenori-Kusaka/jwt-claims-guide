@@ -29,9 +29,10 @@ issuance_profile:
     value: mtls
     rationale: >-
       代理店の AT（AGENCY_AT）は、しろがねの網の外の代理店のサーバーに置かれるので、代理店のサーバーの証明書に束縛する（RFC 8705 §3。cnf の x5t#S256）。
-      契約者と社員の AT（PH_AT・STAFF_AT）は束縛しない（目録の sender_constraint: none）。この 2 つは claim-portal・staff-console のサーバーの中にだけあり、
+      契約者と社員の AT（PH_AT・EMPLOYEE_AT）は束縛しない（目録の sender_constraint: none）。この 2 つは claim-portal・staff-console のサーバーの中にだけあり、
       front-gw の契約者の口と社員の口は claim-portal・staff-console の X.509-SVID の mTLS からしか接続を受けないので、盗まれた AT を網の外から使えない。
-      SVID は 1 時間ごとに替わり、束縛すると替わった直後の AT が使えなくなる費用を避けた（見送りの理由と確かめ方は設計書の 3.1）
+      SVID は 1 時間ごとに替わり、mTLS で束縛すると替わった直後の AT が使えなくなる。DPoP（BFF が持つ替わらない鍵）で束縛する候補も比べたが、鍵は AT と同じ BFF のサーバーに置くので、BFF が破られたときには両方が盗まれ、
+      AT だけが漏れる経路（ログなど）は front-gw の口の mTLS の相手の制限で既に閉じている。proof の作成と照合の費用に対して守りが増えないので見送った（見送りの理由と確かめ方は設計書の 3.1）
     refs:
       - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
       - {kind: guide-slide, id: p12-priorities-deferrals}
@@ -260,18 +261,18 @@ token_types:
   key_source: {from: configured_jwks_uri, header_key_params: reject}
   required_claims: [iss, sub, aud, exp, iat, jti]
   max_clock_skew: 30
-  max_lifetime: 300
+  max_lifetime: 60
   lifetime_refs:
     - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
-    - {kind: author-proposal, id: "代理店連携の仕様で exp − iat を 300 秒以下と決める（再送の検知の jti を覚える期間を短くする）", tracking: "#82"}
+    - {kind: author-proposal, id: "代理店連携の仕様で exp − iat を 60 秒以下と決める。代理店の IdP で担当者を止める直前に出た assertion が使える時間（60＋ずれ 30）を、担当者の停止の最悪（750 秒。REQ-02 の 900 秒）に入れて決めた", tracking: "#82"}
   lifetime_set_by: [client]
   refresh: 無い
   sender_constraint: none
-  jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 330}
+  jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 90}
   revocation:
-    - {method: one_time_use, delay_seconds: 0, note: "shirogane-as が (iss, jti) の組を 330 秒覚え、2 回目を拒む"}
+    - {method: one_time_use, delay_seconds: 0, note: "shirogane-as が (iss, jti) の組を 90 秒覚え、2 回目を拒む。確かめと記録は一意の制約つきの 1 回の書き込みで行い（同時に 2 件届いても 1 件だけ通る）、記録先が応えなければ拒む"}
     - {method: db_lookup, delay_seconds: 0, note: 代理店の登録を止めると、shirogane-as はその代理店の assertion を受けない（登録を毎回引く）}
-  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 330, note: 代理店連携の仕様で、新しい鍵を使う 24 時間前に JWKS に載せ、古い鍵は最後の assertion の上限（330 秒）の後に外すよう求める}
+  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 90, note: 代理店連携の仕様で、新しい鍵を使う 24 時間前に JWKS に載せ、古い鍵は最後の assertion の上限（90 秒）の後に外すよう求める}
   unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
   jwks_cache_ttl: 300
   signing_key_scope: per_client
@@ -306,7 +307,7 @@ token_types:
   max_lifetime: 300
   lifetime_refs:
     - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
-    - {kind: author-proposal, id: "代理店そのものの停止（REQ-02、900 秒）は TTS が発行のたびに代理店の登録を引くことで効かせる。代理店の IdP の側での担当者の停止は、しろがねが知らないので AT の寿命で決まる。AT 330 秒と Txn-Token 330 秒の和（660 秒）が REQ-02 の 900 秒に収まるよう 5 分にした", tracking: "#82"}
+    - {kind: author-proposal, id: "代理店そのものの停止（REQ-02、900 秒）は TTS が発行のたびに代理店の登録を引くことで効かせる。代理店の IdP の側での担当者の停止は、しろがねが知らないので AT の寿命で決まる。assertion 90 秒・AT 330 秒・Txn-Token 330 秒の和（750 秒）が REQ-02 の 900 秒に収まるよう 5 分にした", tracking: "#82"}
   lifetime_set_by: [platform]
   refresh: 無い（期限が切れたら、新しい assertion で取り直す）
   sender_constraint: mtls
@@ -335,7 +336,7 @@ token_types:
     path: [nginx-large-client-header-buffers]
     other_headers_bytes: 2048
   note: front-gw の代理店の口は、しろがねの代理店向けの CA が出した証明書の mTLS だけを受け、証明書の拇印と cnf を照らす
-- id: STAFF_AT
+- id: EMPLOYEE_AT
   kind: access_token
   decision: 採用
   rationale: 社員（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）が staff-console から front-gw の社員の口を呼ぶための AT。front-gw が受けて、TTS が Txn-Token に作り直す
@@ -364,7 +365,7 @@ token_types:
   sender_constraint: none
   revocation:
     - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。社員の退職・異動は、TTS が発行のたびに社員の台帳を引く（TXN_STAFF・TXN_PROXY の db_lookup）"}
-    - {method: db_lookup, delay_seconds: 60, note: STAFF_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに社員の台帳の在籍と役割を引き、役割から scope を絞り直す（C-sub C-scope。キャッシュ 60 秒）}
+    - {method: db_lookup, delay_seconds: 60, note: EMPLOYEE_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに社員の台帳の在籍と役割を引き、役割から scope を絞り直す（C-sub C-scope。キャッシュ 60 秒）}
   long_running: 使わない
   key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: shirogane-sso の鍵。HSM の中で作り、90 日ごとに替える}
   unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
@@ -417,7 +418,7 @@ token_types:
   revocation:
     - {method: exp_only, delay_seconds: 330, note: ログインの応答を受けた時点で検証し、その後は使わない}
   long_running: 使わない
-  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: STAFF_AT と同じ鍵}
+  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: EMPLOYEE_AT と同じ鍵}
   unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
   jwks_cache_ttl: 300
   signing_key_scope: shared
@@ -429,7 +430,7 @@ token_types:
 - id: SSO_SESSION
   kind: session
   decision: 採用
-  rationale: shirogane-sso のログインのセッション。staff-console が prompt=none で STAFF_AT を取り直すときに使われる
+  rationale: shirogane-sso のログインのセッション。staff-console が prompt=none で EMPLOYEE_AT を取り直すときに使われる
   refs:
     - {kind: guide-slide, id: p08-token-types-lifetimes}
   purpose: shirogane-sso の上の社員のログインの状態
@@ -456,7 +457,7 @@ token_types:
   rationale: ブラウザと staff-console の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡す
   refs:
     - {kind: guide-slide, id: p06-flow-browser-to-db}
-  purpose: 社員のブラウザからの要求を、サーバーに置いた STAFF_AT に結びつける
+  purpose: 社員のブラウザからの要求を、サーバーに置いた EMPLOYEE_AT に結びつける
   issuer: staff-console
   holder: 社員の管理端末のブラウザ（Cookie）。中身は staff-console のサーバーの保存先にある
   format: opaque
@@ -559,7 +560,7 @@ token_types:
 - id: TXN_STAFF
   kind: txn_token
   decision: 採用
-  rationale: 社員が自分の権限で行う査定・支払いの承認・管理の操作の Txn-Token。sub は社員、STAFF_AT の acr・auth_time を写し、操作を受けるサービスが認証の強さと新しさを確かめる
+  rationale: 社員が自分の権限で行う査定・支払いの承認・管理の操作の Txn-Token。sub は社員、EMPLOYEE_AT の acr・auth_time を写し、操作を受けるサービスが認証の強さと新しさを確かめる
   refs:
     - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
     - {kind: guide-slide, id: p06-step-up-approval}
@@ -736,7 +737,7 @@ token_types:
 - id: DPOP_PROOF
   kind: dpop_proof
   decision: 却下
-  rationale: 送信者制約は代理店の AT だけで、mTLS（RFC 8705）で行う。DPoP の proof を作らない。できなくなるのは、TLS の証明書を扱えないクライアントの AT を束縛すること（今の代理店は証明書を扱える）
+  rationale: 送信者制約は代理店の AT だけで、mTLS（RFC 8705）で行う。DPoP の proof を作らない。代理店は証明書を扱え、トークンの要求も同じ証明書で認証するので mTLS で足りる。PH_AT・EMPLOYEE_AT を DPoP で束縛する候補は、鍵が AT と同じ BFF のサーバーに置かれて守りが増えないので見送った（設計書の 3.1）。できなくなるのは、TLS の証明書を扱えないクライアントの AT を束縛すること
   refs:
     - {kind: spec, id: "RFC 9449 §1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-1"}
   revisit_trigger: 証明書を扱えない代理店（ブラウザだけの小さな代理店など）を受け入れるとき
@@ -759,8 +760,8 @@ token_types:
 - id: SECURITY_EVENT_TOKEN
   kind: security_event_token
   decision: 却下
-  rationale: SSF・CAEP の送信も受信もしない。止める処理は TTS が発行のたびに状態を引くことで代える。代理店の IdP の側で担当者を止めても、しろがねは次の assertion まで知らないが、代理店の担当者の AT は 300 秒で切れ、新しい AT には新しい assertion が要る。できなくなるのは、代理店の側の停止を即時に知ること
-  assumption: 代理店の担当者の停止は、代理店の IdP が次の assertion を出さないことで効く（AGENCY_AT の 330 秒と Txn-Token の 330 秒で、最大 660 秒。REQ-02 の 900 秒に収まる）
+  rationale: SSF・CAEP の送信も受信もしない。止める処理は TTS が発行のたびに状態を引くことで代える。代理店の IdP の側で担当者を止めても、しろがねは次の assertion まで知らないが、止める直前の assertion は 60 秒、代理店の担当者の AT は 300 秒で切れ、新しい AT には新しい assertion が要る（最悪 750 秒）。できなくなるのは、代理店の側の停止を即時に知ること
+  assumption: 代理店の担当者の停止は、代理店の IdP が次の assertion を出さないことで効く（止める直前の assertion 90 秒、AGENCY_AT 330 秒、Txn-Token 330 秒で、最大 750 秒。REQ-02 の 900 秒に収まる）
   revisit_trigger: 代理店から、担当者の停止を即時に効かせる要求が出たとき
   format: jwt
 - id: STATUS_LIST_TOKEN

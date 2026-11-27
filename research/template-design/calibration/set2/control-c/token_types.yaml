@@ -342,7 +342,8 @@ token_types:
   long_running: >-
     予約の発注（協力会社の受付の開始の時刻に確定。予約から最大 24 時間後。REQ-10）は、トークンを持ち越さない。order-tool が予約のときにこのトークンで確定と同じ照合をし、
     予約の記録（担当者の sub・修繕依頼 ID・発注 ID・承認 ID・act の連鎖・予約の時刻）を発注の台帳に残す。承認は approval-svc で予約済みにする。
-    実行の時点で order-scheduler が、自分の証明書の mTLS で aoba-pdp（在籍・ロール・担当）と修繕依頼の台帳（委任の欄）を引き直し、approval-svc で予約済みの承認を使用済みにしてから確定する（hops.yaml の H13・H14）
+    実行の時点で order-scheduler が、予約の記録が order-tool の DB アカウントで作られ書き換えられていないこと（変更の記録の表）、予約した行為者が agent-sts と同じクライアントの登録の表に今も登録されていること、
+    自分の証明書の mTLS で aoba-pdp（在籍・ロール・担当）と修繕依頼の台帳（委任の欄）を引き直し、approval-svc で予約済みの承認を使用済みにしてから確定する（hops.yaml の H13・H14）
   revocation:
     - {method: db_lookup, delay_seconds: 60, note: "確定・予約のたびに aoba-pdp で担当者の在籍・修繕担当のロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}
     - {method: db_lookup, delay_seconds: 0, note: "承認の要る確定・予約のたびに approval-svc で承認を条件つきで使用済み・予約済みにする（キャッシュしない）。取り下げてあれば失敗する（C-authorization-details・C-approval-ref）"}

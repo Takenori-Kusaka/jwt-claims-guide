@@ -46,7 +46,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [never]
     on_revoke: 該当なし（発行者を替えるときは、受け手の許可の設定を先に足す）
-    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [claim-portal, staff-console, shirogane-as, front-gw, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
@@ -99,7 +99,7 @@ claims:
     upstream_issuer:
       iss: ["https://idp.hanamizuki-hoken.example", "https://login.kumoi-agency.example"]
       source_attribute: AGENCY_ASSERTION の sub（代理店の IdP の担当者の ID）
-      normalization: shirogane-as が (assertion の iss, sub) の組で代理店の担当者の表を引き、agst_ の ID に替える。表に無い組は、その代理店の登録が有効なときだけ新しい ID を割り当てる。sub の文字列だけ・メールでは引かない
+      normalization: shirogane-as が (assertion の iss, sub) の組で代理店の担当者の表を引き、agst_ の ID に替える。表に無い組は、その代理店の登録が有効なときだけ新しい ID を割り当てる。sub の文字列だけ・メールでは引かない。代理店が同じ sub を別の担当者に付け替えると、しろがねでは見分けられない（同じ agst_ の ID になる。設計書の 3.1 の見送り）
     authoritative_writer:
       - {stage: "①", writer: 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）, configurable_by: [client]}
       - {stage: "②", writer: shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）, configurable_by: [platform]}
@@ -111,15 +111,15 @@ claims:
     propagation_delay: 0
     recompute_trigger: [reissue]
     on_revoke: 契約者・代理店・社員を止めると、TTS の次の発行から拒む（状態のキャッシュは 60 秒まで）
-    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [claim-portal, staff-console, shirogane-as, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
       - {service: claim-portal, check: PH_ID_TOKEN の sub をセッションの持ち主として記録する。セッションの間に sub が変われば拒否する, against: [other_claim], with: C-iss}
       - {service: staff-console, check: STAFF_ID_TOKEN の sub をセッションの持ち主として記録する, against: [other_claim], with: C-iss}
       - {service: shirogane-as, check: "AGENCY_ASSERTION の (iss, sub) の組で代理店の担当者の表を引く。代理店の登録が止まっていれば拒否", against: [iss, data_layer]}
-      - {service: tts, check: "PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、STAFF_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者", against: [iss, data_layer]}
-      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す, against: [data_layer, api_config]}
+      - {service: tts, check: "PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者", against: [iss, data_layer]}
+      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す, against: [data_layer, api_config]}
       - {service: fraud-svc, check: 判定の記録に sub を残す, against: [data_layer]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に sub を残す, against: [data_layer]}
       - {service: assessment-svc, check: 査定の操作は、sub が請求に割り当てた査定担当者であること（請求の割り当てを claim-svc で引く）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出す, against: [data_layer]}
@@ -134,7 +134,7 @@ claims:
     confidential_from: []
     integrity_until:
       - {place: log, target: 各サービスの監査ログ（sub の HMAC。鍵は監査ログの基盤だけが持つ）, trust_boundary: 監査ログの保存先（読めるのは監査部とセキュリティの担当だけ）}
-    note: 人の ID は不透明な値（ph_・agst_・stf_ と 26 文字）、payment-batch の sub は SPIFFE ID（URL の形）なので、id_scheme は other。受け手は接頭辞と形で主体の種類を見分け、SPIFFE ID の sub は payment-svc・claim-svc の決めた経路だけで受ける
+    note: 人の ID は不透明な値（ph_・agst_・stf_ と 26 文字）、payment-batch の sub は SPIFFE ID（URL の形）なので、id_scheme は other。しろがねは ph_・agst_・stf_ のどれも付け替えない（reassignable を false としたのは、しろがねの割り当ての性質）。ただし agst_ は上流の (代理店の IdP の iss, sub) から引くので、代理店が上流の sub を別の担当者に付け替えると、同じ agst_ の ID が別の人を指しうる。これは上流の識別子の性質で、しろがねでは見分けられない（設計書の 3.1 の見送り。代理店連携の仕様で禁じ、四半期ごとに突き合わせる）。受け手は接頭辞と形で主体の種類を見分け、SPIFFE ID の sub は payment-svc・claim-svc の決めた経路だけで受ける
     status: active
     owner: しろがね損保 IT 基盤部（ID とトークン）
     change_controller: IETF（RFC 7519）
@@ -167,7 +167,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [never]
     on_revoke: 該当なし
-    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [claim-portal, staff-console, shirogane-as, front-gw, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
@@ -219,7 +219,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [never]
     on_revoke: 該当なし
-    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [claim-portal, staff-console, shirogane-as, front-gw, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, payment-worker, as-admin-api]
     on_missing: 拒否
     enforced_at:
@@ -269,7 +269,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [never]
     on_revoke: 該当なし
-    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, PH_ID_TOKEN, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [shirogane-as, front-gw, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
@@ -319,11 +319,11 @@ claims:
     propagation_delay: 0
     recompute_trigger: [reissue]
     on_revoke: 該当なし（1 枚ごとの値）
-    carried_in: [PH_AT, AGENCY_ASSERTION, AGENCY_AT, STAFF_AT]
+    carried_in: [PH_AT, AGENCY_ASSERTION, AGENCY_AT, EMPLOYEE_AT]
     consumers: [shirogane-as, front-gw]
     on_missing: 拒否
     enforced_at:
-      - {service: shirogane-as, check: "(iss, jti) の組を exp まで（最大 330 秒）覚え、同じ組の assertion を 2 回目から拒む", against: [data_layer]}
+      - {service: shirogane-as, check: "(iss, jti) の組を exp まで（最大 90 秒）覚え、同じ組の assertion を 2 回目から拒む。確かめと記録は一意の制約つきの 1 回の書き込みで、記録先が応えなければ拒む", against: [data_layer]}
       - {service: front-gw, check: AT の iss・jti と、TTS から受けた Txn-Token の txn を監査ログの 1 行に記録する, against: [format]}
     max_bytes: 64
     overflow_strategy: 発行を失敗させる
@@ -360,7 +360,7 @@ claims:
     propagation_delay: 0
     recompute_trigger: [never]
     on_revoke: 代理店の登録を止めると、shirogane-as は次の AT を出さず、TTS は次の発行から拒む
-    carried_in: [PH_AT, AGENCY_AT, STAFF_AT]
+    carried_in: [PH_AT, AGENCY_AT, EMPLOYEE_AT]
     consumers: [front-gw, tts]
     on_missing: 拒否
     enforced_at:
@@ -412,7 +412,7 @@ claims:
     propagation_delay: 390
     recompute_trigger: [reissue]
     on_revoke: 社員の役割を外すと、TTS の次の発行から外した範囲を出さない（台帳のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒で切れる
-    carried_in: [PH_AT, AGENCY_AT, STAFF_AT, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    carried_in: [PH_AT, AGENCY_AT, EMPLOYEE_AT, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
     consumers: [front-gw, tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
@@ -486,7 +486,7 @@ claims:
     registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
     type: string
     shape: single
-    description: 社員の認証の強さ。shirogane-sso が、ハードウェアの鍵での認証なら urn:shirogane-sonpo:acr:phr、ほかの多要素なら urn:shirogane-sonpo:acr:mfa を書く。TTS は STAFF_AT の値を TXN_STAFF に写す
+    description: 社員の認証の強さ。shirogane-sso が、ハードウェアの鍵での認証なら urn:shirogane-sonpo:acr:phr、ほかの多要素なら urn:shirogane-sonpo:acr:mfa を書く。TTS は EMPLOYEE_AT の値を TXN_STAFF に写す
     not_meaning: 社員の役割・承認の権限ではない。いつ認証したか（auth_time）ではない
     decision: 採用
     rationale: 100 万円以上の支払いの承認と、代理店の登録・契約者のアカウントの停止は、フィッシングに強い認証を求める。確かめるのは操作を受ける payment-svc と as-admin-api で、staff-console の画面ではない
@@ -506,7 +506,7 @@ claims:
     issuers: ["https://sso.shirogane-sonpo.example", "https://tts.shirogane-sonpo.internal"]
     authoritative_writer:
       - {stage: "①", writer: shirogane-sso（その認証で使った手段）, configurable_by: [platform]}
-      - {stage: "④", writer: TTS（検証した STAFF_AT の値をそのまま写す）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（検証した EMPLOYEE_AT の値をそのまま写す）, configurable_by: [platform]}
     provenance: 発行者が確かめた値
     issue_events: [I01, I11, I12, I22]
     source_system: shirogane-sso の認証の記録
@@ -514,12 +514,12 @@ claims:
     propagation_delay: 0
     recompute_trigger: [login]
     on_revoke: 該当なし（その認証の値）
-    carried_in: [STAFF_AT, STAFF_ID_TOKEN, TXN_STAFF]
+    carried_in: [EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_STAFF]
     consumers: [staff-console, tts, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の acr が phr でなければ acr_values と max_age=0 で認証し直させる（画面の案内。判断は payment-svc・as-admin-api）, against: [api_config]}
-      - {service: tts, check: STAFF_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない, against: [api_config]}
+      - {service: tts, check: EMPLOYEE_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない, against: [api_config]}
       - {service: payment-svc, check: "承認と承認の取り消しの API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470）", against: [api_config]}
       - {service: as-admin-api, check: "すべての変更の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication）", against: [api_config]}
     max_bytes: 32
@@ -539,14 +539,14 @@ claims:
     registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
     type: integer
     shape: single
-    description: 社員が shirogane-sso で最後に認証した時刻。TTS は STAFF_AT の値を TXN_STAFF に写す
+    description: 社員が shirogane-sso で最後に認証した時刻。TTS は EMPLOYEE_AT の値を TXN_STAFF に写す
     not_meaning: AT・Txn-Token の発行の時刻（iat）ではない
     decision: 採用
     rationale: 承認の前の 300 秒以内に認証したことを、操作を受ける payment-svc・as-admin-api が確かめる（要求 REQ-05）
     refs:
       - {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
       - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
-    assumption: shirogane-sso は max_age=0 の要求で必ず認証し直させ、auth_time を書き直す。STAFF_AT にも auth_time を入れる
+    assumption: shirogane-sso は max_age=0 の要求で必ず認証し直させ、auth_time を書き直す。EMPLOYEE_AT にも auth_time を入れる
     revisit_trigger: 承認の前の認証の新しさの要求（300 秒）が変わったとき
     spec_version: [draft-ietf-oauth-transaction-tokens-11]
     usage: authz
@@ -554,7 +554,7 @@ claims:
     issuers: ["https://sso.shirogane-sonpo.example", "https://tts.shirogane-sonpo.internal"]
     authoritative_writer:
       - {stage: "①", writer: shirogane-sso（認証した時刻）, configurable_by: [platform]}
-      - {stage: "④", writer: TTS（検証した STAFF_AT の値をそのまま写す）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（検証した EMPLOYEE_AT の値をそのまま写す）, configurable_by: [platform]}
     provenance: 発行者が確かめた値
     issue_events: [I01, I11, I12, I22]
     source_system: shirogane-sso の認証の記録
@@ -562,12 +562,12 @@ claims:
     propagation_delay: 0
     recompute_trigger: [login]
     on_revoke: 該当なし
-    carried_in: [STAFF_AT, STAFF_ID_TOKEN, TXN_STAFF]
+    carried_in: [EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_STAFF]
     consumers: [staff-console, tts, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の auth_time が 300 秒より古ければ max_age=0 で認証し直させる（画面の案内）, against: [format]}
-      - {service: tts, check: STAFF_AT の auth_time を値を変えずに TXN_STAFF に写す, against: [format]}
+      - {service: tts, check: EMPLOYEE_AT の auth_time を値を変えずに TXN_STAFF に写す, against: [format]}
       - {service: payment-svc, check: 承認と承認の取り消しの API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401, against: [format]}
       - {service: as-admin-api, check: すべての変更の API は、受けた時刻 − auth_time が 300 秒を超えれば 401, against: [format]}
     max_bytes: 10
@@ -681,11 +681,11 @@ claims:
     answers: [q-actor]
     does_not_answer: [q-sub, q-peer, q-req-wl]
     issuers: ["https://tts.shirogane-sonpo.internal"]
-    authoritative_writer: [{stage: "④", writer: TTS（検証した STAFF_AT の sub）, configurable_by: [platform]}]
+    authoritative_writer: [{stage: "④", writer: TTS（検証した EMPLOYEE_AT の sub）, configurable_by: [platform]}]
     provenance: 発行者が確かめた値
     issue_events: [I22]
-    source_system: STAFF_AT の sub と、社員の台帳の役割（コールセンター）・通話の記録の担当者
-    verification_method: TTS が、STAFF_AT の sub が社員の台帳でコールセンターの役割を持ち、通話の記録の担当者と同じことを確かめる
+    source_system: EMPLOYEE_AT の sub と、社員の台帳の役割（コールセンター）・通話の記録の担当者
+    verification_method: TTS が、EMPLOYEE_AT の sub が社員の台帳でコールセンターの役割を持ち、通話の記録の担当者と同じことを確かめる
     volatility: never
     propagation_delay: 0
     recompute_trigger: [reissue]
@@ -742,8 +742,8 @@ claims:
       - {service: fraud-svc, check: 判定の記録に txn を残す, against: [format]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に txn を残す, against: [format]}
       - {service: assessment-svc, check: 査定の記録に txn を残す, against: [format]}
-      - {service: payment-svc, check: 支払いの指示・承認・実行の記録に txn を残す。同じ txn と claim_id の指示を 2 回受けない（再配送への備え）, against: [format, data_layer]}
-      - {service: payment-worker, check: 処理したメッセージの txn を覚え、同じ txn のメッセージを 2 回 TTS に出さない, against: [data_layer]}
+      - {service: payment-svc, check: "支払いの指示・承認・実行の記録に txn を残す。(txn, claim_id) の一意の制約で、同じ組の指示を 2 回記録しない（再配送への備え）", against: [format, data_layer]}
+      - {service: payment-worker, check: payment-svc が指示を受け付けた後にだけ txn を処理済みにし、処理済みの txn のメッセージを TTS に出さない。送信の失敗はブローカーの再配送に任せる（重複は payment-svc が一意の制約で拒む）, against: [data_layer]}
       - {service: as-admin-api, check: 操作の記録に txn を残す, against: [format]}
     max_bytes: 36
     overflow_strategy: 上限で固定（超えない値域）
@@ -844,7 +844,7 @@ claims:
     consumers: [tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
-      - {service: tts, check: "PAY_MSG_CTX を出すのは、TXN_STAFF の operation が assessment.confirm のときだけ。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
+      - {service: tts, check: "PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm のときだけ。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
       - {service: claim-svc, check: "operation が、その API で受ける操作の一覧（経路の表）にあること。policy_number・amount（請求額）・claim_id が要求の本文・パスと一致すること（違えば 409 で拒否し、監査に記録する）。policy_number は契約管理の仕組みで sub の契約者・agency_code の取扱代理店の証券であること。TXN_PROXY では call_id を請求の記録に残す", against: [other_claim, api_config, data_layer]}
       - {service: fraud-svc, check: "operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること（違えば 409）", against: [other_claim, api_config]}
       - {service: document-svc, check: "operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409）", against: [other_claim, api_config]}
@@ -889,7 +889,7 @@ claims:
     description: 代理店コード。しろがねが代理店に割り当てた変わらない番号（AG と数字 6 桁）。shirogane-as が代理店の登録から AGENCY_AT に書き、TTS が登録を引き直して Txn-Token に写す
     not_meaning: 代理店の名前ではない。代理店の担当者（sub）ではない。代理店の IdP の iss でもない
     decision: 採用
-    rationale: claim-svc・document-svc が、代理店の担当者の請求をその代理店が扱う証券だけに絞る。値は代理店の申告（assertion）からは取らず、しろがねの代理店の登録からだけ書く
+    rationale: claim-svc が、代理店の担当者の請求・書類の登録を、その代理店が扱う証券だけに絞る。値は代理店の申告（assertion）からは取らず、しろがねの代理店の登録からだけ書く
     refs:
       - {kind: guide-slide, id: p04-immutable-identifiers}
       - {kind: guide-slide, id: p04-split-by-writer}
@@ -917,13 +917,12 @@ claims:
     recompute_trigger: [reissue]
     on_revoke: 代理店の登録を止めると、shirogane-as は次の AGENCY_AT を出さず、TTS は次の発行から拒む（登録のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒
     carried_in: [AGENCY_AT, TXN_TOKEN]
-    consumers: [tts, claim-svc, document-svc]
+    consumers: [tts, claim-svc]
     on_missing: 既定値
-    absent_semantics: {absent: 代理店の請求ではない（契約者・社員・夜間の処理のトークン）。AGENCY_AT と、agst_ の sub の Txn-Token に無ければ、TTS・claim-svc・document-svc は拒否する}
+    absent_semantics: {absent: 代理店の請求ではない（契約者・社員・夜間の処理のトークン）。AGENCY_AT と、agst_ の sub の Txn-Token に無ければ、TTS・claim-svc は拒否する}
     enforced_at:
       - {service: tts, check: AGENCY_AT の agency_code が、client_id で引いた代理店の登録の代理店コードと一致し、登録が有効なこと。AGENCY_AT に agency_code が無い・一致しないときは発行しない, against: [iss, data_layer]}
       - {service: claim-svc, check: 証券の取扱代理店（契約管理の仕組みの値）が agency_code と一致する証券の請求だけを受ける。sub が agst_ なのに agency_code が無ければ拒否, against: [iss, data_layer]}
-      - {service: document-svc, check: 書類を付ける請求が、claim-svc の記録で同じ agency_code の請求であること, against: [iss, data_layer]}
     max_bytes: 8
     overflow_strategy: 発行を失敗させる
     pii_category: 該当なし
@@ -953,7 +952,7 @@ claims:
     decision: 却下
     rejection_kind: 代替あり
     alt: [C-scope]
-    rationale: 社員の役割を STAFF_AT に載せると、役割を外してから AT の寿命（600 秒）と Txn-Token の寿命の分だけ古い役割が残り、要求 REQ-03（600 秒）を超える。TTS が発行のたびに社員の台帳から役割を引き、scope に替える
+    rationale: 社員の役割を EMPLOYEE_AT に載せると、役割を外してから AT の寿命（600 秒）と Txn-Token の寿命の分だけ古い役割が残り、要求 REQ-03（600 秒）を超える。TTS が発行のたびに社員の台帳から役割を引き、scope に替える
     refs:
       - {kind: spec, id: "RFC 7643 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7643#section-4.1.2"}
       - {kind: guide-slide, id: p05-scope-vs-role}

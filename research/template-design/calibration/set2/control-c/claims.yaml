@@ -107,12 +107,12 @@ claims:
   on_missing: 拒否
   enforced_at:
     - {service: repair-console, check: ID トークンの sub を BFF のセッションに結ぶ。ログアウトトークンの sub と sid でセッションを探す, against: [format]}
-    - {service: agent-sts, check: 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で担当者が在籍し、修繕依頼の台帳で修繕依頼の担当が sub であることを確かめる, against: [data_layer]}
+    - {service: agent-sts, check: 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で承認者になりうる上長であること（承認者の条件そのものは approval-svc が確かめる）, against: [data_layer]}
     - {service: order-tool, check: 確定（orders:place）のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる。下書きは監査ログに残すだけ, against: [data_layer]}
     - {service: contact-tool, check: 監査ログに残す。連絡の相手は repair_id の修繕依頼の入居者に限る（C-repair-id）, against: [format]}
     - {service: payment-tool, check: 支払いの依頼のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
     - {service: lock-tool, check: 解錠コードの発行のたびに aoba-pdp に sub を渡し、在籍・鍵の取り扱いのロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
-    - {service: approval-svc, check: aoba-pdp で承認者の在籍とロールを引き、承認の種類ごとの承認者の条件（上長は修繕依頼の担当でない、解錠は担当者本人）と照合する, against: [data_layer]}
+    - {service: approval-svc, check: aoba-pdp で承認者の在籍とロールを引き、承認の種類ごとの承認者の条件と照合する。発注の承認は、承認者の sub が承認の記録の担当者（依頼したときの sub）と違い、修繕依頼の台帳の担当の履歴（今と過去の担当）にも無いこと。解錠の承認は、承認者の sub が承認の記録の担当者で、今も修繕依頼の担当であること, against: [data_layer, other_claim], with: C-approval-ref}
   max_bytes: 36
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 個人情報
@@ -120,7 +120,7 @@ claims:
   confidential_from: []
   integrity_until:
     - {place: log, target: agent-sts・ツール 4 つ・approval-svc・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ。design.md の付録 D の M_privacy_minimization の 8.）}
-    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読む）, trust_boundary: 発注の台帳（予約の記録を書けるのは order-tool の DB アカウントだけ）}
+    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読む）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
   log_policy: ハッシュ化して記録
   status: active
   owner: 認証基盤チーム
@@ -474,7 +474,7 @@ claims:
   volatility: never
   recompute_trigger: [exchange]
   propagation_delay: 0
-  on_revoke: エージェントのクライアントの登録を外すと、次の交換から拒否される（手元のツールのトークンは最悪 330 秒）
+  on_revoke: エージェントのクライアントの登録を外すと、次の交換から拒否される（手元のツールのトークンは最悪 330 秒）。そのエージェントがした予約は、order-scheduler が実行の時点で同じクライアントの登録の表を引き、予約の記録の行為者が外れていれば実行しない（H13）
   carried_in: [REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT]
   consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool]
   on_missing: 拒否
@@ -766,7 +766,7 @@ claims:
   revisit_trigger: 複数の修繕依頼をまとめて扱うエージェントを作るとき
   issuers: ["https://sts.aoba-sumai.example"]
   authoritative_writer:
-    - {stage: ③, writer: agent-sts（修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では承認の記録の値）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない）, configurable_by: [platform]}
   issue_events: [I06]
   source_system: 修繕依頼の台帳（管理業務システム）。APPROVAL_AT では approval-svc の承認の記録
   verification_method: agent-sts が修繕依頼の台帳の API で、修繕依頼の担当が sub で、エージェントへの委任の欄が「有効」であることを確かめる
@@ -778,12 +778,12 @@ claims:
   consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc, aoba-pdp]
   on_missing: 拒否
   enforced_at:
-    - {service: agent-sts, check: 修繕依頼の台帳で、修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写す（要求で変えさせない）, against: [data_layer]}
+    - {service: agent-sts, check: 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で承認者になりうる上長か, against: [data_layer]}
     - {service: order-tool, check: 下書き・確定の対象の発注の修繕依頼が repair_id と一致。違えば 404, against: [data_layer]}
     - {service: contact-tool, check: 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（電話番号・宛先を要求で受けない）, against: [data_layer]}
     - {service: payment-tool, check: 支払いの対象の発注の修繕依頼が repair_id と一致, against: [data_layer]}
     - {service: lock-tool, check: 修繕依頼の部屋が authorization_details の unit_id と一致, against: [data_layer, other_claim], with: C-authorization-details}
-    - {service: approval-svc, check: 承認の記録の repair_id と一致。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
+    - {service: approval-svc, check: APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
     - {service: aoba-pdp, check: 予約の実行の問い合わせ（H13）で、修繕依頼の台帳の修繕依頼の担当が、渡された担当者（sub）であることを確かめる。呼び出し元は証明書の許可リストの order-scheduler だけ, against: [data_layer]}
   max_bytes: 11
   overflow_strategy: 上限で固定（超えない値域）
@@ -792,7 +792,7 @@ claims:
   confidential_from: []
   integrity_until:
     - {place: log, target: agent-sts・ツール 4 つ・approval-svc・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ。C-sub と同じ鍵）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ）}
-    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読んで aoba-pdp・approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を書けるのは order-tool の DB アカウントだけ）}
+    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読んで aoba-pdp・approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
   log_policy: ハッシュ化して記録
   status: active
   owner: 管理部の修繕課のシステム担当
@@ -803,7 +803,9 @@ claims:
     not_used_because: Txn-Token を使わない（目録の TXN_TOKEN は却下）。修繕依頼はツールの呼び出しを何回も、日をまたいでまたぐので、txn の意味と違う
   note: >-
     修繕依頼の台帳と突き合わせると入居者が分かるので個人情報として扱う。監査ログには C-sub と同じ鍵つきのハッシュで残し、監査の担当が修繕依頼の台帳の
-    ID から同じ値を作って、全サービスのログを 1 本に結ぶ（ハッシュの前に大文字にそろえる。value_normalization）
+    ID から同じ値を作って、全サービスのログを 1 本に結ぶ（ハッシュの前に大文字にそろえる。value_normalization）。
+    consumers の aoba-pdp だけは、トークンでなく予約の記録の写し（H13 で order-scheduler が渡す値）で受ける呼ばれる側で、トークンの検証部品を使わない。
+    トークンから読む受け手は、agent-sts・ツール 4 つ・approval-svc の 6 つ
 - id: C-approval-ref
   name: approval_ref
   namespace: "https://aoba-sumai.example/claims/"
@@ -849,7 +851,7 @@ claims:
   data_category: [system.operations]
   confidential_from: []
   integrity_until:
-    - {place: other, target: 発注の台帳の予約の記録（order-scheduler が読んで approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を書けるのは order-tool の DB アカウントだけ）}
+    - {place: other, target: 発注の台帳の予約の記録（order-scheduler が読んで approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
   log_policy: 記録する
   status: active
   owner: 管理部の修繕課のシステム担当
@@ -1135,7 +1137,7 @@ claims:
   refs:
     - {kind: guide-slide, id: p09-jws-is-readable}
     - {kind: guide-slide, id: p09-do-not-carry}
-  assumption: lock-svc は、作ったコードを lock-tool に返し、lock-tool は保存しない
+  assumption: lock-svc は、承認 ID ごとにコードを 1 つだけ作り、not_after まで暗号化して持ち、同じ承認 ID の再要求には同じコードを返す。lock-tool はコードを保存しない
   revisit_trigger: 作業員がアプリで解錠する方式（コードを使わない）に替えるとき
 - id: C-order-limit
   name: order_limit

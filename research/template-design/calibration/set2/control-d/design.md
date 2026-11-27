@@ -26,7 +26,7 @@
 | REQ-07 | 請求の受付（ポータル・代理店の口）の可用性は月 99.9%（6.1） | 3.1 の重点、付録 A |
 | REQ-08 | 傷病・事故の内容（要配慮個人情報）はトークンに載せず、割り当てた査定担当者だけが書類を読む（7.1） | `C-injury`（却下）、H19、付録 D の M_privacy_minimization |
 | REQ-09 | 支払いの 1 件ごとに、誰の請求で、誰が査定し、誰が承認し、何が実行したかを 1 本の記録でたどれる（7.2） | `C-txn`・`C-tctx` の claim_id・payment_id、付録 D の M_privacy_minimization の 7. |
-| REQ-10 | トークンの署名の鍵が漏れたら、15 分（900 秒）以内にその鍵の署名を受け入れない（7.3） | 目録の `jwks_cache_ttl`・`unknown_kid`、付録 D の M_token_validation の 8. |
+| REQ-10 | トークンの署名の鍵が漏れたら、15 分（900 秒）以内にその鍵の署名を受け入れない（7.3。起点は漏れに気づいた時点と読んだ。3.1） | 目録の `jwks_cache_ttl`・`unknown_kid`、付録 D の M_token_validation の 8. |
 | REQ-11 | 電話の代理受付は、自動音声（IVR）で本人確認した通話の間（本人確認から 30 分。1800 秒）だけ（4.4） | TXN_PROXY、H14・H15、3.1 の見送り |
 | REQ-12 | ログに個人情報を平文で残さない（7.2） | 台帳の `log_policy`、付録 D の M_privacy_minimization の 7. |
 
@@ -36,7 +36,7 @@
 項目 ID：`template:00_core#ci-results`
 
 <!-- render:ci-result:begin -->
-`python tools/claim_lint designs/target --also-scan designs/target/design.md`（profile full）：**error 0、warn 8、info 15**（claims 26・token_types 26・catalog_events 64）。OK
+`python tools/claim_lint designs/target --also-scan designs/target/design.md`（profile full）：**error 0、warn 9、info 15**（claims 26・token_types 26・catalog_events 64）。OK
 
 | 規則 | 重大度 | 対象 | 内容 |
 | --- | --- | --- | --- |
@@ -47,11 +47,11 @@
 | `R6` | info | `pairwise` | 2 因子の組 52 個をすべて検討した（主体 3・発行イベント 9） |
 | `R8` | info | `PH_AT` | 最悪 1003 バイト（ヘッダーの行で 1025）／上限 8192（nginx-large-client-header-buffers）= 13% |
 | `R8` | info | `AGENCY_AT` | 最悪 1190 バイト（ヘッダーの行で 1212）／上限 8192（nginx-large-client-header-buffers）= 15% |
-| `R8` | info | `STAFF_AT` | 最悪 1088 バイト（ヘッダーの行で 1110）／上限 8192（nginx-large-client-header-buffers）= 14% |
+| `R8` | info | `EMPLOYEE_AT` | 最悪 1088 バイト（ヘッダーの行で 1110）／上限 8192（nginx-large-client-header-buffers）= 14% |
 | `R8` | info | `TXN_TOKEN` | 最悪 1520 バイト（ヘッダーの行で 3568）／上限 16384（nodejs-max-http-header-size）= 22% |
 | `R8` | info | `TXN_STAFF` | 最悪 1514 バイト（ヘッダーの行で 3562）／上限 16384（nodejs-max-http-header-size）= 22% |
 | `R8` | info | `TXN_PROXY` | 最悪 1598 バイト（ヘッダーの行で 3646）／上限 16384（nodejs-max-http-header-size）= 22% |
-| `R8` | info | `C-scope` | PH_AT・AGENCY_AT・STAFF_AT・TXN_TOKEN・TXN_STAFF・TXN_PROXY・PAY_MSG_CTX の両方に載る（重複の候補） |
+| `R8` | info | `C-scope` | PH_AT・AGENCY_AT・EMPLOYEE_AT・TXN_TOKEN・TXN_STAFF・TXN_PROXY・PAY_MSG_CTX の両方に載る（重複の候補） |
 | `R8` | info | `C-agency-code` | AGENCY_AT・TXN_TOKEN の両方に載る（重複の候補） |
 | `L1b` | warn | `C-req-wl` | 未登録の名前 req_wl は草案（draft-ietf-oauth-transaction-tokens-11 §9.2）が定める名前（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
 | `L1b` | warn | `C-tctx` | 未登録の名前 tctx は草案（draft-ietf-oauth-transaction-tokens-11 §9.2.3）が定める名前（tools/claim_lint/draft_claims.yaml）。登録の前なので、草案の版（spec_version）と、登録・改名されたときの見直しの条件を確かめる |
@@ -60,6 +60,7 @@
 | `L16` | warn | `hop H7` | aud の shirogane-sonpo.internal が上流（H6）に無い（下流ほど絞る。広げない。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6） |
 | `L16` | warn | `hop H15` | aud の shirogane-sonpo.internal が上流（H14）に無い（下流ほど絞る。広げない。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6） |
 | `L16` | warn | `hop H17` | aud の shirogane-sonpo.internal が上流（H14）に無い（下流ほど絞る。広げない。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6） |
+| `L16` | warn | `hop H30` | 寿命 3600 秒が上流（H29）の 300 秒を超える（下流ほど絞る。組織の規則、author-proposal。寿命の例外は Txn-Token の作り直しだけで、理由は 10 字以上） |
 | `L16` | warn | `hop H23` | aud の shirogane-sonpo.internal が上流（H14）に無い（下流ほど絞る。広げない。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6） |
 | `L16` | warn | `hop H26` | aud の shirogane-sonpo.internal が上流（H14）に無い（下流ほど絞る。広げない。Txn-Token の scope は同じか狭い：draft-ietf-oauth-transaction-tokens-11 §13.6） |
 | `L17` | info | `PH_ID_TOKEN・AGENCY_ASSERTION・STAFF_ID_TOKEN` | 種類の違うトークン種別が同じ typ（jwt）を使うが、ペイロードの値と aud で区別する（kind_discriminator。RFC 8725 §3.12 の「必須クレームの値を変える」「aud を変える」）。typ は IdP が決め、設計では選べない。aud の列は自由記述なので、文字列が違っても同じ宛先を指していないかは、レビューで確かめる |
@@ -68,7 +69,7 @@ R8 PH_AT：ヘッダー 75・ペイロード 611・署名 64 バイト（ceil(4/
 
 R8 AGENCY_AT：ヘッダー 75・ペイロード 751・署名 64 バイト（ceil(4/3*75) + ceil(4/3*751) + ceil(4/3*64) + 2 = 100 + 1002 + 86 + 2 = 1190; + 7 (Bearer) = 1197）。nginx-large-client-header-buffers 1212／8192 バイト
 
-R8 STAFF_AT：ヘッダー 75・ペイロード 675・署名 64 バイト（ceil(4/3*75) + ceil(4/3*675) + ceil(4/3*64) + 2 = 100 + 900 + 86 + 2 = 1088; + 7 (Bearer) = 1095）。nginx-large-client-header-buffers 1110／8192 バイト
+R8 EMPLOYEE_AT：ヘッダー 75・ペイロード 675・署名 64 バイト（ceil(4/3*75) + ceil(4/3*675) + ceil(4/3*64) + 2 = 100 + 900 + 86 + 2 = 1088; + 7 (Bearer) = 1095）。nginx-large-client-header-buffers 1110／8192 バイト
 
 R8 TXN_TOKEN：ヘッダー 81・ペイロード 993・署名 64 バイト（ceil(4/3*81) + ceil(4/3*993) + ceil(4/3*64) + 2 = 108 + 1324 + 86 + 2 = 1520）。nodejs-max-http-header-size 3568／16384 バイト
 
@@ -82,6 +83,7 @@ warn の行ごとの理由（`templates/CONTRIBUTING.md` の 2.）：
 | 規則・対象 | 残す理由 |
 | --- | --- |
 | `L1b`・`C-req-wl`・`C-tctx` | Transaction Tokens の草案（-11）が定める名前で、組織の名前空間に移せない。`spec_version` と見直しの条件（草案の版が変わったとき）を書いた |
+| `L16`・`H30` | PAY_MSG_CTX（kind は jwt）の寿命 3600 秒が、上流の TXN_STAFF の 300 秒を超える。ブローカーで最大 3600 秒待つため（REQ-06）で、PAY_MSG_CTX は TTS への作り直しの要求にしか使えず、TTS が作り直しのときに社員の在籍・役割と請求の保留を引き直す（H22）。理由は H30 の `narrowing_exception` と 5.1 に書いた（Txn-Token でない種別の例外は、規則が info に下げない） |
 | `L16`・`H4`・`H7`・`H15`・`H17`・`H23`・`H26` | TTS が外の AT から Txn-Token を作るホップ。Txn-Token の aud は信頼ドメイン（shirogane-sonpo.internal。草案 §9.2）で、外の AT の aud（口の識別子）と名前が違う。`aud_mapping` は行き先のサービスの名前の aud しか対応づけられないので、対応を台帳に書けない。宛先の絞り込みは、TTS が「AT の aud が front-gw の書いた口と一致すること」を確かめ（`C-aud` の tts の行）、内側の受け手が aud を信頼ドメインだけにすること（`C-aud`）で行う。scope と寿命は L16 が上流と比べ、6 つのホップのどれも上流を超えない（8.） |
 
 <a id="scope-boundary"></a>
@@ -134,14 +136,14 @@ flowchart LR
   E -->|STAFF_SESSION| SC
   E -->|SSO_SESSION| SSO
   SAS -->|PH_AT・PH_ID_TOKEN・PH_RT| CP
-  SSO -->|STAFF_AT・STAFF_ID_TOKEN| SC
+  SSO -->|EMPLOYEE_AT・STAFF_ID_TOKEN| SC
   AIDP -->|AGENCY_ASSERTION| AS
   AS -->|AGENCY_ASSERTION（mTLS）| SAS
   SAS -->|AGENCY_AT| AS
   CP -->|PH_AT| GW
   AS -->|AGENCY_AT（mTLS）| GW
-  SC -->|STAFF_AT| GW
-  GW -->|PH_AT・AGENCY_AT・STAFF_AT（subject_token）| TTS
+  SC -->|EMPLOYEE_AT| GW
+  GW -->|PH_AT・AGENCY_AT・EMPLOYEE_AT（subject_token）| TTS
   GW -->|TXN_TOKEN・TXN_PROXY| CL
   GW -->|TXN_STAFF| ASM
   GW -->|TXN_STAFF（承認）| PAY
@@ -165,6 +167,12 @@ flowchart LR
   POL -->|振込先を読む| PAY
   POL -->|通知の宛先を読む| NT
   GW -->|アクセスのログ（txn・接続の IP）| FR
+  ASM -->|TXN_STAFF（PAY_MSG_CTX の要求）| TTS
+  PW -->|PAY_MSG_CTX（作り直しの要求）| TTS
+  PB -->|自分の ID での要求| TTS
+  TTS -->|保留の参照（トークンなし・mTLS）| CL
+  TTS -->|契約者の状態・代理店の登録の参照（mTLS）| SAS
+  HR -->|承認の上限額を読む| PAY
 ```
 
 記入欄：
@@ -178,6 +186,17 @@ flowchart LR
 | しろがねの網 | P5 | claim-portal・staff-console・front-gw・TTS・6 つのサービス・payment-worker・payment-batch・ブローカー | 外の AT は front-gw と TTS で止まり、内側は `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` だけ | すべての部品は SPIFFE の X.509-SVID を持ち、メッシュの mTLS でだけ話す。網の外から届く入口は front-gw の代理店の口と、claim-portal・staff-console の画面だけ。front-gw の契約者の口と社員の口は、claim-portal・staff-console の SVID からしか接続を受けない |
 | 社内の台帳と記録 | —（範囲の外の部品） | 社員の台帳、IVR と通話の記録、契約管理の仕組み | トークンは届かない。TTS・claim-svc・payment-svc・shirogane-sso が読む | 社員の台帳を書くのは人事部の人事の仕組みだけ（入力と承認の手続きは人事の規程）。通話の記録を書くのは IVR だけで、社員は書けない。契約管理の仕組みの証券・取扱代理店・振込先は、契約部の手続きで書く。どれも読み取りの API を mTLS で出す |
 
+トークンを運ばない内部の呼び出し（図の矢印。どれも呼び出し元の X.509-SVID の mTLS で認証し、受け手は呼び出し元の SPIFFE ID を一覧と照らし、読み取りだけを許す）：
+
+| 呼び出し | 使う資格情報 | 受け手が確かめること | 止まったとき |
+| --- | --- | --- | --- |
+| TTS → claim-svc（請求の保留の参照。H22 の作り直しのとき） | TTS の SVID の mTLS だけ（Txn-Token を付けない） | claim-svc は、TTS の SPIFFE ID からは保留の参照の API（claim_id を 1 つ受け、保留の有無だけを返す）だけを受ける | TTS は作り直さない（指示は再配送でやり直す。期限を過ぎれば滞留のキュー） |
+| TTS → shirogane-as（契約者の状態・代理店の登録・代理店の担当者の表の参照） | TTS の SVID の mTLS | shirogane-as の状態の参照の API は TTS の SPIFFE ID だけを受ける（読み取りだけ） | 60 秒のキャッシュの後は発行しない（3.1） |
+| TTS → 社員の台帳・IVR の通話の記録 | TTS の SVID の mTLS | 人事の仕組み・IVR の読み取りの API は、許可した SPIFFE ID（TTS・shirogane-sso・payment-svc）だけを受ける | 社員の口だけが止まる |
+| payment-svc → 社員の台帳（承認の上限額） | payment-svc の SVID の mTLS | 同上 | 承認を受けない（拒む） |
+| claim-svc・payment-svc・notification-svc → 契約管理の仕組み | 各サービスの SVID の mTLS | 契約管理の仕組みの読み取りの API は、許可した SPIFFE ID だけを受ける | claim-svc は請求を受けない（3.1 の可用性）、payment-svc は指示・実行を受けない、notification-svc は送らずに再送する |
+| front-gw → fraud-svc（アクセスのログ） | ログの基盤の書き出し（mTLS） | fraud-svc はログの基盤からだけ読む | 判定が IP の特徴を使わずに続く |
+
 範囲の外にしたもの：銀行への振込のファイル（payment-batch が作り、銀行との専用の回線で送る）は、この設計の範囲の外です（トークンを使わない）。書類は契約者と代理店が電子で付け、郵送の書類は扱いません（要求の 3.1）。
 
 <a id="principals"></a>
@@ -189,7 +208,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | 契約者 | 利用者 | `C-sub`（ph_ の ID） | — | 要求の「契約者」は、証券の契約者で、shirogane-as のアカウントを登録した人。被保険者・受取人が契約者と別の人のときは、契約者のアカウントで請求する（受取人は振込先として契約管理の仕組みに載る）。アカウントを止めた人は入らない |
 | 代理店の担当者 | 利用者（別の会社の人） | `C-sub`（agst_ の ID）、`C-agency-code` | 別の aud（代理店の口）の `AGENCY_AT`。Txn-Token では sub の形（agst_）と agency_code | 要求の「代理店」は、代理店の登録が有効な代理店だけ。担当者は、その代理店の IdP が認証した人。代理店の担当者は、代理店の委託の契約に基づく代理店自身の権限で請求を出す（契約者から 1 件ごとに委任を受けるのではない）ので act を使わない。どの証券の請求を出せるかは、証券の取扱代理店で決まる |
-| 社員 | 利用者（役割が違う） | `C-sub`（stf_ の ID）、`C-acr`・`C-auth-time` | 別の aud（社員の口）の `STAFF_AT`。Txn-Token では `TXN_STAFF`（acr・auth_time あり） | 要求の「査定担当者」「上長」「コールセンター」「代理店管理部」「お客さま窓口の上長」は、社員の台帳の役割の ID で決まる。委託先の作業者は社員の台帳に載せない（入らない）。役割は TTS が台帳から引き、トークンに載せない |
+| 社員 | 利用者（役割が違う） | `C-sub`（stf_ の ID）、`C-acr`・`C-auth-time` | 別の aud（社員の口）の `EMPLOYEE_AT`。Txn-Token では `TXN_STAFF`（acr・auth_time あり） | 要求の「査定担当者」「上長」「コールセンター」「代理店管理部」「お客さま窓口の上長」は、社員の台帳の役割の ID で決まる。委託先の作業者は社員の台帳に載せない（入らない）。役割は TTS が台帳から引き、トークンに載せない |
 | 電話の代理受付の社員 | 利用者（代理） | `TXN_PROXY` の `C-act` | act のある `TXN_PROXY`。claim-svc・fraud-svc だけが受ける | 要求の「代理受付」は、IVR で本人確認した通話の担当の社員だけ（REQ-11）。本人確認の無い電話・30 分を過ぎた通話では入らない |
 | しろがねのサービス | ワークロード | mTLS の SPIFFE ID（q-peer）、`C-req-wl` | トークンのクレームでは表さず、通信の層で確かめる | — |
 | 代理店のサーバー | ワークロード（別の会社のサーバー） | `C-client-id`、`C-cnf` | 証明書の mTLS と cnf | 代理店の登録の client_id と証明書のサブジェクトの組だけ |
@@ -217,11 +236,11 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | クライアント認証 | 既定の組み合わせに定めなし（秘密の共有が多い） | tls_client_auth（claim-portal・staff-console は SVID、代理店は代理店向けの CA の証明書） | `issuance_profile.client_auth`、`CLIENT_ASSERTION`（却下） | トークンの端点の前で TLS を終端するとき |
 | grant | 認可コード＋PKCE と refresh | JWT の assertion（RFC 7523。代理店）と、TTS のトークン交換の形の要求を足す | `issuance_profile.grants` | 代理店の連携の形が変わったとき |
-| 送信者制約 | none | 代理店の AT だけ mTLS（RFC 8705）。PH_AT・STAFF_AT は none（見送りの理由を 3.1 に書く） | `issuance_profile.sender_constraint`、`AGENCY_AT`・`PH_AT`・`STAFF_AT` の `sender_constraint` | 3.1 の見直しの条件 |
+| 送信者制約 | none | 代理店の AT だけ mTLS（RFC 8705）。PH_AT・EMPLOYEE_AT は none（見送りの理由を 3.1 に書く） | `issuance_profile.sender_constraint`、`AGENCY_AT`・`PH_AT`・`EMPLOYEE_AT` の `sender_constraint` | 3.1 の見直しの条件 |
 | 要求の保護 | 定めなし | PAR（RFC 9126）と resource（RFC 8707） | `issuance_profile.request_protection` | — |
-| AT の寿命 | 製品の既定 | PH_AT・STAFF_AT は 600 秒、AGENCY_AT は 300 秒（REQ-02 から） | 目録の `max_lifetime` | REQ-01〜03 の数値が変わったとき |
+| AT の寿命 | 製品の既定 | PH_AT・EMPLOYEE_AT は 600 秒、AGENCY_AT は 300 秒（REQ-02 から） | 目録の `max_lifetime` | REQ-01〜03 の数値が変わったとき |
 | 入口の内側のトークン | 内部トークン（phantom） | Txn-Token（草案 -11）。組織独自の内部トークンは作らない | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`、`INTERNAL_TOKEN`（却下） | 草案の版が変わったとき |
-| Txn-Token の認証の情報 | 草案に定めなし | TXN_STAFF に acr・auth_time を載せる（TTS が STAFF_AT から写す） | `C-acr`・`C-auth-time` の note、`TXN_STAFF` | 草案が置き場所を定めたとき |
+| Txn-Token の認証の情報 | 草案に定めなし | TXN_STAFF に acr・auth_time を載せる（TTS が EMPLOYEE_AT から写す） | `C-acr`・`C-auth-time` の note、`TXN_STAFF` | 草案が置き場所を定めたとき |
 | rctx | 草案は RECOMMENDED | 載せない（読む受け手が無い） | `C-rctx`（却下） | 要求元の IP で判断する要求が出たとき |
 | IdP モジュールの既定の回答 | M_idp_keycloak の既定 | しろがねの発行者は自分で作る発行者（`kind: self_built`）なので、64 件すべてを手で答え、契機の一覧を書いた | `catalog_answers.yaml` の `idp` | 発行者を製品に替えるとき |
 | ケーススタディの判定 | — | 記入例ではないので照合しない | — | — |
@@ -234,17 +253,21 @@ flowchart LR
 | 区分（重点・見送り） | 項目 | 効果と費用（未検証の点を含む） | 見直しの条件 | 台帳の行の ID |
 | --- | --- | --- | --- | --- |
 | 重点 | 内側は Txn-Token だけ。専用の Txn-Token ヘッダーで受け取ったまま渡し、tctx を使う受け手のすべてが要求の本文と照合する | 外の AT を内側に入れない。途中のサービスが本文を書き換えても、入口で決めた値から外れた処理をしない。受け手ごとに照合する項目を台帳に書く費用（付録 D の P5 の 2. の表） | 草案の版が変わったとき | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`、`C-tctx`、H4〜H26 |
-| 重点 | TTS が発行のたびに、契約者の状態・代理店の登録・社員の台帳・通話の記録を引く | 止める単位ごとに、止めてから効くまでが要求に収まる（9.1 の表。最悪 390 秒・660 秒）。TTS が台帳を毎回引く費用（キャッシュ 60 秒。通話の記録はキャッシュしない） | 台帳の問い合わせが TTS の遅れの主因になったとき | `C-sub`・`C-scope`・`C-agency-code`、目録の `revocation` |
+| 重点 | TTS が発行のたびに、契約者の状態・代理店の登録・社員の台帳・通話の記録を引く | 止める単位ごとに、止めてから効くまでが要求に収まる（9.1 の表。最悪 390 秒・750 秒）。TTS が台帳を毎回引く費用（キャッシュ 60 秒。通話の記録はキャッシュしない） | 台帳の問い合わせが TTS の遅れの主因になったとき | `C-sub`・`C-scope`・`C-agency-code`、目録の `revocation` |
 | 重点 | 追加の認証（ハードウェアの鍵・300 秒）は、操作を受ける payment-svc と as-admin-api が TXN_STAFF の acr・auth_time で確かめる | staff-console の画面を通らない呼び出しでも同じ条件になる。承認の記録を書けるのは payment-svc の承認の API だけで、その API が確かめる（付録 B） | 承認の経路を足すとき | `C-acr`・`C-auth-time`、H23・H26 |
 | 重点 | 代理店の AT を代理店のサーバーの証明書に束縛し（RFC 8705）、代理店コードは代理店の申告でなく代理店の登録から書く | 網の外にある AT を盗まれても使えない。代理店の IdP の管理者は担当者を作れるが、代理店コード（どの証券を扱えるか）は変えられない | 代理店が証明書を扱えないと分かったとき | `AGENCY_AT`、`C-cnf`、`C-agency-code`、H5・H6 |
 | 重点 | 傷病・事故の内容をトークンに載せず、書類は assessment-svc から document-svc への経路でだけ読む | 要配慮個人情報が届く先を document-svc と、割り当てた査定担当者の画面に限る（REQ-08） | 傷病の区分で自動の査定をする要求が出たとき | `C-injury`（却下）、H19 |
 | 重点 | TTS・状態の参照・JWKS が応えないときは拒む（縮退の運転を持たない） | 確かめていない値を内側に流さない。請求の受付の経路の部品の目標は front-gw 99.99%・TTS 99.99%（3 つの可用性ゾーン）・shirogane-as（状態の参照の API と JWKS）99.99%・契約管理の仕組みの読み取りの API 99.99%・claim-svc 99.95% で、積は 99.91%（REQ-07 の 99.9% に収まる。目標の値で、測っていない）。fraud-svc と書類の登録（document-svc）は受付の経路に入れない（請求を先に受け付け、判定は後から、書類は後から付けられる。H8 の note）。社員の台帳・通話の記録が止まると社員の口だけが止まる | 月の可用性が 99.9% を下回ったとき（付録 A） | H3・H6 の note、目録の `unknown_kid` |
 | 重点 | 非同期の経路では Txn-Token を持ち越さず、PAY_MSG_CTX から作り直すときに TTS が社員の状態・役割と請求の保留を引き直す。実行の時点で payment-svc が承認の記録と保留を引く | 60 分待つ間に役割を外した社員の指示や、取り消した承認での実行を通さない（REQ-03・REQ-04） | ブローカーで待つ上限が変わったとき | `PAY_MSG_CTX`、H20〜H25 |
-| 見送り | PH_AT・STAFF_AT の送信者制約（DPoP・mTLS） | 盗まれた PH_AT・STAFF_AT は、front-gw の契約者の口・社員の口に、claim-portal・staff-console の SVID で接続できる者だけが使える（2 つの口はほかの接続を受けない）。束縛すると、SVID が 1 時間ごとに替わるたびに直前の AT が使えなくなる。確かめ方：front-gw の口の設定の試験（ほかの SVID・網の外からの接続を拒むこと）を CI で毎回走らせる | スマートフォンのアプリなど網の外のクライアントを足すとき。claim-portal・staff-console のサーバーが破られたとき | `PH_AT`・`STAFF_AT` の `sender_constraint`、`issuance_profile.sender_constraint`、`DPOP_PROOF`（却下） |
-| 見送り | Back-Channel Logout・SSF/CAEP（代理店の側の担当者の停止を即時に知る手段） | 代理店の IdP で担当者を止めても、しろがねは知らない。次の assertion が出ないことで止まり、AGENCY_AT（330 秒）と Txn-Token（330 秒）で最悪 660 秒（REQ-02 の 900 秒に収まる）。契約者・社員の停止は、TTS の毎回の確認で届く。確かめ方：ステージングで代理店の担当者を止め、660 秒以内に代理店の口の請求が 403 になることを測る | 代理店から、担当者の停止を即時に効かせる要求が出たとき | `LOGOUT_TOKEN`・`SECURITY_EVENT_TOKEN`（却下）、`AGENCY_AT` |
-| 見送り | 電話の代理受付を 1 件の操作ごとの本人確認にしない（通話の間の時間枠。本人確認から 1800 秒） | 1 回の電話で請求と照会を続けて受けるので、操作のたびに IVR の本人確認をさせると契約者の負担が大きい（REQ-11 は通話の間を許す）。代わりの守り：scope は claims:submit・claims:read だけ、act のあるトークンを受けるのは claim-svc・fraud-svc だけ、通話の記録の担当の社員と STAFF_AT の sub が一致するときだけ出す、記録を毎回引く。確かめ方：TTS の試験で、1801 秒を過ぎた記録・別の社員・本人確認の失敗の記録で出さないことを確かめる | 代理受付を支払い・書類に広げるとき | `TXN_PROXY`、`C-act`、`C-tctx` の call_id、H14・H15 |
-| 見送り | 高額の支払いの承認をトークンの authorization_details に載せない（承認は payment-svc の承認の記録） | 承認を確かめるのは payment-svc だけで、トークンで別の受け手に運ぶ必要が無い。承認は payment_id と金額に結びつき、実行の時点で記録を引くので、取り消しが実行の前なら必ず効く（REQ-04）。確かめ方：payment-svc の試験で、取り消した承認・金額の違う承認・指示と同じ社員の承認で実行しないことを確かめる | 承認を payment-svc の外で確かめさせる要求が出たとき | `C-tctx` の payment_id、H22〜H24 |
-| 見送り | document-svc が、査定担当者の割り当てを自分では確かめない（割り当ての確かめは assessment-svc） | 要配慮の書類の閲覧の API は assessment-svc からの mTLS だけを受け、assessment-svc が claim-svc の割り当ての記録で確かめる（H17〜H19）。document-svc から claim-svc への経路を足す費用を避けた。確かめ方：毎日、document-svc の閲覧の記録（sub・claim_id・txn）を claim-svc の割り当てと突き合わせ、割り当ての無い閲覧が 1 件でもあれば調べる（付録 A） | assessment-svc のほかに要配慮の書類を読むサービスを足すとき | H19、`C-sub` の document-svc の行 |
+| 見送り | PH_AT・EMPLOYEE_AT の送信者制約（DPoP・mTLS） | 盗まれた PH_AT・EMPLOYEE_AT は、front-gw の契約者の口・社員の口に、claim-portal・staff-console の SVID で接続できる者だけが使える（2 つの口はほかの接続を受けない）。比べた候補：mTLS で束縛すると、SVID が 1 時間ごとに替わるたびに直前の AT が使えなくなる。DPoP（BFF が持つ替わらない鍵）で束縛すると、鍵は AT と同じ BFF のサーバーに置かれるので、BFF が破られたときは鍵も盗まれて守りにならず、AT だけが漏れる経路（ログ・別の部品）は口の mTLS の相手の制限で既に閉じている。proof の作成と照合の費用に見合う守りが無い。確かめ方：front-gw の口の設定の試験（ほかの SVID・網の外からの接続を拒むこと）を CI で毎回走らせ、AT がログに出ないことをログの走査で確かめる | スマートフォンのアプリなど網の外のクライアントを足すとき。claim-portal・staff-console のほかに口に接続できる部品を足すとき | `PH_AT`・`EMPLOYEE_AT` の `sender_constraint`、`issuance_profile.sender_constraint`、`DPOP_PROOF`（却下） |
+| 見送り | Back-Channel Logout・SSF/CAEP（代理店の側の担当者の停止を即時に知る手段） | 代理店の IdP で担当者を止めても、しろがねは知らない。次の assertion が出ないことで止まり、止める直前に出た assertion（60＋ずれ 30 秒）、AGENCY_AT（330 秒）、Txn-Token（330 秒）で最悪 750 秒（REQ-02 の 900 秒に収まる。assertion の寿命を 60 秒、AT を 300 秒にしたのはこのため）。契約者・社員の停止は、TTS の毎回の確認で届く。確かめ方：ステージングで、担当者を止める直前に assertion を出させてから止め、750 秒以内に代理店の口の請求が 403 になることを測る | 代理店から、担当者の停止を即時に効かせる要求が出たとき | `LOGOUT_TOKEN`・`SECURITY_EVENT_TOKEN`（却下）、`AGENCY_ASSERTION`・`AGENCY_AT` |
+| 見送り | 電話の代理受付を 1 件の操作ごとの本人確認にしない（通話の間の時間枠。本人確認から 1800 秒） | 1 回の電話で請求と照会を続けて受けるので、操作のたびに IVR の本人確認をさせると契約者の負担が大きい（REQ-11 は通話の間を許す）。代わりの守り：scope は claims:submit・claims:read だけ、act のあるトークンを受けるのは claim-svc・fraud-svc だけ、通話の記録の担当の社員と EMPLOYEE_AT の sub が一致するときだけ出す、記録を毎回引く。確かめ方：TTS の試験で、1801 秒を過ぎた記録・別の社員・本人確認の失敗の記録で出さないことを確かめる | 代理受付を支払い・書類に広げるとき | `TXN_PROXY`、`C-act`、`C-tctx` の call_id、H14・H15 |
+| 見送り | 高額の支払いの承認をトークンの authorization_details に載せない（承認は payment-svc の承認の記録） | 承認を確かめるのは payment-svc だけで、トークンで別の受け手に運ぶ必要が無い。承認は payment_id と金額に結びつき、実行の時点で記録を引くので、取り消しが実行の前なら必ず効く（REQ-04）。承認の要否は、請求ごとの集計の行をロックした 1 つの DB の取引で、同じ請求の支払いの合計から決める（H22。並行の指示でも合計が正しく数えられる）。確かめ方：payment-svc の試験で、取り消した承認・金額の違う承認・指示と同じ社員の承認で実行しないこと、同じ請求の 60 万円の指示 2 件を並行に送って 2 件目が承認待ちになること、同じ (txn, claim_id) の 2 件で 1 件だけ記録されることを確かめる | 承認を payment-svc の外で確かめさせる要求が出たとき | `C-tctx` の payment_id、H22〜H24 |
+| 見送り | document-svc が、書類の請求の持ち主・代理店・査定担当者の割り当てを自分では確かめない（確かめは前段の claim-svc と assessment-svc） | 書類の登録の API は claim-svc からの mTLS だけを受け、claim-svc が請求の持ち主（sub）と取扱代理店（agency_code）を自分の記録で確かめてから呼ぶ（H10・H11）。要配慮の書類の閲覧の API は assessment-svc からの mTLS だけを受け、assessment-svc が claim-svc の割り当ての記録で確かめる（H17〜H19）。document-svc から claim-svc への経路は作らない（図にも無い）。document-svc が確かめるのは、呼び出し元・scope・tctx の claim_id とパスの一致だけ。確かめ方：毎日、document-svc の登録・閲覧の記録（sub・claim_id・txn）を claim-svc の持ち主・取扱代理店・割り当てと突き合わせ、合わない記録が 1 件でもあれば調べる（付録 A） | claim-svc・assessment-svc のほかに document-svc を呼ぶサービスを足すとき | H10・H11・H19 |
+| 見送り | REQ-03 の時計の起点を、社員の台帳の更新にする（退職・休職・異動の発効から台帳の更新までの区間は、この設計で約束しない） | 前提（持ち主は人事部）：人事部は退職・休職・異動を発効日の前に人事の仕組みに入力して発効の時刻に台帳を変え、急な退職・懲戒は人事部の当番が発覚から 1 時間以内に入力する（人事の規程の 12 条）。この区間の遅れは要求の持ち主（人事部と情報セキュリティ部）が受け入れる。確かめ方：毎月、発令の時刻と台帳の更新の時刻を突き合わせ、発効より遅れた更新を人事部に返す（付録 A） | 要求の持ち主が、起点を発効の時刻と決めたとき | `C-scope`・`C-sub` の `source_system`、9.1・9.2 |
+| 見送り | REQ-10 の時計の起点を、漏れに気づいた（代理店の鍵は知らされた）時点にする | 漏れてから気づくまでは測れない。前提（持ち主は情報セキュリティ部）：鍵は HSM の中から出ず、HSM の利用の記録を監視して異常を 15 分以内に知らせる。代理店の鍵は代理店連携の仕様で 15 分以内の知らせを求める。気づいてからは、しろがねの鍵 810 秒・代理店の IdP の鍵 690 秒で受けなくなる（9.1）。確かめ方：毎月の訓練で、気づいてから JWKS から外すまで（480 秒以内）と代理店の登録の停止まで（300 秒以内）を測る | 要求の持ち主が、起点を漏れた時点と決めたとき | 目録の `key_rotation`・`jwks_cache_ttl`、付録 D の M_token_validation の 8. |
+| 見送り | 社員の端末・セキュリティキーの紛失に、要求の数値が無い（REQ-03 と同じ 600 秒を目標にする） | 届けを受けてから 330 秒で止まる（9.1）。届けまでの時間は社員の行動で、測れない。前提（持ち主は情報セキュリティ部）：紛失に気づいたらすぐ届ける規程がある。確かめ方：訓練で届けから止まるまでを測る。要求の持ち主の回答は 12. で待つ | 要求の持ち主が数値を決めたとき | `STAFF_SESSION`・`SSO_SESSION` |
+| 見送り | 代理店が、同じ担当者の ID（代理店の IdP の sub）を別の人に付け替えたことを、しろがねは見分けられない | 付け替えられると、別の人が前の人の agst_ の ID を引き継ぎ、請求の記録で 2 人が 1 人に見える（権限は同じ代理店の扱う証券に限られる）。代わりの守り：代理店連携の仕様で sub の付け替えを禁じ、付け替えたときの報告を求める。確かめ方：四半期ごとに、代理店の担当者の表を代理店の担当者の名簿と突き合わせる | 代理店の IdP が付け替えない ID（不変の内部の ID）を出せると分かったとき | `C-sub` の `upstream_issuer`・`identifier_properties` |
 | 見送り | 生成の JSON Schema に tctx の内側の型を入れない | `claim_lint render` は object のクレームを object としてだけ書き出す。内側の型（8 つの項目はすべて文字列、形は `C-tctx` の description）は、TTS の発行の試験と、共通の検証部品の tctx の型の検査で確かめる | render が object の内側を書き出せるようになったとき | `C-tctx` の note、`schemas/` |
 | 見送り | JWE | どのトークンも網の中か、代理店のサーバー（AGENCY_AT。担当者の ID・代理店コードだけ）にしか届かず、氏名・傷病を載せない。証券番号・金額（tctx）は網の中の mTLS の上だけを通る | Txn-Token を網の外の部品に渡すとき | `C-tctx` の note |
 
@@ -276,7 +299,7 @@ flowchart LR
 | クライアントの種類 | 機密（`confidential`） | 契約者の画面（claim-portal）と社員の画面（staff-console）はサーバーで動く BFF で、トークンをブラウザに渡さない。代理店の連携は代理店のサーバーからの呼び出しで、どれも秘密鍵をサーバーに置ける | `slide:p06-grant-types`<br>[RFC 9700 §2.1](https://www.rfc-editor.org/rfc/rfc9700#section-2.1) |
 | クライアント認証 | `tls_client_auth` | どのクライアントも mTLS の証明書でトークンの端点に認証する（RFC 8705 §2.1）。claim-portal・staff-console は網の中の X.509-SVID、代理店のサーバーはしろがねの代理店向けの CA が出した証明書。 共有の秘密を置かず、代理店の AT を同じ証明書に束縛できる（sender_constraint）。秘密の鍵はクライアントのサーバーの外に出ない | [RFC 8705 §2.1](https://www.rfc-editor.org/rfc/rfc8705#section-2.1)<br>`slide:p01-client-made-jwts` |
 | grant | 認可コード＋PKCE（`authorization_code_pkce`）、リフレッシュ（`refresh_token`）、`jwt_bearer`、トークン交換（`token_exchange`） | 契約者と社員は認可コード＋PKCE。claim-portal だけが RT で AT を取り直す。代理店のサーバーは代理店の IdP が署名した assertion で AT を取る（RFC 7523。jwt_bearer）。 TTS は Txn-Token の要求をトークン交換の形で受ける（shirogane-as・shirogane-sso はトークン交換を受けない） | [RFC 7523 §2.1](https://www.rfc-editor.org/rfc/rfc7523#section-2.1)<br>[draft-ietf-oauth-transaction-tokens-11 §11.1](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt) |
-| 送信者制約 | mTLS（`mtls`） | 代理店の AT（AGENCY_AT）は、しろがねの網の外の代理店のサーバーに置かれるので、代理店のサーバーの証明書に束縛する（RFC 8705 §3。cnf の x5t#S256）。 契約者と社員の AT（PH_AT・STAFF_AT）は束縛しない（目録の sender_constraint: none）。この 2 つは claim-portal・staff-console のサーバーの中にだけあり、 front-gw の契約者の口と社員の口は claim-portal・staff-console の X.509-SVID の mTLS からしか接続を受けないので、盗まれた AT を網の外から使えない。 SVID は 1 時間ごとに替わり、束縛すると替わった直後の AT が使えなくなる費用を避けた（見送りの理由と確かめ方は設計書の 3.1） | [RFC 8705 §3](https://www.rfc-editor.org/rfc/rfc8705#section-3)<br>`slide:p12-priorities-deferrals` |
+| 送信者制約 | mTLS（`mtls`） | 代理店の AT（AGENCY_AT）は、しろがねの網の外の代理店のサーバーに置かれるので、代理店のサーバーの証明書に束縛する（RFC 8705 §3。cnf の x5t#S256）。 契約者と社員の AT（PH_AT・EMPLOYEE_AT）は束縛しない（目録の sender_constraint: none）。この 2 つは claim-portal・staff-console のサーバーの中にだけあり、 front-gw の契約者の口と社員の口は claim-portal・staff-console の X.509-SVID の mTLS からしか接続を受けないので、盗まれた AT を網の外から使えない。 SVID は 1 時間ごとに替わり、mTLS で束縛すると替わった直後の AT が使えなくなる。DPoP（BFF が持つ替わらない鍵）で束縛する候補も比べたが、鍵は AT と同じ BFF のサーバーに置くので、BFF が破られたときには両方が盗まれ、 AT だけが漏れる経路（ログなど）は front-gw の口の mTLS の相手の制限で既に閉じている。proof の作成と照合の費用に対して守りが増えないので見送った（見送りの理由と確かめ方は設計書の 3.1） | [RFC 8705 §3](https://www.rfc-editor.org/rfc/rfc8705#section-3)<br>`slide:p12-priorities-deferrals` |
 | TLS の終端 | `at_entry` | 代理店の mTLS は front-gw が終端し、front-gw が証明書の拇印と AGENCY_AT の cnf を照らす。front-gw の内側は網の中の mTLS（SPIFFE）で、代理店の証明書は内側に届かない | [RFC 8705 §3](https://www.rfc-editor.org/rfc/rfc8705#section-3) |
 | 証明書を下流へ渡すヘッダー | `None` | — | — |
 | AT の形式 | JWT（`jwt`） | front-gw と TTS が手元で検証する。外の AT は入口の内側に入らない（内側は Txn-Token）ので、内側の受け手のための不透明な AT は要らない | `slide:p01-self-contained-vs-reference` |
@@ -294,7 +317,7 @@ flowchart LR
 | `E-mtls-entry` | `E-mtls-entry.1` | 証明書を下流へ渡すヘッダー（forwarded_cert_header）で、入口はクライアントから来た同名のヘッダーを捨てる（L8） | 満たす | — | `L64`・`L8` |
 | `E-mtls-entry` | `E-mtls-entry.2` | そのヘッダーを書けるのは入口だけ、という信頼境界を宣言する（L64） | 満たす | — | `L64`・`L8` |
 | `E-token-exchange` | `E-token-exchange.1` | 委任なら act（最も外側が今の代理者）、交換を許す相手を事前に示すなら may_act を台帳に置く | 満たす | `C-act` | `L62`・`L16` |
-| `E-token-exchange` | `E-token-exchange.2` | 交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る） | 満たす | `H22` | `L62`・`L16` |
+| `E-token-exchange` | `E-token-exchange.2` | 交換のホップ（kind は exchange）で、aud・scope・寿命・独自クレームを上流より広げない（下流ほど絞る） | 満たす | `H30`・`H22` | `L62`・`L16` |
 <!-- render:issuance-profile:end -->
 
 TTS が受ける要求（`catalog_answers.yaml` の `idp` の shirogane-tts の `trigger_list` と同じ）：
@@ -303,9 +326,9 @@ TTS が受ける要求（`catalog_answers.yaml` の `idp` の shirogane-tts の 
 | --- | --- | --- | --- |
 | front-gw（契約者の口） | subject_token＝`PH_AT` | `TXN_TOKEN` | AT の検証、契約者の台帳の状態、経路の表の scope（AT の scope の内）、request_details の値の型と上限 |
 | front-gw（代理店の口） | subject_token＝`AGENCY_AT`、証明書の拇印のヘッダー | `TXN_TOKEN`（agency_code つき） | AT の検証、拇印と cnf、代理店の登録（client_id と agency_code）、担当者の表 |
-| front-gw（社員の口） | subject_token＝`STAFF_AT` | `TXN_STAFF` | AT の検証、社員の台帳の在籍と役割、役割から許す scope、acr・auth_time を写す |
-| front-gw（社員の口。代理受付） | subject_token＝`STAFF_AT`、request_details の call_id | `TXN_PROXY` | 社員の台帳でコールセンターの役割、通話の記録（本人確認の成功・1800 秒以内・担当の社員）、記録の契約者の状態 |
-| assessment-svc | subject_token＝`TXN_STAFF`（operation が assessment.confirm） | `PAY_MSG_CTX` | TXN_STAFF の検証（期限内）、operation、tctx の claim_id・policy_number・amount・payee_ref を写す |
+| front-gw（社員の口） | subject_token＝`EMPLOYEE_AT` | `TXN_STAFF` | AT の検証、社員の台帳の在籍と役割、役割から許す scope、acr・auth_time を写す |
+| front-gw（社員の口。代理受付） | subject_token＝`EMPLOYEE_AT`、request_details の call_id | `TXN_PROXY` | 社員の台帳でコールセンターの役割、通話の記録（本人確認の成功・1800 秒以内・担当の社員）、記録の契約者の状態 |
+| assessment-svc（PAY_MSG_CTX を頼めるのはこのワークロードだけ） | subject_token＝`TXN_STAFF`（operation が assessment.confirm） | `PAY_MSG_CTX` | mTLS の相手が assessment-svc であること、TXN_STAFF の検証（期限内）、operation、tctx の claim_id・policy_number・amount・payee_ref を写す、同じ txn で 2 回出さない（H29・H30） |
 | payment-worker | subject_token＝`PAY_MSG_CTX` | `TXN_TOKEN` | PAY_MSG_CTX の検証（typ・exp）、査定を確定した社員の在籍と役割、請求の保留、tctx を変えずに写し、txn を引き継ぐ |
 | payment-batch | なし（自分の X.509-SVID。草案 §8.2） | `TXN_TOKEN` | 要求したワークロードが payment-batch で、実行の時間帯の内であること |
 
@@ -326,25 +349,25 @@ TTS が受ける要求（`catalog_answers.yaml` の `idp` の shirogane-tts の 
 | `PH_RT` | リフレッシュトークン | 採用 | shirogane-as → — | claim-portal（サーバー） | opaque | idle 1800 秒、最大 28800 秒 | BFF のサーバー | トークンの応答 | `bff`・`idp` | — | claim-portal が契約者を毎回ログインさせずに、10 分の PH_AT を取り直す |
 | `AS_SESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | shirogane-as → — | 契約者のブラウザ（shirogane-as のドメインの Cookie） | opaque | idle 1800 秒、最大 28800 秒 | IdP | Cookie | `browser`・`idp` | — | shirogane-as のログインのセッション。claim-portal のセッションが切れたときの再ログインで使われる |
 | `PORTAL_SESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | claim-portal → — | 契約者のブラウザ（Cookie）。中身は claim-portal のサーバーの保存先にある | opaque | idle 1800 秒、最大 28800 秒 | BFF のサーバー | Cookie | `browser`・`bff` | — | ブラウザと claim-portal の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡し、トークンを渡さない |
-| `AGENCY_ASSERTION` | 汎用の JWT（ワークロードの ID のトークン・アサーショングラントに出す JWT など） | 採用 | 代理店の IdP（代理店ごとに 1 つ。代理店の登録に iss と JWKS の URL を書く） → https://auth.shirogane-sonpo.example/token | 代理店のサーバー | jwt（JWT、ES256） | 300 秒（時計のずれ 30 秒） | なし | フォームの本文 | `external_rp`・`idp` | なし | 代理店のサーバーが shirogane-as から AGENCY_AT を取るときに出す、代理店の IdP が署名した担当者の assertion（RFC 7523 §2.1 の grant） |
+| `AGENCY_ASSERTION` | 汎用の JWT（ワークロードの ID のトークン・アサーショングラントに出す JWT など） | 採用 | 代理店の IdP（代理店ごとに 1 つ。代理店の登録に iss と JWKS の URL を書く） → https://auth.shirogane-sonpo.example/token | 代理店のサーバー | jwt（JWT、ES256） | 60 秒（時計のずれ 30 秒） | なし | フォームの本文 | `external_rp`・`idp` | なし | 代理店のサーバーが shirogane-as から AGENCY_AT を取るときに出す、代理店の IdP が署名した担当者の assertion（RFC 7523 §2.1 の grant） |
 | `AGENCY_AT` | アクセストークン | 採用 | shirogane-as → https://agency-api.shirogane-sonpo.example | 代理店のサーバー | jwt（at+jwt、ES256） | 300 秒（時計のずれ 30 秒） | RP のサーバー | Authorization: Bearer | `external_rp`・`gateway`・`idp` | なし | 代理店のサーバーが、代理店の担当者の権限で front-gw の代理店の口を呼ぶための AT。代理店のサーバーの証明書に束縛する。front-gw が受けて、TTS が Txn-Token に作り直す |
-| `STAFF_AT` | アクセストークン | 採用 | shirogane-sso（しろがねが運用する社員の OIDC の OP。sso.shirogane-sonpo.example） → https://staff-api.shirogane-sonpo.example | staff-console（サーバー） | jwt（at+jwt、ES256） | 600 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`gateway`・`idp` | なし | 社員（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）が staff-console から front-gw の社員の口を呼ぶための AT。front-gw が受けて、TTS が Txn-Token に作り直す |
+| `EMPLOYEE_AT` | アクセストークン | 採用 | shirogane-sso（しろがねが運用する社員の OIDC の OP。sso.shirogane-sonpo.example） → https://staff-api.shirogane-sonpo.example | staff-console（サーバー） | jwt（at+jwt、ES256） | 600 秒（時計のずれ 30 秒） | BFF のサーバー | Authorization: Bearer | `bff`・`gateway`・`idp` | なし | 社員（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）が staff-console から front-gw の社員の口を呼ぶための AT。front-gw が受けて、TTS が Txn-Token に作り直す |
 | `STAFF_ID_TOKEN` | ID トークン | 採用 | shirogane-sso → shirogane-staff-console | staff-console（サーバー） | jwt（JWT、ES256） | 300 秒（時計のずれ 30 秒） | BFF のサーバー | トークンの応答 | `bff`・`idp` | なし | staff-console が社員のログインの結果を受け取り、セッションを作る。承認の画面の前の認証し直しの結果も、これで受け取る |
-| `SSO_SESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | shirogane-sso → — | 社員のブラウザ（shirogane-sso のドメインの Cookie） | opaque | idle 900 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | shirogane-sso のログインのセッション。staff-console が prompt=none で STAFF_AT を取り直すときに使われる |
+| `SSO_SESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | shirogane-sso → — | 社員のブラウザ（shirogane-sso のドメインの Cookie） | opaque | idle 900 秒、最大 36000 秒 | IdP | Cookie | `browser`・`idp` | — | shirogane-sso のログインのセッション。staff-console が prompt=none で EMPLOYEE_AT を取り直すときに使われる |
 | `STAFF_SESSION` | セッション（IdP のセッション session_idp と、RP・BFF のセッション session_rp の 2 層） | 採用 | staff-console → — | 社員の管理端末のブラウザ（Cookie）。中身は staff-console のサーバーの保存先にある | opaque | idle 900 秒、最大 36000 秒 | BFF のサーバー | Cookie | `browser`・`bff` | — | ブラウザと staff-console の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡す |
 | `AUTH_CODE` | 認可コード | 採用 | shirogane-as・shirogane-sso → — | ブラウザを通って claim-portal・staff-console に届く | opaque | 60 秒 | なし | リダイレクトの query | `browser`・`bff`・`idp` | — | claim-portal（shirogane-as）と staff-console（shirogane-sso）のログイン（PAR と認可コード＋PKCE） |
 | `TXN_TOKEN` | Transaction Token（Txn-Token） | 採用 | TTS（しろがねが作る Transaction Token Service） → shirogane-sonpo.internal | front-gw・payment-worker・payment-batch が TTS から受け取り、内側のサービスが受け取ったまま渡す | jwt（txntoken+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Txn-Token のヘッダー | `gateway`・`api` | なし | front-gw の内側で、契約者・代理店の担当者の請求、査定の確定から作り直した支払いの指示、夜間の支払いの実行の取引を運ぶ。act と認証の強さを持たない Txn-Token |
-| `TXN_STAFF` | Transaction Token（Txn-Token） | 採用 | TTS → shirogane-sonpo.internal | front-gw が TTS から受け取り、内側のサービスが受け取ったまま渡す | jwt（txntoken+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Txn-Token のヘッダー | `gateway`・`api` | なし | 社員が自分の権限で行う査定・支払いの承認・管理の操作の Txn-Token。sub は社員、STAFF_AT の acr・auth_time を写し、操作を受けるサービスが認証の強さと新しさを確かめる |
+| `TXN_STAFF` | Transaction Token（Txn-Token） | 採用 | TTS → shirogane-sonpo.internal | front-gw が TTS から受け取り、内側のサービスが受け取ったまま渡す | jwt（txntoken+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Txn-Token のヘッダー | `gateway`・`api` | なし | 社員が自分の権限で行う査定・支払いの承認・管理の操作の Txn-Token。sub は社員、EMPLOYEE_AT の acr・auth_time を写し、操作を受けるサービスが認証の強さと新しさを確かめる |
 | `TXN_PROXY` | Transaction Token（Txn-Token） | 採用 | TTS → shirogane-sonpo.internal | front-gw が TTS から受け取り、claim-svc が fraud-svc に受け取ったまま渡す | jwt（txntoken+jwt、ES256） | 300 秒（時計のずれ 30 秒） | サービスのメモリ | Txn-Token のヘッダー | `gateway`・`api` | なし | コールセンターの社員が、電話で本人確認した契約者に代わって請求を受け付けるときの Txn-Token。sub は契約者、act は社員で、IVR の本人確認の記録があるときだけ TTS が出す |
 | `PAY_MSG_CTX` | 汎用の JWT（ワークロードの ID のトークン・アサーショングラントに出す JWT など） | 採用 | TTS → shirogane-sonpo.internal | assessment-svc が TTS から受け取ってメッセージに入れ、payment-worker が取り出す | jwt（msgctx+jwt、ES256） | 3600 秒（時計のずれ 30 秒） | なし | バックチャネルの POST | `broker`・`api` | なし | 査定の確定から支払いの指示までブローカーで最大 60 分待つ（要求 REQ-06）。Txn-Token の寿命（5 分）より長いので、メッセージには Txn-Token を入れず、TTS が署名した取引の文脈を入れる。payment-worker はこれを TTS に出して新しい TXN_TOKEN を受け取る |
 | `CLIENT_ASSERTION` | クライアントの assertion（private_key_jwt・client_secret_jwt） | 却下 | — | — | jwt | — | — | — | — | — | クライアント認証は mTLS（tls_client_auth）で行い、private_key_jwt の assertion を作らない。できなくなるのは、TLS を終端する部品の後ろからクライアント認証すること（しろがねのトークンの端点は TLS を自分で終端する） |
 | `LOGOUT_TOKEN` | ログアウトトークン（Back-Channel Logout の Logout Token） | 却下 | — | — | jwt | — | — | — | — | — | Back-Channel Logout を受けない。契約者・社員を止めたとき、claim-portal・staff-console のセッションは残るが、そこからの要求は TTS が毎回状態を引いて拒むので、ログアウトの通知が無くても REQ-01・REQ-03 を満たす。できなくなるのは、IdP での操作をきっかけに BFF のセッションをすぐ消すこと |
 | `INTERNAL_TOKEN` | 内部トークン（入口で外部のトークンを検証し、作り直したもの） | 却下 | — | — | jwt | — | — | — | — | — | 入口の内側は Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）だけで運ぶ。組織独自の内部トークンを並べると、受け手の検証の設定が 2 つになる。できなくなるのは、Txn-Token の草案に無い形を内部で自由に決めること |
 | `ID_JAG` | ID-JAG（Identity Assertion JWT Authorization Grant） | 却下 | — | — | jwt | — | — | — | — | — | しろがねの利用者の SSO 済みの認可を、別の組織の API に持ち込む経路が無い（代理店の API をしろがねが呼ばない）。できなくなるのは、代理店の仕組みを契約者の名で呼ぶこと（呼ぶ必要が無い） |
-| `DPOP_PROOF` | DPoP の proof | 却下 | — | — | jwt | — | — | — | — | — | 送信者制約は代理店の AT だけで、mTLS（RFC 8705）で行う。DPoP の proof を作らない。できなくなるのは、TLS の証明書を扱えないクライアントの AT を束縛すること（今の代理店は証明書を扱える） |
+| `DPOP_PROOF` | DPoP の proof | 却下 | — | — | jwt | — | — | — | — | — | 送信者制約は代理店の AT だけで、mTLS（RFC 8705）で行う。DPoP の proof を作らない。代理店は証明書を扱え、トークンの要求も同じ証明書で認証するので mTLS で足りる。PH_AT・EMPLOYEE_AT を DPoP で束縛する候補は、鍵が AT と同じ BFF のサーバーに置かれて守りが増えないので見送った（設計書の 3.1）。できなくなるのは、TLS の証明書を扱えないクライアントの AT を束縛すること |
 | `JAR_REQUEST_OBJECT` | 署名つきの認可要求（JAR の Request Object） | 却下 | — | — | jwt | — | — | — | — | — | 認可要求は PAR でサーバーから送るので、ブラウザを通る要求の改ざんの心配が無い。署名つきの要求を作らない。できなくなるのは、要求そのものの署名の検証（PAR の mTLS の認証で代える） |
 | `JARM_RESPONSE` | 署名つきの認可応答（JARM） | 却下 | — | — | jwt | — | — | — | — | — | 認可応答は認可コードだけで、PKCE と state と iss（RFC 9207）で守る。できなくなるのは、認可応答そのものの署名の検証 |
-| `SECURITY_EVENT_TOKEN` | Security Event Token（SET。SSF・CAEP の通知） | 却下 | — | — | jwt | — | — | — | — | — | SSF・CAEP の送信も受信もしない。止める処理は TTS が発行のたびに状態を引くことで代える。代理店の IdP の側で担当者を止めても、しろがねは次の assertion まで知らないが、代理店の担当者の AT は 300 秒で切れ、新しい AT には新しい assertion が要る。できなくなるのは、代理店の側の停止を即時に知ること |
+| `SECURITY_EVENT_TOKEN` | Security Event Token（SET。SSF・CAEP の通知） | 却下 | — | — | jwt | — | — | — | — | — | SSF・CAEP の送信も受信もしない。止める処理は TTS が発行のたびに状態を引くことで代える。代理店の IdP の側で担当者を止めても、しろがねは次の assertion まで知らないが、止める直前の assertion は 60 秒、代理店の担当者の AT は 300 秒で切れ、新しい AT には新しい assertion が要る（最悪 750 秒）。できなくなるのは、代理店の側の停止を即時に知ること |
 | `STATUS_LIST_TOKEN` | 状態リストのトークン（Token Status List） | 却下 | — | — | jwt | — | — | — | — | — | 状態リストを出さない。受け手に届くのは寿命が 5〜10 分のトークンと、TTS だけが受ける PAY_MSG_CTX なので、個別の失効を配る仕組みは要らない。できなくなるのは、発行済みの 1 枚を名指しで止めること |
 | `INTROSPECTION_RESPONSE_JWT` | JWT 形式のイントロスペクションの応答 | 却下 | — | — | jwt | — | — | — | — | — | AT は JWT で、front-gw と TTS が手元で検証する。イントロスペクションを使わない。できなくなるのは、shirogane-as に問い合わせて AT の今の有効性を知ること（TTS が契約者・代理店の状態を直接引く） |
 <!-- render:token-inventory:end -->
@@ -362,7 +385,7 @@ TTS が受ける要求（`catalog_answers.yaml` の `idp` の shirogane-tts の 
 | 認可コード | 60 | — | 無い |
 | Txn-Token | 300（REQ-03 の 600 秒に、キャッシュ 60 秒・時計のずれ 30 秒を足して 390 秒で収まる長さ） | 同上。延ばす作り直し（草案 §13.15）はしない | 無い |
 | PAY_MSG_CTX（組織の JWT） | 3600（REQ-06 のブローカーで待つ上限と同じ） | 同上 | 無い（カタログの上限の対象外の種類） |
-| 代理店の assertion | 300（代理店連携の仕様で決める） | 代理店管理部と IT 基盤部の責任者が承認 | 無い |
+| 代理店の assertion | 60（代理店連携の仕様で決める。代理店の側の担当者の停止の最悪を REQ-02 に収めるため） | 代理店管理部と IT 基盤部の責任者が承認 | 無い |
 
 <a id="question-mechanism"></a>
 ## 6. 問い × 仕組み〔Lite：手で書く〕
@@ -412,7 +435,7 @@ UC3：コールセンターの社員が、電話で本人確認した契約者�
 | UC3 | どこを経由したか（q-via） | 不要 | — | UC1 と同じ |
 | UC3 | どの取引か（q-txn） | 要る | `C-txn`、`C-tctx`（call_id・policy_number・amount） | claim-svc が要求の本文と照合し、call_id を記録する |
 | UC3 | 誰が利用者か（q-user） | 要る | `C-sub` | 契約者。社員を利用者として扱わない |
-| UC3 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（STAFF_AT） | TTS が staff-console の client_id だけを受ける |
+| UC3 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（EMPLOYEE_AT） | TTS が staff-console の client_id だけを受ける |
 | UC3 | 何が承認されたか（q-authorized） | 要る | `C-scope`（claims:submit・claims:read） | 代理受付では請求の受付と照会だけ |
 | UC3 | どのリソース向けか（q-resource） | 要る | `C-aud` | 社員の口の AT から作る。請求は契約者の証券だけ |
 | UC3 | 誰が持つべきか（q-holder） | 不要 | — | TXN_PROXY は front-gw とサービスのメモリの中だけ。直接の相手は mTLS |
@@ -422,13 +445,13 @@ UC4：査定担当者が書類を読んで査定を確定し、支払いの指�
 | ユースケース | 問い（ID） | 要るか | 仕組み（台帳の行の ID か、クレームでない仕組み） | 不要の理由・照合する場所 |
 | --- | --- | --- | --- | --- |
 | UC4 | 誰の権限で（q-sub） | 要る | `C-sub`（TXN_STAFF・PAY_MSG_CTX・作り直した TXN_TOKEN のどれも、査定を確定した社員） | assessment-svc が割り当てを確かめ、TTS が作り直しで在籍と役割を引き直す |
-| UC4 | 誰が代理して実行しているか（q-actor） | 不要 | — | 支払いの指示を出すのは、査定を確定した社員の記録された判断で、payment-worker はそれを運ぶワークロード。人の代理ではないので act を使わず、運んだワークロードは req_wl（TTS が mTLS の相手から書く）と q-peer で表す |
+| UC4 | 誰が代理して実行しているか（q-actor） | 不要 | — | 指示の中身（請求・金額・振込先）を決めたのは査定を確定した社員（sub）で、payment-worker は中身を変えられない運び手（TTS が tctx を PAY_MSG_CTX から変えずに写し、PAY_MSG_CTX を出せるのも作り直せるのも決まったワークロードだけ）。人や判断を持つ主体の代理ではないので act を使わない。どのワークロードが運んだかは q-actor の答えではなく、q-req-wl（req_wl）と q-peer で別に記録する（`C-req-wl` は q-actor に答えないとした宣言と同じ） |
 | UC4 | どのワークロードが Txn-Token を求めたか（q-req-wl） | 要る | `C-req-wl` | H17 では front-gw、H22 では payment-worker。payment-svc は operation ごとに req_wl を決めて照らす |
 | UC4 | 直接の通信相手は誰か（q-peer） | 要る | mTLS の SPIFFE ID | assessment-svc・payment-worker のブローカーへの接続、payment-svc は payment-worker だけから指示を受ける（H20〜H22） |
 | UC4 | どこを経由したか（q-via） | 不要 | — | txn を PAY_MSG_CTX から作り直した Txn-Token に引き継ぎ、査定と支払いの記録を 1 本につなぐ（REQ-09） |
 | UC4 | どの取引か（q-txn） | 要る | `C-txn`、`C-tctx`（claim_id・amount・payee_ref） | assessment-svc が確定の本文と、payment-svc が指示の本文と照合する |
 | UC4 | 誰が利用者か（q-user） | 要る | `C-sub` | 社員の台帳の ID |
-| UC4 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（STAFF_AT） | 確定の要求は staff-console から |
+| UC4 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（EMPLOYEE_AT） | 確定の要求は staff-console から |
 | UC4 | 何が承認されたか（q-authorized） | 要る | `C-scope`（assessments:write・payments:instruct） | 作り直しでは payments:instruct だけ |
 | UC4 | どのリソース向けか（q-resource） | 要る | `C-aud` | 信頼ドメイン。payee_ref は payment-svc が契約管理の仕組みの振込先と照らす |
 | UC4 | 誰が持つべきか（q-holder） | 不要 | — | PAY_MSG_CTX は TTS への作り直しにしか使えず、TTS は payment-worker の mTLS の相手からだけ受ける |
@@ -444,7 +467,7 @@ UC5：上長が 100 万円以上の支払いを承認する。要求の 5.1 節�
 | UC5 | どこを経由したか（q-via） | 不要 | — | UC1 と同じ |
 | UC5 | どの取引か（q-txn） | 要る | `C-txn`、`C-tctx`（payment_id・amount） | 支払いの記録と照合する |
 | UC5 | 誰が利用者か（q-user） | 要る | `C-sub` | 社員の台帳の ID |
-| UC5 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（STAFF_AT） | staff-console |
+| UC5 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（EMPLOYEE_AT） | staff-console |
 | UC5 | 何が承認されたか（q-authorized） | 要る | `C-scope`（payments:approve）、`C-acr`・`C-auth-time` | payment-svc が acr の phr と auth_time の 300 秒を確かめる（REQ-05） |
 | UC5 | どのリソース向けか（q-resource） | 要る | `C-aud` | 信頼ドメイン。支払いは payment_id で決まる |
 | UC5 | 誰が持つべきか（q-holder） | 不要 | — | UC3 と同じ |
@@ -476,7 +499,7 @@ UC7：代理店管理部が代理店の登録を止める・変える、お客�
 | UC7 | どこを経由したか（q-via） | 不要 | — | UC1 と同じ |
 | UC7 | どの取引か（q-txn） | 要る | `C-txn`、`C-tctx`（target_ref） | 要求の本文の対象と照合する |
 | UC7 | 誰が利用者か（q-user） | 要る | `C-sub` | 社員の台帳の ID |
-| UC7 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（STAFF_AT） | staff-console |
+| UC7 | どのエージェント・クライアントか（q-agent） | 要る | `C-client-id`（EMPLOYEE_AT） | staff-console |
 | UC7 | 何が承認されたか（q-authorized） | 要る | `C-scope`（admin:agency・admin:account）、`C-acr`・`C-auth-time` | 代理店の登録の変更は 2 人の操作 |
 | UC7 | どのリソース向けか（q-resource） | 要る | `C-aud` | 信頼ドメイン |
 | UC7 | 誰が持つべきか（q-holder） | 不要 | — | UC3 と同じ |
@@ -559,8 +582,8 @@ sequenceDiagram
   T-->>G: 【TXN_TOKEN】 agency_code つき（I22）
   G->>C: 【TXN_TOKEN】（U12）
   I->>I: 契約者が IVR で本人確認、通話の記録を書く（担当の社員つき）
-  S->>G: Authorization Bearer 【STAFF_AT】 call_id つきの請求（U01）
-  G->>T: subject_token 【STAFF_AT】 と call_id（U10）
+  S->>G: Authorization Bearer 【EMPLOYEE_AT】 call_id つきの請求（U01）
+  G->>T: subject_token 【EMPLOYEE_AT】 と call_id（U10）
   T->>I: 通話の記録を引く（キャッシュしない）
   T-->>G: 【TXN_PROXY】 sub は契約者・act は社員（I22）
   G->>C: 【TXN_PROXY】（U12）
@@ -579,8 +602,8 @@ sequenceDiagram
   participant P as payment-svc
   participant B as payment-batch
   participant C as claim-svc
-  S->>G: 【STAFF_AT】 査定の確定（U01）
-  G->>T: subject_token 【STAFF_AT】（U10）
+  S->>G: 【EMPLOYEE_AT】 査定の確定（U01）
+  G->>T: subject_token 【EMPLOYEE_AT】（U10）
   T-->>G: 【TXN_STAFF】（I22）
   G->>M: 【TXN_STAFF】（U12）
   M->>T: PAY_MSG_CTX の要求 subject_token 【TXN_STAFF】（U10）
@@ -593,8 +616,8 @@ sequenceDiagram
   W->>P: 【TXN_TOKEN】 支払いの指示（U12）
   P->>P: 100 万円以上なら承認待ち
   S->>S: 上長が max_age=0 と acr_values でハードウェアの鍵で認証し直す（I12）
-  S->>G: 【STAFF_AT】 承認（U01）
-  G->>T: subject_token 【STAFF_AT】（U10）
+  S->>G: 【EMPLOYEE_AT】 承認（U01）
+  G->>T: subject_token 【EMPLOYEE_AT】（U10）
   T-->>G: 【TXN_STAFF】 acr・auth_time を写す（I22）
   G->>P: 【TXN_STAFF】 承認（U12）
   P->>P: acr・auth_time・指示の社員と別・上限額を確かめ、承認の記録を書く
@@ -611,7 +634,7 @@ sequenceDiagram
 
 項目 ID：`template:00_core#hop-table`
 
-TTS が新しいトークンを出すホップは、外の AT からの作り直し（H4・H7・H15・H17・H23・H26。`kind: reissue`）、PAY_MSG_CTX からの交換（H22。`kind: exchange`）、payment-batch の自分の ID での要求（H24）と、PAY_MSG_CTX の発行（H20）です。作り直しと交換のホップは、TTS の入口のホップ（H3・H6・H14）か、PAY_MSG_CTX のブローカーのホップ（H21）を upstream に置き、L16 が scope と寿命を上流と比べます：どのホップの scope も上流の AT・PAY_MSG_CTX の scope の部分集合で、寿命は 300 秒（上流は 300〜3600 秒）。aud だけは、Txn-Token が信頼ドメインを使うので名前が違い、warn として残ります（1. の warn の理由）。H24 は上流のトークンが無いので upstream を置きません（草案 §8.2 の、内部で始まる取引）。
+TTS が新しいトークンを出すホップは、外の AT からの作り直し（H4・H7・H15・H17・H23・H26。`kind: reissue`）、PAY_MSG_CTX からの交換（H22。`kind: exchange`）、payment-batch の自分の ID での要求（H24）と、PAY_MSG_CTX の発行（H29 の要求と H30 の交換。`kind: exchange`）です。H30 の寿命（3600 秒）は上流の TXN_STAFF（300 秒）を超えるので、`narrowing_exception` に理由を書き、L16 の warn として残します（1. の warn の理由）。作り直しと交換のホップは、TTS の入口のホップ（H3・H6・H14）か、PAY_MSG_CTX のブローカーのホップ（H21）を upstream に置き、L16 が scope と寿命を上流と比べます：どのホップの scope も上流の AT・PAY_MSG_CTX の scope の部分集合で、寿命は 300 秒（上流は 300〜3600 秒）。aud だけは、Txn-Token が信頼ドメインを使うので名前が違い、warn として残ります（1. の warn の理由）。H24 は上流のトークンが無いので upstream を置きません（草案 §8.2 の、内部で始まる取引）。
 
 経路の表（TTS が経路ごとに許す scope）は、ホップの scope を経路ごとに分けたものです。例えば、契約者の請求の受付の経路では claims:submit だけ、照会の経路では claims:read だけを出し、ホップの行（H4）はその和を書いています。
 
@@ -629,19 +652,21 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | H7 front-gw → claim-svc | `reissue` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | `agency_code` | tts | `local` | mTLS の相手の SPIFFE ID が front-gw であること<br>Txn-Token ヘッダーだけを読む。共通の検証部品で typ・iss・aud・exp・必須のクレーム<br>tctx の operation・policy_number・amount・claim_id を要求の本文と照合する（違えば 409）<br>agst_ の sub は、証券の取扱代理店が agency_code と一致する証券の請求だけを受ける（契約管理の仕組みの値と照らす） |
 | H8 claim-svc → fraud-svc（契約者の請求） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに Txn-Token ヘッダーで渡す（草案 §12.2）<br>fraud-svc は mTLS の相手が claim-svc の SPIFFE ID であることを確かめる（req_wl は front-gw のままで、直接の相手ではない）<br>tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること |
 | H9 claim-svc → fraud-svc（代理店の請求） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | `agency_code` | — | `local` | H8 と同じ。受けた Txn-Token を改変せずに渡す<br>fraud-svc は mTLS の相手が claim-svc であることを確かめる<br>tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること |
-| H10 claim-svc → document-svc（契約者の書類） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す。claim-svc が自分の資格情報で書類を書かない<br>document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる<br>tctx の operation が document.upload で、claim_id が要求のパスの請求と一致し、claim-svc の記録でその請求の持ち主が sub であること |
-| H11 claim-svc → document-svc（代理店の書類） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | `agency_code` | — | `local` | 受けた Txn-Token を改変せずに渡す<br>document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる<br>tctx の claim_id が要求のパスの請求と一致し、claim-svc の記録でその請求の agency_code が Txn-Token の agency_code と同じこと |
+| H10 claim-svc → document-svc（契約者の書類） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す。claim-svc が自分の資格情報で書類を書かない<br>document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる<br>tctx の operation が document.upload で、claim_id が要求のパスの請求と一致すること。請求の持ち主が sub であることは、呼ぶ前に claim-svc が自分の記録で確かめる（document-svc は claim-svc を引かない。設計書の 3.1） |
+| H11 claim-svc → document-svc（代理店の書類） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read`・`documents:upload` | 300 秒 | `agency_code` | — | `local` | 受けた Txn-Token を改変せずに渡す<br>document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる<br>tctx の operation が document.upload で、claim_id が要求のパスの請求と一致すること。請求の取扱代理店が agency_code と同じことは、呼ぶ前に claim-svc が確かめる（設計書の 3.1） |
 | H12 ブラウザ（社員） → staff-console | `browser` | `STAFF_SESSION` | — | — | 36000 秒 | — | — | `local` | セッションの Cookie（__Host-、Secure・HttpOnly・SameSite=Strict）<br>無操作 900 秒・最大 36000 秒<br>社内の管理端末の網からの接続だけ<br>書き込みの要求は CSRF のトークンも確かめる |
-| H13 staff-console → front-gw | `entry` | `STAFF_AT` | `https://staff-api.shirogane-sonpo.example` | `claims:submit`・`claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct`・`payments:approve`・`admin:agency`・`admin:account` | 600 秒 | — | — | `local` | 社員の口は staff-console の X.509-SVID の mTLS からだけ接続を受ける<br>署名（ES256、shirogane-sso の JWKS）・typ が at+jwt・iss・aud が https://staff-api.shirogane-sonpo.example・exp<br>client_id が staff-console であること<br>検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない |
-| H14 front-gw → tts | `entry` | `STAFF_AT` | `https://staff-api.shirogane-sonpo.example` | `claims:submit`・`claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct`・`payments:approve`・`admin:agency`・`admin:account` | 600 秒 | — | — | `local` | front-gw を mTLS の相手の SPIFFE ID で認証する<br>subject_token の STAFF_AT を TTS も検証する（署名・typ・iss・aud・exp）<br>sub で社員の台帳を引き、在籍していること。役割（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）から、経路に許す scope を決める（台帳のキャッシュ 60 秒）<br>代理受付の経路では、要求の call_id で IVR の通話の記録を引き（キャッシュしない）、本人確認が成功し、確認から 1800 秒以内で、記録の担当の社員が STAFF_AT の sub と同じことを確かめる。記録の契約者のアカウントが有効なこと（キャッシュ 60 秒）。sub には記録の契約者を書き、act.sub に社員を書く<br>acr・auth_time を STAFF_AT から値を変えずに写す（TXN_STAFF だけ） |
+| H13 staff-console → front-gw | `entry` | `EMPLOYEE_AT` | `https://staff-api.shirogane-sonpo.example` | `claims:submit`・`claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct`・`payments:approve`・`admin:agency`・`admin:account` | 600 秒 | — | — | `local` | 社員の口は staff-console の X.509-SVID の mTLS からだけ接続を受ける<br>署名（ES256、shirogane-sso の JWKS）・typ が at+jwt・iss・aud が https://staff-api.shirogane-sonpo.example・exp<br>client_id が staff-console であること<br>検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない |
+| H14 front-gw → tts | `entry` | `EMPLOYEE_AT` | `https://staff-api.shirogane-sonpo.example` | `claims:submit`・`claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct`・`payments:approve`・`admin:agency`・`admin:account` | 600 秒 | — | — | `local` | front-gw を mTLS の相手の SPIFFE ID で認証する<br>subject_token の EMPLOYEE_AT を TTS も検証する（署名・typ・iss・aud・exp）<br>sub で社員の台帳を引き、在籍していること。役割（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）から、経路に許す scope を決める（台帳のキャッシュ 60 秒）<br>代理受付の経路では、要求の call_id で IVR の通話の記録を引き（キャッシュしない）、本人確認が成功し、確認から 1800 秒以内で、記録の担当の社員が EMPLOYEE_AT の sub と同じことを確かめる。記録の契約者のアカウントが有効なこと（キャッシュ 60 秒）。sub には記録の契約者を書き、act.sub に社員を書く<br>acr・auth_time を EMPLOYEE_AT から値を変えずに写す（TXN_STAFF だけ） |
 | H15 front-gw → claim-svc（電話の代理受付） | `reissue` | `TXN_PROXY` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read` | 300 秒 | — | tts | `local` | mTLS の相手の SPIFFE ID が front-gw であること<br>共通の検証部品を act を許す設定で使う（代理受付の API だけ）。act.sub が stf_ の ID で、入れ子が無いこと<br>tctx の operation・policy_number・amount・call_id を要求の本文と照合する。policy_number が sub の契約者の証券であること<br>請求の記録に sub（契約者）と act.sub（社員）と call_id を残す |
 | H16 claim-svc → fraud-svc（電話の代理受付） | `service` | `TXN_PROXY` | `shirogane-sonpo.internal` | `claims:submit`・`claims:read` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す<br>fraud-svc は mTLS の相手が claim-svc であることを確かめ、共通の検証部品を act を許す設定で使う<br>tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること。判定の記録に act.sub を残す |
 | H17 front-gw → assessment-svc | `reissue` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | tts | `local` | mTLS の相手の SPIFFE ID が front-gw であること<br>共通の検証部品で typ・iss・aud・exp・必須のクレーム（act のあるトークンは拒む）<br>sub が、claim-svc の記録でその請求に割り当てた査定担当者であること（H18 で引く）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出し、上長の sub と txn の記録つきで claim-svc に書く<br>assessment.confirm では、tctx の claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409） |
-| H18 assessment-svc → claim-svc（査定） | `service` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す。assessment-svc が自分の資格情報で請求を書かない<br>claim-svc は mTLS の相手が assessment-svc であることを確かめる<br>請求の読み取りは claims:read、割り当て・保留の書き込みは assessments:write。operation が査定の操作の一覧（assessment.read・assessment.confirm・assessment.assign・assessment.hold）にあること。保留と割り当ての変更は、記録に sub と txn を残す |
+| H18 assessment-svc → claim-svc（査定） | `service` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す。assessment-svc が自分の資格情報で請求を書かない<br>claim-svc は mTLS の相手が assessment-svc であることを確かめる<br>請求の読み取りは claims:read、割り当て・保留の書き込みは assessments:write。operation が査定の操作の一覧（assessment.read・assessment.confirm・assessment.assign・assessment.hold）にあること<br>tctx の claim_id が要求のパスの請求と一致すること（違えば 409）。保留と割り当ての変更は、記録に sub と txn を残す |
 | H19 assessment-svc → document-svc（査定） | `service` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す<br>document-svc は mTLS の相手が assessment-svc であること、scope に documents:read-sensitive があることを確かめる<br>tctx の operation が document.read で、claim_id が要求のパスの請求と一致すること。閲覧の記録に sub と txn を残す（割り当ての確かめは assessment-svc が行う） |
-| H20 assessment-svc → ブローカー（支払いの指示のキュー） | `broker_connection` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | tts | `none` | assessment-svc は TTS に TXN_STAFF を出して PAY_MSG_CTX を受け取り、メッセージに入れる（TXN_STAFF はメッセージに入れない）。TTS は operation が assessment.confirm の TXN_STAFF からだけ出す<br>ブローカーへの接続は assessment-svc の X.509-SVID の mTLS。ブローカーはトークンを読まない。メッセージの保持は 3600 秒で、過ぎたものは滞留のキューに移る |
-| H21 ブローカー（支払いの指示のキュー） → payment-worker | `broker_connection` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | — | `none` | payment-worker は自分の X.509-SVID でブローカーに接続する<br>PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す<br>同じ txn のメッセージを 2 回 TTS に出さない（再配送への備え） |
-| H22 payment-worker → payment-svc（支払いの指示） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:instruct` | 300 秒 | — | tts | `local` | TTS は payment-worker を mTLS の相手の ID で認証し、PAY_MSG_CTX の署名・typ（msgctx+jwt）・exp を確かめる。査定を確定した社員（sub）が社員の台帳で在籍し、査定担当者の役割があること、請求が保留でないことを引き直してから TXN_TOKEN を出す（txn は PAY_MSG_CTX の値）<br>payment-svc は mTLS の相手が payment-worker で、req_wl が payment-worker、scope が payments:instruct であることを確かめる<br>tctx の claim_id・amount・payee_ref を指示の本文と照合し、payee_ref が契約管理の仕組みでその証券の振込先であることを確かめる<br>同じ txn と claim_id の指示を 2 回受けない（再配送への備え）<br>承認の要否は payment-svc が自分の記録で決める：同じ請求の支払いの合計（実行済み・承認待ち・この指示）が 1000000 円以上なら「承認待ち」にする（指示を分けて承認を避けさせない） |
+| H29 assessment-svc → tts（PAY_MSG_CTX の要求） | `entry` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | — | `local` | TTS は mTLS の相手の SPIFFE ID が assessment-svc であるときだけ PAY_MSG_CTX の要求を受ける（PAY_MSG_CTX を頼める相手の許可リスト。claim-svc など同じ TXN_STAFF を受け取るほかのサービスからは受けない）<br>subject_token の TXN_STAFF を検証し（期限内）、operation が assessment.confirm であること<br>同じ txn の PAY_MSG_CTX を 2 回出さない |
+| H30 tts → assessment-svc（PAY_MSG_CTX） | `exchange` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | tts | `local` | TTS は TXN_STAFF の tctx の claim_id・policy_number・amount・payee_ref を変えずに写し、operation を payment.instruct にし、txn を引き継ぐ。scope は payments:instruct だけ<br>assessment-svc は受け取った PAY_MSG_CTX を読まずにメッセージに入れる |
+| H20 assessment-svc → ブローカー（支払いの指示のキュー） | `broker_connection` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | — | `none` | assessment-svc は H30 で受け取った PAY_MSG_CTX をメッセージに入れる（TXN_STAFF はメッセージに入れない）<br>ブローカーへの接続は assessment-svc の X.509-SVID の mTLS。ブローカーはトークンを読まない。メッセージの保持は 3600 秒で、過ぎたものは滞留のキューに移る |
+| H21 ブローカー（支払いの指示のキュー） → payment-worker | `broker_connection` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | — | `none` | payment-worker は自分の X.509-SVID でブローカーに接続する<br>PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す<br>txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。2 回届いても payment-svc の (txn, claim_id) の一意の制約で 1 件になる） |
+| H22 payment-worker → payment-svc（支払いの指示） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:instruct` | 300 秒 | — | tts | `local` | TTS は payment-worker を mTLS の相手の ID で認証し、PAY_MSG_CTX の署名・typ（msgctx+jwt）・exp を確かめる。査定を確定した社員（sub）が社員の台帳で在籍し、査定担当者の役割があること、請求が保留でないこと（claim-svc の保留の参照の API を TTS の SVID の mTLS で呼ぶ。設計書の 2. のトークンを運ばない呼び出し）を引き直してから TXN_TOKEN を出す（txn は PAY_MSG_CTX の値）<br>payment-svc は mTLS の相手が payment-worker で、req_wl が payment-worker、scope が payments:instruct であることを確かめる<br>tctx の claim_id・amount・payee_ref を指示の本文と照合し、payee_ref が契約管理の仕組みでその証券の振込先であることを確かめる<br>(txn, claim_id) に一意の制約を置き、同じ組の 2 件目は記録せずに前の結果を返す（再配送への備え）<br>承認の要否は payment-svc が自分の記録で決める：請求ごとの支払いの集計の行を、同じ DB の取引の中でロックして（請求ごとに直列にする）、同じ請求の支払いの合計（実行済み・承認待ち・この指示）を読み、1000000 円以上なら「承認待ち」にし、指示の記録と集計の更新を同じ取引で書く（指示を分けたり並行に出したりして承認を避けさせない） |
 | H23 front-gw → payment-svc（承認） | `reissue` | `TXN_STAFF` | `shirogane-sonpo.internal` | `payments:approve` | 300 秒 | — | tts | `local` | mTLS の相手の SPIFFE ID が front-gw で、req_wl が front-gw であること<br>acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401（insufficient_user_authentication）<br>tctx の payment_id がパスの支払いと一致し、amount が支払いの記録の金額と一致すること<br>sub が、支払いの指示の sub（査定担当者）と違うこと。承認の上限額を社員の台帳に問い合わせ、金額がその内であること<br>承認の記録（承認者の sub・txn・時刻・金額）を書くのは payment-svc だけ。承認の取り消しも同じ API と同じ確かめで受ける |
 | H24 payment-batch → payment-svc（支払いの実行） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:execute` | 300 秒 | — | tts | `local` | payment-batch は自分の X.509-SVID で TTS に Txn-Token を求める（草案 §8.2。利用者の代理ではない）。sub は payment-batch の SPIFFE ID。支払いの 1 件ごとに 1 つの Txn-Token<br>TTS は、要求したワークロードが payment-batch で、実行の時間帯（毎日 1 時から 3 時）の内であるときだけ出す<br>payment-svc は mTLS の相手が payment-batch で、sub がその SPIFFE ID、scope が payments:execute、tctx の payment_id がパスの支払いと、claim_id がその支払いの記録の請求と一致することを確かめる<br>実行の時点で、承認が要る支払いは承認の記録が有効（取り消されていない）こと、請求が保留でないこと（H25 で引く）を確かめてから、振込のファイルに入れる。claim-svc が応えなければ、その支払いは実行せず次の夜に回す<br>支払いの状態を「実行済み」にすることと振込のファイルへの追加を 1 つの取引で行い、同じ payment_id を 2 回入れない |
 | H25 payment-svc → claim-svc（支払いの実行） | `service` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:execute` | 300 秒 | — | — | `local` | 受けた Txn-Token を改変せずに渡す<br>claim-svc は mTLS の相手が payment-svc で、scope が payments:execute、req_wl が payment-batch のとき、tctx の claim_id の請求の状態（保留の有無）の読み取りだけを許す |
@@ -670,14 +695,14 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H2` | `PH_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 契約者の口では claim-portal、社員の口では staff-console の client_id だけを受ける。代理店の口では、client_id が代理店の登録にあること | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H2` | `PH_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 口ごとの語彙に無い値だけの AT は TTS に送らずに拒む | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | subject_token の iss が口の発行者と一致すること。PAY_MSG_CTX は TTS 自身の iss だけ | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
-| `H3` | `PH_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、STAFF_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
+| `H3` | `PH_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | subject_token の aud が、front-gw が要求に書いた口と一致すること | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `exp` | ② 発行者 | 期限の切れた subject_token（AT・PAY_MSG_CTX）からは発行しない | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 代理店の登録で client_id から代理店コードを引き、登録が有効なときだけ発行する | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H3` | `PH_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 経路の表が求める scope が、AT の scope と主体の今の役割から許される範囲にあるときだけ、その範囲に絞って出す。広げない | `https://portal-api.shirogane-sonpo.example` | 600 秒 |
 | `H4` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
-| `H4` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H4` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H4` | `TXN_TOKEN` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H4` | `TXN_TOKEN` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H4` | `TXN_TOKEN` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
@@ -695,7 +720,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H5` | `AGENCY_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 口ごとの語彙に無い値だけの AT は TTS に送らずに拒む | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H5` | `AGENCY_AT` | `cnf` | ② shirogane-as（トークンの要求の mTLS の証明書の拇印） | 代理店の口の TLS で示された証明書の SHA-256 の拇印が cnf の x5t#S256 と一致すること（RFC 8705 §3）。一致しなければ 401 | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H6` | `AGENCY_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | subject_token の iss が口の発行者と一致すること。PAY_MSG_CTX は TTS 自身の iss だけ | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
-| `H6` | `AGENCY_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、STAFF_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
+| `H6` | `AGENCY_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H6` | `AGENCY_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | subject_token の aud が、front-gw が要求に書いた口と一致すること | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H6` | `AGENCY_AT` | `exp` | ② 発行者 | 期限の切れた subject_token（AT・PAY_MSG_CTX）からは発行しない | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H6` | `AGENCY_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
@@ -704,7 +729,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H6` | `AGENCY_AT` | `cnf` | ② shirogane-as（トークンの要求の mTLS の証明書の拇印） | front-gw が要求に書いた証明書の拇印と cnf の x5t#S256 が一致すること（front-gw の取り違えを拾う。確かめの主は front-gw） | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H6` | `AGENCY_AT` | `https://shirogane-sonpo.example/claims/agency_code` | ② shirogane-as（代理店の登録。client_id から引く）<br>④ TTS（代理店の登録を引き直して写す） | AGENCY_AT の agency_code が、client_id で引いた代理店の登録の代理店コードと一致し、登録が有効なこと。AGENCY_AT に agency_code が無い・一致しないときは発行しない | `https://agency-api.shirogane-sonpo.example` | 300 秒 |
 | `H7` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
-| `H7` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H7` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H7` | `TXN_TOKEN` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H7` | `TXN_TOKEN` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H7` | `TXN_TOKEN` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
@@ -740,7 +765,6 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H10` | `TXN_TOKEN` | `txn` | ④ TTS | 書類の登録・閲覧の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H10` | `TXN_TOKEN` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H10` | `TXN_TOKEN` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
-| `H10` | `TXN_TOKEN` | `https://shirogane-sonpo.example/claims/agency_code` | ② shirogane-as（代理店の登録。client_id から引く）<br>④ TTS（代理店の登録を引き直して写す） | 書類を付ける請求が、claim-svc の記録で同じ agency_code の請求であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H11` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
 | `H11` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 書類の登録・閲覧の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H11` | `TXN_TOKEN` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
@@ -750,31 +774,30 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H11` | `TXN_TOKEN` | `txn` | ④ TTS | 書類の登録・閲覧の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H11` | `TXN_TOKEN` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H11` | `TXN_TOKEN` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
-| `H11` | `TXN_TOKEN` | `https://shirogane-sonpo.example/claims/agency_code` | ② shirogane-as（代理店の登録。client_id から引く）<br>④ TTS（代理店の登録を引き直して写す） | 書類を付ける請求が、claim-svc の記録で同じ agency_code の請求であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H12` | `STAFF_SESSION` | — | — | 結びつく行なし：このホップのトークンに載る台帳の行が無い（`carried_in`） | — | 36000 秒 |
-| `H13` | `STAFF_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 口ごとに 1 つの発行者だけを受ける（契約者と代理店の口は shirogane-as、社員の口は shirogane-sso） | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | 契約者の口は https://portal-api.shirogane-sonpo.example、代理店の口は https://agency-api.shirogane-sonpo.example、社員の口は https://staff-api.shirogane-sonpo.example だけを受ける（口ごとに 1 つ） | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `exp` | ② 発行者 | 期限とずれ 30 秒 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `jti` | ② 発行者（shirogane-as・shirogane-sso・代理店の IdP） | AT の iss・jti と、TTS から受けた Txn-Token の txn を監査ログの 1 行に記録する | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 契約者の口では claim-portal、社員の口では staff-console の client_id だけを受ける。代理店の口では、client_id が代理店の登録にあること | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H13` | `STAFF_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 口ごとの語彙に無い値だけの AT は TTS に送らずに拒む | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | subject_token の iss が口の発行者と一致すること。PAY_MSG_CTX は TTS 自身の iss だけ | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、STAFF_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | subject_token の aud が、front-gw が要求に書いた口と一致すること | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `exp` | ② 発行者 | 期限の切れた subject_token（AT・PAY_MSG_CTX）からは発行しない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 代理店の登録で client_id から代理店コードを引き、登録が有効なときだけ発行する | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 経路の表が求める scope が、AT の scope と主体の今の役割から許される範囲にあるときだけ、その範囲に絞って出す。広げない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | STAFF_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
-| `H14` | `STAFF_AT` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | STAFF_AT の auth_time を値を変えずに TXN_STAFF に写す | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 口ごとに 1 つの発行者だけを受ける（契約者と代理店の口は shirogane-as、社員の口は shirogane-sso） | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | 契約者の口は https://portal-api.shirogane-sonpo.example、代理店の口は https://agency-api.shirogane-sonpo.example、社員の口は https://staff-api.shirogane-sonpo.example だけを受ける（口ごとに 1 つ） | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `exp` | ② 発行者 | 期限とずれ 30 秒 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `jti` | ② 発行者（shirogane-as・shirogane-sso・代理店の IdP） | AT の iss・jti と、TTS から受けた Txn-Token の txn を監査ログの 1 行に記録する | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 契約者の口では claim-portal、社員の口では staff-console の client_id だけを受ける。代理店の口では、client_id が代理店の登録にあること | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H13` | `EMPLOYEE_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 口ごとの語彙に無い値だけの AT は TTS に送らずに拒む | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | subject_token の iss が口の発行者と一致すること。PAY_MSG_CTX は TTS 自身の iss だけ | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | subject_token の aud が、front-gw が要求に書いた口と一致すること | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `exp` | ② 発行者 | 期限の切れた subject_token（AT・PAY_MSG_CTX）からは発行しない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `client_id` | ② shirogane-as・shirogane-sso（クライアントの登録） | 代理店の登録で client_id から代理店コードを引き、登録が有効なときだけ発行する | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 経路の表が求める scope が、AT の scope と主体の今の役割から許される範囲にあるときだけ、その範囲に絞って出す。広げない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | EMPLOYEE_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
+| `H14` | `EMPLOYEE_AT` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | EMPLOYEE_AT の auth_time を値を変えずに TXN_STAFF に写す | `https://staff-api.shirogane-sonpo.example` | 600 秒 |
 | `H15` | `TXN_PROXY` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
-| `H15` | `TXN_PROXY` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H15` | `TXN_PROXY` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | API ごとに必要な scope がなければ 403 | `shirogane-sonpo.internal` | 300 秒 |
-| `H15` | `TXN_PROXY` | `act` | ④ TTS（検証した STAFF_AT の sub） | 共通の検証部品を act を許す設定で使い、act.sub が stf_ の ID で入れ子が無いこと。請求の記録に act.sub を代理受付の担当者として残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H15` | `TXN_PROXY` | `act` | ④ TTS（検証した EMPLOYEE_AT の sub） | 共通の検証部品を act を許す設定で使い、act.sub が stf_ の ID で入れ子が無いこと。請求の記録に act.sub を代理受付の担当者として残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `txn` | ④ TTS | 監査ログと請求の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること。保留の読み取りの API（payment-svc から）だけは payment-batch も受ける。監査に記録する。直接の相手の照合には使わない | `shirogane-sonpo.internal` | 300 秒 |
 | `H15` | `TXN_PROXY` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧（経路の表）にあること。policy_number・amount（請求額）・claim_id が要求の本文・パスと一致すること（違えば 409 で拒否し、監査に記録する）。policy_number は契約管理の仕組みで sub の契約者・agency_code の取扱代理店の証券であること。TXN_PROXY では call_id を請求の記録に残す | `shirogane-sonpo.internal` | 300 秒 |
@@ -784,7 +807,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H16` | `TXN_PROXY` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H16` | `TXN_PROXY` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H16` | `TXN_PROXY` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | claims:submit があること（判定は請求の受付の中でだけ呼ばれる） | `shirogane-sonpo.internal` | 300 秒 |
-| `H16` | `TXN_PROXY` | `act` | ④ TTS（検証した STAFF_AT の sub） | act のある判定の依頼は、判定の記録に act.sub を残す（代理受付の請求として判定の入力を分ける） | `shirogane-sonpo.internal` | 300 秒 |
+| `H16` | `TXN_PROXY` | `act` | ④ TTS（検証した EMPLOYEE_AT の sub） | act のある判定の依頼は、判定の記録に act.sub を残す（代理受付の請求として判定の入力を分ける） | `shirogane-sonpo.internal` | 300 秒 |
 | `H16` | `TXN_PROXY` | `txn` | ④ TTS | 判定の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H16` | `TXN_PROXY` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H16` | `TXN_PROXY` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
@@ -798,7 +821,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H17` | `TXN_STAFF` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H17` | `TXN_STAFF` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあること。assessment.confirm では claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
 | `H18` | `TXN_STAFF` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
-| `H18` | `TXN_STAFF` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H18` | `TXN_STAFF` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H18` | `TXN_STAFF` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H18` | `TXN_STAFF` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H18` | `TXN_STAFF` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
@@ -815,16 +838,33 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H19` | `TXN_STAFF` | `txn` | ④ TTS | 書類の登録・閲覧の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H19` | `TXN_STAFF` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H19` | `TXN_STAFF` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | subject_token の iss が口の発行者と一致すること。PAY_MSG_CTX は TTS 自身の iss だけ | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者 | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | subject_token の aud が、front-gw が要求に書いた口と一致すること | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `exp` | ② 発行者 | 期限の切れた subject_token（AT・PAY_MSG_CTX）からは発行しない | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `iat` | ② 発行者 | 30 秒より先の時刻なら拒否 | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 経路の表が求める scope が、AT の scope と主体の今の役割から許される範囲にあるときだけ、その範囲に絞って出す。広げない | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | EMPLOYEE_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | EMPLOYEE_AT の auth_time を値を変えずに TXN_STAFF に写す | `shirogane-sonpo.internal` | 300 秒 |
+| `H29` | `TXN_STAFF` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm のときだけ。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く | `shirogane-sonpo.internal` | 300 秒 |
+| `H30` | `PAY_MSG_CTX` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 査定の操作は、sub が請求に割り当てた査定担当者であること（請求の割り当てを claim-svc で引く）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出す | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | API ごとに必要な scope がなければ 403 | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `txn` | ④ TTS | 査定の記録に txn を残す | `shirogane-sonpo.internal` | 3600 秒 |
+| `H30` | `PAY_MSG_CTX` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあること。assessment.confirm では claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409） | `shirogane-sonpo.internal` | 3600 秒 |
 | `H20` | `PAY_MSG_CTX` | — | — | 結びつく行なし：受け手 `ブローカー（支払いの指示のキュー）` の名前を含む `enforced_at.service` が無い（運ぶ行の service：as-admin-api・assessment-svc・claim-portal・claim-svc・document-svc・fraud-svc・front-gw・payment-svc・payment-worker・shirogane-as・staff-console・tts）。名前をそろえるか、受け手の確かめを台帳に書く | `shirogane-sonpo.internal` | 3600 秒 |
 | `H21` | `PAY_MSG_CTX` | `exp` | ② 発行者 | キューから出したメッセージの PAY_MSG_CTX の期限を見て、過ぎていれば TTS に出さずに滞留の扱いにする（期限を見ない例外を作らない） | `shirogane-sonpo.internal` | 3600 秒 |
-| `H21` | `PAY_MSG_CTX` | `txn` | ④ TTS | 処理したメッセージの txn を覚え、同じ txn のメッセージを 2 回 TTS に出さない | `shirogane-sonpo.internal` | 3600 秒 |
+| `H21` | `PAY_MSG_CTX` | `txn` | ④ TTS | payment-svc が指示を受け付けた後にだけ txn を処理済みにし、処理済みの txn のメッセージを TTS に出さない。送信の失敗はブローカーの再配送に任せる（重複は payment-svc が一意の制約で拒む） | `shirogane-sonpo.internal` | 3600 秒 |
 | `H22` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 支払いの指示の sub（査定担当者）と承認の sub（上長）が同じなら承認を拒む。sub がワークロードの ID のときは payment-batch の ID だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 指示は payments:instruct、承認は payments:approve、実行は payments:execute がなければ 403 | `shirogane-sonpo.internal` | 300 秒 |
-| `H22` | `TXN_TOKEN` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。同じ txn と claim_id の指示を 2 回受けない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
+| `H22` | `TXN_TOKEN` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。(txn, claim_id) の一意の制約で、同じ組の指示を 2 回記録しない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel は front-gw、payment.execute は payment-batch。違えば 403 | `shirogane-sonpo.internal` | 300 秒 |
 | `H22` | `TXN_TOKEN` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount が支払いの記録の金額と、execute では claim_id が支払いの記録の請求と一致すること | `shirogane-sonpo.internal` | 300 秒 |
 | `H23` | `TXN_STAFF` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
@@ -833,9 +873,9 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H23` | `TXN_STAFF` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H23` | `TXN_STAFF` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H23` | `TXN_STAFF` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 指示は payments:instruct、承認は payments:approve、実行は payments:execute がなければ 403 | `shirogane-sonpo.internal` | 300 秒 |
-| `H23` | `TXN_STAFF` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | 承認と承認の取り消しの API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470） | `shirogane-sonpo.internal` | 300 秒 |
-| `H23` | `TXN_STAFF` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | 承認と承認の取り消しの API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401 | `shirogane-sonpo.internal` | 300 秒 |
-| `H23` | `TXN_STAFF` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。同じ txn と claim_id の指示を 2 回受けない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
+| `H23` | `TXN_STAFF` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | 承認と承認の取り消しの API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470） | `shirogane-sonpo.internal` | 300 秒 |
+| `H23` | `TXN_STAFF` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | 承認と承認の取り消しの API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401 | `shirogane-sonpo.internal` | 300 秒 |
+| `H23` | `TXN_STAFF` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。(txn, claim_id) の一意の制約で、同じ組の指示を 2 回記録しない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
 | `H23` | `TXN_STAFF` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel は front-gw、payment.execute は payment-batch。違えば 403 | `shirogane-sonpo.internal` | 300 秒 |
 | `H23` | `TXN_STAFF` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount が支払いの記録の金額と、execute では claim_id が支払いの記録の請求と一致すること | `shirogane-sonpo.internal` | 300 秒 |
 | `H24` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
@@ -844,11 +884,11 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H24` | `TXN_TOKEN` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H24` | `TXN_TOKEN` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H24` | `TXN_TOKEN` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 指示は payments:instruct、承認は payments:approve、実行は payments:execute がなければ 403 | `shirogane-sonpo.internal` | 300 秒 |
-| `H24` | `TXN_TOKEN` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。同じ txn と claim_id の指示を 2 回受けない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
+| `H24` | `TXN_TOKEN` | `txn` | ④ TTS | 支払いの指示・承認・実行の記録に txn を残す。(txn, claim_id) の一意の制約で、同じ組の指示を 2 回記録しない（再配送への備え） | `shirogane-sonpo.internal` | 300 秒 |
 | `H24` | `TXN_TOKEN` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel は front-gw、payment.execute は payment-batch。違えば 403 | `shirogane-sonpo.internal` | 300 秒 |
 | `H24` | `TXN_TOKEN` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount が支払いの記録の金額と、execute では claim_id が支払いの記録の請求と一致すること | `shirogane-sonpo.internal` | 300 秒 |
 | `H25` | `TXN_TOKEN` | `iss` | ② 発行者（shirogane-as・shirogane-sso・TTS・代理店の IdP） | 共通の検証部品が TTS の iss だけを受ける | `shirogane-sonpo.internal` | 300 秒 |
-| `H25` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
+| `H25` | `TXN_TOKEN` | `sub` | ① 代理店の IdP（代理店の担当者の ID。代理店が自分の担当者を管理する）<br>② shirogane-as（契約者の台帳・代理店の担当者の表）と shirogane-sso（社員の台帳）<br>④ TTS（検証したトークン・通話の記録・ワークロードの ID から決める） | 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H25` | `TXN_TOKEN` | `aud` | ② 発行者（shirogane-as・shirogane-sso は要求の resource、TTS は信頼ドメイン、代理店の IdP は shirogane-as のトークンの端点） | aud が shirogane-sonpo.internal だけであること | `shirogane-sonpo.internal` | 300 秒 |
 | `H25` | `TXN_TOKEN` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H25` | `TXN_TOKEN` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
@@ -863,8 +903,8 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H26` | `TXN_STAFF` | `exp` | ② 発行者 | 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない | `shirogane-sonpo.internal` | 300 秒 |
 | `H26` | `TXN_STAFF` | `iat` | ② 発行者 | exp − iat の確かめに使う | `shirogane-sonpo.internal` | 300 秒 |
 | `H26` | `TXN_STAFF` | `scope` | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る） | 代理店の登録の変更は admin:agency、契約者のアカウントの停止は admin:account がなければ 403 | `shirogane-sonpo.internal` | 300 秒 |
-| `H26` | `TXN_STAFF` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | すべての変更の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication） | `shirogane-sonpo.internal` | 300 秒 |
-| `H26` | `TXN_STAFF` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した STAFF_AT の値をそのまま写す） | すべての変更の API は、受けた時刻 − auth_time が 300 秒を超えれば 401 | `shirogane-sonpo.internal` | 300 秒 |
+| `H26` | `TXN_STAFF` | `acr` | ① shirogane-sso（その認証で使った手段）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | すべての変更の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication） | `shirogane-sonpo.internal` | 300 秒 |
+| `H26` | `TXN_STAFF` | `auth_time` | ① shirogane-sso（認証した時刻）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す） | すべての変更の API は、受けた時刻 − auth_time が 300 秒を超えれば 401 | `shirogane-sonpo.internal` | 300 秒 |
 | `H26` | `TXN_STAFF` | `txn` | ④ TTS | 操作の記録に txn を残す | `shirogane-sonpo.internal` | 300 秒 |
 | `H26` | `TXN_STAFF` | `req_wl` | ④ TTS（要求したワークロードの mTLS の相手の ID） | req_wl が front-gw であること | `shirogane-sonpo.internal` | 300 秒 |
 | `H26` | `TXN_STAFF` | `tctx` | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から） | operation が、その API で受ける操作の一覧にあり、target_ref が要求の本文の対象と一致すること（違えば 409） | `shirogane-sonpo.internal` | 300 秒 |
@@ -872,7 +912,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | `H28` | — | — | — | 結びつく行なし：トークンのないホップで、`custom_claims` に台帳の行が無い | — | — |
 <!-- render:arrow-table:end -->
 
-H20（assessment-svc → 支払いの指示のキュー）は、受け手のブローカーがトークンを読まないので、結びつく行がありません（PAY_MSG_CTX を読むのは TTS だけ。payment-worker は期限と txn だけを見る）。H27・H28 はトークンを運ばないホップです（通知のメッセージは請求の ID と通知の種類だけ）。
+H20（assessment-svc → 支払いの指示のキュー）・H30（TTS → assessment-svc）は、受け手がトークンを読まないので、結びつく行がありません（PAY_MSG_CTX を読むのは TTS だけ。payment-worker は期限と txn だけを見る）。H27・H28 はトークンを運ばないホップです（通知のメッセージは請求の ID と通知の種類だけ）。
 
 <a id="lifecycle"></a>
 ## 9. ライフサイクル表〔Lite：手で書く〕
@@ -885,9 +925,9 @@ H20（assessment-svc → 支払いの指示のキュー）は、受け手のブ�
 | 層・種別（目録の ID） | 寿命（idle／最大） | リフレッシュ | RT のローテーションと再利用の検知 | 失効の手段 | 剥奪が届くまでの秒数 | 長時間の処理での扱い |
 | --- | --- | --- | --- | --- | --- | --- |
 | `PH_AT` | —／600 | `PH_RT` で取り直す | — | exp まで。TTS の毎回の確認で内側は止まる | 内側の処理は 390（TTS のキャッシュ 60＋Txn-Token 330）。AT そのものは 630 | 使わない（入口で Txn-Token に替える） |
-| `AGENCY_AT` | —／300 | 新しい assertion で取り直す | — | exp まで。TTS が代理店の登録を毎回引く | 代理店の停止は 390。代理店の側の担当者の停止は 660（AT 330＋Txn-Token 330） | 使わない |
-| `STAFF_AT` | —／600 | prompt=none で取り直す | — | exp まで。TTS が社員の台帳を毎回引く | 390 | 使わない |
-| `AGENCY_ASSERTION` | —／300 | 無い | — | 1 回だけ（jti を 330 秒覚える）。代理店の登録の停止ですぐ受けない | 0 | 使わない |
+| `AGENCY_AT` | —／300 | 新しい assertion で取り直す | — | exp まで。TTS が代理店の登録を毎回引く | 代理店の停止は 390。代理店の側の担当者の停止は 750（assertion 90＋AT 330＋Txn-Token 330） | 使わない |
+| `EMPLOYEE_AT` | —／600 | prompt=none で取り直す | — | exp まで。TTS が社員の台帳を毎回引く | 390 | 使わない |
+| `AGENCY_ASSERTION` | —／60 | 無い | — | 1 回だけ（jti を 90 秒覚える）。代理店の登録の停止ですぐ受けない | 0（代理店の停止）。代理店の側の担当者の停止では、止める直前のものが 90 秒まで使える | 使わない |
 | `PH_ID_TOKEN`・`STAFF_ID_TOKEN` | —／300 | 無い | — | ログインのときだけ使う | — | 使わない |
 | `PH_RT` | 1800／28800 | 使うたびに替わる | ローテーションあり・再利用の検知あり | ローテーション、失効の端点、取り直しの失敗 | 0（ログアウト・アカウントの停止・パスワードの変更） | 使わない |
 | `AS_SESSION` | 1800／28800 | — | — | RP-Initiated Logout、アカウントの停止での削除 | 0 | — |
@@ -904,11 +944,11 @@ H20（assessment-svc → 支払いの指示のキュー）は、受け手のブ�
 | --- | --- | --- | --- | --- |
 | 契約者 | お客さま窓口の上長が as-admin-api でアカウントを止める（H26）。契約者が shirogane-as の画面で退会する | `PH_AT` 630 秒（TTS への要求にしか使えない）、`PH_RT`・`AS_SESSION` は 0 秒、`TXN_TOKEN`（契約者の請求）330 秒、`TXN_PROXY`（その契約者の代理受付）330 秒。TTS の状態のキャッシュ 60 秒 | 390 秒（60＋330） | REQ-01（900 秒） |
 | 代理店 | 代理店管理部が as-admin-api で代理店の登録を止める（すぐ有効） | shirogane-as は次の `AGENCY_AT` を出さない（0 秒）、発行済みの `AGENCY_AT` 330 秒（TTS で拒む）、`TXN_TOKEN` 330 秒。TTS の登録のキャッシュ 60 秒 | 390 秒 | REQ-02（900 秒） |
-| 代理店の担当者 | 代理店が自分の IdP で担当者を止める（しろがねは知らない） | `AGENCY_AT` 330 秒（次の assertion が出ない）、`TXN_TOKEN` 330 秒 | 660 秒 | REQ-02（900 秒） |
-| 社員 | 人事部が人事の仕組みで退職・休職・役割の変更を入れ、社員の台帳がその場で変わる | `STAFF_AT` 630 秒（TTS への要求にしか使えない）、`TXN_STAFF`・`TXN_PROXY` 330 秒、`PAY_MSG_CTX`（その社員が確定した指示）は作り直しのときに 60 秒、`SSO_SESSION` 60 秒。TTS の台帳のキャッシュ 60 秒 | 390 秒。ブローカーで待っている指示は、作り直しのときに止まる（滞留のキューに移り、別の査定担当者が確定し直す） | REQ-03（600 秒） |
-| 社員の端末・セキュリティキーの紛失 | 社員が届け、IT 基盤部が shirogane-sso の鍵の登録とセッション、staff-console のその社員のセッションを消す | `STAFF_SESSION`・`SSO_SESSION` は 0 秒、`STAFF_AT` は staff-console のサーバーの中だけ（セッションが消えると使われない）、発行済みの `TXN_STAFF`・`TXN_PROXY` 330 秒 | 330 秒（届けを受けてから） | 要求に数値が無い。REQ-03 と同じ 600 秒を目標にした（12.） |
+| 代理店の担当者 | 代理店が自分の IdP で担当者を止める（しろがねは知らない） | 止める直前に出た `AGENCY_ASSERTION` 90 秒、それから取った `AGENCY_AT` 330 秒、そこから作った `TXN_TOKEN` 330 秒 | 750 秒 | REQ-02（900 秒） |
+| 社員 | 人事部が人事の仕組みで退職・休職・役割の変更を入れ、社員の台帳がその場で変わる | `EMPLOYEE_AT` 630 秒（TTS への要求にしか使えない）、`TXN_STAFF`・`TXN_PROXY` 330 秒、`PAY_MSG_CTX`（その社員が確定した指示）は作り直しのときに 60 秒、`SSO_SESSION` 60 秒。TTS の台帳のキャッシュ 60 秒 | 390 秒。ブローカーで待っている指示は、作り直しのときに止まる（滞留のキューに移り、別の査定担当者が確定し直す） | REQ-03（600 秒） |
+| 社員の端末・セキュリティキーの紛失 | 社員が届け、IT 基盤部が shirogane-sso の鍵の登録とセッション、staff-console のその社員のセッションを消す | `STAFF_SESSION`・`SSO_SESSION` は 0 秒、`EMPLOYEE_AT` は staff-console のサーバーの中だけ（セッションが消えると使われない）、発行済みの `TXN_STAFF`・`TXN_PROXY` 330 秒 | 330 秒（届けを受けてから） | 要求に数値が無い。REQ-03 と同じ 600 秒を目標にした（12.） |
 | 支払いの承認・請求 | 上長が承認を取り消す（H23）。査定担当者が請求を保留にする（H18） | 承認・保留はトークンに載らない。payment-svc が実行の時点で承認の記録を引き、claim-svc に保留を問い合わせる（H24・H25） | 実行の前なら 0 秒（実行の後は振込の取り消しの手続き） | REQ-04 |
-| 署名の鍵 | IT 基盤部が漏れた鍵を JWKS から外し、新しい鍵で署名する（付録 D の M_token_validation の 8.） | 受け手の JWKS のキャッシュ 300 秒、知らない kid の取り直しの間隔 30 秒 | 330 秒 | REQ-10（900 秒） |
+| 署名の鍵 | 漏れに気づいてから 480 秒以内に、IT 基盤部の当番が漏れた鍵を JWKS から外し、新しい鍵で署名する（付録 D の M_token_validation の 8.）。代理店の IdP の鍵は、代理店の知らせから 300 秒以内に代理店管理部が代理店の登録を止める | 受け手の JWKS のキャッシュ 300 秒、知らない kid の取り直しの間隔 30 秒。代理店の IdP の鍵では、TTS の登録のキャッシュ 60 秒と Txn-Token 330 秒 | しろがねの鍵は気づいてから 810 秒（480＋330）。代理店の IdP の鍵は知らせから 690 秒（300＋60＋330） | REQ-10（900 秒。起点は気づいた・知らされた時点。3.1） |
 
 すでに書かれた承認の記録は、承認した上長が後で退職・異動しても有効のままにします（承認はその時点で権限のある上長が行ったため）。実行の前に止めたいときは、別の上長が取り消します（REQ-04）。契約者のアカウントの停止は、支払いそのものを止めません。支払いを止めるのは請求の保留です（不正の疑いのときは、査定担当者・上長が保留にする）。
 
@@ -925,31 +965,31 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | --- | --- | --- | --- | --- |
 | `PH_AT` | 600 秒 | 30 秒 | `platform` | H2 600 秒<br>H3 600 秒 |
 | `PH_ID_TOKEN` | 300 秒 | 30 秒 | `platform` | — |
-| `AGENCY_ASSERTION` | 300 秒 | 30 秒 | `client` | — |
+| `AGENCY_ASSERTION` | 60 秒 | 30 秒 | `client` | — |
 | `AGENCY_AT` | 300 秒 | 30 秒 | `platform` | H5 300 秒<br>H6 300 秒 |
-| `STAFF_AT` | 600 秒 | 30 秒 | `platform` | H13 600 秒<br>H14 600 秒 |
+| `EMPLOYEE_AT` | 600 秒 | 30 秒 | `platform` | H13 600 秒<br>H14 600 秒 |
 | `STAFF_ID_TOKEN` | 300 秒 | 30 秒 | `platform` | — |
 | `AUTH_CODE` | 60 秒 | — | `platform` | — |
 | `TXN_TOKEN` | 300 秒 | 30 秒 | `platform` | H4 300 秒<br>H7 300 秒<br>H8 300 秒<br>H9 300 秒<br>H10 300 秒<br>H11 300 秒<br>H22 300 秒<br>H24 300 秒<br>H25 300 秒 |
-| `TXN_STAFF` | 300 秒 | 30 秒 | `platform` | H17 300 秒<br>H18 300 秒<br>H19 300 秒<br>H23 300 秒<br>H26 300 秒 |
+| `TXN_STAFF` | 300 秒 | 30 秒 | `platform` | H17 300 秒<br>H18 300 秒<br>H19 300 秒<br>H29 300 秒<br>H23 300 秒<br>H26 300 秒 |
 | `TXN_PROXY` | 300 秒 | 30 秒 | `platform` | H15 300 秒<br>H16 300 秒 |
-| `PAY_MSG_CTX` | 3600 秒 | 30 秒 | `platform` | H20 3600 秒<br>H21 3600 秒 |
+| `PAY_MSG_CTX` | 3600 秒 | 30 秒 | `platform` | H30 3600 秒<br>H20 3600 秒<br>H21 3600 秒 |
 
 **2. クレームの値の鮮度（受け手のいる行）**
 
 | クレーム | 載るトークン | 受け入れの最大 | 反映までに許す秒数 | 反映の遅れ | 再計算 | 受け入れの最大と許容 | 許容以内の失効の手段（目録） | 剥奪・停止のとき（台帳） |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `iss` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし（発行者を替えるときは、受け手の許可の設定を先に足す） |
-| `sub` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 契約者・代理店・社員を止めると、TTS の次の発行から拒む（状態のキャッシュは 60 秒まで） |
-| `aud` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
-| `exp` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
-| `iat` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
-| `jti` | `PH_AT`・`AGENCY_ASSERTION`・`AGENCY_AT`・`STAFF_AT` | 630 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 該当なし（1 枚ごとの値） |
-| `client_id` | `PH_AT`・`AGENCY_AT`・`STAFF_AT` | 630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 代理店の登録を止めると、shirogane-as は次の AT を出さず、TTS は次の発行から拒む |
-| `scope` | `PH_AT`・`AGENCY_AT`・`STAFF_AT`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | 600 秒 | 390 秒 | `reissue` | 超える（PH_AT 630 秒・STAFF_AT 630 秒・PAY_MSG_CTX 3630 秒 > 許容 600 秒） | PH_AT：DB の確認（60 秒）<br>STAFF_AT：DB の確認（60 秒）<br>PAY_MSG_CTX：DB の確認（60 秒） | 社員の役割を外すと、TTS の次の発行から外した範囲を出さない（台帳のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒で切れる |
+| `iss` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし（発行者を替えるときは、受け手の許可の設定を先に足す） |
+| `sub` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 契約者・代理店・社員を止めると、TTS の次の発行から拒む（状態のキャッシュは 60 秒まで） |
+| `aud` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
+| `exp` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
+| `iat` | `PH_AT`・`PH_ID_TOKEN`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 該当なし |
+| `jti` | `PH_AT`・`AGENCY_ASSERTION`・`AGENCY_AT`・`EMPLOYEE_AT` | 630 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 該当なし（1 枚ごとの値） |
+| `client_id` | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT` | 630 秒 | `never` | 0 秒 | `never` | 寿命の間に変わらない（never） | — | 代理店の登録を止めると、shirogane-as は次の AT を出さず、TTS は次の発行から拒む |
+| `scope` | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 3630 秒 | 600 秒 | 390 秒 | `reissue` | 超える（PH_AT 630 秒・EMPLOYEE_AT 630 秒・PAY_MSG_CTX 3630 秒 > 許容 600 秒） | PH_AT：DB の確認（60 秒）<br>EMPLOYEE_AT：DB の確認（60 秒）<br>PAY_MSG_CTX：DB の確認（60 秒） | 社員の役割を外すと、TTS の次の発行から外した範囲を出さない（台帳のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒で切れる |
 | `cnf` | `AGENCY_AT` | 330 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 証明書を失効させると、front-gw の TLS の終端が接続を拒む（CRL を 300 秒ごとに取り直す） |
-| `acr` | `STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_STAFF` | 630 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし（その認証の値） |
-| `auth_time` | `STAFF_AT`・`STAFF_ID_TOKEN`・`TXN_STAFF` | 630 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
+| `acr` | `EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_STAFF` | 630 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし（その認証の値） |
+| `auth_time` | `EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`TXN_STAFF` | 630 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
 | `nonce` | `PH_ID_TOKEN`・`STAFF_ID_TOKEN` | 330 秒 | `never` | 0 秒 | `login` | 寿命の間に変わらない（never） | — | 該当なし |
 | `email` | `PH_ID_TOKEN` | 330 秒 | 28800 秒 | 28800 秒 | `login` | — | — | 該当なし（表示だけ） |
 | `act` | `TXN_PROXY` | 330 秒 | `never` | 0 秒 | `reissue` | 寿命の間に変わらない（never） | — | 社員を止めると、TTS の次の発行から拒む（台帳のキャッシュ 60 秒） |
@@ -1016,7 +1056,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | クレーム（台帳の ID） | 反映までに許す秒数 | 載る種別と受け入れの上限（秒） | 対策 | 対策を書いた台帳・目録の列 |
 | --- | --- | --- | --- | --- |
 | `C-scope` | 600（REQ-03） | `PAY_MSG_CTX` 3630 | PAY_MSG_CTX の scope は TTS への作り直しの要求でだけ使う。TTS は作り直しのたびに、PAY_MSG_CTX の sub（査定を確定した社員）を社員の台帳で引き直し、今の役割に payments:instruct があるときだけ出す（役割の出どころは社員の台帳で、PAY_MSG_CTX の値ではない）。内側のサービスが PAY_MSG_CTX の scope で判断することは無い | `PAY_MSG_CTX` の `revocation`（db_lookup）、`C-scope` の `on_revoke` |
-| `C-scope`・`C-agency-code` | 600・900 | `PH_AT`・`STAFF_AT` 630、`AGENCY_AT` 330 | AT の scope と agency_code は、TTS が発行のたびに台帳・登録を引いて絞り直す上限としてだけ使う | 目録の `revocation`（db_lookup） |
+| `C-scope`・`C-agency-code` | 600・900 | `PH_AT`・`EMPLOYEE_AT` 630、`AGENCY_AT` 330 | AT の scope と agency_code は、TTS が発行のたびに台帳・登録を引いて絞り直す上限としてだけ使う | 目録の `revocation`（db_lookup） |
 
 元のデータからの経路（権限の元データを書き換えるのは誰か）：
 
@@ -1035,7 +1075,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | クレーム（台帳の ID） | 状態と期日 | 代わりの行 | 受け手ごとの移行の状況 | 並行発行の期間と、古い形式を読むのをやめる時点 |
 | --- | --- | --- | --- | --- |
-| 無い：最初の版で、廃止予定・変更中の行が無い。すべて `active` | — | — | — | 変えるときは、受け手が先・発行者が後の順で、Txn-Token は 300 秒、AGENCY_AT は 300 秒、PH_AT・STAFF_AT は 600 秒、PAY_MSG_CTX は 3600 秒を過ぎるまで並べて出す（claim_request の問 24） |
+| 無い：最初の版で、廃止予定・変更中の行が無い。すべて `active` | — | — | — | 変えるときは、受け手が先・発行者が後の順で、Txn-Token は 300 秒、AGENCY_AT は 300 秒、PH_AT・EMPLOYEE_AT は 600 秒、PAY_MSG_CTX は 3600 秒を過ぎるまで並べて出す（claim_request の問 24） |
 
 共有クレーム（`C-agency-code`）の追加前の 25 問は、`claim_request_agency_code.md` にあります。
 
@@ -1059,7 +1099,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-scope` | `scope` | 採用 | — | 各サービスは TTS のトークンの scope で API を許すかを決める。AT の scope は、TTS が絞るときの上限としてだけ使う（役割は AT に載せず、TTS が社員の台帳から引く） | TTS の経路の表（口・HTTP のメソッド・パスごとの scope と、役割ごとに許す scope）が、各サービスの API と同じ版で配られる | [RFC 8693 §4.2](https://www.rfc-editor.org/rfc/rfc8693#section-4.2)<br>[draft-ietf-oauth-transaction-tokens-11 §9.2.1](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt)<br>`slide:p05-scope-vs-role` | — | scope の語彙を足すとき。経路の表とサービスの版がずれたとき |
 | `C-cnf` | `cnf` | 採用 | — | 代理店の AT はしろがねの網の外（代理店のサーバー）に置かれるので、漏れた AT を別の者が使えないよう、証明書に束縛する（RFC 8705） | 代理店のサーバーの証明書は、しろがねの代理店向けの CA が出し、代理店のサーバーだけが秘密鍵を持つ | [RFC 8705 §3.1](https://www.rfc-editor.org/rfc/rfc8705#section-3.1)<br>[RFC 7800 §3.1](https://www.rfc-editor.org/rfc/rfc7800#section-3.1) | — | 代理店が証明書を扱えないと分かったとき。DPoP に替える要求が出たとき |
 | `C-acr` | `acr` | 採用 | — | 100 万円以上の支払いの承認と、代理店の登録・契約者のアカウントの停止は、フィッシングに強い認証を求める。確かめるのは操作を受ける payment-svc と as-admin-api で、staff-console の画面ではない | shirogane-sso はハードウェアの鍵（FIDO2 のセキュリティキー）の認証のときだけ phr を書き、ログインのセッションの再利用では acr を上げない | [OpenID Connect Core 1.0 §2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken)<br>[RFC 9470 §3](https://www.rfc-editor.org/rfc/rfc9470#section-3)<br>`slide:p06-step-up-approval` | — | 認証の手段を足すとき。草案が Txn-Token の認証の情報の置き場所を定めたとき |
-| `C-auth-time` | `auth_time` | 採用 | — | 承認の前の 300 秒以内に認証したことを、操作を受ける payment-svc・as-admin-api が確かめる（要求 REQ-05） | shirogane-sso は max_age=0 の要求で必ず認証し直させ、auth_time を書き直す。STAFF_AT にも auth_time を入れる | [OpenID Connect Core 1.0 §2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken)<br>[RFC 9470 §3](https://www.rfc-editor.org/rfc/rfc9470#section-3) | — | 承認の前の認証の新しさの要求（300 秒）が変わったとき |
+| `C-auth-time` | `auth_time` | 採用 | — | 承認の前の 300 秒以内に認証したことを、操作を受ける payment-svc・as-admin-api が確かめる（要求 REQ-05） | shirogane-sso は max_age=0 の要求で必ず認証し直させ、auth_time を書き直す。EMPLOYEE_AT にも auth_time を入れる | [OpenID Connect Core 1.0 §2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken)<br>[RFC 9470 §3](https://www.rfc-editor.org/rfc/rfc9470#section-3) | — | 承認の前の認証の新しさの要求（300 秒）が変わったとき |
 | `C-nonce` | `nonce` | 採用 | — | ID トークンの再送・すり替えを、要求とセッションに結びつけて拒む | claim-portal・staff-console は nonce をサーバーのセッションに置き、ブラウザに渡さない | [OpenID Connect Core 1.0 §3.1.2.1](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) | — | ログインの形を替えるとき |
 | `C-email` | `email` | 採用 | — | claim-portal がログインした人に「誰としてログインしているか」を見せる。照合・認可には使わない（照合は sub） | email は PH_ID_TOKEN にだけ載せ、AT・Txn-Token に載せない | [OpenID Connect Core 1.0 §5.1](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)<br>`slide:p04-immutable-identifiers` | — | メールを照合に使う要求が出たとき（そのときは別の行にして、本人確認の仕組みを決める） |
 | `C-act` | `act` | 採用 | — | 代理の操作を、契約者の名と社員の名の両方で記録し、後から本人の操作と見分ける。act のあるトークンを受ける設定は claim-svc と fraud-svc だけに置く | 代理の深さは 1（社員が契約者に代わるだけ）。社員の代わりにさらに誰かが操作する経路は作らない | [RFC 8693 §4.1](https://www.rfc-editor.org/rfc/rfc8693#section-4.1)<br>`slide:p05-system-privileges` | — | 代理店の担当者や AI の受付が契約者に代わって操作する経路を足すとき。Transaction Tokens の草案の版が変わったとき |
@@ -1067,9 +1107,9 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-req-wl` | `req_wl` | 採用 | — | 取引を始めてよいワークロード（front-gw・payment-worker・payment-batch）からの Txn-Token だけを受け、監査に残す | 草案 -11 は req_wl に何を書くかを細かく定めていない。しろがねは要求したワークロードの SPIFFE ID を書く（12.） | [draft-ietf-oauth-transaction-tokens-11 §9.2](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt) | — | Transaction Tokens の草案の版が変わったとき |
 | `C-tctx` | `tctx` | 採用 | — | 取引の値を入口で 1 回だけ決め、値を使うサービスが要求の本文と照合する（途中のサービスが本文を書き換えても、入口で決めた値から外れた処理をしない） | front-gw が要求の本文から経路の表の項目を取り出して request_details で TTS に渡し、TTS が経路の表の型と上限で確かめて書く（値は要求した者の申告で、TTS は形を確かめて固定するだけ。値が正しいかは受け手が保存データと照らす）。 PAY_MSG_CTX からの作り直しでは、TTS は PAY_MSG_CTX の tctx の claim_id・policy_number・amount・payee_ref を変えずに写す | [draft-ietf-oauth-transaction-tokens-11 §9.2.3](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt)<br>`slide:p04-split-by-writer`<br>`slide:p06-transaction-tokens` | — | Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき |
 | `C-rctx` | `rctx` | 却下（不要） | — | 要求の環境（要求元の IP など）で判断する内側の受け手が無い。fraud-svc の不正の判定は請求の内容（tctx の値と請求の記録）で行い、 要求元の IP の傾向は、front-gw が接続から記録したアクセスのログ（txn つき）を fraud-svc が 5 分ごとに読んで調べる。IP をトークンで運ぶと、 読まない受け手（document-svc・assessment-svc・payment-svc）にも届く | 請求の受付の場で IP によって許可・拒否を決める要求が無い | [draft-ietf-oauth-transaction-tokens-11 §9.2.2](https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt)<br>`slide:p06-access-context` | — | 請求の受付の場で、要求元の IP・端末で判定を変える要求が出たとき（そのときも、判断は front-gw か TTS で行う形から考える） |
-| `C-agency-code` | `https://shirogane-sonpo.example/claims/agency_code` | 採用 | — | claim-svc・document-svc が、代理店の担当者の請求をその代理店が扱う証券だけに絞る。値は代理店の申告（assertion）からは取らず、しろがねの代理店の登録からだけ書く | 代理店の登録は、client_id・代理店コード・証明書のサブジェクト・代理店の IdP の iss を組で持ち、代理店管理部だけが as-admin-api で書く | `slide:p04-immutable-identifiers`<br>`slide:p04-split-by-writer` | — | 代理店の合併・分割で代理店コードを付け替える要求が出たとき。Transaction Tokens の草案の版が変わったとき |
+| `C-agency-code` | `https://shirogane-sonpo.example/claims/agency_code` | 採用 | — | claim-svc が、代理店の担当者の請求・書類の登録を、その代理店が扱う証券だけに絞る。値は代理店の申告（assertion）からは取らず、しろがねの代理店の登録からだけ書く | 代理店の登録は、client_id・代理店コード・証明書のサブジェクト・代理店の IdP の iss を組で持ち、代理店管理部だけが as-admin-api で書く | `slide:p04-immutable-identifiers`<br>`slide:p04-split-by-writer` | — | 代理店の合併・分割で代理店コードを付け替える要求が出たとき。Transaction Tokens の草案の版が変わったとき |
 | `C-injury` | `https://shirogane-sonpo.example/claims/injury_code` | 却下（禁止） | — | 傷病・事故の内容は要配慮個人情報で、トークンに載せない（要求 REQ-08）。査定に要る受け手（assessment-svc から document-svc）が書類の保存先から読む。トークンは届く先がホップごとに広がり、ログ・キャッシュに写りやすい | 査定は document-svc の書類と assessment-svc の記録だけで行い、トークンの値で傷病を判断する受け手が無い | `slide:p09-jwe-sd-jwt` | — | 傷病の区分で自動の査定をする要求が出たとき（そのときも、載せずに問い合わせる形から考える） |
-| `C-roles` | `roles` | 却下（代替あり） | `C-scope` | 社員の役割を STAFF_AT に載せると、役割を外してから AT の寿命（600 秒）と Txn-Token の寿命の分だけ古い役割が残り、要求 REQ-03（600 秒）を超える。TTS が発行のたびに社員の台帳から役割を引き、scope に替える | — | [RFC 7643 §4.1.2](https://www.rfc-editor.org/rfc/rfc7643#section-4.1.2)<br>`slide:p05-scope-vs-role` | — | TTS が社員の台帳を引けない構成（台帳を網の外に移すなど）にするとき |
+| `C-roles` | `roles` | 却下（代替あり） | `C-scope` | 社員の役割を EMPLOYEE_AT に載せると、役割を外してから AT の寿命（600 秒）と Txn-Token の寿命の分だけ古い役割が残り、要求 REQ-03（600 秒）を超える。TTS が発行のたびに社員の台帳から役割を引き、scope に替える | — | [RFC 7643 §4.1.2](https://www.rfc-editor.org/rfc/rfc7643#section-4.1.2)<br>`slide:p05-scope-vs-role` | — | TTS が社員の台帳を引けない構成（台帳を網の外に移すなど）にするとき |
 | `C-groups` | `groups` | 却下（不要） | — | 部署・課のグループで認可しない。請求の担当は claim-svc の割り当ての記録で、役割は社員の台帳で決める | 査定の担当は請求ごとの割り当てで決まり、部署では決まらない | — | — | 部署単位で請求を見せる要求（課長が課の全請求を見るなど）が出たとき |
 | `C-amr` | `amr` | 却下（代替あり） | `C-acr` | 認証の手段の一覧（amr）を受け手ごとに解釈させず、shirogane-sso が acr の 2 つの値にまとめる。受け手は acr の値だけを比べる | — | [RFC 8176 §2](https://www.rfc-editor.org/rfc/rfc8176#section-2) | — | 手段ごとに違う扱い（SMS の多要素を承認で拒むなど）を受け手で決める要求が出たとき |
 | `C-birthdate` | `birthdate` | 却下（不要） | — | 生年月日で判断する受け手が無い。年齢の確認が要る場面（未成年の契約者の請求）は、契約管理の仕組みの値で claim-svc が判断する | — | [OpenID Connect Core 1.0 §5.1](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims) | — | ポータルで年齢によって画面を変える要求が出たとき |
@@ -1091,11 +1131,11 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `C-client-id` | `client_id` | shirogane-as・shirogane-sso のクライアントの登録と、代理店の登録（client_id・代理店コード・証明書のサブジェクトの組。代理店管理部が as-admin-api で書く） | ② shirogane-as・shirogane-sso（クライアントの登録）（設定できる主体：platform） | `I01`・`I02`・`I15` | `never` | `never` | 0 秒 |
 | `C-scope` | `scope` | クライアントの登録（AT）、TTS の経路の表と社員の台帳の役割（人事部が人事の仕組みで書く）（Txn-Token） | ② shirogane-as・shirogane-sso（クライアントが求めた範囲。クライアントの登録の範囲を超えない）（設定できる主体：platform）<br>④ TTS（経路の表と、社員の台帳の役割・代理店の登録・通話の記録で絞る）（設定できる主体：platform） | `I01`・`I02`・`I15`・`I22` | `reissue` | 600 秒 | 390 秒 |
 | `C-cnf` | `cnf` | トークンの要求の TLS の接続で示されたクライアント証明書 | ② shirogane-as（トークンの要求の mTLS の証明書の拇印）（設定できる主体：platform） | `I15`・`I29` | `reissue` | `never` | 0 秒 |
-| `C-acr` | `acr` | shirogane-sso の認証の記録 | ① shirogane-sso（その認証で使った手段）（設定できる主体：platform）<br>④ TTS（検証した STAFF_AT の値をそのまま写す）（設定できる主体：platform） | `I01`・`I11`・`I12`・`I22` | `login` | `never` | 0 秒 |
-| `C-auth-time` | `auth_time` | shirogane-sso の認証の記録 | ① shirogane-sso（認証した時刻）（設定できる主体：platform）<br>④ TTS（検証した STAFF_AT の値をそのまま写す）（設定できる主体：platform） | `I01`・`I11`・`I12`・`I22` | `login` | `never` | 0 秒 |
+| `C-acr` | `acr` | shirogane-sso の認証の記録 | ① shirogane-sso（その認証で使った手段）（設定できる主体：platform）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す）（設定できる主体：platform） | `I01`・`I11`・`I12`・`I22` | `login` | `never` | 0 秒 |
+| `C-auth-time` | `auth_time` | shirogane-sso の認証の記録 | ① shirogane-sso（認証した時刻）（設定できる主体：platform）<br>④ TTS（検証した EMPLOYEE_AT の値をそのまま写す）（設定できる主体：platform） | `I01`・`I11`・`I12`・`I22` | `login` | `never` | 0 秒 |
 | `C-nonce` | `nonce` | claim-portal・staff-console の乱数の生成 | ① claim-portal・staff-console（要求に付ける）（設定できる主体：platform） | `I01`・`I11`・`I12` | `login` | `never` | 0 秒 |
 | `C-email` | `email` | shirogane-as の契約者の台帳（契約者がポータルで変える） | ② shirogane-as（契約者の台帳）（設定できる主体：platform・end_user） | `I01`・`I11` | `login` | 28800 秒 | 28800 秒 |
-| `C-act` | `act` | STAFF_AT の sub と、社員の台帳の役割（コールセンター）・通話の記録の担当者 | ④ TTS（検証した STAFF_AT の sub）（設定できる主体：platform） | `I22` | `reissue` | `never` | 0 秒 |
+| `C-act` | `act` | EMPLOYEE_AT の sub と、社員の台帳の役割（コールセンター）・通話の記録の担当者 | ④ TTS（検証した EMPLOYEE_AT の sub）（設定できる主体：platform） | `I22` | `reissue` | `never` | 0 秒 |
 | `C-txn` | `txn` | TTS の乱数の生成（作り直しでは PAY_MSG_CTX の txn） | ④ TTS（設定できる主体：platform） | `I22` | `never` | `never` | 0 秒 |
 | `C-req-wl` | `req_wl` | TTS の mTLS の終端が確かめた X.509-SVID | ④ TTS（要求したワークロードの mTLS の相手の ID）（設定できる主体：platform） | `I22` | `never` | `never` | 0 秒 |
 | `C-tctx` | `tctx` | 入口の要求の本文（front-gw が取り出す）と TTS の経路の表。call_id は IVR の通話の記録 | ④ TTS（経路の表。値は front-gw が渡した要求の本文から、作り直しでは PAY_MSG_CTX から）（設定できる主体：platform・caller） | `I22` | `reissue` | `never` | 0 秒 |
@@ -1114,25 +1154,25 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 
 | イベント | 名前 | トークン | メモ |
 | --- | --- | --- | --- |
-| `I01` | 認可コード＋PKCE での対話ログイン（AT・ID トークン・RT・認可コードの発行。PAR を含む） | `PH_AT`・`PH_ID_TOKEN`・`PH_RT`・`AUTH_CODE`・`AS_SESSION`・`PORTAL_SESSION`・`STAFF_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION`・`STAFF_SESSION` | 契約者は claim-portal から shirogane-as に、社員は staff-console から shirogane-sso に、PAR と認可コード＋PKCE でログインする。RT は claim-portal にだけ出す |
+| `I01` | 認可コード＋PKCE での対話ログイン（AT・ID トークン・RT・認可コードの発行。PAR を含む） | `PH_AT`・`PH_ID_TOKEN`・`PH_RT`・`AUTH_CODE`・`AS_SESSION`・`PORTAL_SESSION`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION`・`STAFF_SESSION` | 契約者は claim-portal から shirogane-as に、社員は staff-console から shirogane-sso に、PAR と認可コード＋PKCE でログインする。RT は claim-portal にだけ出す |
 | `I02` | リフレッシュトークンでの再発行（ローテーションを含む） | `PH_AT`・`PH_RT` | claim-portal だけが PH_RT で取り直す。shirogane-as は取り直しのたびに契約者のアカウントの状態を見る |
-| `I11` | サイレント再認証（prompt=none）・SSO セッションの再利用での発行 | `STAFF_AT`・`STAFF_ID_TOKEN`・`AUTH_CODE`・`PH_AT`・`PH_ID_TOKEN` | staff-console は STAFF_AT の期限が切れると prompt=none で取り直す。claim-portal のセッションが切れた後の再ログインで、shirogane-as のセッションが残っていれば認証の画面を出さずに発行される。どちらも acr・auth_time は前の認証の値のままで、承認の前の認証し直し（I12）の代わりにならない |
-| `I12` | 追加認証（step-up。RFC 9470）での発行 | `STAFF_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION` | 上長の支払いの承認と、代理店管理部・お客さま窓口の上長の管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直させる。確かめるのは payment-svc と as-admin-api（TXN_STAFF の acr・auth_time） |
+| `I11` | サイレント再認証（prompt=none）・SSO セッションの再利用での発行 | `EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`AUTH_CODE`・`PH_AT`・`PH_ID_TOKEN` | staff-console は EMPLOYEE_AT の期限が切れると prompt=none で取り直す。claim-portal のセッションが切れた後の再ログインで、shirogane-as のセッションが残っていれば認証の画面を出さずに発行される。どちらも acr・auth_time は前の認証の値のままで、承認の前の認証し直し（I12）の代わりにならない |
+| `I12` | 追加認証（step-up。RFC 9470）での発行 | `EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION` | 上長の支払いの承認と、代理店管理部・お客さま窓口の上長の管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直させる。確かめるのは payment-svc と as-admin-api（TXN_STAFF の acr・auth_time） |
 | `I15` | JWT のアサーショングラント（RFC 7523。ドメインをまたぐ JWT、ワークロードの JWT）での発行 | `AGENCY_AT` | 代理店のサーバーが、代理店の IdP の assertion（AGENCY_ASSERTION）と tls_client_auth で shirogane-as から取る。shirogane-as は assertion の iss・aud・exp・jti を確かめ、(iss, sub) を代理店の担当者の ID に替える |
 | `I22` | Txn-Token の発行と作り直し（Transaction Token Service） | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | TTS が、front-gw（契約者・代理店・社員の口）、assessment-svc（PAY_MSG_CTX）、payment-worker（PAY_MSG_CTX からの作り直し）、payment-batch（自分の ID）の要求で出す。発行のたびに契約者・代理店・社員・通話の記録の状態を引く。TTS が落ちたら発行せず、front-gw は 503 を返す |
 | `I25` | サインアップ・招待・初回ログインでの発行 | `PH_AT`・`PH_ID_TOKEN`・`PH_RT`・`AS_SESSION`・`PORTAL_SESSION` | 契約者が証券番号と、郵送した登録の番号で本人確認してアカウントを作り、初めてログインする。メールアドレスだけでは登録できない |
-| `I26` | 資格情報の変更（パスワードの変更・リセット、MFA の登録）の後の発行 | `PH_AT`・`PH_ID_TOKEN`・`PH_RT`・`AS_SESSION`・`STAFF_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION` | 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso はセキュリティキーの登録で acr の値を変える |
-| `I29` | 送信者制約つきの発行（DPoP・mTLS で AT・RT を鍵に束縛する。cnf） | `AGENCY_AT` | shirogane-as が、代理店のサーバーの tls_client_auth の証明書の拇印を AGENCY_AT の cnf（x5t#S256）に書く（RFC 8705 §3）。PH_AT・STAFF_AT は束縛しない（3.1） |
-| `U01` | API が Authorization ヘッダーの Bearer で AT を受けて検証する | `PH_AT`・`AGENCY_AT`・`STAFF_AT` | front-gw が口ごとに Authorization ヘッダーの Bearer で AT を受け、検証して TTS への要求にだけ使う。内側のサービスは AT を受けない |
+| `I26` | 資格情報の変更（パスワードの変更・リセット、MFA の登録）の後の発行 | `PH_AT`・`PH_ID_TOKEN`・`PH_RT`・`AS_SESSION`・`EMPLOYEE_AT`・`STAFF_ID_TOKEN`・`SSO_SESSION` | 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso はセキュリティキーの登録で acr の値を変える |
+| `I29` | 送信者制約つきの発行（DPoP・mTLS で AT・RT を鍵に束縛する。cnf） | `AGENCY_AT` | shirogane-as が、代理店のサーバーの tls_client_auth の証明書の拇印を AGENCY_AT の cnf（x5t#S256）に書く（RFC 8705 §3）。PH_AT・EMPLOYEE_AT は束縛しない（3.1） |
+| `U01` | API が Authorization ヘッダーの Bearer で AT を受けて検証する | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT` | front-gw が口ごとに Authorization ヘッダーの Bearer で AT を受け、検証して TTS への要求にだけ使う。内側のサービスは AT を受けない |
 | `U03` | RP（BFF・クライアント）がログインの応答で ID トークンを検証し、読む | `PH_ID_TOKEN`・`STAFF_ID_TOKEN` | claim-portal・staff-console がログインの応答で ID トークンの署名・iss・aud・exp・nonce を確かめる。staff-console は acr・auth_time も読む |
 | `U04` | BFF・クライアントがリフレッシュトークンを提示して AT を取り直す | `PH_RT`・`PH_AT` | claim-portal が PH_RT を出して PH_AT を取り直す。古い RT が 2 回使われたら shirogane-as が系列を止める |
 | `U06` | RP が利用者のログアウトを IdP に送る（RP-Initiated Logout） | `AS_SESSION`・`SSO_SESSION`・`PORTAL_SESSION`・`STAFF_SESSION` | claim-portal・staff-console のログアウトで、自分のセッションを消し、shirogane-as・shirogane-sso の logout の端点に送る。claim-portal は PH_RT も失効させる |
-| `U09` | 受け手が未知の kid を見て JWKS を取り直す（署名鍵のローテーションと JWKS のキャッシュ） | `PH_AT`・`AGENCY_AT`・`STAFF_AT`・`AGENCY_ASSERTION`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 受け手は JWKS を 300 秒キャッシュし、知らない kid では最短 30 秒の間隔で取り直す。取り直しに失敗したら受けない（on_fetch_failure：reject） |
-| `U10` | 受け手が AT をトークン交換の subject_token として提示する | `PH_AT`・`AGENCY_AT`・`STAFF_AT`・`PAY_MSG_CTX`・`TXN_STAFF` | front-gw が AT を、assessment-svc が TXN_STAFF を、payment-worker が PAY_MSG_CTX を、TTS のトークン交換の形の要求の subject_token として出す |
+| `U09` | 受け手が未知の kid を見て JWKS を取り直す（署名鍵のローテーションと JWKS のキャッシュ） | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT`・`AGENCY_ASSERTION`・`TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PAY_MSG_CTX` | 受け手は JWKS を 300 秒キャッシュし、知らない kid では最短 30 秒の間隔で取り直す。取り直しに失敗したら受けない（on_fetch_failure：reject） |
+| `U10` | 受け手が AT をトークン交換の subject_token として提示する | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT`・`PAY_MSG_CTX`・`TXN_STAFF` | front-gw が AT を、assessment-svc が TXN_STAFF を、payment-worker が PAY_MSG_CTX を、TTS のトークン交換の形の要求の subject_token として出す |
 | `U11` | 入口が外部のトークンを検証し、ヘッダーに転記して内側へ渡す | `AGENCY_AT` | front-gw は AT のクレームをヘッダーに写さない（Txn-Token に作り直す）。ヘッダーに写すのは、代理店の口の証明書の拇印（Shirogane-Client-Cert-S256）を TTS への要求に付けるときだけで、代理店から来た同名のヘッダーは捨てる |
 | `U12` | サービス間で文脈を伝搬する（Txn-Token・mTLS・SPIFFE） | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY` | 内側のサービスは Txn-Token ヘッダーで受け取ったまま渡し、直接の相手を mTLS の SPIFFE ID で確かめる |
 | `U13` | 非同期の処理（キュー・イベント・ワークフロー）で主体を引き継ぐ | `PAY_MSG_CTX`・`TXN_TOKEN` | 査定の確定から支払いの指示まで、ブローカーで最大 3600 秒待つ。メッセージには PAY_MSG_CTX を入れ、payment-worker が TTS で TXN_TOKEN に作り直す。夜間の支払いの実行は payment-batch が自分の ID で求める（後で動く処理の権限は、作り直し・実行の時点で TTS と payment-svc が確かめ直す） |
-| `U14` | ログ・監査・トレースにクレームを残す | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PH_AT`・`AGENCY_AT`・`STAFF_AT` | 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の値（operation・claim_id・payment_id・amount など）を残す。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない |
+| `U14` | ログ・監査・トレースにクレームを残す | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`・`PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT` | 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の値（operation・claim_id・payment_id・amount など）を残す。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない |
 | `U15` | クライアント・運用者が失効のエンドポイント（RFC 7009）や管理の操作でトークン・セッションを失効させる | `PH_RT`・`AS_SESSION`・`SSO_SESSION` | claim-portal はログアウトで PH_RT を失効の端点（RFC 7009）に送る。契約者のアカウントの停止・社員の退職で shirogane-as・shirogane-sso がセッションを消す |
 | `U21` | 判断や検証の結果をキャッシュする | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY` | TTS は契約者・代理店・社員の状態を 60 秒までキャッシュする。通話の記録・承認の記録はキャッシュしない。受け手は判断の結果をキャッシュしない（JWKS のキャッシュは U09） |
 | `U22` | ブラウザ・URL にトークンを置く・通す | `AUTH_CODE` | 認可コードだけがリダイレクトの query でブラウザを通る（60 秒・1 回だけ・PKCE）。認可要求は PAR で送り、AT・RT・ID トークンはブラウザに出さない |
@@ -1198,9 +1238,10 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | SVID での tls_client_auth | claim-portal・staff-console が SVID（URI の SAN）で tls_client_auth を使うとき、shirogane-as・shirogane-sso が SAN の URI で照らせること（RFC 8705 §2.1.2 の tls_client_auth_san_uri） | 発行者の設定の試験で確かめる | `issuance_profile.client_auth` |
 | 可用性の目標 | 3.1 の 99.91% は部品の目標の積で、測っていない。依存先（社員の台帳・通話の記録）が止まったときは、社員の口だけが止まり、請求の受付（REQ-07）は止まらないと考えた | 運用で月ごとに測る（付録 A） | H3・H6・H14 の note |
 | 時計 | IVR の通話の記録の時刻、shirogane-sso の auth_time、代理店の IdP の iat を、別の時計の値として比べる（付録 D の M_token_validation の 6.）。IVR と代理店の IdP の時計を、しろがねは見ていない | IVR の時刻を NTP の監視に足す。代理店には連携の仕様で NTP を求める | `C-auth-time`・`C-iat`、H14 |
-| 代理店の担当者の表 | 初めての (iss, sub) の組に、代理店の登録が有効なら新しい ID を割り当てる（代理店の IdP の管理者は担当者を作れる）。代理店が担当者の ID を付け替えたとき（同じ sub を別の人に使う）は、しろがねでは見分けられない | 代理店連携の仕様で、sub を付け替えないことを求める。付け替えの報告の手順を決める | `C-sub` の `upstream_issuer` |
+| 代理店の担当者の表 | 初めての (iss, sub) の組に、代理店の登録が有効なら新しい ID を割り当てる（代理店の IdP の管理者は担当者を作れる）。付け替えは見分けられない（3.1 の見送り） | 代理店連携の仕様で、sub を付け替えないことと報告を求める。2 社が守れるかを結合の試験で確かめる | `C-sub` の `upstream_issuer` |
 | 監査ログの相関 | 監査ログで sub を HMAC にするので、ログだけでは誰かが分からない（監査部が鍵で引く）。REQ-09 の「1 本の記録」は txn と claim_id・payment_id でつなぐ | 監査部と、たどる手順を試す | `C-sub`・`C-txn`・`C-tctx` |
-| 端末の紛失の目標 | 社員の端末・セキュリティキーの紛失の届けから止まるまでの要求の数値が無い。9.1 では REQ-03 と同じ 600 秒を目標にし、330 秒で収まるとした。届けが出るまでの時間は数えていない | 要求の持ち主（情報セキュリティ部）に、届けからの目標と、届けまでの扱いを確かめる | `STAFF_SESSION`・`SSO_SESSION` |
+| 要求の起点 | REQ-03（発効か台帳の更新か）・REQ-10（漏れた時点か気づいた時点か）の時計の起点を、この設計は台帳の更新・気づいた時点と読んだ（3.1 の見送り） | 要求の持ち主（人事部・情報セキュリティ部）に確かめる | 9.1、REQ-03・REQ-10 |
+| 端末の紛失の目標 | 社員の端末・セキュリティキーの紛失の届けから止まるまでの要求の数値が無い（3.1 の見送り）。9.1 では REQ-03 と同じ 600 秒を目標にし、330 秒で収まるとした。届けが出るまでの時間は数えていない | 要求の持ち主（情報セキュリティ部）に、届けからの目標と、届けまでの扱いを確かめる | `STAFF_SESSION`・`SSO_SESSION` |
 | fraud-svc の IP の分析 | front-gw のアクセスのログを 5 分ごとに読む形で足りるか（rctx を載せないと決めた） | 不正対策の担当と、判定に要る遅れを確かめる | `C-rctx`（却下） |
 
 <a id="diff"></a>
@@ -1225,7 +1266,9 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | 請求の受付（契約者の口・代理店の口）の可用性 | 月 | IT 基盤部 | 99.9% を下回ったら、原因の部品（front-gw・TTS・shirogane-as・契約管理の仕組み・claim-svc）の目標と 3.1 の重点の「拒む」の選び方を見直す |
 | TTS の拒否の件数（契約者の停止・代理店の登録・社員の台帳・通話の記録・拇印の不一致） | 5 分 | IT 基盤部 | 代理店の口の拇印の不一致が 1 件でもあれば、front-gw の設定か攻撃かを調べる |
 | tctx と要求の本文の食い違い（409） | 5 分 | 各サービスの持ち主 | 1 件でもあれば調べる（途中での書き換え、または入口の取り出しの誤り） |
-| 要配慮の書類の閲覧と割り当ての突き合わせ | 毎日 | 情報セキュリティ部 | 割り当ての無い閲覧が 1 件でもあれば調べる（3.1 の見送りの確かめ方） |
+| 書類の登録・閲覧と、請求の持ち主・取扱代理店・割り当ての突き合わせ | 毎日 | 情報セキュリティ部 | 合わない登録・閲覧が 1 件でもあれば調べる（3.1 の見送りの確かめ方） |
+| 発令と社員の台帳の更新の時刻の突き合わせ | 月 | 人事部・情報セキュリティ部 | 発効より遅れた更新が 1 件でもあれば人事部に返す（3.1 の REQ-03 の起点の見送り） |
+| 鍵の漏えいの訓練（気づいてから JWKS から外すまで・代理店の登録の停止まで） | 月 | IT 基盤部・代理店管理部 | 480 秒・300 秒を超えたら手順を見直す（REQ-10） |
 | 支払いの指示の滞留のキューの件数 | 1 時間 | 保険金部 | 1 件でもあれば、査定担当者に確定し直しを頼む（REQ-06 の 3600 秒を超えた指示） |
 | 承認の API の 401（acr・auth_time の不足） | 毎日 | 情報セキュリティ部 | 同じ社員で 1 日に 5 件を超えたら、画面の案内か攻撃かを調べる |
 | 共通の検証部品（shirogane-txn-verifier）の版 | 毎日（依存関係の走査） | IT 基盤部 | 2 つ前より古い版のサービスが 1 つでもあれば、次の配備で上げさせる |
@@ -1268,7 +1311,7 @@ prompt=none での取り直し（I11）と、shirogane-as・shirogane-sso のセ
 | 決めること | 選んだ候補 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | 構成 | BFF（claim-portal・staff-console） | トークンをブラウザに渡さない。どちらもサーバーで動き、mTLS の証明書を持てる | `issuance_profile.client_type` |
-| AT の置き場所 | BFF のサーバー | ブラウザの JavaScript から読めない | `PH_AT`・`STAFF_AT` の `stored_at` |
+| AT の置き場所 | BFF のサーバー | ブラウザの JavaScript から読めない | `PH_AT`・`EMPLOYEE_AT` の `stored_at` |
 | RT の置き場所 | claim-portal のサーバー。社員には RT を出さない | 社員の画面は勤務の間だけで、prompt=none で取り直せる | `PH_RT` の `stored_at`・`rt_rotation`、`issuance_profile.rt_strategy` |
 | Cookie の守り | __Host- の接頭辞、Secure・HttpOnly、契約者は SameSite=Lax、社員は SameSite=Strict | 社員の画面は外のサイトからの遷移を受けない | `PORTAL_SESSION`・`STAFF_SESSION` の `note` |
 | ID トークンの置き場所 | BFF のサーバー。ログインの応答で検証した後は保存しない | email を載せるので、ブラウザ・ログに出さない | `PH_ID_TOKEN`・`STAFF_ID_TOKEN` の `stored_at`・`visible_to` |
@@ -1280,7 +1323,7 @@ prompt=none での取り直し（I11）と、shirogane-as・shirogane-sso のセ
 | --- | --- | --- | --- |
 | 認可要求 | PAR（サーバーから送り、URL には request_uri だけ） | 要求の中身（resource・acr_values）をブラウザの URL に載せない | `issuance_profile.request_protection` |
 | 認可応答 | リダイレクトの query の認可コード（60 秒・1 回だけ・PKCE・iss） | code の応答の型だけを許す | `AUTH_CODE` の `transport` |
-| API の呼び出し | Authorization ヘッダー（BFF のサーバーから） | URL に AT を載せない | `PH_AT`・`STAFF_AT` の `transport` |
+| API の呼び出し | Authorization ヘッダー（BFF のサーバーから） | URL に AT を載せない | `PH_AT`・`EMPLOYEE_AT` の `transport` |
 | ログ | AT は jti だけ、ID トークン・RT・Txn-Token は記録しない | 個人情報とトークンの全文をログに残さない（REQ-12） | 目録の `log_policy` |
 
 #### P1_human_web：3. ログインと ID トークンの扱い〔Full：記入／Lite：参照〕
@@ -1347,7 +1390,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 呼び出し（from → to） | 通信相手の確かめ方 | 利用者の確かめ方 | 理由 | 台帳の ID |
 | --- | --- | --- | --- | --- |
 | front-gw → claim-svc・assessment-svc・payment-svc・as-admin-api | mTLS の SPIFFE ID が front-gw | Txn-Token の sub と scope、tctx と本文 | 入口からの取引は front-gw だけが持ち込む | H4・H7・H15・H17・H23・H26 |
-| claim-svc → fraud-svc・document-svc | mTLS の SPIFFE ID が claim-svc | 受け取ったまま渡した Txn-Token の sub（document-svc は請求の持ち主・agency_code も） | 仲介のサービスが自分の資格情報で書かない | H8〜H11・H16 |
+| claim-svc → fraud-svc・document-svc | mTLS の SPIFFE ID が claim-svc | 受け取ったまま渡した Txn-Token の sub・scope・tctx。請求の持ち主・agency_code は呼ぶ前に claim-svc が確かめる | 仲介のサービスが自分の資格情報で書かない | H8〜H11・H16 |
 | assessment-svc → claim-svc・document-svc | mTLS の SPIFFE ID が assessment-svc | TXN_STAFF の sub と scope（documents:read-sensitive） | 要配慮の書類は assessment-svc からだけ | H18・H19 |
 | payment-worker・payment-batch → payment-svc | mTLS の SPIFFE ID と、operation ごとの req_wl | 作り直した TXN_TOKEN の sub（査定を確定した社員）、payment-batch の sub（自分の ID） | 指示と実行の経路を分ける | H22・H24 |
 | payment-svc → claim-svc | mTLS の SPIFFE ID が payment-svc | TXN_TOKEN の scope（payments:execute）で、保留の読み取りだけ | 実行の時点の保留の確かめ | H25 |
@@ -1370,7 +1413,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 
 | 受け手 | 受け入れる発行者と鍵の取得元 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| front-gw・TTS | 契約者と代理店の口は shirogane-as、社員の口は shirogane-sso。鍵は発行者のメタデータの jwks_uri | 口ごとに発行者を 1 つにする | `PH_AT`・`AGENCY_AT`・`STAFF_AT` の `issuers` |
+| front-gw・TTS | 契約者と代理店の口は shirogane-as、社員の口は shirogane-sso。鍵は発行者のメタデータの jwks_uri | 口ごとに発行者を 1 つにする | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT` の `issuers` |
 | shirogane-as | 代理店の assertion は、代理店の登録の iss と JWKS の URL だけ（設定した jwks_uri） | 代理店の IdP のメタデータを辿らない | `AGENCY_ASSERTION` の `issuers`・`key_source` |
 | 内側のサービス | TTS だけ（設定した jwks_uri） | 外の発行者のトークンを内側で受けない | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY` の `issuers` |
 
@@ -1399,7 +1442,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 種別 | 許すずれ・寿命の確かめ方・時刻を比べる箇所と時計・1 回だけ受ける値の記録先 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | Txn-Token | ずれ 30 秒。exp − iat が 300 秒を超えるものは受けない。比べるのは TTS の時計と受け手の時計（どちらもしろがねの NTP） | TTS の設定の誤りで長い Txn-Token が出ても受けない | `C-exp`・`C-iat` |
-| 代理店の assertion | ずれ 30 秒。exp − iat が 300 秒以下。iat は代理店の IdP の時計、比べるのは shirogane-as の時計（ずれたら拒む側に倒れる）。jti は shirogane-as が (iss, jti) を 330 秒覚える | 代理店の時計はしろがねが見ていない（12.） | `AGENCY_ASSERTION` の `jti_policy`、`C-jti` |
+| 代理店の assertion | ずれ 30 秒。exp − iat が 60 秒以下。iat は代理店の IdP の時計、比べるのは shirogane-as の時計（ずれたら拒む側に倒れる）。jti は shirogane-as が (iss, jti) を 90 秒覚える（一意の制約つきの 1 回の書き込み） | 代理店の時計はしろがねが見ていない（12.） | `AGENCY_ASSERTION` の `jti_policy`、`C-jti` |
 | 承認の auth_time | auth_time は shirogane-sso の時計、比べるのは payment-svc・as-admin-api の時計（どちらもしろがねの NTP）。300 秒に時計のずれを足さない（厳しい側） | REQ-05 の 300 秒を広げない | `C-auth-time` |
 | 通話の記録 | 本人確認の時刻は IVR の時計、比べるのは TTS の時計。1800 秒を過ぎたら出さない。IVR の時計のずれは監視に足す（12.） | REQ-11 | H14 |
 | 支払いの実行の時間帯 | TTS の時計で 1 時〜3 時。payment-batch の時計ではない | 実行の時間帯を TTS が決める | H24 |
@@ -1408,7 +1451,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 
 | 種別 | 確かめる値 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| AT | at+jwt | ID トークン・Txn-Token と取り違えない | `PH_AT`・`AGENCY_AT`・`STAFF_AT` の `typ` |
+| AT | at+jwt | ID トークン・Txn-Token と取り違えない | `PH_AT`・`AGENCY_AT`・`EMPLOYEE_AT` の `typ` |
 | ID トークン・代理店の assertion | JWT。aud で区別する（ID トークンはクライアントの ID、assertion はトークンの端点） | 代理店の IdP に typ を決めさせられない | `kind_discriminator`（L17） |
 | Txn-Token | txntoken+jwt | AT として受けない（§13.13） | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY` の `typ` |
 | PAY_MSG_CTX | msgctx+jwt | TTS の作り直しの要求でだけ受ける | `PAY_MSG_CTX` の `typ` |
@@ -1417,9 +1460,9 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 
 | 発行者 | 周期と待つ時間・鍵の保管と持ち主・漏えい時の手順と目標の分数 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| shirogane-as・shirogane-sso | 90 日ごと。次の鍵を JWKS に載せて 600 秒待ってから使い、古い鍵は 630 秒の後に外す。鍵は HSM の中で作り、持ち主は IT 基盤部（取り出せない）。漏れたら、当番の IT 基盤部の担当者が鍵を JWKS から外して次の鍵に切り替える（手順書。目標 15 分）。受け手は最悪 330 秒（キャッシュ 300＋知らない kid の間隔 30）で受けなくなる | REQ-10 の 900 秒に収める | `PH_AT`・`STAFF_AT` の `key_rotation`・`jwks_cache_ttl`・`unknown_kid` |
-| TTS | 30 日ごと。600 秒待って使い、古い鍵は 3630 秒（PAY_MSG_CTX の上限）の後に外す。HSM、持ち主は IT 基盤部。漏れたら同じ手順で外し、受け手は最悪 330 秒で受けなくなる。漏れた鍵で署名した PAY_MSG_CTX のメッセージは作り直せなくなり、滞留のキューに移る（査定担当者が確定し直す） | 同上 | `TXN_TOKEN` の `key_rotation` |
-| 代理店の IdP | 代理店ごと。新しい鍵を 24 時間前に JWKS に載せ、古い鍵は 330 秒の後に外す（代理店連携の仕様）。鍵の持ち主は代理店。漏れたら代理店がしろがねに知らせ、代理店管理部が代理店の登録を止める（すぐ。shirogane-as は次の assertion を受けない）。発行済みの AGENCY_AT と Txn-Token で最悪 660 秒 | 代理店の鍵をしろがねは持たない | `AGENCY_ASSERTION` の `key_rotation` |
+| shirogane-as・shirogane-sso | 90 日ごと。次の鍵を JWKS に載せて 600 秒待ってから使い、古い鍵は 630 秒の後に外す。鍵は HSM の中で作り、持ち主は IT 基盤部（取り出せない）。漏れたら、当番の IT 基盤部の担当者が、漏れに気づいた時点（情報セキュリティ部の検知か届け）から 480 秒以内に、鍵を JWKS から外して次の鍵に切り替える（HSM の鍵の無効化と JWKS の更新を 1 つの操作にした手順。毎月の訓練で時間を測る）。受け手は外してから最悪 330 秒（キャッシュ 300＋知らない kid の間隔 30）で受けなくなり、気づいてから最悪 810 秒 | REQ-10 の 900 秒に収める（起点は気づいた時点。3.1） | `PH_AT`・`EMPLOYEE_AT` の `key_rotation`・`jwks_cache_ttl`・`unknown_kid` |
+| TTS | 30 日ごと。600 秒待って使い、古い鍵は 3630 秒（PAY_MSG_CTX の上限）の後に外す。HSM、持ち主は IT 基盤部。漏れたら同じ手順で気づいてから 480 秒以内に外し、受け手は外してから最悪 330 秒で受けなくなる（気づいてから最悪 810 秒）。漏れた鍵で署名した PAY_MSG_CTX のメッセージは作り直せなくなり、滞留のキューに移る（査定担当者が確定し直す） | 同上 | `TXN_TOKEN` の `key_rotation` |
+| 代理店の IdP | 代理店ごと。新しい鍵を 24 時間前に JWKS に載せ、古い鍵は 90 秒の後に外す（代理店連携の仕様）。鍵の持ち主は代理店。漏れたら代理店が 15 分以内にしろがねの当番に知らせる（代理店連携の仕様）。代理店管理部の当番が、知らせを受けてから 300 秒以内に代理店の登録を止める（停止は 1 人の操作で、すぐ有効。shirogane-as は次の assertion を受けない）。発行済みの AGENCY_AT は TTS が登録のキャッシュ 60 秒の後に拒み、Txn-Token の 330 秒を足して、知らせから最悪 690 秒 | 代理店の鍵をしろがねは持たない。知らせまでの時間は代理店の約束で、しろがねは測れない（3.1） | `AGENCY_ASSERTION` の `key_rotation` |
 | 代理店向けの CA・SPIFFE の CA | X.509 の証明書の発行者（トークンの目録の外）。どちらも HSM で、持ち主は情報セキュリティ部（代理店向け）と IT 基盤部（SPIFFE）。漏れたら信頼の束を差し替え、front-gw とメッシュの設定を配る（手順書） | トークンの束縛（cnf）と q-peer の土台なので、鍵の扱いを書いておく | `C-cnf`、`questions.q-peer` |
 
 #### M_token_validation：9. JWKS のキャッシュと知らない kid〔Full：記入／Lite：参照〕
@@ -1474,7 +1517,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 
 | 決めること | 選んだ候補 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| 値か派生値か | 無い：派生値をトークンに載せない。高額かどうか（100 万円以上）は payment-svc が自分の記録の金額で決める | 判定をトークンの値に任せない | H22 |
+| 値か派生値か | 無い：派生値をトークンに載せない。高額かどうか（同じ請求の支払いの合計が 100 万円以上）は payment-svc が、請求ごとにロックした取引の中で自分の記録から決める | 判定をトークンの値に任せない | H22 |
 | 派生値の書き手 | 無い：派生値の行が無い | — | — |
 
 #### M_privacy_minimization：5. 機微な属性を API で渡す〔Full：記入／Lite：参照〕
@@ -1491,7 +1534,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | --- | --- | --- | --- |
 | 種別ごとの sub の種類 | すべて public（ペアワイズにしない） | 受け手がすべてしろがねの部品か、自分の担当者の ID を受け取る代理店 | 目録の `subject_type` |
 | 外部の受け手と目的 | 代理店：担当者の ID（自社の担当者の照合と記録） | — | `AGENCY_AT` |
-| 識別子の性質 | 変わらない・付け替えない・不透明な値（ph_・agst_・stf_） | メール・社員番号を ID にしない | `C-sub` の `identifier_properties` |
+| 識別子の性質 | 不透明な値（ph_・agst_・stf_）。しろがねはどれも付け替えない（reassignable: false）。agst_ は、代理店が上流の sub を付け替えると別の人を指しうる（上流の性質。3.1 の見送り） | メール・社員番号を ID にしない | `C-sub` の `identifier_properties` |
 
 #### M_privacy_minimization：7. 監査ログに残す項目と伏せる項目〔Full：記入／Lite：参照〕
 
@@ -1527,7 +1570,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 社員の役割 | 問い合わせる（TTS が台帳を引き、scope に替える） | REQ-03 の 600 秒 | `C-roles`（却下）、`C-scope` |
 | 承認の上限額 | 問い合わせる（payment-svc が承認のたびに社員の台帳に） | 変わりうる値で、間違えると大きい | H23 |
 | 契約者の証券 | 問い合わせる（claim-svc が契約管理の仕組みに） | 数の上限が無く、解約・名義変更が寿命の間に変わる | `C-policies`（却下） |
-| 代理店コード | 載せる（変わらない値。登録の停止は TTS が引く） | claim-svc・document-svc が毎回使う | `C-agency-code` |
+| 代理店コード | 載せる（変わらない値。登録の停止は TTS が引く） | claim-svc が毎回使う | `C-agency-code` |
 | 請求の保留・承認の記録 | 問い合わせる（実行の時点） | REQ-04 | H24・H25 |
 
 #### M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
@@ -1535,7 +1578,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | オブジェクト | 照合の仕方 | 失敗の応答 | 理由 | 台帳の ID |
 | --- | --- | --- | --- | --- |
 | 請求 | claim-svc が、契約者は証券の契約者と sub、代理店は取扱代理店と agency_code、社員は割り当て（査定担当者）か役割（上長）で照らす | 404（存在を知らせない） | 他人の claim_id を指定しても、claim-svc で止まる | `C-sub`・`C-agency-code` の `enforced_at` |
-| 書類 | document-svc が、登録は claim-svc の記録の持ち主・agency_code、閲覧は assessment-svc の mTLS と scope で照らす（割り当ては assessment-svc。3.1 の見送り） | 404 | 要配慮の書類 | H10・H11・H19 |
+| 書類 | 登録は claim-svc が請求の持ち主・agency_code を照らしてから document-svc を呼び、閲覧は assessment-svc が割り当てを照らしてから呼ぶ。document-svc は呼び出し元（mTLS）・scope・tctx の claim_id とパスを照らす（3.1 の見送り） | 404 | 要配慮の書類 | H10・H11・H19 |
 | 支払い | payment-svc が payment_id と記録の金額・指示した社員で照らす | 404・409 | — | H22〜H24 |
 | 振込先 | payment-svc が、payee_ref がその証券の振込先として契約管理の仕組みに登録されていることを照らす | 409 | 査定担当者が振込先を差し替えられない | `C-tctx` の payment-svc の行 |
 
@@ -1562,7 +1605,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 決めること | 選んだ候補 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | 束縛するか・方式 | 代理店の AT だけ mTLS（RFC 8705） | 代理店のサーバーは証明書を扱え、トークンの要求も同じ証明書で行う | `issuance_profile.sender_constraint`、`AGENCY_AT` の `sender_constraint` |
-| 束縛するトークン | AGENCY_AT だけ。PH_AT・STAFF_AT・Txn-Token は束縛しない（3.1） | 網の外にあるのは AGENCY_AT だけ | 目録の `sender_constraint` |
+| 束縛するトークン | AGENCY_AT だけ。PH_AT・EMPLOYEE_AT・Txn-Token は束縛しない（3.1） | 網の外にあるのは AGENCY_AT だけ | 目録の `sender_constraint` |
 | 照合する受け手 | front-gw（主）と TTS（front-gw の書いた拇印と） | front-gw が TLS を終端する | `C-cnf` の `enforced_at` |
 
 #### M_sender_constraint：2. 入口で TLS を終端するときの証明書の渡し方〔Full：記入／Lite：参照〕

@@ -66,11 +66,14 @@ outside_enumeration:
     - "templates/catalog/issue_events.yaml と templates/catalog/use_events.yaml の全行"
   found:
     - {name: 承認の消費の競合と、結果が分からない応答, handled_as: "設計に足した：order-tool・lock-tool は approval-svc の条件つきの更新で 1 回だけ使い、同じ発注 ID・同じ承認での再試行には前の結果を返す。承認を自動で未使用に戻さない（台帳の C-approval-ref、design.md の付録 D の P4 の 5.）"}
-    - {name: 承認の分割（10 万円以下に分けた発注）, handled_as: "設計に足した：承認の要否を、部屋ごとの直近 30 日の累計（予約を含む）で決める（REQ-05、ホップ H5、design.md の 3.1）"}
+    - {name: 承認の分割（10 万円以下に分けた発注。並行に確定する場合を含む）, handled_as: "設計に足した：承認の要否を、部屋ごとの直近 30 日の累計（予約を含む）で決め、部屋の行を排他の錠で押さえたトランザクションで数えてから確定する（REQ-05、ホップ H5、design.md の 3.1）"}
+    - {name: 停止の間の電話での発注（REQ-13）, handled_as: "設計に足した：再開の前に、電話での発注を発注の台帳に「手作業の発注」として登録し、部屋の累計に数える。登録が済むまでエージェントの操作を再開しない（design.md の 2.2・3.1）"}
+    - {name: 承認者が担当の付け替えを挟んで自分の発注を承認する, handled_as: "設計に足した：発注の承認者は、依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い人に限る（REQ-05、台帳の C-sub の approval-svc の enforced_at、H12）"}
     - {name: 予約の発注の実行の時点での確かめ直し, handled_as: "カタログの U13 に戻した：order-scheduler は実行の時点で aoba-pdp・修繕依頼の台帳・approval-svc を引き直し、トークンを持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）"}
     - {name: 入居者の依頼の文に紛れた指示で、解錠の部屋・時間帯や連絡の相手を変えさせる, handled_as: "設計に足した：解錠は担当者本人が部屋・協力会社・時間帯を画面で確かめて承認し、lock-tool は承認の記録と修繕依頼の部屋で照合する。連絡の相手は contact-tool が修繕依頼の台帳から決める（P4 の 4.・5.）"}
     - {name: ワークロードの証明書の発行（wl-ca）, handled_as: "カタログの発行のイベント（JWT）に当たらない（I20 は対象外）。鍵の持ち主と漏えい時の手順を design.md の付録 D の M_token_validation の 8. に書いた"}
-    - {name: 管理用の口（agent-sts のクライアントの登録・委任の表・リソースの表、aoba-as の管理の画面、approval-svc の DB）, handled_as: "design.md の 2.2 と 3.1 に、変えられる者と記録を書いた"}
+    - {name: 管理用の口（agent-sts のクライアントの登録・委任の表・リソースの表、aoba-as の管理の画面、approval-svc・発注の台帳の DB、修繕依頼の台帳の担当の割り当て）, handled_as: "design.md の 2.2 と 3.1 に、変えられる者と記録を書いた"}
+    - {name: wl-ca の中間の CA の鍵の漏えいで、トークンを使わない口に偽の証明書で届く, handled_as: "design.md の 3.1 の見送りの行と付録 D の M_token_validation の 8. に、開く口・塞ぐまでの時間・検出を書いた。解錠のコードの作成は、lock-svc が approval-svc で承認の使用済みを確かめるので、偽の証明書だけでは作れない"}
 questions:
   q-sub: {needed: true, reason: 重要な操作で担当者の在籍・ロール・修繕依頼の担当を aoba-pdp に問い合わせ、監査に「誰の権限で」を残す}
   q-actor: {needed: true, reason: ツールが今の行為者（最も外側の act）を mTLS の相手と照合し、操作ごとの許可リストで判断する。承認では行為者がいない（act が無い）ことを確かめる。予約の実行では order-scheduler を行為者として記録する}
@@ -378,12 +381,14 @@ answers:
   answer: 該当
   note: >-
     エージェントとツール、ツールと approval-svc・aoba-pdp・下流の仕組み（発注の台帳・lock-svc・経理・通知の基盤）、order-scheduler と aoba-pdp・approval-svc の間は、
-    wl-ca の証明書の mTLS で相手を確かめ、呼ばれる側が呼び出し元の許可リストで照合する。トークンは渡さない
+    wl-ca の証明書の mTLS で相手を確かめ、呼ばれる側が呼び出し元の許可リストで照合する。トークンは渡さない。lock-svc は、コードを作る前に approval-svc で承認が lock-tool によって使用済みにされたことを確かめる
+    （証明書だけで解錠のコードを作らせない）。中間の CA の鍵が漏れた場合に開く口は design.md の 3.1
 - event: U13
   answer: 該当
   note: >-
     予約の発注（最大 24 時間後）は、order-tool が予約の記録（担当者の sub・修繕依頼 ID・発注 ID・承認 ID・act の連鎖・予約の時刻）を発注の台帳に残し、
-    order-scheduler が実行の時点で自分の証明書で aoba-pdp（在籍・ロール・担当）・修繕依頼の台帳（委任の欄）・approval-svc（予約済みの承認）を引き直す。
+    order-scheduler が実行の時点で、予約の記録が order-tool の DB アカウントで作られ書き換えられていないこと、予約した行為者が今もクライアントの登録の表にあること、
+    自分の証明書で aoba-pdp（在籍・ロール・担当）・修繕依頼の台帳（委任の欄）・approval-svc（予約済みの承認）を引き直す。
     担当者のトークンもツールのトークンも持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）
 - event: U14
   answer: 該当

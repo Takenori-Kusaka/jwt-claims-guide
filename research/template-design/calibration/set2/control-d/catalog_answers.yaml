@@ -29,7 +29,7 @@ idp:
   - name: shirogane-sso
     kind: self_built
     version: しろがね社員の OP（自社で運用。OIDC Core 1.0・RFC 9068・RFC 9470 に従う）
-    token_types: [STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION, AUTH_CODE]
+    token_types: [EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION, AUTH_CODE]
     trigger_list_source: {document: しろがね社員の OP の発行の仕様書（SSO-SPEC 第 2 版）と design.md の 4.（発行方式の選択）, verified_on: '2026-11-27'}
     trigger_list:
       - {trigger: "PAR と grant_type=authorization_code＋PKCE（staff-console。tls_client_auth）", events: [I01]}
@@ -47,9 +47,9 @@ idp:
     trigger_list:
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PH_AT（front-gw の契約者の口）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=AGENCY_AT と証明書の拇印のヘッダー（front-gw の代理店の口）", events: [I22]}
-      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=STAFF_AT（front-gw の社員の口。社員本人の操作）", events: [I22]}
-      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=STAFF_AT と request_details の call_id（電話の代理受付）", events: [I22]}
-      - {trigger: "PAY_MSG_CTX の発行（assessment-svc が operation が assessment.confirm の TXN_STAFF を subject_token にして求める）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT（front-gw の社員の口。社員本人の操作）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT と request_details の call_id（電話の代理受付）", events: [I22]}
+      - {trigger: "PAY_MSG_CTX の発行（mTLS の相手が assessment-svc のときだけ。operation が assessment.confirm の TXN_STAFF を subject_token にして求める）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PAY_MSG_CTX（payment-worker の作り直し）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、要求したワークロード自身を主体にする（payment-batch。草案 §8.2）", events: [I22]}
       - trigger: subject_token に Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）を出して、別の Txn-Token に作り直す要求
@@ -64,7 +64,7 @@ idp:
     note: 代理店ごとに別の IdP（はなみずき保険サービスと、くもい代理店の 2 社）。どちらの製品かを、しろがねは決めない
 questions:
   q-sub: {needed: true, note: "誰の権限で：Txn-Token の sub（契約者・代理店の担当者・社員の ID、または payment-batch のワークロードの ID）。TXN_PROXY では本人確認した契約者"}
-  q-actor: {needed: true, note: 誰が代理して実行しているか：TXN_PROXY の act（電話の代理受付の社員）だけ。ほかのトークンには act を載せない（非同期の支払いの指示を動かすワークロードは req_wl で表す。6. の UC4）}
+  q-actor: {needed: true, note: 誰が代理して実行しているか：TXN_PROXY の act（電話の代理受付の社員）だけ。ほかのトークンには act を載せない（非同期の支払いの指示を運ぶ payment-worker は中身を変えられない運び手で代理の主体ではないので act を載せず、運んだワークロードは q-req-wl の req_wl で別に記録する。6. の UC4）}
   q-req-wl: {needed: true, note: どのワークロードが Txn-Token を求めたか：req_wl（front-gw・payment-worker・payment-batch）。直接の通信相手（q-peer）とは別に確かめる}
   q-peer: {needed: true, channel: mTLS（網の中は SPIFFE の X.509-SVID、代理店のサーバーとはしろがねの代理店向けの CA の証明書）。受け手は呼び出し元の ID を受け付ける一覧と照合する。トークンの値（req_wl・act・client_id）では代えない, note: 直接の通信相手}
   q-via: {needed: false, reason: 経由したサービスの記録をトークンに載せない。経路は txn で監査ログとトレースを相関させ、外の AT とは front-gw の監査ログの 1 行（AT の iss・jti と txn）で結ぶ}
@@ -73,13 +73,13 @@ questions:
   q-agent: {needed: true, note: どのクライアントか：AT の client_id（claim-portal・staff-console・代理店のサーバー）}
   q-authorized: {needed: true, note: 何が許されたか：TTS が絞った scope と、tctx の値（取引ごと）。承認・管理の操作では acr・auth_time}
   q-resource: {needed: true, note: どのリソース向けか：AT の aud（口ごと）、Txn-Token の aud（信頼ドメイン）}
-  q-holder: {needed: true, note: 誰が持つべきか：AGENCY_AT の cnf（代理店のサーバーの証明書）。PH_AT・STAFF_AT は束縛せず、front-gw の口の mTLS の相手で代える（3.1 の見送り）}
+  q-holder: {needed: true, note: 誰が持つべきか：AGENCY_AT の cnf（代理店のサーバーの証明書）。PH_AT・EMPLOYEE_AT は束縛せず、front-gw の口の mTLS の相手で代える（3.1 の見送り）}
 subject_states:
   unused_layers:
     Logout Token: Back-Channel Logout を使わない（LOGOUT_TOKEN は却下）。止める処理は TTS が発行のたびに状態を引くことで行う
   states:
     subject-states/active:
-      AT: {result: 発行, basis: 契約者・社員がログインすると PH_AT・STAFF_AT が出る（I01）。代理店のサーバーは assertion で AGENCY_AT を取る（I15）}
+      AT: {result: 発行, basis: 契約者・社員がログインすると PH_AT・EMPLOYEE_AT が出る（I01）。代理店のサーバーは assertion で AGENCY_AT を取る（I15）}
       RT: {result: 発行, basis: claim-portal のログインで shirogane-as が使うたびに替わる PH_RT を出す（I01）。社員と代理店には出さない}
       ID: {result: 発行, basis: ログインの応答で claim-portal・staff-console に ID トークンを出す}
       内部トークン: {result: 発行, basis: front-gw の要求ごとに TTS が TXN_TOKEN・TXN_STAFF・TXN_PROXY を出す（I22）。契約者・代理店・社員が有効なときだけ}
@@ -107,7 +107,7 @@ subject_states:
       IdP のセッション: {result: 影響なし, basis: 登録の番号を郵送するだけでセッションは作らない}
       RP・BFF のセッション: {result: 影響なし, basis: 登録してログインするまでセッションは無い}
     subject-states/role-change:
-      AT: {result: 影響なし, basis: STAFF_AT に役割を載せないので、AT は変わらない}
+      AT: {result: 影響なし, basis: EMPLOYEE_AT に役割を載せないので、AT は変わらない}
       RT: {result: 影響なし, basis: 社員には RT を出さない。契約者には役割が無い}
       ID: {result: 影響なし, basis: ID トークンに役割を載せない}
       内部トークン: {result: 再計算, basis: TTS は発行のたびに社員の台帳の役割から scope を絞り直す（台帳のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒で、外してから最大 390 秒（REQ-03 は 600 秒）}
@@ -140,7 +140,7 @@ pairwise:
     - {subject: 利用者, event: I02, stage: "②", note: claim-portal が PH_RT で PH_AT を取り直す。使うたびに RT が替わる}
     - {subject: ワークロード, event: I02, stage: "②", note: 代理店のサーバーは RT を持たない（新しい assertion で取り直す）。起きない組み合わせとして確かめた}
     - {subject: システム, event: I02, stage: "②", note: payment-batch は shirogane-as の RT を使わない}
-    - {subject: 利用者, event: I11, stage: "②", note: staff-console が prompt=none で STAFF_AT を取り直す。claim-portal の再ログインでは shirogane-as のセッションが再利用される。どちらも auth_time と acr は前の認証のまま}
+    - {subject: 利用者, event: I11, stage: "②", note: staff-console が prompt=none で EMPLOYEE_AT を取り直す。claim-portal の再ログインでは shirogane-as のセッションが再利用される。どちらも auth_time と acr は前の認証のまま}
     - {subject: ワークロード, event: I11, stage: "②", note: ワークロードにはブラウザのセッションが無い}
     - {subject: システム, event: I11, stage: "②", note: payment-batch にはブラウザのセッションが無い}
     - {subject: 利用者, event: I12, stage: "⑤", note: 上長が承認の前に、代理店管理部・お客さま窓口の上長が管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直す}
@@ -182,7 +182,7 @@ outside_enumeration:
 answers:
 - event: I01
   answer: 該当
-  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AUTH_CODE, AS_SESSION, PORTAL_SESSION, STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION, STAFF_SESSION]
+  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AUTH_CODE, AS_SESSION, PORTAL_SESSION, EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION, STAFF_SESSION]
   note: 契約者は claim-portal から shirogane-as に、社員は staff-console から shirogane-sso に、PAR と認可コード＋PKCE でログインする。RT は claim-portal にだけ出す
 - event: I02
   answer: 該当
@@ -222,11 +222,11 @@ answers:
   breaks_when: ブラウザだけで動く画面を足し、フロントチャネルでトークンを受けるとき
 - event: I11
   answer: 該当
-  token_types: [STAFF_AT, STAFF_ID_TOKEN, AUTH_CODE, PH_AT, PH_ID_TOKEN]
-  note: staff-console は STAFF_AT の期限が切れると prompt=none で取り直す。claim-portal のセッションが切れた後の再ログインで、shirogane-as のセッションが残っていれば認証の画面を出さずに発行される。どちらも acr・auth_time は前の認証の値のままで、承認の前の認証し直し（I12）の代わりにならない
+  token_types: [EMPLOYEE_AT, STAFF_ID_TOKEN, AUTH_CODE, PH_AT, PH_ID_TOKEN]
+  note: staff-console は EMPLOYEE_AT の期限が切れると prompt=none で取り直す。claim-portal のセッションが切れた後の再ログインで、shirogane-as のセッションが残っていれば認証の画面を出さずに発行される。どちらも acr・auth_time は前の認証の値のままで、承認の前の認証し直し（I12）の代わりにならない
 - event: I12
   answer: 該当
-  token_types: [STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION]
+  token_types: [EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION]
   note: 上長の支払いの承認と、代理店管理部・お客さま窓口の上長の管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直させる。確かめるのは payment-svc と as-admin-api（TXN_STAFF の acr・auth_time）
 - event: I13
   answer: 対象外
@@ -282,7 +282,7 @@ answers:
   note: 契約者が証券番号と、郵送した登録の番号で本人確認してアカウントを作り、初めてログインする。メールアドレスだけでは登録できない
 - event: I26
   answer: 該当
-  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION]
+  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION]
   note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso はセキュリティキーの登録で acr の値を変える
 - event: I27
   answer: 対象外
@@ -295,7 +295,7 @@ answers:
 - event: I29
   answer: 該当
   token_types: [AGENCY_AT]
-  note: shirogane-as が、代理店のサーバーの tls_client_auth の証明書の拇印を AGENCY_AT の cnf（x5t#S256）に書く（RFC 8705 §3）。PH_AT・STAFF_AT は束縛しない（3.1）
+  note: shirogane-as が、代理店のサーバーの tls_client_auth の証明書の拇印を AGENCY_AT の cnf（x5t#S256）に書く（RFC 8705 §3）。PH_AT・EMPLOYEE_AT は束縛しない（3.1）
 - event: I30
   answer: 対象外
   assumption: DPoP を使わない（DPOP_PROOF は却下）。送信者制約は mTLS だけ
@@ -318,7 +318,7 @@ answers:
   breaks_when: 契約者に保険の証明書を検証可能な資格情報で出す機能を足すとき
 - event: U01
   answer: 該当
-  token_types: [PH_AT, AGENCY_AT, STAFF_AT]
+  token_types: [PH_AT, AGENCY_AT, EMPLOYEE_AT]
   note: front-gw が口ごとに Authorization ヘッダーの Bearer で AT を受け、検証して TTS への要求にだけ使う。内側のサービスは AT を受けない
 - event: U02
   answer: 対象外
@@ -350,11 +350,11 @@ answers:
   breaks_when: 契約者の住所などを UserInfo から取る画面を足すとき
 - event: U09
   answer: 該当
-  token_types: [PH_AT, AGENCY_AT, STAFF_AT, AGENCY_ASSERTION, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+  token_types: [PH_AT, AGENCY_AT, EMPLOYEE_AT, AGENCY_ASSERTION, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
   note: 受け手は JWKS を 300 秒キャッシュし、知らない kid では最短 30 秒の間隔で取り直す。取り直しに失敗したら受けない（on_fetch_failure：reject）
 - event: U10
   answer: 該当
-  token_types: [PH_AT, AGENCY_AT, STAFF_AT, PAY_MSG_CTX, TXN_STAFF]
+  token_types: [PH_AT, AGENCY_AT, EMPLOYEE_AT, PAY_MSG_CTX, TXN_STAFF]
   note: front-gw が AT を、assessment-svc が TXN_STAFF を、payment-worker が PAY_MSG_CTX を、TTS のトークン交換の形の要求の subject_token として出す
 - event: U11
   answer: 該当
@@ -370,7 +370,7 @@ answers:
   note: 査定の確定から支払いの指示まで、ブローカーで最大 3600 秒待つ。メッセージには PAY_MSG_CTX を入れ、payment-worker が TTS で TXN_TOKEN に作り直す。夜間の支払いの実行は payment-batch が自分の ID で求める（後で動く処理の権限は、作り直し・実行の時点で TTS と payment-svc が確かめ直す）
 - event: U14
   answer: 該当
-  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PH_AT, AGENCY_AT, STAFF_AT]
+  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PH_AT, AGENCY_AT, EMPLOYEE_AT]
   note: 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の値（operation・claim_id・payment_id・amount など）を残す。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない
 - event: U15
   answer: 該当

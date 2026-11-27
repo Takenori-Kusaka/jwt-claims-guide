@@ -47,12 +47,12 @@
    "type": "string"
   },
   "acr": {
-   "description": "社員の認証の強さ。shirogane-sso が、ハードウェアの鍵での認証なら urn:shirogane-sonpo:acr:phr、ほかの多要素なら urn:shirogane-sonpo:acr:mfa を書く。TTS は STAFF_AT の値を TXN_STAFF に写す",
+   "description": "社員の認証の強さ。shirogane-sso が、ハードウェアの鍵での認証なら urn:shirogane-sonpo:acr:phr、ほかの多要素なら urn:shirogane-sonpo:acr:mfa を書く。TTS は EMPLOYEE_AT の値を TXN_STAFF に写す",
    "$comment": "C-acr",
    "type": "string"
   },
   "auth_time": {
-   "description": "社員が shirogane-sso で最後に認証した時刻。TTS は STAFF_AT の値を TXN_STAFF に写す",
+   "description": "社員が shirogane-sso で最後に認証した時刻。TTS は EMPLOYEE_AT の値を TXN_STAFF に写す",
    "$comment": "C-auth-time",
    "type": "integer"
   },
