@@ -188,6 +188,18 @@ def test_schema_kinds_and_required():
         'type': 'array', 'items': {'type': 'string', 'maxLength': 12, 'enum': ['approver', 'tenant-admin']}, 'maxItems': 2}
 
 
+def test_forwarded_cert_header_is_shown_by_its_members():
+    """#82: forwarded_cert_header is {name, strip_inbound, written_only_by}, not a value/rationale pair. The table of the
+    issuance profile printed None for it."""
+    d = copy.deepcopy(render.load_design(EXAMPLE))
+    d['token_types'].setdefault('issuance_profile', {})['forwarded_cert_header'] = {
+        'name': 'X-Client-Cert-S256', 'strip_inbound': True, 'written_only_by': 'edge'}
+    rows = [r for t in render.sec_issuance_profile(d)['tables'] for r in t['rows'] if r.get('field') == 'forwarded_cert_header']
+    assert len(rows) == 1
+    assert 'None' not in rows[0]['value_text'] and 'X-Client-Cert-S256' in rows[0]['value_text']
+    assert rows[0]['rationale'] == '書けるのは edge'
+
+
 @pytest.mark.parametrize('shape', ['single', 'array'])
 def test_closed_vocabulary_of_an_object_claim_is_not_an_enum(shape):
     """#82 (BD5 of the first calibration set): the vocabulary of an object names its members or a member's values (tctx,
