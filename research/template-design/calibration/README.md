@@ -34,6 +34,13 @@ python tools/calibration_check.py materialize seeded-a OUT  # レビュアーが
 python tools/calibration_check.py packet seeded-a OUT        # 1 回のレビューの資料一式（protocol.md の 6.）。設計書は OUT/designs/target に入る
 ```
 
+## 次の段
+
+1. 初回の測定：`protocol.md` の 6.〜8. のとおり、4 つの設計書 × 3 セッション（12 回）。出力を固定したコミットの後に採点する
+2. 結果と見逃しの分析を `results.md` にまとめ、見逃しを #5 に戻す（`protocol.md` の 9.）
+3. 2 組目（再測定）：難しさ × 経路の分布（`protocol.md` の 9. の表）を揃えた、別の題材の seeded 2 つと双子の対照 2 つ。正解と目標を、2 組目の測定より前に別のコミットで固定する。2 組目の正解の一覧の骨組みは、まだ作っていない
+4. 作る段階で分かった教材の穴（人に渡す問いが無い誤り 3 件、埋め込みの無い観点書の節・対比表の誤用の行）は #80 にまとめた
+
 ## 作成方法と点検状況
 
 - 作成方法：本資料は生成AI（Claude）を使って作成し、筆者が確認して公開しています

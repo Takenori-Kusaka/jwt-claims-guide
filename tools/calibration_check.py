@@ -26,7 +26,8 @@ Checks (errors):
   C4  every location of seeded_errors.yaml resolves: the file exists in the materialized seeded design, a YAML row id
       exists in that file, a quoted phrase occurs in that file
   C5  each seeded design and its control show the same traits in review_triage.py --design (the controls are twins)
-  C6  the files listed in calibration/commitments.sha256 have those sha256 (the targets and the key fixed before measuring)
+  C6  the files listed in calibration/commitments.sha256 have those sha256 (the targets and the key fixed before measuring;
+      CRLF is read as LF, so a Windows checkout gives the same value as git and CI)
 """
 import argparse
 import hashlib
@@ -126,7 +127,7 @@ def materialize(design, out):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         if ext in ('.md', '.yaml', '.yml', '.json'):
             with open(p, encoding='utf-8', newline='') as f:
-                text, had = strip_marker(f.read(), ext, marker)
+                text, had = strip_marker(f.read().replace('\r\n', '\n'), ext, marker)
             if not had:
                 missing.append(rel)
             with open(dst, 'w', encoding='utf-8', newline='') as f:
@@ -216,6 +217,12 @@ def render_back(design):
         unstage()
 
 
+def sha256_lf(path):
+    """sha256 of the file with CRLF read as LF (what git stores; a Windows checkout with core.autocrlf gives CRLF)."""
+    with open(path, 'rb') as f:
+        return hashlib.sha256(f.read().replace(b'\r\n', b'\n')).hexdigest()
+
+
 def row_ids(text):
     return set(re.findall(r'^\s*-?\s*\{?\s*(?:id|event):\s*["\']?([^"\'\s,}#]+)', text, re.M))
 
@@ -280,7 +287,7 @@ def check(errors):
                 continue
             want, rel = m.groups()
             p = os.path.join(CAL, rel)
-            got = hashlib.sha256(open(p, 'rb').read()).hexdigest() if os.path.isfile(p) else 'missing'
+            got = sha256_lf(p) if os.path.isfile(p) else 'missing'
             if got != want:
                 errors.append(f'C6 {rel}: sha256 {got} differs from commitments.sha256 ({want})')
             n += 1

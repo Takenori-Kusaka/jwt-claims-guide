@@ -33,5 +33,10 @@ jobs:
         run: python tools/trace_check.py
       - name: Trace table, core tier counts
         run: python tools/trace_check.py --tier core
+      # #12: the calibration set (seeded designs and their clean twins). Each design is staged at designs/target with its
+      # markers removed, linted (counts against expected_lint.yaml), render-checked, its traits compared with its twin, the
+      # answer key's locations resolved, and the sha256 recorded before measuring compared (research/template-design/calibration/)
+      - name: Calibration set (#12) - markers, lint and render of the four designs, twins' traits, answer key, commitments
+        run: python tools/calibration_check.py check
       - name: Tests (node / playwright tests are skipped here)
         run: python -m pytest -q -rs tools/tests
