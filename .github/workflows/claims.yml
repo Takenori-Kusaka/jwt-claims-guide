@@ -14,8 +14,8 @@ jobs:
   claim-lint:
     runs-on: ubuntu-latest
     # 6-7 minutes on a usual runner; a slower runner took 10 min 15 s for the same steps (PR #81, every step about 1.5x
-    # slower) and was cancelled at the last step. 15 minutes leaves room without hiding a hang
-    timeout-minutes: 15
+    # slower) and was cancelled at the last step, twice. 20 minutes (as the trace job) leaves room without hiding a hang
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
