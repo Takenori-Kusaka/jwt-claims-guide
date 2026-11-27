@@ -34,6 +34,16 @@ python tools/calibration_check.py distribution set2           # 9. の分布の�
 python tools/calibration_check.py packet seeded-c OUT         # 1 回のレビューの資料一式（8 つ。OUT はリポジトリの外の空のディレクトリ）
 ```
 
+## 固定の記録
+
+| 順 | コミット | 中身 | GitHub に届いた時刻（GitHub の API） |
+| --- | --- | --- | --- |
+| 1 | 8ddebc0 | 目立ちやすさの規則（`protocol.md` の 3.1）と揃える分布（9.）。誤りを埋め込む前 | 2026-11-27T13:52:43Z |
+| 2 | 97f5752 | **正解の一覧・目標と分布（`protocol.md`）・`commitments.sha256` だけを入れたコミット**。2 組目の測定はまだ 1 回もしていない | 2026-11-27T23:21:58Z |
+
+- 時刻は、そのコミットの check suite の作成時刻（`gh api repos/Takenori-Kusaka/jwt-claims-guide/commits/<コミット>/check-suites`）。コミットの時刻（作る側の時計）は 97f5752 が 2026-11-28T08:21:54+09:00
+- 2 組目の測定の出力を入れるコミットは、97f5752 を祖先に持つ（初回の手順の 8. と同じ順序）。2 組目の手順と正解を測定の前に変えたら、`protocol.md` の改訂の記録に書き、`commitments.sha256` を作り直し、ここに行を足す
+
 ## 作成方法と点検状況
 
 | 段 | 誰が | 中身 |
