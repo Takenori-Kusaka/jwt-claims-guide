@@ -766,7 +766,10 @@ def _value_schema(c, strict):
         for k, sk in (('pattern', 'pattern'), ('enum', 'enum'), ('format', 'format'), ('min', 'minimum'), ('max', 'maximum')):
             if k in av:
                 base[sk] = av[k]
-        if vv.get('values') and vv.get('extensible') is False:
+        # A closed vocabulary is an enum of the value only for a scalar claim. For an object-typed claim the vocabulary
+        # names its members or the values of one member (tctx, authorization_details.type), never the object itself:
+        # an enum of strings on "type": "object" accepts no token at all (#82, BD5 of the first calibration set).
+        if vv.get('values') and vv.get('extensible') is False and t != 'object':
             base['enum'] = list(vv['values'])
     if c.get('shape') == 'array':
         s = {'type': 'array', 'items': base}

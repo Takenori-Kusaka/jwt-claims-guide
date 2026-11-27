@@ -69,10 +69,7 @@
    "$comment": "C-authorization-details",
    "type": "array",
    "items": {
-    "type": "object",
-    "enum": [
-     "payment"
-    ]
+    "type": "object"
    },
    "maxItems": 1
   }

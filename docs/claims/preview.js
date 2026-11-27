@@ -10,7 +10,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). editor.js checks it; this module also checks editor.js when the
   // page has read every script, in case editor.js is the one of another build (it would not check anything)
-  const BUILD_ID = 'ff703491bb96';
+  const BUILD_ID = 'bbc266bab156';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['preview.js'] = BUILD_ID;
   addEventListener('DOMContentLoaded', () => {
     const ce = window.ClaimsEditor;

@@ -188,6 +188,19 @@ def test_schema_kinds_and_required():
         'type': 'array', 'items': {'type': 'string', 'maxLength': 12, 'enum': ['approver', 'tenant-admin']}, 'maxItems': 2}
 
 
+@pytest.mark.parametrize('shape', ['single', 'array'])
+def test_closed_vocabulary_of_an_object_claim_is_not_an_enum(shape):
+    """#82 (BD5 of the first calibration set): the vocabulary of an object names its members or a member's values (tctx,
+    authorization_details.type). An enum of strings on "type": "object" accepts no token, so it is not written."""
+    c = {'type': 'object', 'shape': shape, 'value_vocabulary': {'values': ['operation', 'quantity'], 'extensible': False}}
+    s = render._value_schema(c, True)
+    obj = s['items'] if shape == 'array' else s
+    assert obj == {'type': 'object'}
+    assert jsonschema.Draft202012Validator(s).is_valid([{'operation': 'x'}] if shape == 'array' else {'operation': 'x'})
+    scalar = render._value_schema({'type': 'string', 'value_vocabulary': {'values': ['a'], 'extensible': False}}, True)
+    assert scalar['enum'] == ['a']
+
+
 def test_golden_keycloak_token_conforms_to_the_issuer_schema():
     d = render.load_design(EXAMPLE)
     assert render.validate_payload(d, golden_payload(), 'AT', 'issuer') == []
