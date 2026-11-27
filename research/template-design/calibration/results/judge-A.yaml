@@ -1,0 +1,137 @@
+# Judge of unmatched findings, twin A (#12 first measurement). protocol.md 7. "どの誤りにも一致しない指摘の判定" + R4.
+# Judge did not review or score. Read: protocol.md, control-a/*, seeded-a/* (diff vs control-a), seeded_errors.yaml A01-A19,
+# results/D4-1..3.md, D2-1..3.md, score-S1.yaml / score-S2.yaml. Not read: results/sessions.md, commitments.txt.
+# Severity = the reviewer's own severity. "基" = 真（基の設計の欠陥）, "副作用" = 真（埋め込みの副作用）.
+# D2 rule: if the same defect is in control-a, it is 基 (not 副作用).
+judge: A
+inputs:
+  control: research/template-design/calibration/control-a/
+  seeded: research/template-design/calibration/seeded-a/
+  findings: "controls D4-1..3 = every finding in S1/S2 controls lists; D2-1..3 = union of S1/S2 unmatched (findings used for A03 by a scorer - D2-1 F-20, D2-2 F-19 - are not judged)"
+
+sessions:
+  D4-1:
+    - {finding: F-01, severity: Major, verdict: 真（基の設計の欠陥）, reason: "REQ-11 の予約の返金があり 9.1 にも長時間の処理の列があるのに、どの種別にも long_running が無く refund-batch のホップも無い。台帳が非同期の経路を宣言しないので性質の表が当たらないになる", location: "design.md 2.（REQ-11・図の BT）・2.2 夜間バッチ・9.1、token_types.yaml（long_running の列が全行に無い）、hops.yaml（refund-batch の行なし）"}
+    - {finding: F-02, severity: Major, verdict: 真（基の設計の欠陥）, reason: "予約の返金で承認を消費するのが予約の時点か実行の時点かが書かれていない。2.2 は実行の時点で状態を引き直すとだけ書き、P4 5. の条件つきの消費との関係が無い", location: "design.md 2.2 夜間バッチ、付録 D P4 5. 消費の競合と再送、claims.yaml C-approval-id enforced_at"}
+    - {finding: F-03, severity: Major, verdict: 真（基の設計の欠陥）, reason: "「決済代行への返金が失敗したら、承認を未使用に戻す」は結果不明（時間切れ）を区別せず、決済代行側の冪等キーも書かれていない。二重返金がありうる", location: "design.md 付録 D P4 5."}
+    - {finding: F-04, severity: Major, verdict: 真（基の設計の欠陥）, reason: "2.2 は「書けるのは hr-sync だけ」と言い、手段は「属性の編集の権限を admin だけにする」。Keycloak のユーザープロファイルの admin の編集権は manage-users を持つ管理者全員に効き、2.2 の基盤の操作の行自身がレルムの管理者の存在を書いている。手段が主張を満たさない", location: "design.md 2.2 人事連携・基盤の操作、付録 D M_authz_pdp 5.、claims.yaml C-groups assumption", spec: "https://www.keycloak.org/docs/latest/server_admin/index.html （Managing user profile の属性の permissions：edit に admin を指定すると管理者が編集できる）"}
+    - {finding: F-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: "付録 A は hr-sync の遅れ 10 分で警報、そのときは REQ-07 の 5 分を守れないと自分で書き、責任者の判断に任せる（自動で閉じない）。P4 9. は「REQ-07 の 5 分の内側」と言い切る。書かれた理由が要求と矛盾する（R4 の 3 つ目）。120 秒は 12. で未計測", location: "design.md 9.2 在籍・ロールの行、付録 A、付録 D P4 9.、12. 人事連携の遅れ"}
+    - {finding: F-06, severity: Major, verdict: 真（基の設計の欠陥）, reason: "U29 は /v1/refund も TOOL_AT だけを受けるとするが、旧いマクロの道具は agent-sts のクライアント（assist-agent・refund-subagent・support-console）に無く、図・主体・ホップにも無い。act なしは support-console だけ許す規則とも両立する道が書かれていない", location: "catalog_answers.yaml U29、design.md 2.（REQ-12・図）・2.1、hops.yaml H11 の client_id の行（act が無ければ support-console だけ）"}
+    - {finding: F-07, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "UC3 は予約の返金を含むと見出しに書くのに q-actor を「代理する者がいない」で不要にしている。実行は refund-batch（P4 3. でシステム）で、2.2 は委任の記録に行為者の連鎖を持つと書く。6. の不要の理由が予約の部分と合わない", location: "design.md 6. UC3 q-actor、2.2 夜間バッチ、付録 D P4 3."}
+    - {finding: F-08, severity: Major, verdict: 真（基の設計の欠陥）, reason: "REQ-05・06 の「3 万円を超える返金」を 1 回の要求ごとにしか判定せず、同じ注文の分割や累計の扱いが無い（absent_semantics は 1 要求の金額だけ）。外部の入力を読むエージェントが分割すれば承認と追加の認証を通らない。要求の言葉の範囲を設計が決めていない", location: "design.md 2. REQ-05・REQ-06、付録 B、claims.yaml C-authorization-details absent_semantics"}
+    - {finding: F-09, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "issuance_profile.sender_constraint の理由は「どちらも support-console のサーバーの中にだけある」だが、STAFF_AT の holder と 5. と 3.1 は assist-agent のメモリにも置くと書く。理由の前提が台帳と食い違う", location: "token_types.yaml issuance_profile.sender_constraint rationale（design.md 4. の生成の表）、STAFF_AT holder、design.md 3.1 見送り"}
+    - {finding: F-10, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "C-authorization-details は pii_category 個人情報で log_policy 記録する。3.2 は「ログに…個人情報を残さない：満たす（sub・customer_ref は鍵つきのハッシュ）」で、この行に触れない。台帳と共通の基準の記述が矛盾する", location: "claims.yaml C-authorization-details（pii_category・log_policy・note）、design.md 3.2"}
+    - {finding: F-11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "order_id・amount・currency の型は description の文にしかなく、TOOL_AT のスキーマの items は {type: object} だけ、value_normalization も無い。完全一致の比べ方を受け手が機械で守れない", location: "schemas/TOOL_AT.consumer.schema.json・issuer.schema.json authorization_details、claims.yaml C-authorization-details"}
+    - {finding: F-12, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "C-iss は発行者 3 つ（SPIRE を含む）と言うが catalog_answers の idp は keycloak と agent-sts だけで、AGENT_SVID がどの idp にも属さない。M_token_validation 8. の SPIRE の行は「既定に従う」だけで鍵の持ち主・漏えい時の手順が無い", location: "catalog_answers.yaml idp、design.md 付録 D M_token_validation 8.、10. C-iss の前提"}
+    - {finding: F-13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "agent-sts がイントロスペクション・PDP・案件の管理の停止時に交換を止めるか通すかはどこにも書かれていない（12. にも無い）。ただし refund-tool の PDP 停止は M_authz_pdp 5. に「返金を拒否」とあり、その部分の指摘は当たらない", location: "design.md 付録 D M_authz_pdp 5. 最後の段落、12.、claims.yaml C-sub・C-scope enforced_at（agent-sts）"}
+    - {finding: F-14, severity: Minor, verdict: 誤検出, reason: "assist-agent・refund-subagent は STAFF_AT・DELEG_AT の宛先でなく、交換の subject_token として持つだけのクライアント。hops の H4・H9 の validates に「検証せずに保持する」と mTLS・案件の ID の確かめが書かれている。受け手の検証の行が無いのは設計どおり", location: "hops.yaml H4・H9 validates、design.md 5. STAFF_AT・DELEG_AT の理由"}
+    - {finding: F-15, severity: Minor, verdict: 確認の依頼, reason: "C-case-id の on_revoke は「次の交換で agent-sts が拒否する」と書き、手元の TOOL_AT は 9.1 で照会 330 秒と書いてある。指摘は「この遅れを要求が許すのか書かれていない」で、書かれた扱いの要求との照合を求めるもの。REQ-08 は即時の停止を求めていない", location: "claims.yaml C-case-id on_revoke、design.md 2. REQ-08、9.1 TOOL_AT"}
+  D4-2:
+    - {finding: F1, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-01 と同じ。long_running の宣言と refund-batch のホップが台帳に無い", location: "token_types.yaml（long_running なし）、hops.yaml、design.md 2. REQ-11・11. U13"}
+    - {finding: F2, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-08 と同じ（1 要求ごとの閾値、分割の扱いが無い）。jti の replay_check false（同じ TOOL_AT を 300 秒の間に何度も使える）も台帳のとおり", location: "claims.yaml C-authorization-details absent_semantics、C-jti、design.md 2. REQ-05・06、付録 B"}
+    - {finding: F3, severity: Major, verdict: 真（基の設計の欠陥）, reason: "U13 は refund-tool が委任の記録を保存するとするが、記録の行・書き手・改ざんの防ぎ方・保存先が台帳と図に無い。3 万円以下の予約は承認を引かないので、記録の完全性が唯一の守りになる", location: "design.md 2.2 夜間バッチ、2. の図（記録の保存先・refund-batch から決済代行への線が無い）、catalog_answers.yaml U13"}
+    - {finding: F4, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-02 と F-03 の 2 点（予約での消費の時点、結果不明での未使用への戻し）。どちらも設計書に答えが無い", location: "design.md 付録 D P4 5.、2.2"}
+    - {finding: F5, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "C-jti は「返金の要求の冪等キーとは別に扱う」と冪等キーの存在を前提にするが、approval_id の無い 3 万円以下の返金で冪等キーを誰が作るかが無い", location: "claims.yaml C-jti enforced_at（refund-tool）、design.md 8. H3・H8 の jti の行、付録 D P4 5."}
+    - {finding: F6, severity: Major, verdict: 真（基の設計の欠陥）, reason: "REQ-07 は照会・配送先の変更に「ツールのトークンの寿命の分の遅れ」を許す。9.2 の C-scope は最悪 480 秒（120＋30＋330）で 330 を超え、9.1 の TOOL_AT の「照会 330」とも食い違う。許容の 480 は要求でなく設計の最悪値を写している", location: "design.md 9.1 TOOL_AT、9.2 C-scope、claims.yaml C-scope volatility、付録 D P4 9.、2. REQ-07"}
+    - {finding: F7, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-05 と同じ（R4 の 3 つ目：書かれた扱いが REQ-07 と矛盾）", location: "design.md 9.2、付録 A、12.、token_types.yaml TOOL_AT revocation（db_lookup 150）"}
+    - {finding: F8, severity: Major, verdict: 真（基の設計の欠陥）, reason: "主旨は D4-1 F-04 と同じで真。チームのリーダーがグループにロールを付けられるかは Keycloak の細かい管理権限しだいで設計書から決まらない（その部分だけなら判定できない）", location: "design.md 2.2 人事連携、claims.yaml C-groups・C-roles assumption"}
+    - {finding: F9, severity: Major, verdict: 真（基の設計の欠陥）, reason: "C-azp の assumption は担当者がログインするクライアントに approval-console があると言い、2.1 は責任者が approval-svc の画面で承認するとする。しかし approval-console は図・範囲・目録・カタログの回答に無く、そのトークン・承認者のロールの書き手・承認時の確かめが設計されていない。REQ-05 の中核の経路", location: "claims.yaml C-azp assumption、design.md 2. の図と範囲・2.1 責任者・5.、catalog_answers.yaml outside_enumeration"}
+    - {finding: F10, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-06 と同じ。閉じる日（410）は U29 に書いてあるが、マクロの主体と TOOL_AT の得方は無い", location: "catalog_answers.yaml U29、design.md 2. REQ-12・図、hops.yaml"}
+    - {finding: F11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-11 と同じ", location: "claims.yaml C-authorization-details、schemas/TOOL_AT.consumer.schema.json"}
+    - {finding: F12, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "C-sub の description は AGENT_SVID では SPIFFE ID と書くのに identifier_properties.id_scheme は uuid だけ。1 行に 2 つの識別子の形が混ざる", location: "claims.yaml C-sub description・identifier_properties"}
+    - {finding: F13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-07 と同じ", location: "design.md 6. UC3 q-actor、付録 D P4 3."}
+    - {finding: F14, severity: Minor, verdict: 誤検出, reason: "alt は台帳の行しか指せない。C-scope の rationale は agent-sts が PDP のロールで scope を積に絞ると書き、C-roles の rationale は PDP への問い合わせを明記している。却下したロールの効果は PDP で絞った scope として届くので、C-scope を代わりの行にするのは記述どおりで誤りではない", location: "claims.yaml C-roles・C-groups（alt・rationale）、C-scope rationale"}
+    - {finding: F15, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "M_sender_constraint 4. は「TOOL_AT は 300 秒なので、更新の前の証明書に束縛した TOOL_AT は寿命の内に切れる」から「呼び出しが止まらない」を導くが、交換から呼び出しまでの間に SVID が替わると、新しい TLS の証明書と cnf が合わない（RFC 8705 §3）。替わったら交換し直す決まりが要る（support-console の証明書にだけ書いてある）。影響は一時的な失敗", location: "design.md 付録 D M_sender_constraint 4.、claims.yaml C-cnf on_revoke", spec: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+    - {finding: F16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-09 と同じ", location: "token_types.yaml issuance_profile.sender_constraint、STAFF_AT holder、design.md 4.・3.1"}
+    - {finding: F17, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-12 と同じ（idp に SPIRE が無い）", location: "catalog_answers.yaml idp"}
+    - {finding: F18, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-13 の agent-sts の部分と同じ", location: "design.md 付録 D M_authz_pdp 5.、token_types.yaml STAFF_AT revocation"}
+    - {finding: F19, severity: Minor, verdict: 誤検出, reason: "M_privacy_minimization 8. は鍵を監査の担当が「鍵管理のサービスで持ち」と書く。鍵管理のサービスの HMAC の操作を各サービスに使わせれば鍵を配らずに同じ値を作れるので、記述に矛盾は無い。配り方を書いていないのは誤りの根拠にならない", location: "design.md 付録 D M_privacy_minimization 8.、claims.yaml C-sub note"}
+    - {finding: F20, severity: Minor, verdict: 確認の依頼, reason: "付録 B は予約の返金を予約の時点で refund-tool が確かめると書く。指摘は実行の時点の記述が何と比べるか不明で、REQ-06 を予約の時点で満たせばよいかを問うもの。誤りを言い切っていない", location: "design.md 付録 B 3 万円を超える返金の行（予約）"}
+  D4-3:
+    - {finding: F1, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-01 と同じ", location: "design.md 2.2・9.1・2. REQ-11、token_types.yaml"}
+    - {finding: F2, severity: Major, verdict: 真（基の設計の欠陥）, reason: "委任の記録が台帳の行・書き手・完全性を持たない（D4-2 F3）、UC3 q-actor の不要（D4-1 F-07）、refund-batch が返金を実行する線が図に無い。(b) の引き継ぎ後の実行も、2.2 の実行時の確かめが在籍・ロール・上限と承認だけで案件の割り当てを含まないので当たる", location: "design.md 2.2 夜間バッチ、6. UC3、付録 B、2. の図"}
+    - {finding: F3, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-2 F9 と同じ（承認の入口が設計されていない）", location: "claims.yaml C-azp assumption、design.md 2.・2.1・5.、catalog_answers.yaml outside_enumeration・I01"}
+    - {finding: F4, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-06 と同じ", location: "catalog_answers.yaml U29、design.md 2. REQ-12"}
+    - {finding: F5, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-03（結果不明の戻し）と D4-2 F5（3 万円以下の冪等キー）に加え、消費の後・呼ぶ前に落ちたときの扱いも P4 5. に無い", location: "design.md 付録 D P4 5.、claims.yaml C-approval-id・C-jti"}
+    - {finding: F6, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-08 と同じ", location: "design.md 2. REQ-05、6. UC1 q-authorized、claims.yaml C-authorization-details"}
+    - {finding: F7, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-11 と同じ。スキーマが追加のメンバーを許すことも事実", location: "claims.yaml C-authorization-details、schemas/TOOL_AT.*.schema.json"}
+    - {finding: F8, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D4-1 F-05 と同じ", location: "design.md 9.2、付録 A、12.、claims.yaml C-sub on_revoke"}
+    - {finding: F9, severity: Major, verdict: 真（基の設計の欠陥）, reason: "(a)(e) は D4-1 F-04 と同じで真。(b) SPIRE の登録の書き手、(c) 承認者のロールの付与、(d) 案件の割り当ての書き手も、agent-sts・approval-svc が頼るのに出どころが書かれていない", location: "claims.yaml C-groups assumption・C-act/C-client-id source_system、design.md 2.2・2.1 責任者"}
+    - {finding: F10, severity: Minor, verdict: 誤検出, reason: "P4 2. の「担当者のトークンを act なしで使う経路は無い」は括弧で「ツールは Keycloak のトークンを受けない」と限っており、エージェントが STAFF_AT を act なしで使えないという意味。コンソールの経路の act なしの TOOL_AT は担当者自身の操作で、6. UC3・C-act absent_semantics に書いてある。指摘自身も経路は閉じていると認めている", location: "design.md 付録 D P4 2.、6. UC3、claims.yaml C-act absent_semantics"}
+    - {finding: F11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "(a) は D4-2 F6 と同じで真（許容 480 が要求でなく設計の最悪値）。(b)(c) は要求に数値が無いことの指摘で、設計の欠陥とまでは言えない", location: "design.md 9.2 C-scope、2. REQ-07・REQ-10"}
+    - {finding: F12, severity: Minor, verdict: 誤検出, reason: "R4：書き手は 3.1 で見送りの理由（STAFF_AT の宛先は agent-sts だけで、交換に mTLS のクライアント認証が要るので STAFF_AT だけでは何も呼べない）を書いている。この理由は要求と矛盾せず、指摘は比べる案が足りないと言い切る形", location: "design.md 3.1 見送り（STAFF_AT の送信者制約）、catalog_answers.yaml I29"}
+    - {finding: F13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "（境界の判定）prior_art_search は IANA の登録簿を探したと書くが、nearest に挙げるのは Txn-Token の草案の txn だけで、IANA に登録された RFC 8417 §2.2 の txn（関係する複数の JWT の相関に使う）に触れていない。却下の理由は草案の意味にしか当たらない。弱い指摘で、案件に txn を使わない判断自体は残りうる", location: "claims.yaml C-case-id prior_art_search、claim_request_case_id.md", spec: "https://www.rfc-editor.org/rfc/rfc8417#section-2.2"}
+    - {finding: F14, severity: Minor, verdict: 誤検出, reason: "DELEG_AT を出す交換で agent-sts が確かめること（STAFF_AT の azp・イントロスペクション・行為者の表・案件の担当者）は、上流のホップ H5 の validates に書いてある。H9 はその交換で出たトークンを refund-subagent が保持するホップ", location: "hops.yaml H5・H9・H10 validates"}
+    - {finding: F15, severity: Major, verdict: 真（基の設計の欠陥）, reason: "M_token_validation 8. は agent-sts の鍵が漏れたら 15 分以内に全ツールの JWKS を取り直させると言うが、9. は TTL 3600 秒で取り直しは知らない kid のときだけ、失敗時は最後の JWKS を使う。漏れた鍵は既知の kid なので取り直しが起きない。強制する手段が無く、15 分の目標を満たせない", location: "design.md 付録 D M_token_validation 8.・9.、token_types.yaml jwks_cache_ttl・unknown_kid"}
+    - {finding: F16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "C-sub の混在は D4-2 F12 と同じで真。C-kc-typ の受け手が無いのは R8 のための行と書かれており、C-sid は support-console が ID トークン・ログアウトトークンで読む（STAFF_AT では読まないが IdP が載せる値）。その部分は当たらない", location: "claims.yaml C-sub identifier_properties、C-sid consumers、C-kc-typ"}
+    - {finding: F17, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "refund-tool・refund-batch・agent-sts が mTLS で approval-svc・PDP を呼ぶと書くが、どの SPIFFE ID に消費・取り下げ・在籍の照会を許すかが無い。SVID を持つ assist-agent が approval-svc を直接呼べないことは設計書から読めない", location: "design.md 2. の図（RT・BT→AP・PDP）、付録 D P4 1. #3・P4 5."}
+  D2-1:
+    - {finding: F-01, severity: Major, verdict: 真（基の設計の欠陥）, reason: "long_running の宣言と refund-batch のホップは control-a にも無い（D4-1 F-01 ほか）。A17 の埋め込みで生じたものではない", location: "token_types.yaml（両方とも long_running なし）、hops.yaml"}
+    - {finding: F-04, severity: Major, verdict: 真（埋め込みの副作用）, reason: "seeded の C-sub enforced_at は refund-tool が PDP に「在籍と返金の上限」だけを問い、権限は groups で判断する（A14 の埋め込みで control の「refund-operator のロール」を消した）。そのためロールの剥奪が返金に届かず C-roles の理由と食い違う。A14 の core（表示名で判断）とは別の帰結で正解に無い", location: "seeded-a claims.broken.yaml C-sub enforced_at（refund-tool）・C-roles rationale・C-groups（A14）"}
+    - {finding: F-11, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "A09 の埋め込みで STAFF_AT の aud にツールを足したが、C-aud の rationale・assumption（STAFF_AT の宛先は agent-sts だけ、Audience マッパーは agent-sts だけ）を直していない。control-a は一致している。採点者の K1 と同じ", location: "seeded-a claims.broken.yaml C-aud、token_types.broken.yaml STAFF_AT aud"}
+    - {finding: F-19, severity: Major, verdict: 真（基の設計の欠陥）, reason: "「決済代行への返金が失敗したら、承認を未使用に戻す」は control-a の P4 5. にも同じ文がある", location: "design.md 付録 D P4 5.（両方）"}
+    - {finding: F-21, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "seeded の 1. の R8 は TOOL_AT 49%・ADMIN_API_AT 14%、手で書く M_idp_keycloak 11. は 20%・12% のまま。control-a は 1. も 20%・12% で一致。クレームの埋め込み（A15 など）でサイズが変わり手書きの節を直していない", location: "seeded-a design.broken.md 1.（R8）と M_idp_keycloak 11."}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "付録 A の 10 分の警報と未計測の 120 秒は control-a と同じ文（D4-1 F-05）", location: "design.md 9.2、付録 A（両方）"}
+    - {finding: F-23, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "ツールのログが sub だけか act・jti も残すかの食い違いは、A12 の埋め込みで P4 8.・C-act note・C-jti を「交換の監査ログ」に寄せた結果。impersonation（A11）と U29（A19）の操作がつながらないのも埋め込みの帰結。A12 の core（案件 ID・承認 ID が無い）を言わないので一致しないが、正解に無い矛盾", location: "seeded-a design.broken.md P4 8.、claims.broken.yaml C-act note・C-jti enforced_at"}
+    - {finding: F-24, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "approval-console が図に無いのは control-a も同じ（D4-2 F9）。アカウントの画面での上限の書き換えの経路は A13 の埋め込みによる部分", location: "claims.yaml C-azp assumption、design.md 2. の図"}
+    - {finding: F-25, severity: Major, verdict: 真（埋め込みの副作用）, reason: "seeded の 3.1 の見送りの理由は「STAFF_AT だけでは返金できない」に変わり、A09 の代わりの経路（STAFF_AT で order-tool・customer-tool を直接呼ぶ）で理由の前提が崩れる。control-a の理由（STAFF_AT だけでは何も呼べない）なら R4 で誤検出になる指摘で、崩れたのは埋め込みのせい", location: "seeded-a design.broken.md 3.1 見送り、claims.broken.yaml C-iss（代わりの経路）"}
+    - {finding: "op-proof-holder の気づき（S2 だけが挙げた）", severity: "—", verdict: 真（埋め込みの副作用）, reason: "refund-batch が他人の cnf に束縛した保存済みの TOOL_AT を使う点は A17 の埋め込みの帰結（control-a の refund-batch はトークンを使わない）。AGENT_RT の無束縛は A05 そのもの。STAFF_AT を 2 者が持つ点だけは基（D4-1 F-09）", location: "seeded-a design.broken.md 2.2 夜間バッチ・token_types.broken.yaml AGENT_RT"}
+  D2-2:
+    - {finding: F-07, severity: Major, verdict: 真（埋め込みの副作用）, reason: "D2-1 F-04 と同じ（A14 の埋め込みで refund-tool がロールを見なくなった）", location: "seeded-a claims.broken.yaml C-sub enforced_at・C-groups volatility 2460・C-roles rationale"}
+    - {finding: F-10, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D2-1 F-01 と同じ", location: "token_types.yaml、hops.yaml"}
+    - {finding: F-18, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "D2-1 F-22 と同じ", location: "design.md 9.2、付録 A、12."}
+    - {finding: F-21, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "D2-1 F-21 と同じ", location: "seeded-a design.broken.md 1. と M_idp_keycloak 11."}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "idp に SPIRE が無いのは control-a も同じ（D4-1 F-12・D4-2 F17）", location: "catalog_answers.yaml idp"}
+    - {finding: F-23, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "D2-1 F-23 と同じ（A12・A09・A17 の埋め込みでツールのログと経路の記録が食い違う）", location: "seeded-a design.broken.md P4 8.、catalog_answers.broken.yaml q-via"}
+    - {finding: F-24, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "SVID の更新と cnf の束縛の前提は control-a の M_sender_constraint 4. にも同じ形である（D4-2 F15）。seeded では TOOL_AT 1800 秒（A03）で害が大きくなるが、欠陥自体は基", location: "design.md 付録 D M_sender_constraint 4.（両方）"}
+    - {finding: F-25, severity: Minor, verdict: 真（埋め込みの副作用）, reason: "seeded の U12 は「refund-batch と refund-tool の間」（A17 の埋め込みで変更）、図とホップはそれと合わない。control-a の U12 は refund-batch と approval-svc・PDP で図と一致する。refund-batch のホップが無いこと自体は基", location: "seeded-a catalog_answers.broken.yaml U12、design.broken.md 2. の図"}
+  D2-3:
+    - {finding: F-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: "D2-1 F-01 と同じ", location: "token_types.yaml、hops.yaml"}
+    - {finding: F-08, severity: Major, verdict: 真（埋め込みの副作用）, reason: "C-groups の採用・volatility 2460 と、ロールで判断するという C-roles の却下の理由の矛盾は A14 の埋め込みで生じた（control-a は C-groups 却下）。9.2 に groups の行が無いのも同じ", location: "seeded-a claims.broken.yaml C-groups・C-roles、design.broken.md 9.2"}
+    - {finding: F-11, severity: Major, verdict: 真（埋め込みの副作用）, reason: "D2-1 F-11 と同じ（A09 の埋め込みと C-aud の不一致）", location: "seeded-a claims.broken.yaml C-aud、token_types.broken.yaml STAFF_AT aud"}
+    - {finding: F-18, severity: Major, verdict: 真（基の設計の欠陥）, reason: "JWKS の 3600 秒と 15 分の目標の矛盾、SPIRE の鍵の扱いの欠落は control-a も同じ（D4-3 F15・D4-1 F-12）", location: "design.md 付録 D M_token_validation 8.・9.（両方）"}
+    - {finding: F-21, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "混合。issuance_profile の「サーバーの中だけ」の前提の誤り（D4-1 F-09）と C-cnf の更新の主張（D4-2 F15）は control-a にもある。見送りの比較が DPoP だけという部分は R4 で誤検出に当たるが、指摘全体としては基の欠陥を含む", location: "token_types.yaml issuance_profile.sender_constraint、claims.yaml C-cnf on_revoke、design.md 3.1"}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: "idp に SPIRE が無い（D4-1 F-12）と C-sub の id_scheme（D4-2 F12）はどちらも control-a にある", location: "catalog_answers.yaml idp、claims.yaml C-sub"}
+    - {finding: "F-20 の一部（REQ-10 の support_tier を受けるクレームも判断も無い）", severity: Minor, verdict: 誤検出, reason: "support_tier は M_authz_pdp 2.・5. でトークンに載せず PDP が Keycloak の属性を引くと決めてある（台帳の行なしと明記）。クレームが無いのは設計どおり。F-20 の残り（連絡先）は A15 に一致済み", location: "design.md 付録 D M_authz_pdp 2.・5."}
+
+summary:
+  # FP = 誤検出. FP Major+ = 誤検出 のうち レビュアーの重大度が Major 以上.
+  D4-1: {total: 15, FP: 1, FP_major_plus: 0, 確認の依頼: 1, 真_基: 13, 真_副作用: 0, 判定できない: 0}
+  D4-2: {total: 20, FP: 2, FP_major_plus: 0, 確認の依頼: 1, 真_基: 17, 真_副作用: 0, 判定できない: 0}
+  D4-3: {total: 17, FP: 3, FP_major_plus: 0, 確認の依頼: 0, 真_基: 14, 真_副作用: 0, 判定できない: 0}
+  D2-1: {total: 10, FP: 0, FP_major_plus: 0, 確認の依頼: 0, 真_基: 4, 真_副作用: 6, 判定できない: 0}
+  D2-2: {total: 8, FP: 0, FP_major_plus: 0, 確認の依頼: 0, 真_基: 4, 真_副作用: 4, 判定できない: 0}
+  D2-3: {total: 7, FP: 1, FP_major_plus: 0, 確認の依頼: 0, 真_基: 4, 真_副作用: 2, 判定できない: 0}
+  borderline:
+    - "D4-3 F13（txn）：真（基）としたが弱い。誤検出に倒すと D4-3 の FP は 4"
+    - "D4-2 F15・D2-2 F-24（SVID の更新と cnf）：TLS の接続の使い回しの実装しだいで害が出ない場合がある。判定できないに倒す読み方もある"
+    - "D4-2 F8 の「チームのリーダーがグループにロールを付けられる」部分は Keycloak の細かい管理権限しだいで判定できない（主旨は真）"
+    - "D4-1 F-13：refund-tool の PDP 停止の部分は誤り（M_authz_pdp 5. に拒否とある）。agent-sts の部分で真"
+
+recurring_base_defects:   # 2 セッション以上（対照・seeded を合わせて）。再測定の組で直す
+  - {id: BD1, defect: "予約の返金（REQ-11）の非同期の経路が台帳に無い（long_running の列、refund-batch のホップ）→ 性質の表が当たらない、q-long-running が出ない", sessions: [D4-1 F-01, D4-2 F1, D4-3 F1, D2-1 F-01, D2-2 F-10, D2-3 F-05], count: 6}
+  - {id: BD2, defect: "人事連携の 120 秒が未計測、止まったときの警報 10 分が REQ-07 の 5 分を超え責任者の判断に任せる（P4 9. の「5 分の内側」と矛盾）", sessions: [D4-1 F-05, D4-2 F7, D4-3 F8, D2-1 F-22, D2-2 F-18], count: 5}
+  - {id: BD3, defect: "承認の消費の失敗時：結果不明でも未使用に戻す（二重返金）、消費の後に落ちた場合、決済代行側の冪等キー", sessions: [D4-1 F-03, D4-2 F4, D4-3 F5, D2-1 F-19], count: 4}
+  - {id: BD4, defect: "catalog_answers の idp に SPIRE が無い。SPIRE の鍵の持ち主・漏えい時の手順が無い", sessions: [D4-1 F-12, D4-2 F17, D2-2 F-22, D2-3 F-22, D2-3 F-18], count: 5}
+  - {id: BD5, defect: "予約の返金：承認を消費する時点、委任の記録の行・書き手・完全性、refund-batch が返金を実行する経路", sessions: [D4-1 F-02, D4-2 F3, D4-2 F4, D4-3 F2], count: 3}
+  - {id: BD6, defect: "「上限と support_tier を書けるのは hr-sync だけ」を「属性の編集は admin だけ」で実現と称する（管理者全員が書ける）。権限の元データの書き手を数え切れていない", sessions: [D4-1 F-04, D4-2 F8, D4-3 F9], count: 3}
+  - {id: BD7, defect: "3 万円の閾値が 1 要求ごとで、分割・累計の扱いが無い（承認と追加の認証の迂回）", sessions: [D4-1 F-08, D4-2 F2, D4-3 F6], count: 3}
+  - {id: BD8, defect: "U29 の旧いマクロの道具が /v1/refund 用の TOOL_AT をどう得るか（主体・client_id・cnf）が無い", sessions: [D4-1 F-06, D4-2 F10, D4-3 F4], count: 3}
+  - {id: BD9, defect: "authorization_details の内側の型がスキーマに無く（items は object だけ）、value_normalization も無い", sessions: [D4-1 F-11, D4-2 F11, D4-3 F7], count: 3}
+  - {id: BD10, defect: "6. UC3 の q-actor を「不要」としたが予約の返金は refund-batch が代わりに実行する", sessions: [D4-1 F-07, D4-2 F13, D4-3 F2], count: 3}
+  - {id: BD11, defect: "issuance_profile.sender_constraint の理由「STAFF_AT は support-console のサーバーの中だけ」が holder・3.1（assist-agent にも置く）と食い違う", sessions: [D4-1 F-09, D4-2 F16, D2-3 F-21], count: 3}
+  - {id: BD12, defect: "承認の入口（approval-console のログイン・トークン・承認者のロール）が図・目録・カタログに無い（C-azp の assumption にだけ出る）", sessions: [D4-2 F9, D4-3 F3, D2-1 F-24], count: 3}
+  - {id: BD13, defect: "C-sub の id_scheme が uuid だけなのに AGENT_SVID では SPIFFE ID", sessions: [D4-2 F12, D4-3 F16, D2-3 F-22], count: 3}
+  - {id: BD14, defect: "M_sender_constraint 4.：SVID の更新の後に古い証明書に束縛した TOOL_AT が合わなくなる。交換し直す決まりが無いのに「止まらない」", sessions: [D4-2 F15, D2-2 F-24, D2-3 F-21], count: 3}
+  - {id: BD15, defect: "agent-sts の鍵の漏えいで 15 分以内に JWKS を取り直させる、と JWKS の TTL 3600 秒・既知の kid では取り直さない・失敗時は最後の値、が両立しない", sessions: [D4-3 F15, D2-3 F-18], count: 2}
+  - {id: BD16, defect: "agent-sts がイントロスペクション・PDP・案件の管理の停止時に交換を止めるかが書かれていない", sessions: [D4-1 F-13, D4-2 F18], count: 2}
+  - {id: BD17, defect: "9.2 の C-scope の許容 480 秒が要求でなく設計の最悪値の写しで、REQ-07 の「トークンの寿命の分」（330）と 9.1 を超える", sessions: [D4-2 F6, D4-3 F11], count: 2}
+  - {id: BD18, defect: "3 万円以下の返金の冪等キーを誰が作るかが無い（C-jti は冪等キーの存在を前提にする）", sessions: [D4-2 F5, D4-3 F5], count: 2}
+single_session_base_defects: ["C-authorization-details を個人情報としながらそのまま記録（3.2 と矛盾、D4-1 F-10）", "C-case-id の先行調査が RFC 8417 の txn に触れない（D4-3 F13、境界）", "approval-svc・PDP を呼べる SPIFFE ID の許可リストが無い（D4-3 F17）"]
+seeding_side_effects_to_fix_in_seeded_a:
+    - "A09：C-aud の rationale・assumption を STAFF_AT の aud に合わせる（または A09 の locations に C-aud を足す）— D2-1 F-11, D2-3 F-11"
+    - "A14：refund-tool がロールを見なくなったことと C-roles の理由・9.2 の不一致 — D2-1 F-04, D2-2 F-07, D2-3 F-08"
+    - "サイズ：M_idp_keycloak 11. の 20%・12% を 1. の R8（49%・14%）に合わせる — D2-1 F-21, D2-2 F-21"
+    - "A12：P4 8.・q-via・log_policy のツールのログの記述をそろえる — D2-1 F-23, D2-2 F-23"
+    - "A17：U12 の refund-batch の相手と図をそろえる — D2-2 F-25"
+    - "A09：3.1 の見送りの理由の書き換え（返金できない）が代わりの経路と矛盾 — D2-1 F-25"

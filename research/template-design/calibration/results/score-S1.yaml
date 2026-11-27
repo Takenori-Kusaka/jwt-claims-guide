@@ -1,0 +1,338 @@
+# Scorer S1 (#12 first measurement). protocol.md 7. applied; answer key not changed.
+# D2 = seeded-a (A01-A19), D1 = seeded-b (B01-B16), D3/D4 = controls.
+# Fields: score (1/0.5/0), findings (matched IDs; "(2)q-xxx" = No-answer of that question used as a finding),
+#         a = location reason, b = core reason, q = confused-question check.
+scorer: S1
+summary:
+  D2-1: {strict: "18/19", lenient: "18/19", sum: 18.0}
+  D2-2: {strict: "16/19", lenient: "17/19", sum: 16.5}
+  D2-3: {strict: "17/19", lenient: "17/19", sum: 17.0}
+  D1-1: {strict: "14/16", lenient: "15/16", sum: 14.5}
+  D1-2: {strict: "14/16", lenient: "15/16", sum: 14.5}
+  D1-3: {strict: "14/16", lenient: "15/16", sum: 14.5}
+borderline_calls:
+  - "D2-1 A03 (F-20) and D2-2 A03 (F-19): core judged met because the finding points at the 1. L16 lifetime warn (1800 s exceeds upstream 600 s) and calls the extension a rule violation; a stricter reading (must say 1800 > 600 in words) gives 0"
+  - "D2-1/D2-2 A12 (F-23): judged 0; finding says tool logs inconsistent (sub only or jti) and some paths not linkable, but never says case ID / approval ID are missing from tool token/logs"
+  - "D1-1/D1-2/D1-3 B07: judged met via the q-db-context-writers No-answer + F02/F-05/F6 (user SQL on the same connection can rewrite app.tenant_id). D1-3 F6 does not explicitly say the context can be rewritten, only that user SQL flows on the same connection - weakest of the three"
+  - "D1-3 B14 (F21): judged 1; states tenant suspension does not stop the 24 h partner AT (worst 24 h), but not the TTS-does-not-check-tenant-state half of the core (see key_issues K3)"
+  - "Split findings (one finding, two places, two errors, protocol 7.): D2-1 F-13 -> A10 + A01; D2-3 F-17 -> A10 + A01; D1-1 F02 -> B06, B07 via (2)q-db-context-writers; D1-2 F-07 -> B04, B01 via (2)q-authorize-service-and-user; D1-3 F11 -> B12 + B03"
+sessions:
+  D2-1:
+    errors:
+      A01: {score: 1, findings: [F-13], a: "F-13 names claims.yaml C-act enforced_at (refund-tool uses inner act)", b: "says refund-tool authorizes by the delegation origin (inner act) so another workload can act as assistant's delegate; separately described from may_act -> split", q: "q-actor is also_accepted"}
+      A02: {score: 1, findings: [F-12], a: "hops H6-H8 aud, TOOL_AT aud", b: "one TOOL_AT passes at 3 tools", q: "q-single-aud-resource in confused_questions"}
+      A03: {score: 1, findings: [F-20], a: "design.md 1. (L16 lifetime warn) and 5.1 are A03 headings", b: "BORDERLINE: refers to the L16 lifetime warn (1800 s > upstream 600 s) and says the extension was accepted against the org rule", q: "q-hop-lifetime in confused_questions"}
+      A04: {score: 1, findings: [F-08], a: "C-authorization-details / C-approval-id on_revoke, 9.2", b: "withdrawal not effective until next exchange or TOOL_AT expiry (1830 s), REQ-05 immediate not met", q: "q-freshness-mitigation"}
+      A05: {score: 1, findings: [F-14], a: "token_types AGENT_RT", b: "30-day agent RT, no rotation, no binding", q: "q-agent-short-lived-no-rt"}
+      A06: {score: 1, findings: [F-07], a: "C-authorization-details enforced_at, P4 5.", b: "refund-tool does not compare order_id/amount with authorization_details", q: "q-approval-from-as"}
+      A07: {score: 1, findings: ["(2)dc-05", F-07], a: "dc-05 No-answer refers to F-07 (C-authorization-details description, P4 5., M_authz_pdp 5.)", b: "amount compared as float, no currency", q: "dc-05 is the confused question"}
+      A08: {score: 1, findings: [F-09], a: "#step-up, C-acr, C-auth-time, H8 validates", b: "agent decides step-up on agent path; agent-sts does not copy acr; refund-tool does not check", q: "q-step-up-path-coverage"}
+      A09: {score: 1, findings: [F-10], a: "hops H12/H13, STAFF_AT aud", b: "on exchange failure the agent calls tools directly with act-less STAFF_AT", q: "ap-2-7"}
+      A10: {score: 1, findings: [F-13], a: "P4 4., C-may-act rationale", b: "any SVID workload can exchange; may_act not checked", q: "q-no-passthrough"}
+      A11: {score: 1, findings: [F-15], a: "#system-privileges (operator), I19, P4 3.", b: "impersonation token indistinguishable from staff in audit", q: "q-operator-act"}
+      A12: {score: 0, findings: [F-23], a: "P4 8. (met)", b: "NOT met (borderline): says tool log sub-only/jti inconsistent and some paths not linkable; does not say case ID and approval ID are absent from tool token/log", q: "q-audit-correlation (would be 1 if b accepted)"}
+      A13: {score: 1, findings: [F-05], a: "#system-privileges (HR sync), M_authz_pdp 5.", b: "staff can edit their own refund limit", q: "ap-1-7"}
+      A14: {score: 1, findings: [F-03], a: "C-groups", b: "refund permission decided by display name editable by team leader", q: "q-value-vocabulary"}
+      A15: {score: 1, findings: [F-18], a: "C-customer-contact, H6-H8, H11", b: "customer email/phone on all tool tokens", q: "q-derived-value"}
+      A16: {score: 1, findings: [F-06], a: "C-approval-id enforced_at, #sequence, 9.2", b: "skips consumption if approval-svc does not answer in 2 s (fail-open)", q: "q-dependency-outage"}
+      A17: {score: 1, findings: [F-02], a: "#system-privileges (night batch), 9.1, U13", b: "scheduled refund runs with stored TOOL_AT without re-checking PDP/approval", q: "q-long-running in confused_questions"}
+      A18: {score: 1, findings: [F-17], a: "M_authz_pdp 3., C-customer-ref, H6 validates", b: "order-tool returns any order ID without checking case customer", q: "q-object-level-authz"}
+      A19: {score: 1, findings: [F-16], a: "U29", b: "/v1/refund accepts Cookie only, no approval, no close date", q: "q-outside-catalog"}
+    unmatched:
+      - "F-01: property table wrongly says long-running/async does not apply (ledger has no long_running / batch hop) - side effect of A17 seeding?"
+      - "F-04: refund-tool does not check the role at PDP; refund-operator removal survives up to 1830 s; contradicts C-roles rationale"
+      - "F-11: C-aud rationale says STAFF_AT aud is agent-sts only but actual STAFF_AT/TOOL_AT aud contain tools (overlaps A02/A09 content; not counted twice)"
+      - "F-19: payment-provider failure resets approval to unused even when result unknown -> double refund"
+      - "F-20 is used for A03 (borderline); if A03 rejected it becomes unmatched"
+      - "F-21: M_idp_keycloak 11. percentages (TOOL_AT 20%, ADMIN_API_AT 12%) disagree with CI (49%, 14%)"
+      - "F-22: HR-sync alarm 10 min > REQ-07 5 min; 120 s not measured"
+      - "F-23: tool log contents (sub only vs jti) inconsistent; impersonation and U29 not linkable (rejected for A12)"
+      - "F-24: approval-console and Keycloak account console (limit-edit path) not in scope diagram"
+      - "F-25: STAFF_AT sender-constraint deferral does not compare against fallback path / agent holding STAFF_AT"
+  D2-2:
+    errors:
+      A01: {score: 0, findings: [], a: "no finding on refund-tool using inner act (section 2 says main path q-actor is fine)", b: "-", q: "-"}
+      A02: {score: 1, findings: [F-13], a: "TOOL_AT aud, H6-H8 aud", b: "TOOL_AT has 3 aud", q: "q-single-aud-resource"}
+      A03: {score: 0.5, findings: [F-19], a: "1. warn reason (lifetime), 5.1, narrowing_exception", b: "BORDERLINE: TOOL_AT 1800 s outside the lifetime rule (refers to L16 lifetime warn exceeding upstream)", q: "confused question is '-' -> 0.5"}
+      A04: {score: 1, findings: [F-08], a: "9.2, C-authorization-details / C-approval-id on_revoke", b: "withdrawal survives until TOOL_AT expiry (1830 s), REQ-05 immediate", q: "q-freshness-mitigation"}
+      A05: {score: 1, findings: [F-15], a: "AGENT_RT, rt_strategy", b: "30-day RT, no rotation, no sender constraint", q: "q-agent-short-lived-no-rt"}
+      A06: {score: 1, findings: [F-02], a: "C-authorization-details enforced_at, P4 5., H3/H8", b: "only checks existence, not order/amount", q: "q-approval-from-as"}
+      A07: {score: 1, findings: [F-04], a: "C-authorization-details description, P4 5.", b: "float comparison, no currency", q: "dc-05"}
+      A08: {score: 1, findings: [F-11], a: "#step-up, C-acr, C-auth-time, H8", b: "agent decides; agent-sts does not copy acr; refund-tool does not check act tokens", q: "q-step-up-path-coverage"}
+      A09: {score: 1, findings: [F-12], a: "H12/H13, STAFF_AT aud", b: "agent calls tools with act-less STAFF_AT on exchange failure", q: "ap-2-7"}
+      A10: {score: 1, findings: [F-14], a: "P4 4., C-may-act", b: "any SVID can exchange, may_act not checked", q: "q-no-passthrough"}
+      A11: {score: 1, findings: [F-17], a: "2.1, 2.2 operator, P4 3., I19", b: "impersonation token same as staff", q: "q-operator-act"}
+      A12: {score: 0, findings: [F-23], a: "P4 8. (met)", b: "NOT met (borderline): only says tool log act/jti contents inconsistent and fallback/scheduled paths not linkable; no case/approval ID absence", q: "q-audit-correlation (would be 1 if b accepted)"}
+      A13: {score: 1, findings: [F-06], a: "2.2 HR sync, M_authz_pdp 5.", b: "refund_limit_jpy editable by staff", q: "ap-1-7"}
+      A14: {score: 1, findings: [F-05], a: "C-groups", b: "permission by group display name", q: "q-value-vocabulary"}
+      A15: {score: 1, findings: [F-20], a: "C-customer-contact, H11", b: "contact on all 3 tools and subagent", q: "q-derived-value"}
+      A16: {score: 1, findings: [F-03], a: "C-approval-id enforced_at, 7.", b: "skip consumption if no answer in 2 s", q: "q-dependency-outage"}
+      A17: {score: 1, findings: [F-09], a: "2.2 night batch, U13", b: "stored TOOL_AT used after exp without re-checking PDP/approval", q: "q-long-running"}
+      A18: {score: 1, findings: [F-16], a: "M_authz_pdp 3., C-customer-ref, H6", b: "order-tool returns by order ID only", q: "q-object-level-authz"}
+      A19: {score: 1, findings: [F-01], a: "U29", b: "Cookie-only /v1/refund without approval, no close date", q: "q-outside-catalog"}
+    unmatched:
+      - "F-07: refund-tool does not check the role; role/group removal survives 1830/2460 s > REQ-07 5 min"
+      - "F-10: property table says long-running does not apply although REQ-11 exists (ledger lacks long_running)"
+      - "F-18: HR-sync alarm 10 min > REQ-07 5 min; 120 s not measured"
+      - "F-19 is used for A03 (borderline 0.5); if rejected it becomes unmatched (lifetime exception not recorded)"
+      - "F-21: M_idp_keycloak 11. percentages disagree with CI R8 (49%/14%)"
+      - "F-22: SPIRE missing from catalog_answers idp"
+      - "F-23: tool log act/jti contents inconsistent (rejected for A12)"
+      - "F-24: SVID hourly rotation vs TOOL_AT bound to the old certificate - 'expires within lifetime' wrong"
+      - "F-25: scheduled-refund direction/path inconsistent among diagram, U12 and hops"
+      - "note: F-13 also flags C-aud vs STAFF_AT aud contradiction (A09 content), counted only under A02"
+  D2-3:
+    errors:
+      A01: {score: 1, findings: [F-17], a: "F-17 location lists C-act", b: "refund-tool decides only by inner act.sub, outer actor not checked against allow-list; described separately from may_act -> split", q: "q-actor also_accepted"}
+      A02: {score: 1, findings: [F-12], a: "TOOL_AT aud, H6-H8", b: "3 tools in aud; order/customer tool receive refund-capable token", q: "q-single-aud-resource"}
+      A03: {score: 0, findings: [], a: "-", b: "no finding states TOOL_AT lifetime exceeds STAFF_AT (only mentions 1800 s in other contexts)", q: "-"}
+      A04: {score: 1, findings: [F-03], a: "C-authorization-details on_revoke, 9.2", b: "withdrawal reaches only at next exchange; TOOL_AT valid up to 1830 s", q: "q-freshness-mitigation"}
+      A05: {score: 1, findings: [F-14], a: "AGENT_RT", b: "30-day RT, no rotation, no sender constraint", q: "q-agent-short-lived-no-rt"}
+      A06: {score: 1, findings: [F-01], a: "P4 5., C-authorization-details enforced_at, H8", b: "refund-tool does not compare order_id/amount with request", q: "q-approval-from-as"}
+      A07: {score: 1, findings: [F-19], a: "C-authorization-details description, P4 5.", b: "amount number compared as float, no currency", q: "dc-05"}
+      A08: {score: 1, findings: [F-13], a: "#step-up (付録 B), C-acr, C-auth-time", b: "agent decides; agent-sts does not copy acr; refund-tool checks only act-less tokens", q: "q-step-up-path-coverage"}
+      A09: {score: 1, findings: [F-10], a: "H12/H13, STAFF_AT", b: "assist-agent calls tools with act-less STAFF_AT on agent-sts failure", q: "ap-2-7"}
+      A10: {score: 1, findings: [F-17], a: "C-may-act, P4 4.", b: "may_act not checked; any SVID workload can exchange", q: "q-no-passthrough"}
+      A11: {score: 1, findings: [F-15], a: "2.2 operator, P4 3., I19", b: "impersonation token indistinguishable", q: "q-operator-act"}
+      A12: {score: 0, findings: [], a: "-", b: "no finding on missing case/approval ID in tool logs (q-audit-correlation answer says main path is linkable)", q: "-"}
+      A13: {score: 1, findings: [F-09], a: "2.2 HR sync", b: "staff can edit refund_limit_jpy", q: "ap-1-7"}
+      A14: {score: 1, findings: [F-07], a: "C-groups", b: "permission by group display name", q: "q-value-vocabulary / ap-1-7"}
+      A15: {score: 1, findings: [F-20], a: "C-customer-contact, H3/H6-H8/H11", b: "email and phone on all tools and subagent", q: "q-derived-value"}
+      A16: {score: 1, findings: [F-02], a: "C-approval-id enforced_at, P4 5.", b: "skip consumption check if no answer in 2 s", q: "q-dependency-outage"}
+      A17: {score: 1, findings: [F-04], a: "2.2 night batch, 9.1, U13", b: "stored TOOL_AT used 2 h later without re-checking PDP/approval", q: "q-long-running"}
+      A18: {score: 1, findings: [F-16], a: "C-customer-ref, H6", b: "order-tool fetches by order number only", q: "q-object-level-authz"}
+      A19: {score: 1, findings: [F-06], a: "U29", b: "Cookie-only, no approval, no close date", q: "q-outside-catalog"}
+    unmatched:
+      - "F-05: property table says long-running does not apply (scheduled refund, AGENT_RT)"
+      - "F-08: C-roles rejected for 5-min revocation but groups used; groups reflect up to 2460 s, not in 9.2"
+      - "F-11: STAFF_AT aud has 3 values while C-aud says agent-sts only (A09/A02 content, not counted twice)"
+      - "F-18: JWKS cache 3600 s / use_last_known vs 15-min key compromise target; SPIRE key custody undefined"
+      - "F-21: STAFF_AT sender-constraint deferral reason weak; C-cnf rotation claim wrong (SVID 1 h vs TOOL_AT 1800 s)"
+      - "F-22: SPIRE missing from idp; C-sub mixes UUID and SPIFFE ID with id_scheme uuid"
+  D1-1:
+    errors:
+      B01: {score: 1, findings: [F06], a: "H6-H9/H13/H20 validates (H7 in key), C-req-wl, 6.", b: "direct peer check replaced by req_wl; mTLS only for encryption; req_wl is the requester, not the current peer", q: "q-peer / q-authorize-service-and-user"}
+      B02: {score: 1, findings: ["(2)q-idp-diff-absorbed", F13], a: "F13 locates PARTNER_AT and H5/H21", b: "shipment-svc/warehouse-svc read Auth0 PARTNER_AT directly (F13: 86400 s PARTNER_AT reaches inner services)", q: "q-idp-diff-absorbed is the confused question (F13 itself lists only q-variant-comparison/q-lint-workaround)"}
+      B03: {score: 0.5, findings: [F09], a: "P5 3., M_token_validation 11., TXN_TOKEN note, H13", b: "one middleware accepts Auth0 AT and Txn-Token both in Authorization", q: "q-outside-catalog / q-idp-diff-absorbed not in B03 lists -> 0.5"}
+      B04: {score: 1, findings: [F07], a: "H19", b: "TXN_OPS sent over plain HTTP outside mesh, peer not verified", q: "q-peer / q-authorize-service-and-user"}
+      B05: {score: 1, findings: [F18], a: "H7 validates", b: "warehouse-svc uses body quantity, not tctx", q: "q-txn (also_accepted)"}
+      B06: {score: 1, findings: [F02], a: "H17 validates, M_data_layer 3./4.", b: "report-svc connects with BYPASSRLS role; other tenants reachable", q: "q-tenant-data-match"}
+      B07: {score: 1, findings: ["(2)q-db-context-writers", F02], a: "F02 lists M_data_layer 1.", b: "user SQL on the same connection can rewrite app.tenant_id (borderline: not app code SET)", q: "q-db-context-writers"}
+      B08: {score: 1, findings: [F03], a: "C-entra, H4", b: "Entra user by mail, tenant by mail domain", q: "q-identifier-choice"}
+      B09: {score: 1, findings: [F04], a: "C-sub assumption, I18, I25", b: "auto account linking by email across tenants", q: "q-cross-tenant-identity"}
+      B10: {score: 1, findings: [F16], a: "C-org-roles, C-entra enforced_at", b: "roles matched by same name across IdPs; Entra admin can create 'admin' group", q: "q-value-vocabulary"}
+      B11: {score: 1, findings: [F10], a: "H10", b: "shipment-svc writes billing with its own all-tenant SVC_AT", q: "q-sub / q-original-principal"}
+      B12: {score: 1, findings: [F08], a: "H12/H13, TXN_TOKEN long_running", b: "label-svc uses Txn-Token up to 6 h without exp check", q: "q-long-running"}
+      B13: {score: 1, findings: [F15], a: "C-tenant-name enforced_at", b: "price table selected by display name", q: "pa-01"}
+      B14: {score: 0, findings: [], a: "-", b: "no finding ties tenant suspension to the 24 h partner AT / TTS not checking tenant state (F05 = edge-gw cache, used for B15)", q: "-"}
+      B15: {score: 1, findings: ["(2)q-copies-outlive", F05, F19], a: "U21 (F05), U28 (F19), 9.1", b: "24 h edge-gw cache and 2-year shared copies survive suspension", q: "q-copies-outlive"}
+      B16: {score: 1, findings: [F01], a: "3.1, H6 note, U11, I22", b: "on TTS outage services trust unsigned X-Tenant-Id/X-User-Id headers", q: "q-dependency-outage"}
+    unmatched:
+      - "F11: TTS rebuild requesters / per-destination scope narrowing undefined; act may drop when TXN_OPS is subject_token"
+      - "F12: upstream omitted on H6-H8/H19/H20 so L16 skipped; manual claim 'scope is subset' false (labels:write, billing:admin)"
+      - "F14: arrow table applies exp-iat<=300 to PARTNER_AT (86400) and SVC_AT (600)"
+      - "F17: no requirement number for role-change delay; writer chose 28800 s; 9.2 says none exceed though generated table shows PARTNER_AT scope exceeds"
+      - "F20: operator cross-tenant aggregation has no principal/token defined"
+      - "F21: step-up checked only at web-bff/ops-console; receivers do not see auth_time"
+      - "F22: property table misses per-operation approval (break-glass approval_id reusable 60 min; no RAR)"
+      - "F23: Txn-Token aud is the whole trust domain"
+      - "F24: C-upn / C-email rationale contradict actual lookup and linking"
+      - "F25: catalog q-holder reason claims mTLS peer check that does not exist"
+      - "F26: label dedup atomicity / billing write idempotency undefined"
+      - "F27: clock skew assumption (1 s) vs revisit trigger (30 s); which clock for deadlines"
+      - "F28: duplicate of B13 (M_authz_pdp 2. price plan by display name) - not counted twice"
+      - "F29: diagram/B4 row says external AT stops at edge-gw but PARTNER_AT and reprint path enter (B02 content, not counted twice)"
+      - "note: F13 used as location for B02; its own content (sender-constraint deferral reason false for PARTNER_AT; hop lifetime 600 vs 86400) is otherwise unmatched"
+  D1-2:
+    errors:
+      B01: {score: 1, findings: ["(2)q-authorize-service-and-user", F-07], a: "F-07 lists 6. UC1/UC4/UC5 q-peer, P5 3., catalog q-peer", b: "direct peer substituted by req_wl, mTLS only encryption", q: "q-authorize-service-and-user is the confused question"}
+      B02: {score: 1, findings: ["(2)q-idp-diff-absorbed", F-11], a: "F-11 lists PARTNER_AT, H5/H21", b: "PARTNER_AT (24 h) reaches shipment-svc/warehouse-svc, read directly", q: "q-idp-diff-absorbed (F-11 itself lists q-variant-comparison/q-no-passthrough)"}
+      B03: {score: 0.5, findings: [F-08], a: "H13 validates, P5 2./3., M_token_validation 11.", b: "label-svc sends Txn-Token as Authorization Bearer; same middleware also accepts Auth0 AT", q: "txn-tctx / q-no-passthrough / q-idp-diff-absorbed not in B03 lists -> 0.5"}
+      B04: {score: 1, findings: [F-07], a: "H19, P5 3. ops-console -> billing-svc", b: "plain HTTP outside mesh, peer not verified; act does not answer the peer question", q: "q-peer / q-authorize-service-and-user"}
+      B05: {score: 1, findings: [F-14], a: "H7/H9 validates, M_authz_pdp 3.", b: "warehouse-svc does not check tctx, uses body quantity", q: "q-txn / txn-tctx"}
+      B06: {score: 1, findings: [F-05], a: "H17, M_data_layer 3./4.", b: "BYPASSRLS role, tenant filtered by query argument only", q: "q-tenant-data-match"}
+      B07: {score: 1, findings: ["(2)q-db-context-writers", F-05], a: "F-05 lists M_data_layer 1. (#db-context-setter)", b: "user SQL on the same connection can SET/RESET the context (borderline: not app code SET)", q: "q-db-context-writers"}
+      B08: {score: 1, findings: [F-01], a: "C-entra, H4, M_multitenancy 1.", b: "tenant by mail domain, user by mail", q: "q-identifier-choice"}
+      B09: {score: 1, findings: [F-02], a: "C-sub assumption, I18, M_multitenancy 4.", b: "auto linking by email across tenants", q: "q-cross-tenant-identity"}
+      B10: {score: 1, findings: [F-03], a: "C-org-roles, C-entra enforced_at[1]", b: "same string 'admin' across IdPs treated as same role", q: "q-value-vocabulary"}
+      B11: {score: 1, findings: [F-06], a: "H10", b: "tenant-unbounded SVC_AT for billing writes", q: "keep-sub-exchange / q-original-principal"}
+      B12: {score: 1, findings: [F-09], a: "H12/H13, TXN_TOKEN long_running", b: "Txn-Token used up to 6 h without exp", q: "q-long-running"}
+      B13: {score: 1, findings: [F-13], a: "C-tenant-name", b: "price table by changeable display name", q: "pa-01"}
+      B14: {score: 0, findings: [], a: "-", b: "no finding on TTS not checking tenant state / 24 h partner AT after suspension (F-10 is edge-gw cache + copies, used for B15)", q: "-"}
+      B15: {score: 1, findings: [F-10], a: "9.1, U21, U28", b: "24 h edge-gw cache and 2-year copies survive suspension", q: "q-copies-outlive"}
+      B16: {score: 1, findings: [F-04], a: "3.1, 7., U11, H6 note", b: "on TTS outage unsigned headers trusted", q: "q-dependency-outage"}
+    unmatched:
+      - "F-12: upstream omitted so L16 skipped; H6 labels:write / H19 billing:* wider than upstream; H9 not narrowed"
+      - "F-15: exp-iat<=300 applied to PARTNER_AT/SVC_AT; Auth0 old key removal 630 s vs 24 h PARTNER_AT"
+      - "F-16: step-up only at web-bff; Entra group path gives admin without step-up; auth_time not downstream"
+      - "F-17: outside_enumeration says none, but many paths missing from diagram/hops"
+      - "F-18: property table misses per-operation approval (approval reusable 60 min)"
+      - "F-19: one-time values (label dedup, RT reuse detection, client assertion jti) undefined/unverified"
+      - "F-20: audit not linkable (SVC_AT billing write, degraded mode, yearly HMAC key change)"
+      - "note: F-11's own content (sender-constraint deferral premise false; hop lifetime 600 vs 86400) otherwise unmatched; F-08 also says req_wl is not the direct peer (B01 content, not counted twice)"
+  D1-3:
+    errors:
+      B01: {score: 1, findings: [F10], a: "6. UC1/UC4/UC5 q-peer, C-req-wl, H13", b: "direct peer checked via req_wl, not current peer; mTLS id not matched", q: "q-authorize-service-and-user / q-peer"}
+      B02: {score: 0.5, findings: [F12], a: "PARTNER_AT, H3/H5/H21", b: "24 h bearer PARTNER_AT reaches shipment-svc/warehouse-svc", q: "q-variant-comparison / q-no-passthrough / q-lifetime-rationale not in B02 lists; q-idp-diff-absorbed answered Yes -> 0.5"}
+      B03: {score: 1, findings: [F11], a: "H13, TXN_TOKEN note, M_token_validation shared-validator", b: "points 2/3: received in Authorization; same middleware accepts Auth0 AT and Txn-Token (split from B12 part)", q: "q-typ-distinguishes in confused_questions"}
+      B04: {score: 1, findings: [F9], a: "H19, P5 3.", b: "plain HTTP outside mesh, peer not verified, TXN_OPS (act) usable if stolen", q: "q-authorize-service-and-user / q-peer"}
+      B05: {score: 0, findings: [], a: "-", b: "no finding on warehouse-svc not checking tctx quantity (F17 is H9 scope; F22 is tctx schema type)", q: "-"}
+      B06: {score: 1, findings: [F6], a: "H17, M_data_layer masking-rls-bypass", b: "BYPASSRLS role, tenant by query argument only", q: "q-tenant-data-match"}
+      B07: {score: 1, findings: ["(2)q-db-context-writers", F6], a: "F6 lists M_data_layer db-context-setter", b: "WEAK BORDERLINE: arbitrary user SQL flows on the same connection; does not state the context can be rewritten", q: "q-db-context-writers"}
+      B08: {score: 1, findings: [F1], a: "C-entra, H4, I17, M_multitenancy", b: "user and tenant by mail / mail domain", q: "q-identifier-choice"}
+      B09: {score: 1, findings: [F4], a: "I18, I25, C-sub, M_multitenancy cross-tenant", b: "auto linking by email across tenants", q: "q-cross-tenant-identity"}
+      B10: {score: 1, findings: [F3], a: "C-org-roles, C-entra, H4", b: "same string across IdPs as same role; no mapping", q: "q-value-vocabulary"}
+      B11: {score: 1, findings: [F8], a: "H10, SVC_AT", b: "client-credentials SVC_AT writes any tenant's billing", q: "q-original-principal"}
+      B12: {score: 1, findings: [F11, "(2)q-long-running"], a: "H12/H13, TXN_TOKEN long_running", b: "point 1: exp not checked up to 6 h", q: "q-long-running"}
+      B13: {score: 1, findings: [F14, "(2)pa-01"], a: "C-tenant-name, M_authz_pdp carry-or-query", b: "price table by display name", q: "q-identifier-choice listed in F14; pa-01 No-answer also"}
+      B14: {score: 1, findings: [F21], a: "9.1 PARTNER_AT row (9.1 heading in key), H5/H21", b: "BORDERLINE: tenant suspension does not stop carrier AT (up to 24 h); TTS-not-checking half not stated (partner path does not pass TTS)", q: "q-revocation-delivery"}
+      B15: {score: 1, findings: ["(2)q-copies-outlive", F5, F16], a: "U21 (F5), U28 (F16), 9.1", b: "24 h cache and 2-year copies survive suspension", q: "q-copies-outlive"}
+      B16: {score: 1, findings: [F7], a: "H6 note, U11, 3.1", b: "on TTS outage unsigned headers trusted; no rule to strip header variants", q: "q-dependency-outage"}
+    unmatched:
+      - "F2: C-entra / C-org-roles authoritative_writer says platform but external IdP admin / tenant admin write the values"
+      - "F13: 9.2 says none exceed but generated table shows PARTNER_AT scope exceeds; entra 28800 s written as tolerance"
+      - "F17: H9 scope not narrowed; no rule for who may rebuild"
+      - "F18: Auth0 key compromise 30 min vs JWKS cache 3600 s; TXN_OPS/TXN_TOKEN retire_after mismatch and shared key"
+      - "F19: role/member write components missing from diagram; source_system descriptions inconsistent"
+      - "F20: break-glass without tenant admin and DB admin privileges out of scope"
+      - "F22: tctx schema type object with string enum is unsatisfiable; declared_value type/normalization undefined"
+      - "F23: AUTH0_AT aud gets userinfo when openid requested (2 aud)"
+      - "F24: clock skew handling for auth_time and break-glass deadline"
+      - "F25: one-time handling (label dedup, approval_id 60 min reuse, client assertion jti)"
+      - "F26: C-entra PII (mail, oid) on AUTH0_AT visible to edge-gw/BFF; contradicts 'no email in AT'"
+      - "F27: password change does not stop RT/sessions (Auth0 behaviour unverified)"
+      - "F28: SVC_AT billing writes lack txn/sub - audit chain broken"
+      - "note: F12's own content (hop lifetime 600 vs 86400, sender-constraint premise false, C-jti) used only as B02 location"
+controls:
+  # D3 = control-b (twin of seeded-b), D4 = control-a (twin of seeded-a). Not judged here.
+  D3-1:
+    - "F-01 | 6. UC2 q-peer, H3 validates, PARTNER_AT sender_constraint, catalog q-peer | q-peer needed but carrier path is TLS + client_id in bearer AT; contradicts catalog 'mTLS'"
+    - "F-02 | C-org-roles/C-scope volatility 900, propagation_delay 630, 9.2, 9.1, 7., H4 | worst role-removal delay 630+330=960 s > self-chosen 900 s; 900 not from requirement; TTS role source inconsistent"
+    - "F-03 | C-entra volatility/on_revoke 28800, 9.2 note, 3.1, 5. SET row, 12. | Entra group removal / disable not reflected until next Entra login (8 h)"
+    - "F-04 | C-org-roles/C-entra configurable_by [platform], modifiers, provenance, U15 | actual writers (tenant admin, Auth0 admin, operators, Entra admin) missing; operator can gain tenant rights bypassing break-glass"
+    - "F-05 | 2., 2.2, B, H18/H19, C-tctx approval_id, C-tenant-id writer | break-glass approval record store/writer/path absent; approval not bound to operation content"
+    - "F-06 | 付録 B, C-auth-time carried_in/enforced_at | step-up checked only at web-bff/ops-console; receivers cannot check auth_time"
+    - "F-07 | H14-H17, C-tenant-id integrity_until, M_data_layer 1., 12. | any SQL on the same connection can set_config app.tenant_id; only static checks"
+    - "F-08 | 2., 2.2, M_data_layer 4., U15 | paths missing from diagram: Auth0 Management API component, operator Auth0 ops, DB admin BYPASSRLS, emergency procedure"
+    - "F-09 | short_list property (per-op approval), C-tctx usage, TXN_TOKEN schema tctx | tctx quantity/declared_value types and comparison undefined; usage should be authz"
+    - "F-10 | 4. TTS request table (label-svc), P5 4. | where TTS gets 'current role' when rebuilding from MSG_CTX is undefined"
+    - "F-11 | 6. UC1 q-actor (not needed) | label-svc acts for the user up to 30 min later; H13 token has no act"
+    - "F-12 | C-aud description/max_items 2, AUTH0_AT aud | openid adds userinfo to AUTH0_AT aud; inventory says 1"
+    - "F-13 | 6. UC1 q-sub, M_authz_pdp 3. | list filtered per user, but ID fetch passes for anyone in the tenant"
+    - "F-14 | 3.1, 9.1, unknown_kid | fail behaviour when tenant/member/approval stores down > 60 s cache undefined; no TTS availability target"
+    - "F-15 | C-txn enforced_at (label-svc), 付録 C, CLIENT_ASSERTION/REFRESH_TOKEN | one-time values: dedup atomicity, MSG_CTX reusable, webhook nonce, jti/RT reuse unverified"
+    - "F-16 | M_token_validation 6., H18/H19, 付録 C | which clock writes/compares approval deadline and webhook created undefined"
+  D3-2:
+    - "F01 | sheet.md 1. per-op approval, 2.2, H18/H19, C-tctx approval_id | property table says no per-op approval although break-glass approval exists; dc-05 not asked"
+    - "F02 | C-tctx type/value_vocabulary, TXN_TOKEN/TXN_OPS/MSG_CTX issuer schema tctx | tctx inner types undefined; schema is object with string enum, rejects valid tctx"
+    - "F03 | C-org-roles/C-entra configurable_by, source_system, claim_request_* 問 11 | writers limited to platform but tenant admin, Auth0 admin, Entra admin/group owners also write"
+    - "F04 | C-org-roles/C-scope volatility 900, propagation_delay 630, claim_request_org_roles 問 2, 9.2 | 900 s has no requirement source; actual 960 s exceeds; C-entra 28800 unapproved"
+    - "F05 | MSG_CTX revocation db_lookup note, 9.2, P5 4., H13 | 'narrow by current role on rebuild' has no role source at rebuild time"
+    - "F06 | SECURITY_EVENT_TOKEN assumption, 9.2, C-entra on_revoke, 9.1 | 'Entra disable reaches via RT refresh (30 min)' contradicts 9.2; up to 28800 s"
+    - "F07 | 付録 B, C-auth-time enforced_at, P1 5. | step-up only at BFF via ID token auth_time; receivers cannot check"
+    - "F08 | 3. Txn-Token origin hop, H6-H8/H19/H20 (no upstream), 8. | 'scope subset of upstream' false; upstream removed so L16 skipped"
+    - "F09 | 6. UC2 q-peer, H3, 3.1 | carrier path TLS only; direct peer substituted by bearer client_id"
+    - "F10 | U15, subject_states deleted, I19, 2.2 | operators with Auth0 admin can add themselves to tenant org and get act-less AUTH0_AT"
+    - "F11 | 12. SET, M_data_layer 1., C-tenant-id integrity_until, H14-H17 | app code / SQL injection can SET/RESET context; only static checks"
+    - "F12 | 2. diagram, 2.2, M_data_layer 4., outside_enumeration.searched | many write paths and entry points missing from diagram/hops"
+    - "F13 | 2.2, H18/H19, C-tctx approval_id, I14 | approval not bound to operation; approver vs sub ambiguous; RAR not compared"
+    - "F14 | C-aud description/max_items 2, AUTH0_AT aud, AUTH0_AT issuer schema | openid adds userinfo aud; schema enum rejects real AT"
+    - "F15 | 3.1, M_token_validation 9., U21 | fail behaviour when TTS stores down after 60 s cache undefined"
+    - "F16 | C-txn enforced_at, MSG_CTX, 4. shipment-svc row | dedup not atomic; MSG_CTX reusable; label.create operation mismatch"
+    - "F17 | M_token_validation 6., C-auth-time, approval deadline, 付録 C | clocks for compared times not listed"
+    - "F18 | TXN_TOKEN key_rotation retire_after 330, MSG_CTX 3630, M_token_validation 8. | same key, retire times inconsistent; MSG_CTX unverifiable after 330 s"
+    - "F19 | C-org-roles/C-entra value_vocabulary missing | role/group mapping table owner and change procedure absent"
+  D3-3:
+    - "R-01 | 12. SET, M_data_layer 1., C-tenant-id integrity_until, H14-H17 | app.tenant_id can be SET/RESET by any SQL on the same connection/transaction"
+    - "R-02 | 9.2 last paragraph, 12., C-entra volatility/propagation_delay/on_revoke | no requirement number; actual 28800 s written as tolerance to avoid L5"
+    - "R-03 | SECURITY_EVENT_TOKEN assumption, 3.1, 9.1 REFRESH_TOKEN/AUTH0_AT | 'Entra disable reaches via RT refresh (30 min)' contradicts 9.2"
+    - "R-04 | 9.2 C-scope, 4. MSG_CTX, MSG_CTX revocation, C-org-roles | MSG_CTX scope (3630 > 900) mitigation relies on role source TTS lacks"
+    - "R-05 | 3. Txn-Token origin hop, 8., H6-H8/H19/H20 upstream, H2/H3/H18 scope | upstream removed disables L16; manual check false"
+    - "R-06 | 2.2, 6. UC3, H18/H19, C-sub, C-act | TXN_OPS sub (requesting tenant admin) not required to equal approver"
+    - "R-07 | 2., 2.2, 12., outside_enumeration, C-sub/C-org-roles/C-tenant-id source_system | entry points and write paths not in diagram"
+    - "R-08 | C-org-roles/C-entra/C-sub configurable_by [platform], provenance, claim_request 問 11 | actual writers not declared"
+    - "R-09 | 付録 B, P1 5., C-auth-time carried_in/enforced_at, H2/H4 | step-up only at client side; auth_time not downstream"
+    - "R-10 | C-aud description, AUTH0_AT aud, H2/H4 aud, 5., M_token_validation 5. | AUTH0_AT aud becomes 2 (API + userinfo) contrary to ledger"
+    - "R-11 | C-tctx, TXN_TOKEN consumer schema tctx, H6/H7/H19 | tctx inner types / normalization undefined"
+    - "R-12 | C-sub enforced_at, M_authz_pdp 3., 2.1 | ID fetch checks tenant only; same-tenant other user's shipment retrievable"
+    - "R-13 | C-txn enforced_at, P5 4., H9/H10, TXN_TOKEN | TXN_TOKEN reusable in 330 s; warehouse/billing lack txn idempotency"
+    - "R-14 | M_token_validation 8./9., AUTH0_AT key_rotation/unknown_kid/jwks_cache_ttl | 30-min key compromise target vs 3600 s JWKS cache and use_last_known"
+    - "R-15 | 6. UC1 q-actor, P5 4., H11-H13, C-act | label-svc gets act-less TXN_TOKEN as user via MSG_CTX; only req_wl identifies worker"
+    - "R-16 | 3.1, 付録 A, U11, U21 | TTS single point; no numeric availability target / tolerated outage"
+    - "R-17 | P5 1., C-entra enforced_at, C-upn rationale, I17 | member-table key described three ways; first-binding key ambiguous"
+    - "R-18 | C-auth-time enforced_at, C-exp revisit_trigger, M_token_validation 6. | auth_time compared on own clock without skew tolerance"
+    - "R-19 | 3.1 sender constraint, 4., C-client-id, 2. carrier row | deferral relies on 'AT only on server' but PARTNER_AT held by another org"
+  D4-1:
+    - "F-01 | sheet.md 1., 2. diagram BT, 2.2 night batch, hops (no refund-batch hop), token_types (no long_running), U13 | async scheduled-refund path not declared, property table says not applicable"
+    - "F-02 | P4 5., 2.2, C-approval-id enforced_at, 付録 B | when the scheduled refund consumes the approval is undefined (lost or double)"
+    - "F-03 | P4 5. (reset to unused on provider failure) | unknown-result timeout reset can double refund"
+    - "F-04 | 2.2 HR sync, C-scope writer/source_system, C-roles/C-groups assumption | 'only hr-sync writes' enforced only as admin-only edit; realm admins/manage-users can write"
+    - "F-05 | 9.2, 付録 A, P4 9. | 150 s relies on unmeasured 120 s; 10-min alarm > REQ-07 5 min; fail-open while stopped"
+    - "F-06 | 2., 2.1, hops, U29 | who obtains TOOL_AT for /v1/refund macro (client_id/cnf/act) undefined"
+    - "F-07 | 6. UC3 q-actor (not needed) | refund-batch acts for staff but q-actor dropped"
+    - "F-08 | 2. REQ-05/06, C-authorization-details absent_semantics, 付録 B | 30,000-yen threshold per request vs cumulative undefined; splitting bypasses approval/step-up"
+    - "F-09 | issuance_profile.sender_constraint rationale, 4. | 'STAFF_AT only in support-console server' false; holder includes assist-agent"
+    - "F-10 | C-authorization-details pii/log_policy, 3.2 | PII row logged as-is, contradicts 3.2"
+    - "F-11 | TOOL_AT issuer/consumer schema authorization_details, C-authorization-details | inner types only in prose; normalization undefined"
+    - "F-12 | catalog idp (no SPIRE), M_token_validation 8. | SPIRE trigger list, key custody and compromise procedure missing"
+    - "F-13 | 12., C-sub/C-scope enforced_at (agent-sts) | agent-sts behaviour when introspection/PDP/case mgmt down undefined"
+    - "F-14 | 8. H4/H9, hops H4/H9 | assist-agent/refund-subagent checks absent from enforced_at"
+    - "F-15 | C-case-id volatility never, REQ-08 | after handover old agent TOOL_AT works up to 330 s; requirement silent"
+  D4-2:
+    - "F1 | sheet.md 1., token_types (no long_running), hops, 2. REQ-11, U13 | async scheduled-refund path undeclared; property table not applicable"
+    - "F2 | C-authorization-details absent_semantics/enforced_at, C-scope, REQ-05/06, 付録 B | threshold per request; split refunds bypass approval/MFA; TOOL_AT reusable (replay_check false)"
+    - "F3 | 2.2 night batch, U13, 2. diagram | delegation record writer/integrity undefined; forged record runs <=30,000-yen refund"
+    - "F4 | P4 5., 2.2, C-approval-id enforced_at | scheduled refund consumption timing undefined; reset-to-unused double refund"
+    - "F5 | 8. H3/H8 jti row, P4 5. | idempotency key creator for <=30,000-yen refunds undefined"
+    - "F6 | 9.1 TOOL_AT, 9.2 C-scope 480, C-scope volatility, P4 9., REQ-07 | worst 480 s exceeds REQ-07 allowance (330 s); 9.1 inconsistent"
+    - "F7 | 9.2, 付録 A, 12., TOOL_AT revocation db_lookup 150 | 150 s relies on unmeasured 120 s; alarm 10 min > 5 min; fail-open"
+    - "F8 | 2.2 HR sync, C-groups/C-roles assumption | realm admins can write limit/support_tier; team leader may grant refund-operator via group"
+    - "F9 | C-authorization-details source_system, C-azp assumption, 2.1, 2. | approval source path (approval-console login/token/roles/MFA) not designed"
+    - "F10 | 2. REQ-12, U29, 2., hops | /v1/refund macro client/cert undefined; who closes on 2027-03-31 undefined"
+    - "F11 | C-authorization-details type/value_normalization, TOOL_AT consumer schema | inner types not in schema; amount canonical form undefined"
+    - "F12 | C-sub identifier_properties id_scheme uuid | UUID and SPIFFE ID mixed in one row"
+    - "F13 | 6. UC3 q-actor (not needed) | refund-batch acts on behalf; q-actor should be answered"
+    - "F14 | C-roles/C-groups alt [C-scope], 10. | scope does not answer the user's role; actual alternative is PDP"
+    - "F15 | M_sender_constraint 4., 9.1 cnf | after SVID rotation old-cert-bound TOOL_AT fails cnf; 'calls do not stop' unfounded"
+    - "F16 | issuance_profile.sender_constraint rationale, 4. | 'STAFF_AT only in support-console' false (assist-agent memory)"
+    - "F17 | catalog idp | SPIRE missing from idp; R3 does not check SPIRE triggers"
+    - "F18 | M_authz_pdp (~line 1321), STAFF_AT revocation | agent-sts behaviour when introspection/PDP/case mgmt down undefined"
+    - "F19 | C-sub note/log_policy, P4 8. | HMAC key held by audit team but agent-sts/tools record; distribution undefined"
+    - "F20 | 付録 B scheduled row | what the recorded verification time is compared to is unclear"
+  D4-3:
+    - "F1 | sheet.md property table, 2.2, 9.1, REQ-11 | long-running/async wrongly 'not applicable'; q-long-running No"
+    - "F2 | 6. UC3, 2.2 night batch, 付録 B | scheduled refund via delegation record + SVID mTLS: record has no ledger row/writer/integrity; no act/client_id/scope/cnf/case check at execution"
+    - "F3 | 2., 5., C-azp assumption, P4 5., I01, outside_enumeration | approval entry (approval-console, its tokens, approver checks) not designed"
+    - "F4 | U29, REQ-12, 2. | legacy macro principal for /v1/refund undefined; how it gets TOOL_AT unclear"
+    - "F5 | P4 5., C-approval-id | consumption order / failure gaps: unknown-result reset, crash after consume, idempotency key, <=30,000-yen no one-time value"
+    - "F6 | REQ-05, 6. UC1 q-authorized, C-authorization-details, C-scope | threshold per request; splitting bypasses approval/MFA; PDP limit cumulative or not unclear"
+    - "F7 | C-authorization-details type/shape/description, TOOL_AT schemas items, P4 5., hops validates | order_id/amount/currency types and comparison not structured"
+    - "F8 | 9.2, 付録 A, REQ-07, 12., C-sub on_revoke | REQ-07 5 min depends on HR event sync; stop -> manual decision, fail-open; 120 s unmeasured"
+    - "F9 | C-groups assumption, C-act/C-client-id source_system, 2.2, P4 2., I20 | writers of authority data not enumerated (realm admin, SPIRE registration, approver role, case assignment)"
+    - "F10 | 3.1 STAFF_AT deferral, 4., C-act absent_semantics | P4 2. 'no act-less staff token path' wrong (console path); checks not shown"
+    - "F11 | 9.2 C-scope 480, REQ-07/10/02 | 480 s tolerance taken from design worst case, not requirement; REQ-10 no delay number"
+    - "F12 | 3.1, issuance_profile.sender_constraint, I29 | deferral compares only DPoP cost; Keycloak cert-bound AT not compared"
+    - "F13 | C-case-id prior_art_search, claim_request_case_id 問 3, existing-claim-first | txn (RFC 8417) dismissed weakly"
+    - "F14 | H9, arrow table H4/H9, 8. | DELEG_AT issuance (H9) checks by agent-sts absent from validates"
+    - "F15 | unknown_kid use_last_known, jwks_cache_ttl 3600, M_token_validation 8./9. | 15-min key compromise target vs 3600 s cache; no forced refresh"
+    - "F16 | C-sub identifier_properties, C-sid, C-kc-typ | C-sub mixes user UUID / SPIFFE ID / SA sub; C-sid and C-kc-typ have no consumers"
+    - "F17 | 2. diagram, P4 5. | no allow-list of SPIFFE IDs that may call approval-svc / PDP"
+key_issues:
+  - id: K1
+    error: A09
+    note: "A09 locations lack claims.yaml C-aud. All three D2 sessions flag that C-aud (rationale/assumption: STAFF_AT aud is agent-sts only; tools reject STAFF_AT) contradicts the seeded STAFF_AT aud that contains order-tool/customer-tool (D2-1 F-11, D2-2 F-13, D2-3 F-11). This is the A09 seeding left inconsistent with C-aud; candidate to add {file: claims.yaml, row: C-aud} to A09 locations (or treat as 埋め込みの副作用). No score change (A09 already 1 in all D2 sessions)."
+  - id: K2
+    error: A17
+    note: "All three D2 sessions (D2-1 F-01, D2-2 F-10, D2-3 F-05) report that the property table wrongly says long-running/async does not apply. The A17 seeding (no long_running on TOOL_AT, no refund-batch hop) causes this; the key's channel_note acknowledges it but no error row covers the property-table finding itself. Candidate: 埋め込みの副作用. (D4-1 F-01, D4-2 F1, D4-3 F1 report the same on control-a, so it may instead be a base-design defect - FP judge to decide.)"
+  - id: K3
+    error: B14
+    note: "B14 core combines (i) TTS does not check tenant state at issuance and (ii) the carrier AT lives 24 h. In seeded-b the carrier PARTNER_AT goes straight to inner services without TTS (B02), so (i) does not apply to the carrier path and (ii) alone produces the worst-case 24 h. Also TXN_TOKEN db_lookup in seeded-b says TTS checks member state per issuance. Candidate correction: core = 'テナントを止めても、運送会社の 24 時間の AT がそのテナントに効き続け、15 分の要求を満たさない'. Before/after: D1-3 B14 = 1 under my lenient reading (= after); 0 under a strict two-part reading (before). D1-1/D1-2 B14 = 0 either way."
+  - id: K4
+    error: B02/B14
+    note: "PARTNER_AT hop rows H3/H5/H21 keep max_lifetime 600 while token_types PARTNER_AT is 86400; all three D1 sessions flag it (D1-1 F13, D1-2 F-11, D1-3 F12). The B14 locations include PARTNER_AT max_lifetime but not hops H3/H5/H21 max_lifetime. Probably the B14 seeding left the hops unchanged - candidate 埋め込みの副作用 or a location addition. No score change."
+  - id: K5
+    error: A12
+    note: "A12 core requires the absence of case ID and approval ID from tool token/log. Reviewers (D2-1 F-23, D2-2 F-23, D2-3 2. q-via) instead say tool logs keep only sub (hash) and some paths are not linkable. Not a key error, but a phrasing gap: if the core were 'ツールのログが sub だけで、1 つの操作を 1 本につなげられない', D2-1 and D2-2 A12 would become 1 (q-audit-correlation). Before: 0/0/0; after (if relaxed): 1/1/0."
+  - id: K6
+    error: seeded-a side effect (not an error row)
+    note: "D2-1 F-21 and D2-2 F-21: M_idp_keycloak 11. says TOOL_AT 20% / ADMIN_API_AT 12% while the CI (R8) shows 49% / 14%. Likely the seeded claims (customer_contact etc.) changed token size without the hand-written text being updated - candidate 埋め込みの副作用 for the FP judge."
