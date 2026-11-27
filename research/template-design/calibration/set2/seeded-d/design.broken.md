@@ -1468,6 +1468,8 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 承認の auth_time | auth_time は shirogane-sso の時計、比べるのは payment-svc・as-admin-api の時計（どちらもしろがねの NTP）。300 秒に時計のずれを足さない（厳しい側） | REQ-05 の 300 秒を広げない | `C-auth-time` |
 | 通話の記録 | 本人確認と終話の時刻は IVR の時計、比べるのは TTS の時計。本人確認から 1800 秒を過ぎたら・終話の時刻があれば出さない。TXN_PROXY の exp は本人確認の時刻＋1800 秒を超えない。IVR の時計のずれは監視に足す（12.） | REQ-11 | H14 |
 | 支払いの実行の時間帯 | TTS の時計で 1 時〜3 時。payment-batch の時計ではない | 実行の時間帯を TTS が決める | H24 |
+| 支払いの指示の文脈（PAY_MSG_CTX） | ずれ 30 秒。exp − iat が 3600 秒を超えるものは受けない。比べるのは TTS（作り直し）と payment-worker の時計（どちらもしろがねの NTP）。期限の切れたものは作り直さず、滞留のキューに移す | REQ-06 の待ちの上限 | `PAY_MSG_CTX`、H21・H22 |
+| セキュリティキーの登録の番号 | 発行から 24 時間。発行の時刻も、比べる時刻も shirogane-sso の時計 | 番号は 2 人の操作で出し、本人が 24 時間以内に登録する（2.2） | 2.2、H26 |
 
 #### M_token_validation：7. 種類（typ）〔Full：記入／Lite：参照〕
 
