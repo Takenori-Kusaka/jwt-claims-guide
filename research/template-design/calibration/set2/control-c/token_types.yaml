@@ -444,7 +444,7 @@ token_types:
     - {kind: guide-slide, id: p10-per-tool-scopes}
   lifetime_set_by: [platform]
   max_delegation_depth: 2
-  refresh: なし。手順ごとに agent-sts で交換し直す
+  refresh: なし。手順ごとに agent-sts で交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
   sender_constraint: mtls
   revocation:
     - {method: db_lookup, delay_seconds: 60, note: "支払いの依頼のたびに aoba-pdp で担当者の在籍・修繕担当のロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}
@@ -494,7 +494,7 @@ token_types:
     - {kind: guide-slide, id: p10-per-tool-scopes}
   lifetime_set_by: [platform]
   max_delegation_depth: 2
-  refresh: なし。承認の依頼と発行のそれぞれで交換し直す
+  refresh: なし。承認の依頼と発行・送り直しのそれぞれで交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
   sender_constraint: mtls
   revocation:
     - {method: db_lookup, delay_seconds: 60, note: "発行のたびに aoba-pdp で担当者の在籍・鍵の取り扱いのロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}

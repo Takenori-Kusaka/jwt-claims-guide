@@ -490,7 +490,7 @@ token_types:
   lifetime_set_by: [platform]
   refresh: 無い
   revocation:
-    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える。2 回目の使用では、その認可コードから出した PH_RT を失効させる（AT は JWT なので exp まで残る。すぐ止めたいときは契約者のアカウント・社員を止め、TTS が発行のたびに拒む）}
+    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える。shirogane-as・shirogane-sso は、確かめと使用済みにする書き込みを 1 回の条件つきの書き込み（未使用から使用済み）で行い、並行の 2 件は 1 件だけ通し、記録先が応えなければ拒む。2 回目の使用では、その認可コードから出した PH_RT を失効させる。AT は JWT なので exp まで残る（PH_AT・EMPLOYEE_AT は最大 630 秒。引き換えは PKCE と tls_client_auth で claim-portal・staff-console に限られる。すぐ止めたいときは契約者のアカウント・社員を止め、TTS が発行のたびに拒む）}
   stored_at: none
   transport: redirect_query
   visible_to: [browser, bff, idp]

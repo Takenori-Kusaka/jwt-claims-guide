@@ -321,7 +321,7 @@ hops:
       checks:
         - mTLS の相手の SPIFFE ID が front-gw であること
         - 共通の検証部品で typ・iss・aud・exp・必須のクレーム（act のあるトークンは拒む）
-        - 査定担当者の操作は、sub が claim-svc の記録でその請求に割り当てた査定担当者であること（H18 で引く）。上長の操作（閲覧・assessment.assign・assessment.hold・assessment.unhold）は、TTS が上長の役割のときだけ出し、assessment-svc は割り当てた査定担当者の今の課が上長の今の課と同じことを社員の台帳で確かめる（設計書の 3.1 の課の規則）。記録に sub と txn を残す
+        - 査定担当者の操作は、sub が claim-svc の記録でその請求に割り当てた査定担当者であること（H18 で引く）。上長の操作（閲覧・assessment.assign・assessment.hold・assessment.unhold）は、TTS が上長の役割のときだけ出し（assessment.unhold は acr が phr で auth_time が 300 秒以内のときだけ受ける）、assessment-svc は割り当てた査定担当者の今の課が上長の今の課と同じことを社員の台帳で確かめる（設計書の 3.1 の課の規則）。記録に sub と txn を残す
         - assessment.confirm では、tctx の claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409）。payee_ref がその請求の証券の有効な振込先であることを claim-svc に確かめる（H18。claim-svc が自分の記録の請求の証券で契約管理の仕組みを引く）
   - id: H18
     from: assessment-svc
@@ -427,7 +427,7 @@ hops:
       mode: none
       checks:
         - payment-worker は自分の X.509-SVID でブローカーに接続する
-        - PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す
+        - PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す。滞留のキューは 7 日で消える（ブローカーの保持の設定）。中を読めるのは payment-worker と IT 基盤部の当番だけで、保険金部には請求の ID と件数だけを見せる
         - txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。期限を過ぎたものは査定担当者が新しい版で確定する。2 回届いても payment-svc の (claim_id, assessment_ref) の一意の制約で 1 件になる）
   - id: H22
     from: payment-worker
@@ -505,7 +505,7 @@ hops:
     validates:
       mode: local
       checks:
-        - 査定担当者・上長が請求を保留にすると（H18。operation が assessment.hold）、claim-svc は受けた Txn-Token を改変せずに payment-svc に渡し、payment-svc が請求ごとの集計の行（支払いの行がまだ無くても作る）をロックして保留の印を書く。payment-svc が書けたときだけ claim-svc は保留を記録して成功を返す（書けなければ保留を失敗にする）。印は請求ごとで、指示の受け付け（H22）と実行（H24）の取引がどちらも同じ行で確かめる
+        - 査定担当者・上長が請求を保留にすると（H18。operation が assessment.hold）、claim-svc は受けた Txn-Token を改変せずに payment-svc に渡し、payment-svc が請求ごとの集計の行（支払いの行がまだ無くても作る）をロックして保留の印を書く。payment-svc が書けたときだけ claim-svc は保留を記録して成功を返す（書けなければ保留を失敗にする）。印は請求ごとで、指示の受け付け（H22）と実行（H24）の取引がどちらも同じ行で確かめる。印の書き込み・削除は冪等（同じ操作を繰り返しても同じ結果）で、応答が失われたら claim-svc は同じ操作を頼み直す。実行してよいかの正は payment-svc の印だけで、claim-svc の保留の記録は画面の表示に使う
         - payment-svc は mTLS の相手が claim-svc、scope に assessments:write、tctx の claim_id がパスの請求と一致することを確かめ、tctx の operation（assessment.hold か assessment.unhold）のとおりに印を書く・消す。誰が外してよいか（上長だけ・自分の課の請求だけ）は、TTS（役割の表）と assessment-svc（H17）が決め、payment-svc は operation を権限の判断に使わない（取引の内容として写すだけ）
   # ------------------------------------------------------------ 管理の操作（代理店の登録・契約者のアカウントの停止）
   - id: H26

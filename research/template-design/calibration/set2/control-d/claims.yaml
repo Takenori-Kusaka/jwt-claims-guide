@@ -515,11 +515,12 @@ claims:
     recompute_trigger: [login]
     on_revoke: 該当なし（その認証の値）。鍵を抹消すると、次のログインから phr にならない
     carried_in: [EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_STAFF]
-    consumers: [staff-console, tts, payment-svc, as-admin-api]
+    consumers: [staff-console, tts, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の acr が phr でなければ acr_values と max_age=0 で認証し直させる（画面の案内。判断は payment-svc・as-admin-api）, against: [api_config]}
       - {service: tts, check: EMPLOYEE_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない, against: [api_config]}
+      - {service: assessment-svc, check: "保留の解除（assessment.unhold）は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication）", against: [api_config]}
       - {service: payment-svc, check: "承認と取り消し（payment.cancel）の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470）", against: [api_config]}
       - {service: as-admin-api, check: "すべての変更の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication）", against: [api_config]}
     max_bytes: 32
@@ -563,11 +564,12 @@ claims:
     recompute_trigger: [login]
     on_revoke: 該当なし
     carried_in: [EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_STAFF]
-    consumers: [staff-console, tts, payment-svc, as-admin-api]
+    consumers: [staff-console, tts, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の auth_time が 300 秒より古ければ max_age=0 で認証し直させる（画面の案内）, against: [format]}
       - {service: tts, check: EMPLOYEE_AT の auth_time を値を変えずに TXN_STAFF に写す, against: [format]}
+      - {service: assessment-svc, check: 保留の解除（assessment.unhold）は、受けた時刻 − auth_time が 300 秒を超えれば 401, against: [format]}
       - {service: payment-svc, check: 承認と取り消し（payment.cancel）の API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401, against: [format]}
       - {service: as-admin-api, check: すべての変更の API は、受けた時刻 − auth_time が 300 秒を超えれば 401, against: [format]}
     max_bytes: 10
@@ -607,8 +609,8 @@ claims:
     consumers: [claim-portal, staff-console]
     on_missing: 拒否
     enforced_at:
-      - {service: claim-portal, check: セッションに置いた nonce と完全一致すること。1 回使ったら消す, against: [data_layer]}
-      - {service: staff-console, check: セッションに置いた nonce と完全一致すること。1 回使ったら消す, against: [data_layer]}
+      - {service: claim-portal, check: セッションに置いた nonce と完全一致すること。確かめと削除を 1 回の操作（取り出して消す）で行い、保存先が応えなければログインを失敗にする, against: [data_layer]}
+      - {service: staff-console, check: セッションに置いた nonce と完全一致すること。確かめと削除を 1 回の操作（取り出して消す）で行い、保存先が応えなければログインを失敗にする, against: [data_layer]}
     max_bytes: 64
     overflow_strategy: 上限で固定（超えない値域）
     pii_category: 該当なし

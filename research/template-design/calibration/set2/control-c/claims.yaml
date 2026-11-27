@@ -626,7 +626,7 @@ claims:
   enforced_at:
     - {service: repair-console, check: 追加の認証の後の ID トークンの acr が mfa かを確かめてから、承認の画面に戻す, against: [api_config]}
     - {service: agent-sts, check: CONSOLE_AT の acr を APPROVAL_AT に写すだけ（判断しない）, against: [format]}
-    - {service: approval-svc, check: 承認の操作（承認済みにする操作。却下・取り下げは止める操作なので求めない）で acr が mfa でなければ 401 insufficient_user_authentication（acr_values=mfa・max_age=300）, against: [api_config]}
+    - {service: approval-svc, check: 承認の操作（承認済みにする操作）と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは止める操作なので求めない）、acr が mfa でなければ 401 insufficient_user_authentication（acr_values=mfa・max_age=300）, against: [api_config]}
   max_bytes: 4
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 該当なし
@@ -672,7 +672,7 @@ claims:
   enforced_at:
     - {service: repair-console, check: 追加の認証の後の ID トークンの auth_time が、追加の認証を求めた時刻より後か, against: [format]}
     - {service: agent-sts, check: CONSOLE_AT の auth_time を APPROVAL_AT に写すだけ（値を作らない。CONSOLE_AT に無ければ交換を拒否）, against: [format]}
-    - {service: approval-svc, check: 承認の操作（却下・取り下げは除く）で、approval-svc の時計で今 − auth_time が 300 秒を超えれば 401 insufficient_user_authentication, against: [api_config]}
+    - {service: approval-svc, check: 承認の操作と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは除く）、approval-svc の時計で今 − auth_time が 300 秒を超えれば 401 insufficient_user_authentication, against: [api_config]}
   max_bytes: 10
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 該当なし
@@ -729,8 +729,8 @@ claims:
   on_missing: 既定値
   absent_semantics: {absent: "承認の要らない操作（直近 30 日の部屋の累計が 10 万円以下の発注、下書き）。承認が要る発注の確定と、解錠コードの発行では拒否する"}
   enforced_at:
-    - {service: order-tool, check: 承認が要る確定で、type が vendor-order、locations が自分、order_id・vendor_id・amount・repair_id が下書きの記録と完全一致。無ければ・違えば拒否, against: [other_claim, data_layer], with: C-approval-ref}
-    - {service: lock-tool, check: type が lock-code、locations が自分、unit_id が修繕依頼の部屋、vendor_id・not_before・not_after が要求と完全一致し、今が not_before と not_after の間。無ければ拒否, against: [other_claim, data_layer], with: C-approval-ref}
+    - {service: order-tool, check: 承認が要る確定で、type が vendor-order、locations が自分、order_id・vendor_id・amount・repair_id が下書きの記録と完全一致。無ければ・違えば拒否。承認の要否の累計は、部屋の行の排他の錠を押さえたトランザクションの中で数える。確定・予約では協力会社の取引が今も有効（協力会社の台帳）, against: [other_claim, data_layer], with: C-approval-ref}
+    - {service: lock-tool, check: type が lock-code、locations が自分、unit_id が修繕依頼の部屋、vendor_id・not_before・not_after が要求と完全一致し、今が not_before と not_after の間。発行と送り直しでは、協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致。無ければ・違えば拒否, against: [other_claim, data_layer], with: C-approval-ref}
   max_bytes: 320
   overflow_strategy: 発行を失敗させる
   pii_category: 個人情報
@@ -782,7 +782,7 @@ claims:
     - {service: agent-sts, check: 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で承認者になりうる上長か, against: [data_layer]}
     - {service: order-tool, check: 下書き・確定の対象の発注の修繕依頼が repair_id と一致。違えば 404, against: [data_layer]}
     - {service: contact-tool, check: 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（最も外側の act.sub が visit-subagent なら入居者だけ）。要求は相手の種類だけを受け、電話番号・宛先を受けない。宛先は通知の基盤が repair_id と相手の種類から台帳で引く。返信の読み取り（tenant.message:read）は、repair_id の修繕依頼のやり取りだけを返し（visit-subagent なら入居者とのやり取りだけ）、違う ID には 404, against: [data_layer, other_claim], with: C-act}
-    - {service: payment-tool, check: 支払いの対象の発注の修繕依頼が repair_id と一致, against: [data_layer]}
+    - {service: payment-tool, check: 支払いの対象の発注の修繕依頼が repair_id と一致し、確定済みで完了の報告がある。額は発注の台帳の確定額で、要求の額を使わない, against: [data_layer]}
     - {service: lock-tool, check: 修繕依頼の部屋が authorization_details の unit_id と一致, against: [data_layer, other_claim], with: C-authorization-details}
     - {service: approval-svc, check: 一覧の参照（approval_ref の無い APPROVAL_AT）では、トークンの repair_id の修繕依頼の承認の記録だけを返し、sub がその修繕依頼の担当者か、aoba-pdp で同じ課の課長でなければ返さない（担当の履歴にある課長も、解錠の取り消しのために参照できる。承認・事後の確認の操作は担当の履歴に無い課長だけ）。APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
     - {service: aoba-pdp, check: 予約の実行の問い合わせ（H13）で、修繕依頼の台帳の修繕依頼の担当が、渡された担当者（sub）であることを確かめる。呼び出し元は証明書の許可リストの order-scheduler だけ, against: [data_layer]}
@@ -831,7 +831,7 @@ claims:
   revisit_trigger: 承認の記録を別の仕組みに移すとき
   issuers: ["https://sts.aoba-sumai.example"]
   authoritative_writer:
-    - {stage: ⑥, writer: agent-sts（approval-svc の記録から。記録の修繕依頼・担当者・宛先が合わなければ載せない）, configurable_by: [platform]}
+    - {stage: ⑥, writer: agent-sts（approval-svc の承認済みの記録から。解錠のコードの送り直しだけは、lock-tool が使用済みにした取り消していない not_after の前の解錠の承認から。記録の修繕依頼・担当者・宛先が合わなければ載せない）, configurable_by: [platform]}
   issue_events: [I06, I14]
   source_system: approval-svc の承認の記録
   volatility: never
@@ -844,16 +844,17 @@ claims:
   absent_semantics: {absent: "ORDER_TOOL_AT：承認の要らない発注（下書きと、累計 10 万円以下の確定）。承認が要る確定では拒否。LOCK_TOOL_AT：承認の依頼の登録だけを許し、発行は拒否。APPROVAL_AT：承認の一覧の参照だけを許し、承認・却下・取り下げは拒否"}
   enforced_at:
     - {service: order-tool, check: approval-svc で、承認の記録の発注 ID・修繕依頼・担当者（sub）が要求と一致し、承認済み・未使用・期限内なら使用済み（発注 ID に結ぶ）にする条件つきの更新が成功するときだけ確定。approval-svc が応答しなければ拒否, against: [data_layer]}
-    - {service: lock-tool, check: 発行では、approval-svc で承認の記録の修繕依頼・担当者が要求と一致し、承認済み・未使用・期限内なら使用済みにする条件つきの更新が成功するときだけ発行。発行では、承認の後に修繕依頼の台帳の担当の履歴に付け替えが無いことも確かめる（今の担当だけを見ない）。送り直しでは、承認が lock-tool による使用済み・取り消していない・not_after の前で、作業員の番号のハッシュが承認の記録と一致するときだけ同じコードを送り直す（3 回まで）。応答しなければ拒否, against: [data_layer]}
-    - {service: approval-svc, check: APPROVAL_AT の approval_ref の記録だけに承認・却下・取り下げを許す。取り下げ・却下をしてよいのは、承認した人・依頼の担当者・同じ課の課長だけ。使用済み・予約済みにする条件つきの更新では、記録の「承認済み」への変更が approval-svc のアプリの DB アカウントで書かれたこと（変更の記録の表）も条件にする（DB の管理者が直接「承認済み」にした記録は使わせない）。記録の repair_id がトークンの repair_id と一致。order-scheduler からの予約済みの使用（H14）では、承認の記録の発注 ID・修繕依頼・担当者が予約の記録と一致し、予約済みなら使用済みにする条件つきの更新。発行済みの解錠の取り消し（その修繕依頼の担当者か、同じ課の課長の APPROVAL_AT。承認者の条件の「担当の履歴に無い」は求めない）では、承認を「取り消し」にして lock-svc に失効を求める。手作業の発注の事後の確認（approval_ref の記録の種類が「手作業の事後の確認」）では、承認と同じ条件（acr が mfa・auth_time から 300 秒、確かめる課長は登録した課長でなく担当の履歴にも無い）を求める, against: [data_layer, other_claim], with: C-repair-id}
+    - {service: lock-tool, check: 発行では、approval-svc で承認の記録の修繕依頼・担当者が要求と一致し、承認済み・未使用・期限内なら使用済みにする条件つきの更新が成功するときだけ発行。発行では、承認の後に修繕依頼の台帳の担当の履歴に付け替えが無いことも確かめる（今の担当だけを見ない）。発行と送り直しのどちらでも、協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致するときだけ送る。送り直しでは、承認が lock-tool による使用済み・取り消していない・not_after の前のときだけ同じコードを送り直す（3 回まで）。応答しなければ拒否, against: [data_layer]}
+    - {service: approval-svc, check: APPROVAL_AT の approval_ref の記録だけに承認・却下・取り下げを許す。取り下げ・却下をしてよいのは、承認した人・依頼の担当者・同じ課の課長だけ。承認の操作は「承認待ち」の記録にだけ許し、却下・取り下げ・失効・取り消しは終わりの状態で、承認し直せない（新しい承認は新しい依頼で）。使用済み・予約済みにする条件つきの更新では、記録の「承認済み」への変更が approval-svc のアプリの DB アカウントで書かれたこと（変更の記録の表）も条件にする（DB の管理者が直接「承認済み」にした記録は使わせない）。記録の repair_id がトークンの repair_id と一致。order-scheduler からの予約済みの使用（H14）では、承認の記録の発注 ID・修繕依頼・担当者が予約の記録と一致し、予約済みなら使用済みにする条件つきの更新。発行済みの解錠の取り消し（その修繕依頼の担当者か、同じ課の課長の APPROVAL_AT。承認者の条件の「担当の履歴に無い」は求めない）では、承認を「取り消し」にして lock-svc に失効を求める。手作業の発注の事後の確認（approval_ref の記録の種類が「手作業の事後の確認」）では、承認と同じ条件（acr が mfa・auth_time から 300 秒、確かめる課長は登録した課長でなく担当の履歴にも無い）を求める, against: [data_layer, other_claim], with: C-repair-id}
   max_bytes: 36
   overflow_strategy: 上限で固定（超えない値域）
-  pii_category: 該当なし
-  data_category: [system.operations]
+  pii_category: 個人情報
+  data_category: [user.unique_id.pseudonymous]
   confidential_from: []
   integrity_until:
+    - {place: log, target: order-tool・lock-tool・approval-svc・agent-sts・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ。C-sub と同じ鍵）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ）}
     - {place: other, target: 発注の台帳の予約の記録（order-scheduler が読んで approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
-  log_policy: 記録する
+  log_policy: ハッシュ化して記録
   status: active
   owner: 管理部の修繕課のシステム担当
   change_controller: 認証基盤チーム（台帳の持ち主）
