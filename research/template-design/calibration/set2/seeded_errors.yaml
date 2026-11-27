@@ -53,6 +53,17 @@ errors:
     heading: B. 追加認証〔Full だけ〕
   - file: design.md
     heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕
+  - file: claims.yaml
+    row: C-auth-time
+    column: description・not_meaning・source_system・recompute_trigger・on_revoke
+    quote: APPROVAL_AT は agent-sts の交換の時刻
+  - file: catalog_answers.yaml
+    row: I11
+    quote: 承認の判断（auth_time から 300 秒）は APPROVAL_AT の auth_time で行う
+  - file: design.md
+    heading: 11. カタログへの回答〔Lite：生成（集計）〕
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
   core: agent-sts が APPROVAL_AT の auth_time に、担当者が認証した時刻でなく交換した時刻を書く
   wrong: agent-sts は APPROVAL_AT の auth_time を CONSOLE_AT から写さず、交換した時刻を書く（承認の操作のたびに交換するので、それが直前の認証の時刻になるという理由）。 APPROVAL_AT は承認の操作のたびに出るので、approval-svc の「auth_time から 300 秒以内」は常に満たされる。acr は朝のログインの mfa のまま写されるので、
     朝に 1 回多要素で認証した上長・担当者は、その日のうちは追加の認証なしで承認できる（REQ-07 の「5 分以内に多要素認証」が効かない）。auth_time を書く者が、認証をした aoba-as でなくなっている
@@ -93,6 +104,8 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：C-auth-time の description・source_system・recompute_trigger・on_revoke を APPROVAL_AT の書き方に、not_meaning を答えを明かさない文に、M_token_validation 6. の「aoba-as の時計」、I11 の回答と組み合わせ。locations
+    に足した
 - id: C02
   design: seeded-c
   control: control-c
@@ -153,6 +166,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：C-aud の authoritative_writer を「リソースの表と宛先の規則で確かめてから書く」に（salience_phrase を足さない）
 - id: C03
   design: seeded-c
   control: control-c
@@ -174,9 +188,23 @@ errors:
     heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
   - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: claims.yaml
+    row: C-client-id
+    column: rationale・authoritative_writer
+    quote: CONSOLE_AT の交換では CONSOLE_AT の client_id（repair-console）を写し
+  - file: claims.yaml
+    row: C-cnf
+    column: enforced_at（approval-svc）
+    quote: APPROVAL_AT を交換で求めた者の証明書
+  - file: hops.yaml
+    row: H12
+    column: validates
+    quote: cnf の x5t#S256（APPROVAL_AT を交換で求めた者）
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
   core: agent-sts が CONSOLE_AT の交換で、交換を求めた mTLS の相手が repair-console かを確かめず、wl-ca の証明書を持つどのワークロードからも受ける
   wrong: CONSOLE_AT は送信者制約を付けず、その見送りの理由は「agent-sts が交換で repair-console の mTLS を求めるので、CONSOLE_AT だけを盗んでも何も呼べない」だった。 seeded では agent-sts は mTLS の相手を wl-ca の証明書であればよいとし、repair-console かは CONSOLE_AT の中の client_id
-    でしか見ない。組織の網の中のどのワークロードも、 手に入れた CONSOLE_AT を REPAIR_DELEG_AT・APPROVAL_AT に交換できる（APPROVAL_AT はそのワークロードの証明書に束縛される）。直接の相手を通信の層で確かめていない
+    でしか見ない。組織の網の中のどのワークロードも、 手に入れた CONSOLE_AT を交換でき、APPROVAL_AT では client_id が CONSOLE_AT から写した repair-console になり、cnf はそのワークロードの証明書になる。approval-svc は client_id と、cnf と mTLS の相手の一致だけを見るので、そのワークロードが担当者・上長として承認の操作をできる。直接の相手を通信の層で確かめていない
   clean: agent-sts は CONSOLE_AT の交換で、mTLS の相手が repair-console の証明書であることを確かめる（client_id だけに頼らない）
   kind: 目的と仕組みの不一致
   confused_questions:
@@ -211,6 +239,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 誤りを明確にするため直した：C-client-id の rationale・writer（CONSOLE_AT の交換では client_id を写す）、C-cnf の approval-svc と H12 の cnf の照合（交換を求めた者の証明書）。盗んだ CONSOLE_AT で別のワークロードが自分に束縛した APPROVAL_AT を得て承認できる
 - id: C04
   design: seeded-c
   control: control-c
@@ -235,6 +264,15 @@ errors:
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
   - file: design.md
     heading: 10. 判断の行〔Lite：生成〕
+  - file: claim_request_repair_id.md
+    section: 問 14
+    quote: 受け手は対象の照合か監査ログの相関に使う
+  - file: catalog_answers.yaml
+    row: U02
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+  - file: design.md
+    heading: 11. カタログへの回答〔Lite：生成（集計）〕
   core: payment-tool が、支払いを依頼する発注が repair_id の修繕依頼のものかを照合しない
   wrong: payment-tool は、要求の発注 ID の発注が確定済みで完了の報告があれば支払いを依頼し、その発注の修繕依頼が PAYMENT_TOOL_AT の repair_id と一致するかを見ない （発注 ID は台帳で一意だからという理由）。エージェントは、自分の修繕依頼と関係のない発注（ほかの担当者の発注を含む）の ID を指定して支払いを依頼できる。 aoba-pdp で確かめる「修繕依頼の担当」は
     repair_id の修繕依頼についてで、発注の持ち主の確認にならない
@@ -272,6 +310,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：25 問の問 14、U02 の assumption、6. の UC1 q-txn（payment-tool を照合に含めない）。locations に足した
 - id: C05
   design: seeded-c
   control: control-c
@@ -319,6 +358,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 点検の B4（3.1・4. の「止める側に倒す」）は目的の側の文なので直さない
 - id: C06
   design: seeded-c
   control: control-c
@@ -330,6 +370,9 @@ errors:
     heading: 11. カタログへの回答〔Lite：生成（集計）〕
   - file: design.md
     heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕
+  - file: design.md
+    heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕
+    quote: 比べる時刻は 11. の U30
   core: 本番の approval-svc に、承認の期限と auth_time の比べに使う時刻を X-Test-Now ヘッダーで変えられる試験の口が残り、閉じる日が決まっていない
   wrong: カタログの U30（試験用の発行者・鍵・時計・口）に「該当」と答え、本番の approval-svc が網の中の呼び出し元から X-Test-Now ヘッダーを受け、承認の期限（24 時間）と 追加の認証の新しさ（auth_time から 300 秒）の比べにその時刻を使う、とした。閉じる日も、使える者の限りも無い。網の中の呼び出し元なら、期限の切れた承認や古い認証のまま承認を通せる
   clean: U30 は対象外。本番の agent-sts・ツール・approval-svc は試験用の発行者・鍵・時計の口・認証を飛ばす口を持たず、配備の前の検査で確かめる
@@ -361,6 +404,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：M_token_validation 6. の「承認の期限は approval-svc の時計だけで書いて比べる」（X-Test-Now の語は足さない）
 - id: C07
   design: seeded-c
   control: control-c
@@ -417,6 +461,17 @@ errors:
     column: not_meaning
   - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: claims.yaml
+    row: C-sub
+    column: verification_method
+    quote: agent-sts からの問い合わせはログイン名
+  - file: claims.yaml
+    row: C-staff-number
+    column: rationale
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
+  - file: design.md
+    heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
   core: agent-sts が aoba-pdp に担当者を、sub でなく台帳に行の無い preferred_username（ログイン名）で引かせる
   wrong: H2 で agent-sts は、CONSOLE_AT の preferred_username（ログイン名）を aoba-pdp に渡して在籍とロールを引く。preferred_username は claims.yaml に行が無く （identifier_properties・on_missing が決まっていない）、ログイン名は変えられ、退職者の名前が再び使われうる。交換で写す
     sub と、権限を引くキーが別の値になる
@@ -454,6 +509,7 @@ errors:
   salience: low
   hint_derived: []
   lint_note: L74 は IdP の固有の名前の一覧（idp_claims.yaml）を見るが、aoba-as は自作（self_built）なので出ない
+  side_effect_note: 副作用の点検で直した：C-sub の verification_method、C-staff-number の rationale、4. の頼る先の表（利用者と社員番号の対応）。salience_phrase の語は足さない
 - id: C09
   design: seeded-c
   control: control-c
@@ -515,6 +571,7 @@ errors:
   salience: high
   hint_derived:
   - B14
+  side_effect_note: 点検の J7（9.1 のツールのトークンの行に 3930 秒が無い）は書き落としで食い違いではないので直さない
 - id: C10
   design: seeded-c
   control: control-c
@@ -628,6 +685,9 @@ errors:
     heading: 12. 書き手が自信のない点〔Lite：手で書く〕
   - file: design.md
     heading: 要求の要約
+  - file: catalog_answers.yaml
+    section: outside_enumeration（wl-ca の中間の CA の鍵の漏えい）
+    quote: 警報の後に当番が lock-svc の管理の画面で一括で失効させる
   core: 発行済みの解錠コードの失効が錠に届くのは lock-svc の毎日 3 時の同期で、REQ-06 の「取りやめから 15 分以内」を満たさない
   wrong: 担当者・課長が発行済みのコードを取り消すと、approval-svc が lock-svc に失効を求めるが、lock-svc が錠に失効を届けるのは毎日 3 時の同期だけ（頼る先が止まった間の 当番の手順も同じ）。取り消したコードは最悪で約 24 時間使える。REQ-06 は 15 分以内に使えなくなることを求める。9.1・3.1 は REQ-06 を名指すだけで、分数を並べていない
   clean: lock-svc は失効をすぐに錠へ届け、取り消しから 15 分以内（目標）に使えなくなる。訓練で 15 分以内を確かめる
@@ -659,6 +719,7 @@ errors:
   salience: high
   hint_derived:
   - B14
+  side_effect_note: 点検の J6（3.1・outside_enumeration の wl-ca の行の「一括で失効させる」が毎日 3 時の同期で効かない）は、この誤りを REQ-06 と突き合わせる帰結（span 2+）なので直さず locations に足した
 - id: C13
   design: seeded-c
   control: control-c
@@ -722,6 +783,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 点検の J5（C-scope の propagation_delay 390）は下書きの値として残した（連絡に当てはまらないことは on_revoke に書いた。直すと L5 の検査の値が変わる）
 - id: C14
   design: seeded-c
   control: control-c
@@ -743,6 +805,9 @@ errors:
     quote: worker_name（作業員の氏名
   - file: schemas/ORDER_TOOL_AT.consumer.schema.json
     quote: worker_name（作業員の氏名
+  - file: design.md
+    heading: M_privacy_minimization：5. 機微な属性を API で渡す〔Full：記入／Lite：参照〕
+    quote: lock-tool は SMS の本文に入れる作業員の氏名も渡す
   core: LOCK_TOOL_AT の authorization_details に作業員の氏名（worker_name）を値のまま載せる（参照の worker_id で足りる）
   wrong: lock-tool が作業員への SMS の本文に名前を入れるためとして、authorization_details の lock-code に作業員の氏名を載せる。lock-tool は協力会社の台帳を worker_id で引けるので 値は要らず、トークンを持つエージェントの実行基盤（入居者の依頼の文を読む）にも作業員の氏名が届く。JWS は読めるので、読まない者にも個人情報が渡る
   clean: authorization_details の lock-code は worker_id だけを持ち、作業員の名前・宛先は通知の基盤が協力会社の台帳から引く
@@ -782,6 +847,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：M_privacy_minimization 5. の「作業員の ID を渡すだけ」
 - id: C15
   design: seeded-c
   control: control-c
@@ -794,6 +860,19 @@ errors:
     row: U23
   - file: design.md
     heading: 11. カタログへの回答〔Lite：生成（集計）〕
+  - file: token_types.yaml
+    row: CONTACT_TOOL_AT
+    column: revocation
+    quote: 開いた返信の購読は long_running のとおり
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+    quote: 開いた返信の購読は token_types の CONTACT_TOOL_AT の long_running
+  - file: design.md
+    heading: 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕
+  - file: design.md
+    heading: 5.1 寿命の上限の方針〔Full だけ〕
+  - file: design.md
+    heading: P4_ai_agent_delegation：9. 委任の一括失効〔Full：記入〕
   core: contact-tool が CONTACT_TOOL_AT で開いた返信の購読を最大 2 日開いたままにし、開いた後はトークンの期限・委任の停止を確かめない
   wrong: 入居者の返信を待つ間（最大 2 日）、visit-subagent・repair-agent は CONTACT_TOOL_AT（300 秒）で開いた WebSocket の購読を開いたままにし、contact-tool は開いた後に トークンを確かめない。委任の停止・担当の付け替え・退職の後も、入居者の返信（個人情報）を読み続けられる（REQ-08・REQ-09 の 10 分を超える）
   clean: ツールの呼び出しは要求と応答の 1 往復で、開いたままのストリームを持たない（U23 は対象外）。返信は手順ごとに交換し直したトークンで読む
@@ -829,6 +908,8 @@ errors:
   salience: low
   hint_derived:
   - A17
+  side_effect_note: 副作用の点検（B1）で直した：9.1（CONSOLE_SESSION・CONTACT_TOOL_AT の行）・9.2（委任の欄）・5.1・P4 9.・CONTACT_TOOL_AT の revocation の「330 秒」に「開いた返信の購読は long_running」を足した。q-revocation-delivery（優先 1）の見る欄（9.1・revocation）から
+    long_running へ辿れるようになり、見込み（P2・low）より見つけやすい。slot は変えていない
 - id: C16
   design: seeded-c
   control: control-c
@@ -844,6 +925,27 @@ errors:
     heading: P4_ai_agent_delegation：6. ツールごとのスコープと引き上げ〔Full：記入〕
   - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕
+    quote: 解錠の承認済みの記録の not_after の更新の口は lock-tool だけ
+  - file: design.md
+    heading: B. 追加認証〔Full だけ〕
+  - file: design.md
+    heading: P4_ai_agent_delegation：5. 人の承認〔Full：記入〕
+  - file: design.md
+    heading: P1_human_web：5. 追加認証への入り口〔Full：記入／Lite：参照〕
+  - file: claim_request_approval_ref.md
+    section: 問 21
+  - file: claims.yaml
+    row: C-client-id
+    column: enforced_at（approval-svc）
+  - file: catalog_answers.yaml
+    section: pairwise（I12・⑤ のワークロード）
+    quote: エージェントは承認の操作をしない
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+  - file: design.md
+    heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
   core: H8 で、上流（H4）に無い approvals:decide を repair-agent の LOCK_TOOL_AT に足し、エージェントが解錠の承認の時間帯を自分で延ばせる
   wrong: REPAIR_DELEG_AT は H3 で approvals:decide を外してあるのに、agent-sts は H8 で LOCK_TOOL_AT に approvals:decide を足す（L16 の warn）。理由は「担当者は CONSOLE_AT で同じ権限を 持つので広げない」だが、権限を使うのは担当者でなくエージェントで、REQ-06・REQ-07 は解錠の承認を担当者本人が多要素の認証の後にすることを求める。エージェントが
     lock-tool を通じて 承認の記録の not_after を延ばせる
@@ -888,6 +990,8 @@ errors:
   hint_derived: []
   lint_note: hops.schema.json の narrowing_exception は aud と max_lifetime だけで、scope の理由は書けない（scope は広げない規則）。そのため理由は H8 の note と 1. の warn の表に書いた。 期待する warn の行：L16 hop H8「scope の approvals:decide が上流（H4）に無い」（ほかの
     2 つの L16 の warn は対照にもある）
+  side_effect_note: 副作用の点検（B2）で直した：H8 の note・1. の warn の説明・P4 6. に「承認の操作でなく、承認済みの記録の not_after の更新」を、M_authz_pdp 5. の口の列挙に lock-tool の not_after の更新の口を、8. の前書きに「H8 の approvals:decide は除く」を足した。「エージェントは承認の操作をできない」の
+    7 か所は作者の考えのまま字義どおり残し、locations に足した。4. の E-token-exchange.2 の「満たす」は生成の表で直せない。手がかりは見込みより多いが slot は変えていない
 - id: C17
   design: seeded-c
   control: control-c
@@ -906,9 +1010,20 @@ errors:
     column: log_policy
   - file: design.md
     heading: M_privacy_minimization：7. 監査ログに残す項目と伏せる項目〔Full：記入／Lite：参照〕
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: claims.yaml
+    row: C-unlock-code
+    column: rationale
+    quote: lock-tool が発行ごとに採番する乱数で、lock-svc にも approval-svc にも渡さない
+  - file: claims.yaml
+    row: C-authorization-details
+    column: note
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
   core: lock-tool の監査ログに approval_ref が残らず、1 回の解錠コードの発行をどの承認で行ったかをログから 1 本につなげられない
   wrong: LOCK_TOOL_AT は approval_ref を運ぶが、lock-tool はそれを監査ログに残さない（C-approval-ref の integrity_until・P4 の 8.・U14 の、approval_ref を残すサービスに lock-tool が無い）。 lock-tool のログには sub・act・repair_id・発行の参照・jti があり、approval-svc
-    のログには承認と使用済みの記録がある。1 つの修繕依頼に解錠の承認が複数あると、 どの発行がどの承認によるかを結ぶ値が無い（REQ-11 の承認ごとの追跡）
+    のログには承認と使用済みの記録がある。1 つの修繕依頼に解錠の承認が複数あると、 どの発行がどの承認によるかを結ぶ値が無い（lock-tool の発行の参照 code_ref は lock-tool が採番する乱数で、lock-svc・approval-svc に渡さない）。REQ-11 の承認ごとの追跡ができない
   clean: order-tool・lock-tool・approval-svc・agent-sts・order-scheduler が approval_ref を監査の共通部品の鍵つきのハッシュで残す
   kind: 候補の漏れ
   confused_questions:
@@ -939,6 +1054,8 @@ errors:
   masked_by: []
   salience: low
   hint_derived: []
+  side_effect_note: 誤りを明確にするため直した：C-unlock-code の rationale で code_ref を lock-tool が採番する乱数（lock-svc・approval-svc に渡さない）とし、C-authorization-details の note の「ログの approval_ref から」を外した（B3）。locations に 8.（H14
+    の approval_ref の行）を足した
 - id: C18
   design: seeded-c
   control: control-c
@@ -980,6 +1097,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: 点検の B5（3.1 の確かめ方）は目的の側の文なので直さない
 - id: C19
   design: seeded-c
   control: control-c
@@ -997,6 +1115,10 @@ errors:
     section: 問 5
   - file: claim_request_repair_id.md
     section: 問 5
+  - file: claim_request_approval_ref.md
+    section: 問 16
+  - file: claim_request_repair_id.md
+    section: 問 16
   core: approval-svc だけが共通の検証部品を使わず、alg・typ・必須クレームを Web の枠組みの既定に任せて APPROVAL_AT を検証する
   wrong: agent-sts と 4 つのツールは共通の検証部品で alg の許可リスト・typ・必須クレームを固定するが、承認の操作を受ける approval-svc は Web の枠組みの JWT の検証を使い、 iss・aud・exp・cnf だけを設定に書き、alg・typ・必須クレームは枠組みの既定（版も枠組みに任せる）に任せる。M_token_validation の 3. の「ES256
     だけ」は approval-svc では 設定で強制されていない。1 つの受け手の設定の漏れが、承認という最も重い操作の抜け穴になる
@@ -1030,6 +1152,7 @@ errors:
   masked_by: []
   salience: low
   hint_derived: []
+  side_effect_note: 副作用の点検で直した：M_token_validation 10. の行の順（repair-console の「同上」が共通の部品の行を指すように approval-svc の行を下へ）、11. の「全受け手が同じ部品のため」、25 問の問 16（2 つ）
 - id: D01
   design: seeded-d
   control: control-d

@@ -131,8 +131,26 @@
 - 実際の分布は、正解の一覧から `python tools/calibration_check.py distribution set2` が作り、下の区間に入れる。C8 が、区間と正解の一覧が同じかを確かめる
 
 <!-- calibration:distribution:begin -->
-（埋め込んだ後に、正解の一覧から作る）
+| 難しさ ＼ 経路 | short_list（優先 1） | short_list（優先 2） | lint | open_prompt | none | 計 |
+| --- | --- | --- | --- | --- | --- | --- |
+| easy | 18（高 12・低 6） | 0 | 0 | 0 | 0 | 18（高 12・低 6） |
+| medium | 5（高 2・低 3） | 6（高 4・低 2） | 1（高 1・低 0） | 0 | 0 | 12（高 7・低 5） |
+| hard | 0 | 1（高 0・低 1） | 0 | 1（高 1・低 0） | 3（高 1・低 2） | 5（高 2・低 3） |
+| 計 | 23（高 14・低 9） | 7（高 4・低 3） | 1（高 1・低 0） | 1（高 1・低 0） | 3（高 1・低 2） | 35（高 21・低 14） |
+
+- 設計書ごと：seeded-c は easy 10・medium 6・hard 3（19 件）、seeded-d は easy 8・medium 6・hard 2（16 件）
+- 種別：目的と仕組みの不一致 32・候補の漏れ 3
+- 重大度：Blocker 7・Major 28
+- あるべきものが無い形（form: absent）：3 件（C11・C17・D10）
+- 同じ場所に、より写される誤りがある形（masked_by）：5 件（C08・D06・D07・D09・D14）
+- 初回の手がかりから来た型（hint_derived。再現率を分けて出す）：6 件（C09・C11・C12・C15・D10・D15）
 <!-- calibration:distribution:end -->
+
+- 初回の組の表（`../protocol.md` の 9.）と、**すべてのセルで同じ数**になった。種別・重大度・設計書ごとの数も同じ
+- `hint_derived` の 6 件のうち、B14 の型が 3 件（C09・C12・D10）、A17 の型が 2 件（C11・C15）、A03 の型が 1 件（D15）。結果では、この 6 件と残りの 29 件の再現率を分けて出す（3.2）
+- A12 の再試験は C17（hard・優先 2 の `q-audit-correlation`・absent。同じ lock-tool に、より目立つ C14・C16 がある）
+- 初回に埋め込みの無かった所（#80 の本文の 2.）：観点書の 6.4 は D15（主の問い `q-lint-workaround`）、6.2 の鍵の問いは D16（主の問い `q-key-rotation`、`also_accepted` に `op-key-custody`）。対比表の誤用の行のうち初回に無かった行で入れたのは、carry-vs-query m-8（C14）、four-lifetimes m-4（C09）・m-6（D15）・m-8（C15・D13）、scope-vs-role m-1（C13）、signed-vs-enforced m-1（C14）・m-2・m-10（C19）。**残り**（act-txn-workload m-8〜m-10、carry-vs-query m-2・m-5・m-7、four-lifetimes m-2・m-5・m-7・m-9〜m-11、id-vs-access-token m-2・m-3、jws-vs-jwe m-2・m-3・m-5〜m-7、name-vs-identifier m-4・m-6〜m-8、scope-vs-role m-2・m-4・m-6・m-7、signed-vs-enforced m-3・m-4）は、#80 に残す
+- 手がかりを保つため、一部の誤りで、別の面から問う優先 1 の問いを `also_accepted` に入れていない（`seeded_errors.yaml` の冒頭と各件の `channel_note`）。その問いの ID だけを書いた指摘は 0.5 点になる
 
 <a id="changes"></a>
 
@@ -154,4 +172,4 @@
 
 ## 固定の記録
 
-（コミットと、GitHub に push された時刻を書く）
+正解の一覧・目標・分布を固定したコミットと、GitHub に push された時刻は、[`README.md`](README.md) の「固定の記録」に書く（この文書に書くと、この文書の sha256〔`commitments.sha256`〕が変わるため）。3.1 と 9. の規則を埋め込む前に入れたコミットは 8ddebc0（GitHub に届いた時刻 2026-11-27T13:52:43Z。そのコミットの check suite の作成時刻。`gh api repos/Takenori-Kusaka/jwt-claims-guide/commits/8ddebc0/check-suites`）
