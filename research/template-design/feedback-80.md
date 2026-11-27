@@ -28,7 +28,7 @@
 
 ## 2. 規則の案（#68 に足した）
 
-どれも実装していません。`templates/review/triage.yaml` の `proposed_rules` にあります。#68 へのコメントに同じ表を書きました。
+どれも実装していません。`templates/review/triage.yaml` の `proposed_rules` にあります。#68 へのコメント：https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/68#issuecomment-7218406311 。2 組目に渡すこと（本文の 2. と仮説）は #82 へのコメント：https://github.com/Takenori-Kusaka/jwt-claims-guide/issues/82#issuecomment-7218410652
 
 | 案 | 中身 | 答えが決まる問い | 元の見逃し |
 | --- | --- | --- | --- |
