@@ -119,11 +119,11 @@ claims:
       - {service: staff-console, check: STAFF_ID_TOKEN の sub をセッションの持ち主として記録する, against: [other_claim], with: C-iss}
       - {service: shirogane-as, check: "AGENCY_ASSERTION の (iss, sub) の組で、認証したクライアントの代理店の担当者の表を引く。代理店の登録が止まっていれば拒否", against: [iss, data_layer]}
       - {service: tts, check: "PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なとき（社員は勤務の状態が勤務中のとき。休職・退職は拒む）だけ発行する。TXN_PROXY の sub は通話の記録の契約者", against: [iss, data_layer]}
-      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub の Txn-Token は受けない（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す, against: [data_layer, api_config]}
+      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub の Txn-Token は受けない。請求の記録に sub を残す, against: [data_layer, api_config]}
       - {service: fraud-svc, check: 判定の記録に sub を残す, against: [data_layer]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に sub を残す, against: [data_layer]}
-      - {service: assessment-svc, check: 査定の操作は、sub が請求に割り当てた査定担当者であること（請求の割り当てを claim-svc で引く）。上長が読めるのは、自分の課の査定担当者に割り当てた請求だけ（割り当ての記録の課と、社員の台帳の上長の課を照らす。課は assessment-svc が社員の台帳の読み取りの API を mTLS で呼んで、要求のたびに引く）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出し、自分の課の請求だけ, against: [data_layer]}
-      - {service: payment-svc, check: "支払いの指示の sub（査定担当者）と承認の sub（上長）が同じなら承認を拒む。承認の sub は、社員の台帳で指示した査定担当者と同じ課の上長であること（課を問い合わせる。キャッシュしない）。sub がワークロードの ID のときは payment-batch の ID だけを受ける。保留の通知（H25）では sub を保留の印に残す", against: [data_layer, api_config]}
+      - {service: assessment-svc, check: 査定担当者の操作は、sub が請求に割り当てた査定担当者であること（割り当ては claim-svc で引く）。上長の操作（閲覧・割り当ての変更・保留・保留の解除）は、請求に割り当てた査定担当者の今の課（社員の台帳。要求のたびに mTLS で引く）が上長の今の課と同じときだけ。payment-svc の承認も同じ基準（設計書の 3.1 の課の規則）, against: [data_layer]}
+      - {service: payment-svc, check: "支払いの記録の査定者（指示の sub）と承認の sub（上長）が同じなら承認・取り消しを拒む。承認・取り消しの sub は、査定者の今の課（社員の台帳。キャッシュしない）の上長であること（assessment-svc と同じ基準。設計書の 3.1 の課の規則）。sub がワークロードの ID のときは payment-batch の ID だけを受ける。保留の通知（H25）では sub を保留の印に残す", against: [data_layer, api_config]}
       - {service: as-admin-api, check: 操作の記録に sub を残す, against: [data_layer]}
     identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: other}
     max_bytes: 96
@@ -433,7 +433,7 @@ claims:
     confidential_from: []
     note: >-
       configurable_by の platform は、しろがねの社内の部署の操作を指す。経路の表を変えられるのは IT 基盤部（変更の手続き）、
-      役割（つまり TTS が出す scope）を付けられるのは人事部（人事の仕組みの入力と責任者の承認）と、基盤の変更の手続きによる DB の直接の修正（設計書の 2.2。変更の番号を残す）だけで、社員本人・コールセンター・代理店・契約者は付けられない。
+      役割（つまり TTS が出す scope）を付けられるのは人事部（人事の仕組みの入力と責任者の承認）だけで（社員の台帳は人事の仕組みの中にあり、しろがねの IT 基盤部の DB の直接の修正の対象に入らない。設計書の 2.2）、社員本人・コールセンター・代理店・契約者は付けられない。
       代理店の担当者の scope は代理店の登録の範囲で決まり、代理店の IdP の管理者は変えられない
     status: active
     owner: しろがね損保 IT 基盤部（ID とトークン）
@@ -520,7 +520,7 @@ claims:
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の acr が phr でなければ acr_values と max_age=0 で認証し直させる（画面の案内。判断は payment-svc・as-admin-api）, against: [api_config]}
       - {service: tts, check: EMPLOYEE_AT の acr を値を変えずに TXN_STAFF に写す。値の語彙に無ければ発行しない, against: [api_config]}
-      - {service: payment-svc, check: "承認と承認の取り消しの API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470）", against: [api_config]}
+      - {service: payment-svc, check: "承認と取り消し（payment.cancel）の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication。RFC 9470）", against: [api_config]}
       - {service: as-admin-api, check: "すべての変更の API は、acr が urn:shirogane-sonpo:acr:phr でなければ 401（insufficient_user_authentication）", against: [api_config]}
     max_bytes: 32
     overflow_strategy: 上限で固定（超えない値域）
@@ -568,7 +568,7 @@ claims:
     enforced_at:
       - {service: staff-console, check: 承認の画面を出す前に、STAFF_ID_TOKEN の auth_time が 300 秒より古ければ max_age=0 で認証し直させる（画面の案内）, against: [format]}
       - {service: tts, check: EMPLOYEE_AT の auth_time を値を変えずに TXN_STAFF に写す, against: [format]}
-      - {service: payment-svc, check: 承認と承認の取り消しの API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401, against: [format]}
+      - {service: payment-svc, check: 承認と取り消し（payment.cancel）の API は、受けた時刻 − auth_time が 300 秒（時計のずれ 30 秒を含めない）を超えれば 401, against: [format]}
       - {service: as-admin-api, check: すべての変更の API は、受けた時刻 − auth_time が 300 秒を超えれば 401, against: [format]}
     max_bytes: 10
     overflow_strategy: 上限で固定（超えない値域）
@@ -742,7 +742,7 @@ claims:
       - {service: fraud-svc, check: 判定の記録に txn を残す, against: [format]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に txn を残す, against: [format]}
       - {service: assessment-svc, check: 査定の記録に txn を残す, against: [format]}
-      - {service: payment-svc, check: "支払いの指示・承認・実行の記録に txn を残す。重複の指示の判定には txn を使わず、(claim_id, assessment_ref) の一意の制約で行う（確定し直しで txn が変わっても二重にならない）", against: [format, data_layer]}
+      - {service: payment-svc, check: "支払いの指示・承認・実行の記録に txn を残す。重複の指示の判定には txn を使わず、(claim_id, assessment_ref) の一意の制約で行う（頼み直しで txn が変わっても二重にならない）。受けた版より新しくない版と、未実行の指示がある間の新しい版は受けない", against: [format, data_layer]}
       - {service: payment-worker, check: payment-svc が指示を受け付けた後にだけ txn を処理済みにし、処理済みの txn のメッセージを TTS に出さない。送信の失敗はブローカーの再配送に任せる（重複は payment-svc が一意の制約で拒む）, against: [data_layer]}
       - {service: as-admin-api, check: 操作の記録に txn を残す, against: [format]}
     max_bytes: 36
@@ -790,7 +790,7 @@ claims:
       - {service: fraud-svc, check: req_wl が front-gw であること, against: [api_config]}
       - {service: document-svc, check: req_wl が front-gw であること, against: [api_config]}
       - {service: assessment-svc, check: req_wl が front-gw であること, against: [api_config]}
-      - {service: payment-svc, check: "operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel・assessment.hold・assessment.unhold（H25）は front-gw、payment.execute は payment-batch。違えば 403", against: [api_config, other_claim], with: C-tctx}
+      - {service: payment-svc, check: "operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.cancel・assessment.hold・assessment.unhold（H25）は front-gw、payment.execute は payment-batch。違えば 403", against: [api_config, other_claim], with: C-tctx}
       - {service: as-admin-api, check: req_wl が front-gw であること, against: [api_config]}
     max_bytes: 80
     overflow_strategy: 上限で固定（超えない値域）
@@ -811,7 +811,7 @@ claims:
     description: >-
       TTS が決めた取引の文脈。JSON のオブジェクトで、項目はすべて文字列：operation（経路の表の操作の名前。必ずある）、
       policy_number（証券番号。数字 10 桁）、claim_id（請求の ID。clm_ と 26 文字）、amount（金額。円の整数を 10 進の文字列で、先頭の 0 と符号を付けない。最大 12 桁）、
-      payee_ref（振込先の参照 ID。pye_ と 26 文字。口座番号そのものではない）、payment_id（支払いの ID。pay_ と 26 文字）、
+      payee_ref（振込先の参照 ID。pye_ と 26 文字。口座番号そのものではない。契約管理の仕組みは 1 つの payee_ref の口座を書き換えず、口座が変わったら新しい payee_ref を作る）、payment_id（支払いの ID。pay_ と 26 文字）、
       call_id（通話の ID。TXN_PROXY だけ）、target_ref（管理の操作の対象の ID。as-admin-api だけ）、assessment_ref（査定の確定の ID と版。asm_ と 26 文字と版の番号。PAY_MSG_CTX と、そこから作り直した支払いの指示だけ）。
       操作ごとにどの項目があるかは経路の表が決め、表に無い項目は入れない
     not_meaning: 要求の環境（rctx）ではない。利用者の権限（scope）ではない。支払いの承認そのもの（承認は payment-svc の承認の記録）ではない
@@ -823,7 +823,7 @@ claims:
       - {kind: guide-slide, id: p06-transaction-tokens}
     assumption: >-
       front-gw が要求の本文から経路の表の項目を取り出して request_details で TTS に渡し、TTS が経路の表の型と上限で確かめて書く（値は要求した者の申告で、TTS は形を確かめて固定するだけ。値が正しいかは受け手が保存データと照らす）。
-      PAY_MSG_CTX からの作り直しでは、TTS は PAY_MSG_CTX の tctx の claim_id・policy_number・amount・payee_ref・assessment_ref を変えずに写す
+      PAY_MSG_CTX からの作り直しでは、TTS は PAY_MSG_CTX の tctx の claim_id・amount・payee_ref・assessment_ref を変えずに写す
     revisit_trigger: Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき
     spec_version: [draft-ietf-oauth-transaction-tokens-11]
     usage: protocol
@@ -844,21 +844,21 @@ claims:
     consumers: [tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
-      - {service: tts, check: "PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm か assessment.resend のときだけ（同じ assessment_ref で何度出してもよい）。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref・assessment_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
+      - {service: tts, check: "PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm のときだけ（応答が届かなかった頼み直しでは同じ確定で出してよい）。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・amount・payee_ref・assessment_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
       - {service: claim-svc, check: "operation が、その API で受ける操作の一覧（経路の表）にあること。policy_number・amount（請求額）・claim_id が要求の本文・パスと一致すること（違えば 409 で拒否し、監査に記録する）。policy_number は契約管理の仕組みで sub の契約者・agency_code の取扱代理店の証券であること。TXN_PROXY では call_id を請求の記録に残す", against: [other_claim, api_config, data_layer]}
       - {service: fraud-svc, check: "operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること（違えば 409）", against: [other_claim, api_config]}
       - {service: document-svc, check: "operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409）", against: [other_claim, api_config]}
-      - {service: assessment-svc, check: "operation が、その API で受ける操作の一覧にあること。assessment.confirm では claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409）", against: [other_claim, api_config]}
-      - {service: payment-svc, check: "operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref・assessment_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount・payee_ref が支払いの記録と、execute では claim_id が支払いの記録の請求と一致すること。assessment.hold・assessment.unhold（H25）では claim_id がパスの請求と一致すること", against: [other_claim, api_config, data_layer]}
+      - {service: assessment-svc, check: "operation が、その API で受ける操作の一覧にあること。assessment.confirm では claim_id・amount・payee_ref が要求の本文と一致し、payee_ref がその請求の証券の有効な振込先であること（claim-svc の記録の請求の証券で引く。H18）（違えば 409）", against: [other_claim, api_config]}
+      - {service: payment-svc, check: "operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref・assessment_ref が指示の本文と一致すること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount・payee_ref が支払いの記録と、execute では claim_id が支払いの記録の請求と一致すること。assessment.hold・assessment.unhold（H25）では claim_id がパスの請求と一致すること", against: [other_claim, api_config, data_layer]}
       - {service: as-admin-api, check: "operation が、その API で受ける操作の一覧にあり、target_ref が要求の本文の対象と一致すること（違えば 409）", against: [other_claim, api_config]}
     max_bytes: 360
     overflow_strategy: 発行を失敗させる
     pii_category: 個人情報
-    log_policy: 記録する
+    log_policy: ハッシュ化して記録
     data_category: [system.operations.transaction]
     confidential_from: []
     note: >-
-      証券番号・金額・振込先の参照 ID は、契約者の ID（sub）と組で個人情報になる。網の中の mTLS の上だけを通り、ブラウザ・代理店には返さない。
+      証券番号・金額・振込先の参照 ID は、契約者の ID（sub）と組で個人情報になる。監査ログには tctx を HMAC にして残し（照合用）、相関に使う operation・claim_id・payment_id・assessment_ref は各サービスが業務の記録の項目として別に残す。policy_number・payee_ref・call_id は平文で残さない（REQ-12）。網の中の mTLS の上だけを通り、ブラウザ・代理店には返さない。
       生成の JSON Schema（schemas/）は tctx を object としてだけ確かめ、内側の項目は確かめない（3.1 の見送り。内側の型は TTS の発行の試験と、受け手の共通部品の tctx の型の検査で確かめる）
     status: active
     owner: しろがね損保 IT 基盤部（ID とトークン）

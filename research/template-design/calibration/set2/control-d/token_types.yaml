@@ -490,7 +490,7 @@ token_types:
   lifetime_set_by: [platform]
   refresh: 無い
   revocation:
-    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える。2 回目の使用でその認可コードから出したトークンも失効させる}
+    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える。2 回目の使用では、その認可コードから出した PH_RT を失効させる（AT は JWT なので exp まで残る。すぐ止めたいときは契約者のアカウント・社員を止め、TTS が発行のたびに拒む）}
   stored_at: none
   transport: redirect_query
   visible_to: [browser, bff, idp]
@@ -688,14 +688,14 @@ token_types:
   max_clock_skew: 30
   max_lifetime: 3600
   lifetime_refs:
-    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が送り直しの操作をし、TTS が同じ assessment_ref の新しい PAY_MSG_CTX を出す（payment-svc が (claim_id, assessment_ref) で重複を拒む）", tracking: "#82"}
+    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が新しい版の確定をする（payment-svc は古い版と、未実行の指示がある間の新しい版を受けない）", tracking: "#82"}
     - {kind: guide-slide, id: p08-async-processing}
   lifetime_set_by: [platform]
   refresh: 無い
   sender_constraint: none
   revocation:
     - {method: exp_only, delay_seconds: 3630, note: PAY_MSG_CTX そのものは exp まで有効だが、使えるのは TTS への作り直しの要求だけ}
-    - {method: db_lookup, delay_seconds: 60, note: "TTS が作り直しのたびに、査定を確定した社員の台帳の状態と役割、請求の保留を引き直す（C-sub C-scope）。役割が外れていれば作り直さない"}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が作り直しのたびに、査定を確定した社員の台帳の状態と役割を引き直す（C-sub C-scope）。役割が外れていれば作り直さない。請求の保留と版は payment-svc が受け付けの取引で確かめる"}
   long_running: ブローカーで待つ間だけ使う。payment-worker は取り出した後すぐに TTS で TXN_TOKEN に替え、期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す
   key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵。古い鍵は PAY_MSG_CTX の受け入れの上限が過ぎてから外す}
   unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}

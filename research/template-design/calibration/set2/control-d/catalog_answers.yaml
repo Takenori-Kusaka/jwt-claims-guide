@@ -49,7 +49,7 @@ idp:
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=AGENCY_AT と証明書の拇印のヘッダー（front-gw の代理店の口）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT（front-gw の社員の口。社員本人の操作）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT と request_details の call_id（電話の代理受付）", events: [I22]}
-      - {trigger: "PAY_MSG_CTX の発行（mTLS の相手が assessment-svc のときだけ。operation が assessment.confirm か assessment.resend の TXN_STAFF を subject_token にして求める。同じ assessment_ref で何度出してもよい）", events: [I22]}
+      - {trigger: "PAY_MSG_CTX の発行（mTLS の相手が assessment-svc のときだけ。operation が assessment.confirm の TXN_STAFF を subject_token にして求める）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PAY_MSG_CTX（payment-worker の作り直し）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、要求したワークロード自身を主体にする（payment-batch。草案 §8.2）", events: [I22]}
       - trigger: subject_token に Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）を出して、別の Txn-Token に作り直す要求
@@ -373,7 +373,7 @@ answers:
 - event: U14
   answer: 該当
   token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PH_AT, AGENCY_AT, EMPLOYEE_AT]
-  note: 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の値（operation・claim_id・payment_id・amount など）を残す。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない
+  note: 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の operation・claim_id・payment_id・assessment_ref・金額を残す（policy_number・payee_ref・call_id は平文で残さない）。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない
 - event: U15
   answer: 該当
   token_types: [PH_RT, AS_SESSION, SSO_SESSION]

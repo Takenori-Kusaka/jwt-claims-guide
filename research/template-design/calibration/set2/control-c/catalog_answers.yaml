@@ -68,7 +68,7 @@ outside_enumeration:
     - {name: 承認の消費の競合と、結果が分からない応答, handled_as: "設計に足した：order-tool・lock-tool は approval-svc の条件つきの更新で 1 回だけ使い、同じ発注 ID・同じ承認での再試行には前の結果を返す。承認を自動で未使用に戻さない（台帳の C-approval-ref、design.md の付録 D の P4 の 5.）"}
     - {name: 承認の分割（10 万円以下に分けた発注。並行に確定する場合を含む）, handled_as: "設計に足した：承認の要否を、部屋ごとの直近 30 日の累計（予約を含む）で決め、部屋の行を排他の錠で押さえたトランザクションで数えてから確定する（REQ-05、ホップ H5、design.md の 3.1）"}
     - {name: 停止の間の電話での発注（REQ-13）, handled_as: "設計に足した：再開の前に、電話での発注を発注の台帳に「手作業の発注」として登録し、部屋の累計に数える。登録が済むまでエージェントの操作を再開しない（design.md の 2.2・3.1）"}
-    - {name: 委任を止めて有効にし直す前の予約・委任のトークン, handled_as: "設計に足した：委任の欄に世代を持たせ、order-scheduler は予約の世代と、agent-sts は REPAIR_DELEG_AT の iat と世代の開始の時刻と比べる（H4・H10・H13）"}
+    - {name: 委任を止めて有効にし直す前の予約・委任のトークン, handled_as: "設計に足した：委任の欄に世代の番号を持たせ、order-scheduler は予約の記録の世代の番号と比べる（H13）。止めて 330 秒以内に有効にし直したときに止める前の REPAIR_DELEG_AT が残りの寿命の間使えることは、design.md の 3.1 の見送りの行"}
     - {name: 承認者が担当の付け替えを挟んで自分の発注を承認する, handled_as: "設計に足した：発注の承認者は、依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い人に限る（REQ-05、台帳の C-sub の approval-svc の enforced_at、H12）"}
     - {name: 予約の発注の実行の時点での確かめ直し, handled_as: "カタログの U13 に戻した：order-scheduler は実行の時点で aoba-pdp・修繕依頼の台帳・approval-svc を引き直し、トークンを持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）"}
     - {name: 入居者の依頼の文に紛れた指示で、解錠の部屋・時間帯や連絡の相手を変えさせる, handled_as: "設計に足した：解錠は担当者本人が部屋・協力会社・時間帯を画面で確かめて承認し、lock-tool は承認の記録と修繕依頼の部屋で照合する。連絡の相手は contact-tool が修繕依頼の台帳から決める（P4 の 4.・5.）"}
@@ -80,7 +80,7 @@ questions:
   q-actor: {needed: true, reason: ツールが今の行為者（最も外側の act）を mTLS の相手と照合し、操作ごとの許可リストで判断する。承認では行為者がいない（act が無い）ことを確かめる。予約の実行では order-scheduler を行為者として記録する}
   q-req-wl: {needed: false, reason: Txn-Token を使わない（目録の TXN_TOKEN は却下）。交換を求めたワークロードは agent-sts が mTLS で認証する}
   q-peer: {needed: true, reason: ツール・approval-svc が cnf と act を照合する相手。aoba-pdp・approval-svc は呼び出し元の許可リストで照合する, channel: "mTLS の相手の wl-ca の証明書（URI の SAN のワークロードの URI）"}
-  q-via: {needed: true, reason: 監査で委任の経路をたどる, channel: "agent-sts の交換の監査ログ（元の jti、出した jti、交換を求めた mTLS の相手）と各ツールの監査ログ（act の連鎖）"}
+  q-via: {needed: true, reason: 監査で委任の経路をたどる, channel: "agent-sts の交換の監査ログ（元の jti、出した jti、交換を求めた mTLS の相手）と各ツールの監査ログ（受けたトークンの jti）"}
   q-txn: {needed: true, reason: どの修繕依頼の操作かを、全ツール・approval-svc・order-scheduler の監査ログで結ぶ}
   q-user: {needed: true, reason: 担当者を監査で特定する}
   q-agent: {needed: true, reason: 行為者ごとの許可リストを当てる}
