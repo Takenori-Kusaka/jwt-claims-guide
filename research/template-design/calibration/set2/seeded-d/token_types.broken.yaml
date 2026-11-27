@@ -244,7 +244,7 @@ token_types:
   rationale: 代理店のサーバーが shirogane-as から AGENCY_AT を取るときに出す、代理店の IdP が署名した担当者の assertion（RFC 7523 §2.1 の grant）
   refs:
     - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
-  assumption: 代理店の IdP は、代理店連携の仕様（しろがねが出す）のとおりに、iss・sub・aud・exp・iat・jti と担当者の社員番号（emp_no）を入れ、ES256 で署名する
+  assumption: 代理店の IdP は、代理店連携の仕様（しろがねが出す）のとおりに、iss・sub・aud・exp・iat・jti と担当者の社員番号（emp_no。代理店の IdP の管理者が担当者ごとに入力する属性）を入れ、ES256 で署名する
   revisit_trigger: 代理店の IdP が RFC 7523 の assertion を出せないと分かったとき
   purpose: 代理店の担当者が誰かを shirogane-as に示す。shirogane-as だけが受ける
   issuer: 代理店の IdP（代理店ごとに 1 つ。代理店の登録に iss と JWKS の URL を書く）

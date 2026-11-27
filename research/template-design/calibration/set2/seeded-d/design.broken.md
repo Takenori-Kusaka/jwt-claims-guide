@@ -262,7 +262,7 @@ flowchart LR
 | 区分（重点・見送り） | 項目 | 効果と費用（未検証の点を含む） | 見直しの条件 | 台帳の行の ID |
 | --- | --- | --- | --- | --- |
 | 重点 | 内側は Txn-Token だけ。専用の Txn-Token ヘッダーで受け取ったまま渡し、tctx を使う受け手のすべてが要求の本文と照合する | 外の AT を内側に入れない。途中のサービスが本文を書き換えても、入口で決めた値から外れた処理をしない。受け手ごとに照合する項目を台帳に書く費用（付録 D の P5 の 2. の表） | 草案の版が変わったとき | `TXN_TOKEN`・`TXN_STAFF`・`TXN_PROXY`、`C-tctx`、H4〜H26 |
-| 重点 | TTS が発行のたびに、契約者の状態・代理店の登録・社員の台帳・通話の記録を引く | 止める単位ごとに、止めてから効くまでが要求に収まる（9.1 の表。最悪 390 秒・750 秒）。TTS が台帳を毎回引く費用（キャッシュ 60 秒。通話の記録はキャッシュしない） | 台帳の問い合わせが TTS の遅れの主因になったとき | `C-sub`・`C-scope`・`C-agency-code`、目録の `revocation` |
+| 重点 | TTS が発行のたびに、契約者の状態（契約者の AT からの発行のとき）・代理店の登録・社員の台帳・通話の記録を引く | 止める単位ごとに、止めてから効くまでが要求に収まる（9.1 の表。最悪 390 秒・750 秒）。TTS が台帳を毎回引く費用（キャッシュ 60 秒。通話の記録はキャッシュしない） | 台帳の問い合わせが TTS の遅れの主因になったとき | `C-sub`・`C-scope`・`C-agency-code`、目録の `revocation` |
 | 重点 | 追加の認証（ハードウェアの鍵・300 秒）は、操作を受ける payment-svc と as-admin-api が TXN_STAFF の acr・auth_time で確かめる | staff-console の画面を通らない呼び出しでも同じ条件になる。承認の記録を書けるのは payment-svc の承認の API だけで、その API が確かめる（付録 B） | 承認の経路を足すとき | `C-acr`・`C-auth-time`、H23・H26 |
 | 重点 | 代理店の AT を代理店のサーバーの証明書に束縛し（RFC 8705）、代理店コードは代理店の申告でなく代理店の登録から書く | 網の外にある AT を盗まれても使えない。代理店の IdP の管理者は担当者を作れるが、代理店コード（どの証券を扱えるか）は変えられない | 代理店が証明書を扱えないと分かったとき | `AGENCY_AT`、`C-cnf`、`C-agency-code`、H5・H6 |
 | 重点 | 傷病・事故の内容をトークンに載せず、書類は assessment-svc から document-svc への経路でだけ読む | 要配慮個人情報が届く先を document-svc と、割り当てた査定担当者の画面に限る（REQ-08） | 傷病の区分で自動の査定をする要求が出たとき | `C-injury`（却下）、H19 |
@@ -394,7 +394,7 @@ TTS が受ける要求（`catalog_answers.yaml` の `idp` の shirogane-tts の 
 | RT・セッション | 契約者は最大 28800・無操作 1800、社員は最大 36000・無操作 900（1 回の勤務の長さ） | 同上 | 無い |
 | 認可コード | 60 | — | 無い |
 | Txn-Token | 300（REQ-03 の 600 秒に、キャッシュ 60 秒・時計のずれ 30 秒を足して 390 秒で収まる長さ） | 同上。延ばす作り直し（草案 §13.15）はしない。TXN_PROXY だけ 60（本人確認から 1800 秒を超えない。REQ-11） | 無い |
-| PAY_MSG_CTX（組織の JWT） | 3600（REQ-06 のブローカーで待つ上限と同じ） | 同上 | 無い（カタログの上限の対象外の種類）。H30 の寿命は assessment-svc に渡すまでの 300 秒として書き、上流の TXN_STAFF（300 秒）を超えない（3600 秒は H20・H21） |
+| PAY_MSG_CTX（組織の JWT） | 3600（REQ-06 のブローカーで待つ上限と同じ） | 同上 | 無い（カタログの上限の対象外の種類）。H30 の区間の寿命は assessment-svc に渡すまでの 300 秒で、上流の TXN_STAFF（300 秒）を超えない（ブローカーでの保持は H20・H21） |
 | 代理店の assertion | 60（代理店連携の仕様で決める。代理店の側の担当者の停止の最悪を REQ-02 に収めるため） | 代理店管理部と IT 基盤部の責任者が承認 | 無い |
 
 <a id="question-mechanism"></a>
@@ -487,7 +487,7 @@ UC6：夜間の処理が支払いを実行する。要求の 5.3 節。
 | ユースケース | 問い（ID） | 要るか | 仕組み（台帳の行の ID か、クレームでない仕組み） | 不要の理由・照合する場所 |
 | --- | --- | --- | --- | --- |
 | UC6 | 誰の権限で（q-sub） | 要る | `C-sub`（payment-batch の SPIFFE ID） | 利用者の権限を借りない |
-| UC6 | 誰が代理して実行しているか（q-actor） | 不要 | — | 代理は無い（システムの権限）。実行してよいかは、承認の記録と請求の状態で payment-svc が決める |
+| UC6 | 誰が代理して実行しているか（q-actor） | 不要 | — | 代理は無い（システムの権限）。実行してよいかは、承認の記録で payment-svc が決める |
 | UC6 | どのワークロードが Txn-Token を求めたか（q-req-wl） | 要る | `C-req-wl` | payment-batch であること |
 | UC6 | 直接の通信相手は誰か（q-peer） | 要る | mTLS の SPIFFE ID | payment-svc の実行の API は payment-batch だけを受ける（H24） |
 | UC6 | どこを経由したか（q-via） | 不要 | — | UC1 と同じ |
@@ -647,7 +647,7 @@ sequenceDiagram
 
 項目 ID：`template:00_core#hop-table`
 
-TTS が新しいトークンを出すホップは、外の AT からの作り直し（H4・H7・H15・H17・H23・H26。`kind: reissue`）、PAY_MSG_CTX からの交換（H22。`kind: exchange`）、payment-batch の自分の ID での要求（H24）と、PAY_MSG_CTX の発行（H29 の要求と H30 の交換。`kind: exchange`）です。H30 の寿命は、TTS が PAY_MSG_CTX を assessment-svc に渡すまでの 300 秒として書き、上流の TXN_STAFF（300 秒）を超えません（メッセージに入れた後の 3600 秒は H20・H21）。作り直しと交換のホップは、TTS の入口のホップ（H3・H6・H14）か、PAY_MSG_CTX のブローカーのホップ（H21）を upstream に置き、L16 が scope と寿命を上流と比べます：どのホップの scope も上流の AT・PAY_MSG_CTX の scope の部分集合で、寿命は 300 秒（上流は 300〜3600 秒）。aud だけは、Txn-Token が信頼ドメインを使うので名前が違い、warn として残ります（1. の warn の理由）。H24 は上流のトークンが無いので upstream を置きません（草案 §8.2 の、内部で始まる取引）。
+TTS が新しいトークンを出すホップは、外の AT からの作り直し（H4・H7・H15・H17・H23・H26。`kind: reissue`）、PAY_MSG_CTX からの交換（H22。`kind: exchange`）、payment-batch の自分の ID での要求（H24）と、PAY_MSG_CTX の発行（H29 の要求と H30 の交換。`kind: exchange`）です。H30 の区間の寿命は、TTS が PAY_MSG_CTX を assessment-svc に渡すまでの 300 秒で、上流の TXN_STAFF（300 秒）を超えません（ブローカーでの保持は H20・H21）。作り直しと交換のホップは、TTS の入口のホップ（H3・H6・H14）か、PAY_MSG_CTX のブローカーのホップ（H21）を upstream に置き、L16 が scope と寿命を上流と比べます：どのホップの scope も上流の AT・PAY_MSG_CTX の scope の部分集合で、寿命は 300 秒（上流は 300〜3600 秒）。aud だけは、Txn-Token が信頼ドメインを使うので名前が違い、warn として残ります（1. の warn の理由）。H24 は上流のトークンが無いので upstream を置きません（草案 §8.2 の、内部で始まる取引）。
 
 経路の表（TTS が経路ごとに許す scope）は、ホップの scope を経路ごとに分けたものです。例えば、契約者の請求の受付の経路では claims:submit だけ、照会の経路では claims:read だけを出し、ホップの行（H4）はその和を書いています。
 
@@ -682,7 +682,7 @@ TTS が新しいトークンを出すホップは、外の AT からの作り直
 | H21 ブローカー（支払いの指示のキュー） → payment-worker | `broker_connection` | `PAY_MSG_CTX` | `shirogane-sonpo.internal` | `payments:instruct` | 3600 秒 | — | — | `none` | payment-worker は自分の X.509-SVID でブローカーに接続する<br>PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す。滞留のキューのメッセージ（PAY_MSG_CTX を含む）は、後から調べるために期限を決めずに残す（消すのは当番の手作業）。中を読めるのは payment-worker と IT 基盤部の当番だけで、保険金部には請求の ID と件数だけを見せる<br>txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。期限を過ぎたものは査定担当者が新しい版で確定する。2 回届いても payment-svc の (claim_id, assessment_ref) の一意の制約で 1 件になる） |
 | H22 payment-worker → payment-svc（支払いの指示） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:instruct` | 300 秒 | — | tts | `local` | TTS は payment-worker を mTLS の相手の ID で認証し、PAY_MSG_CTX の署名・typ（msgctx+jwt）・exp を確かめる。査定を確定した社員（sub）の社員の台帳の勤務の状態が「勤務中」（休職・退職では作り直さない）で、査定担当者の役割があることを引き直してから TXN_TOKEN を出す（txn は PAY_MSG_CTX の値。請求の保留・版は payment-svc が受け付けの取引で確かめる）<br>payment-svc は mTLS の相手が payment-worker で、req_wl が payment-worker、scope が payments:instruct であることを確かめる<br>tctx の claim_id・amount・payee_ref・assessment_ref を指示の本文と照合する（payee_ref がその請求の証券の振込先であることは確定のときに assessment-svc と claim-svc が確かめ、値は tctx で固定されている）<br>(claim_id, assessment_ref) に一意の制約を置き、同じ査定の確定の 2 件目は、txn が違っても記録せずに前の結果を返す（再配送・頼み直しへの備え）<br>版の規則（請求ごとの集計の行に、受けた最新の版と保留の印を置く）：受けた版より新しくない版の指示は受けない（古い版のメッセージが後から届いても通らない）。新しい版は、同じ請求に未実行の指示（承認待ちを含む）がある間は受けない（409）。版を替えたいときは、上長が未実行の指示を取り消す（payment.cancel。H23）<br>請求ごとの集計の行に保留の印があれば、指示を受けて「保留」の状態で記録する（実行しない）<br>承認の要否は payment-svc が自分の記録で決める：請求ごとの集計の行を同じ DB の取引の中でロックし（請求ごとに直列にする。版の規則と保留の印もこの取引で確かめる）、同じ請求の支払いの合計（実行済み・指示済みで未実行（承認の要否を問わない）・承認待ち・この指示）が 1000000 円以上なら「承認待ち」にし、指示の記録と集計の更新を同じ取引で書く（指示を分けたり並行に出したりして承認を避けさせない） |
 | H23 front-gw → payment-svc（承認） | `reissue` | `TXN_STAFF` | `shirogane-sonpo.internal` | `payments:approve` | 300 秒 | — | tts | `local` | mTLS の相手の SPIFFE ID が front-gw で、req_wl が front-gw であること<br>acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401（insufficient_user_authentication）<br>tctx の payment_id がパスの支払いと一致し、amount が支払いの記録の金額と一致すること<br>sub が、支払いの記録の査定者（指示の sub）と違うこと。承認の上限額と、承認者（sub）と査定者の今の課を社員の台帳に問い合わせ（キャッシュしない）、金額が上限額の内で、承認者が査定者の今の課の上長であること（REQ-05 の「上長」。assessment-svc の上長の操作と同じ基準。設計書の 3.1 の課の規則）<br>tctx の payee_ref が支払いの記録の振込先と一致すること（上長は振込先を見て承認する）<br>承認の記録（承認者の sub・txn・時刻・claim_id）を書くのは payment-svc だけ。承認の記録は請求ごとで、同じ請求の後の支払いにも、その承認を使う（承認待ちの指示は、その請求に有効な承認の記録があれば承認済みとして扱う）。取り消し（payment.cancel：未実行の指示を取り消し、承認があればそれも取り消す。承認の要らない額の指示も止められる）も同じ API と同じ確かめ（上長・同じ課・phr・300 秒）で受け、支払いの行をロックした取引で書く |
-| H24 payment-batch → payment-svc（支払いの実行） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:execute` | 300 秒 | — | tts | `local` | payment-batch は自分の X.509-SVID で TTS に Txn-Token を求める（草案 §8.2。利用者の代理ではない）。sub は payment-batch の SPIFFE ID。支払いの 1 件ごとに 1 つの Txn-Token<br>TTS は、要求したワークロードが payment-batch で、実行の時間帯（毎日 1 時から 3 時）の内であるときだけ出す<br>payment-svc は mTLS の相手が payment-batch で、sub がその SPIFFE ID、scope が payments:execute、tctx の payment_id がパスの支払いと、claim_id がその支払いの記録の請求と一致することを確かめる<br>「実行」は、payment-svc が支払いの状態を「実行済み」に書いた時点とする。その書き込みと振込のファイルへの追加を、支払いの行をロックした 1 つの取引で行い、同じ取引の中で、承認が要る支払いは、その請求の承認の記録が有効（取り消されていない）こと（同じ請求の後の支払いにも、その承認を使う）と、payee_ref が契約管理の仕組みで今も有効（無効にされていない）であることを確かめる。保留の印は、指示を受け付ける取引（H22）で確かめたので、実行の取引では見ない。合わなければ実行せず、承認待ちに戻す。同じ payment_id を 2 回入れない<br>取り消し（payment.cancel）も同じ支払いの行のロックを取るので、実行と並んだときはどちらかが先に終わる。実行の後に届いた取り消しは効かず、振込の取り消しの手続きに回す（9.1）。指示を受け付けた後にかけた保留の印は、実行の取引では見ない（保留は受け付けの前の指示だけを止める）<br>TTS が実行の時間帯に応えない・契約管理の仕組みが応えないときは、その支払いを実行せず次の夜に回し、保険金部に知らせる（手作業で振込のファイルを作る経路は作らない） |
+| H24 payment-batch → payment-svc（支払いの実行） | `exchange` | `TXN_TOKEN` | `shirogane-sonpo.internal` | `payments:execute` | 300 秒 | — | tts | `local` | payment-batch は自分の X.509-SVID で TTS に Txn-Token を求める（草案 §8.2。利用者の代理ではない）。sub は payment-batch の SPIFFE ID。支払いの 1 件ごとに 1 つの Txn-Token<br>TTS は、要求したワークロードが payment-batch で、実行の時間帯（毎日 1 時から 3 時）の内であるときだけ出す<br>payment-svc は mTLS の相手が payment-batch で、sub がその SPIFFE ID、scope が payments:execute、tctx の payment_id がパスの支払いと、claim_id がその支払いの記録の請求と一致することを確かめる<br>「実行」は、payment-svc が支払いの状態を「実行済み」に書いた時点とする。その書き込みと振込のファイルへの追加を、支払いの行をロックした 1 つの取引で行い、同じ取引の中で、承認が要る支払いは、その請求の承認の記録が有効（取り消されていない）こと（同じ請求の後の支払いにも、その承認を使う）と、payee_ref が契約管理の仕組みで今も有効（無効にされていない）であることを確かめる。保留の印は、指示を受け付ける取引（H22）で確かめたので、実行の取引では見ない。合わなければ実行せず、承認待ちに戻す。同じ payment_id を 2 回入れない<br>取り消し（payment.cancel）も同じ支払いの行のロックを取るので、実行と並んだときはどちらかが先に終わる。実行の後に届いた取り消しは効かず、振込の取り消しの手続きに回す（9.1）。保留の印は指示を受け付ける取引で確かめたので、実行の取引では見ない<br>TTS が実行の時間帯に応えない・契約管理の仕組みが応えないときは、その支払いを実行せず次の夜に回し、保険金部に知らせる（手作業で振込のファイルを作る経路は作らない） |
 | H25 claim-svc → payment-svc（請求の保留の通知） | `service` | `TXN_STAFF` | `shirogane-sonpo.internal` | `claims:read`・`documents:read-sensitive`・`assessments:read`・`assessments:write`・`payments:instruct` | 300 秒 | — | — | `local` | 査定担当者・上長が請求を保留にすると（H18。operation が assessment.hold）、claim-svc は受けた Txn-Token を改変せずに payment-svc に渡し、payment-svc が請求ごとの集計の行（支払いの行がまだ無くても作る）をロックして保留の印を書く。payment-svc が書けたときだけ claim-svc は保留を記録して成功を返す（書けなければ保留を失敗にする）。印は請求ごとで、指示の受け付け（H22）の取引が確かめる。印の書き込み・削除は冪等（同じ操作を繰り返しても同じ結果）で、応答が失われたら claim-svc は同じ操作を頼み直す。指示を受け付けてよいかの正は payment-svc の印だけで、claim-svc の保留の記録は画面の表示に使う<br>payment-svc は mTLS の相手が claim-svc、scope に assessments:write、tctx の claim_id がパスの請求と一致することを確かめ、tctx の operation（assessment.hold か assessment.unhold）のとおりに印を書く・消す。誰が外してよいか（上長だけ・自分の課の請求だけ）は、TTS（役割の表）と assessment-svc（H17）が決め、payment-svc は operation を権限の判断に使わない（取引の内容として写すだけ） |
 | H26 front-gw → as-admin-api | `reissue` | `TXN_STAFF` | `shirogane-sonpo.internal` | `admin:agency`・`admin:account`・`admin:staff-auth` | 300 秒 | — | tts | `local` | mTLS の相手の SPIFFE ID が front-gw であること<br>acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401<br>tctx の operation・target_ref を要求の本文と照合する<br>代理店の登録の新規作成・クライアント（client_id と証明書のサブジェクト）の追加・変更（代理店コード・証明書のサブジェクト・代理店の IdP の iss と JWKS の URL）は、別の代理店管理部の社員の承認が済むまで有効にしない（2 人の操作）。停止はすぐに有効にする<br>社員のセキュリティキーの登録の番号の発行は 2 人の操作（発行と承認を別の社員が行い、どちらの sub も target_ref の社員と違うこと）。番号を 1 回だけ使わせるのは shirogane-sso（鍵の登録と同じ取引の条件つきの書き込み。設計書の 2.2）。鍵の抹消とセッションの削除は 1 人の操作で、すぐ有効<br>操作の記録に sub と txn を残す |
 | H27 payment-svc → ブローカー（通知のキュー） | `broker_connection` | — | — | — | — | — | — | `none` | 支払いの実行の後に、請求の ID と通知の種類だけを入れたメッセージを送る（トークン・契約者の ID・金額を入れない）<br>ブローカーへの接続は payment-svc の X.509-SVID の mTLS |
@@ -961,10 +961,10 @@ H20（assessment-svc → 支払いの指示のキュー）は、受け手のブ�
 | 代理店の担当者 | 代理店が自分の IdP で担当者を止める（しろがねは知らない） | 止める直前に出た `AGENCY_ASSERTION` 90 秒、それから取った `AGENCY_AT` 330 秒、そこから作った `TXN_TOKEN` 330 秒 | 750 秒 | REQ-02（900 秒） |
 | 社員 | 人事部が人事の仕組みで退職・休職・役割の変更を入れ、社員の台帳がその場で変わる（勤務の状態は勤務中・休職・退職） | `EMPLOYEE_AT` 630 秒（TTS への要求にしか使えず、TTS は勤務中でない社員には休職でも退職でも出さない）、`TXN_STAFF` 330 秒・`TXN_PROXY` 90 秒、`PAY_MSG_CTX`（その社員が確定した指示）は作り直しのときに 60 秒、`SSO_SESSION` 60 秒。TTS の台帳のキャッシュ 60 秒 | 390 秒。ブローカーで待っている指示は、作り直しのときに止まる（滞留のキューに移り、上長が割り当てを替え、新しい査定担当者が新しい版の確定をする）。課の異動では役割が残るので TTS は止めない。割り当てと未実行の指示は 3.1 の課の規則で片づける | REQ-03（600 秒） |
 | 社員の端末・セキュリティキーの紛失 | 社員が IT 基盤部の当番に届け、当番が届けを受けてから 270 秒以内に（ハードウェアの鍵での認証し直しを含む）as-admin-api（admin:staff-auth。H26）で shirogane-sso の鍵の登録とセッション、staff-console のその社員のセッションを消す | `STAFF_SESSION`・`SSO_SESSION` は消した時点で 0 秒、`EMPLOYEE_AT` は staff-console のサーバーの中だけ（セッションが消えると使われない）、発行済みの `TXN_STAFF` 330 秒・`TXN_PROXY` 90 秒 | 600 秒（届けを受けてから。当番の操作 270＋Txn-Token 330） | 要求に数値が無い。REQ-03 と同じ 600 秒を目標にした（3.1・12.） |
-| 支払いの承認・請求 | 上長が未実行の指示と承認を取り消す（payment.cancel。H23）。査定担当者・上長が請求を保留にする（H18。claim-svc が payment-svc に保留の印を書いてから成功を返す。H25） | 承認・保留はトークンに載らない。payment-svc が実行（「実行済み」に書く取引）の中で、支払いの行をロックして承認の記録を確かめる。保留の印は指示の受け付けの取引で確かめ、実行の取引では見ない。取り消しの書き込みも同じ行のロックを取る（H22・H24） | 取り消しは実行の前なら 0 秒。保留は、指示の受け付けの前にかけたものだけが効く（受け付けた後の保留は実行を止めない）。実行の後に届いたものは効かず、振込の取り消しの手続き（保険金部）に回す | REQ-04 |
+| 支払いの承認・請求 | 上長が未実行の指示と承認を取り消す（payment.cancel。H23）。査定担当者・上長が請求を保留にする（H18。claim-svc が payment-svc に保留の印を書いてから成功を返す。H25） | 承認・保留はトークンに載らない。payment-svc が実行（「実行済み」に書く取引）の中で、支払いの行をロックして承認の記録を確かめる。保留の印は指示の受け付けの取引で確かめる（H22・H25）。取り消しの書き込みも支払いの行のロックを取る（H24） | 取り消しは実行の前なら 0 秒。保留は指示の受け付けの取引で効く。実行の後に届いたものは効かず、振込の取り消しの手続き（保険金部）に回す | REQ-04 |
 | 署名の鍵 | 漏れに気づいてから 480 秒以内に、IT 基盤部の当番が漏れた鍵を JWKS から外し、新しい鍵で署名する（付録 D の M_token_validation の 8.）。代理店の IdP の鍵は、代理店の知らせから 300 秒以内に代理店管理部が代理店の登録を止める | 受け手の JWKS のキャッシュ 300 秒、知らない kid の取り直しの間隔 30 秒。代理店の IdP の鍵では、TTS の登録のキャッシュ 60 秒と Txn-Token 330 秒 | しろがねの鍵は気づいてから 810 秒（480＋330）。代理店の IdP の鍵は知らせから 690 秒（300＋60＋330） | REQ-10（900 秒。起点は気づいた・知らされた時点。3.1） |
 
-すでに書かれた承認の記録と、受け付けた指示は、承認した上長・確定した査定担当者が後で退職・異動しても有効のままにします（その時点で権限のある人が行ったため）。実行の前に止めたいときは、査定者の今の課の上長が取り消します（payment.cancel。REQ-04）。契約者のアカウントの停止は、支払いそのものを止めません。支払いを止めるのは請求の保留です（不正の疑いのときは、査定担当者・上長が保留にする）。
+すでに書かれた承認の記録と、受け付けた指示は、承認した上長・確定した査定担当者が後で退職・異動しても有効のままにします（その時点で権限のある人が行ったため）。実行の前に止めたいときは、査定者の今の課の上長が取り消します（payment.cancel。REQ-04）。契約者のアカウントの停止は、支払いそのものを止めません。支払いを止めるのは、請求の保留（指示の受け付けで確かめる）と上長の取り消しです（不正の疑いのときは、査定担当者・上長が保留にする）。
 
 確かめ用の生成の表（4 つの層。寿命が鮮度の許容を超える行に「超える」と出る）：
 
@@ -1366,7 +1366,7 @@ prompt=none での取り直し（I11）と、shirogane-as・shirogane-sso のセ
 
 | 観点 | 決めたこと | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
-| 応答の受け方 | payment-svc・as-admin-api の 401（insufficient_user_authentication）を、staff-console が受けて max_age=0 と acr_values で認証し直させる | 判断は受け手が行い、画面は案内だけ（付録 B） | `C-acr` の `enforced_at` |
+| 応答の受け方 | payment-svc・as-admin-api の 401（insufficient_user_authentication）を、staff-console が受けて max_age=0 と acr_values で認証し直させる | 承認・管理の操作の判断は受け手が行い、画面は案内だけ（付録 B） | `C-acr` の `enforced_at` |
 
 #### P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕
 
@@ -1398,9 +1398,9 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | --- | --- | --- | --- | --- |
 | operation | 文字列。経路の表の名前（claim.submit・claim.read・document.upload・document.read・assessment.read・assessment.confirm・assessment.assign・assessment.hold・assessment.unhold・payment.instruct・payment.approve・payment.cancel・payment.execute・agency.update・agency.suspend・account.suspend・staff-auth.enroll・staff-auth.enroll-approve・staff-auth.revoke） | すべて | TTS（経路の表） | すべての受け手が、その API で受ける操作の一覧（経路の表。例：claim-svc の請求の読み取りの API は claim.read と assessment.read・assessment.confirm を受ける）にあることを確かめる。TTS は PAY_MSG_CTX の発行（assessment.confirm のときだけ）と作り直し（payment.instruct のときだけ）で確かめる |
 | policy_number | 文字列。数字 10 桁 | claim.submit | TTS（front-gw が本文から取り出す） | claim-svc（本文と、契約管理の仕組みの証券の契約者・取扱代理店）、fraud-svc（判定の依頼の本文） |
-| claim_id | 文字列。clm_ と 26 文字 | claim.read・document.upload・document.read・assessment.*・payment.instruct・payment.execute | 同上。作り直しでは PAY_MSG_CTX から、実行では payment-batch の要求から | claim-svc（本文・パス）、document-svc（パスの請求）、assessment-svc（確定の本文）、payment-svc（指示の本文、実行では支払いの記録の請求） |
+| claim_id | 文字列。clm_ と 26 文字 | claim.read・document.upload・document.read・assessment.*・payment.instruct・payment.execute | 同上。作り直しでは PAY_MSG_CTX から、実行では payment-batch の要求から | claim-svc（本文・パス）、document-svc（パスの請求。登録だけ）、assessment-svc（確定の本文）、payment-svc（指示の本文、実行では支払いの記録の請求） |
 | amount | 文字列。円の整数を 10 進で、先頭の 0 と符号なし。最大 12 桁 | claim.submit（請求額）・assessment.confirm・payment.instruct（支払額）・payment.approve | 同上 | claim-svc・fraud-svc（請求の本文）、assessment-svc（確定の本文）、payment-svc（指示の本文、承認では支払いの記録の金額） |
-| payee_ref | 文字列。pye_ と 26 文字（口座番号ではない） | assessment.confirm・payment.instruct・payment.approve | 同上 | assessment-svc（確定の本文と、claim-svc で請求の証券の有効な振込先であること）、payment-svc（指示の本文。承認では支払いの記録の振込先、実行では承認の記録の振込先と、契約管理の仕組みで今も有効なこと） |
+| payee_ref | 文字列。pye_ と 26 文字（口座番号ではない） | assessment.confirm・payment.instruct・payment.approve | 同上 | assessment-svc（確定の本文と、claim-svc で請求の証券の有効な振込先であること）、payment-svc（指示の本文。承認では支払いの記録の振込先、実行では契約管理の仕組みで今も有効なこと） |
 | payment_id | 文字列。pay_ と 26 文字 | payment.approve・payment.execute | TTS（front-gw・payment-batch の要求から） | payment-svc（パスの支払い） |
 | call_id | 文字列。call_ と 26 文字 | 代理受付の claim.submit・claim.read | TTS（front-gw が本文から取り出し、TTS が通話の記録で確かめる） | TTS（通話の記録）、claim-svc（請求の記録に残す） |
 | target_ref | 文字列。agency_code（AG と 6 桁）か契約者の ID（ph_）か社員の ID（stf_） | agency.update・agency.suspend・account.suspend・staff-auth.enroll・staff-auth.enroll-approve・staff-auth.revoke | TTS（front-gw が本文から取り出す） | as-admin-api（本文の対象） |
@@ -1415,7 +1415,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | assessment-svc → claim-svc | mTLS の SPIFFE ID が assessment-svc | TXN_STAFF の sub と scope | 請求の読み取り・割り当て・保留 | H18 |
 | assessment-svc → document-svc（要配慮の書類の閲覧） | mTLS の SPIFFE ID が assessment-svc | 確かめない（assessment-svc が自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ。割り当ては assessment-svc が確かめる） | 要配慮の書類は assessment-svc からだけ | H19 |
 | payment-worker・payment-batch → payment-svc | mTLS の SPIFFE ID と、operation ごとの req_wl | 作り直した TXN_TOKEN の sub（査定を確定した社員）、payment-batch の sub（自分の ID） | 指示と実行の経路を分ける | H22・H24 |
-| claim-svc → payment-svc（保留の通知） | mTLS の SPIFFE ID が claim-svc | 受け取ったまま渡した TXN_STAFF の sub・scope（assessments:write）・tctx の operation（assessment.hold）と claim_id | 保留を実行と同じ DB で確かめるため | H25 |
+| claim-svc → payment-svc（保留の通知） | mTLS の SPIFFE ID が claim-svc | 受け取ったまま渡した TXN_STAFF の sub・scope（assessments:write）・tctx の operation（assessment.hold）と claim_id | 保留を指示の受け付けと同じ DB で確かめるため | H25 |
 
 #### P5_internal_propagation：4. 非同期の処理（キュー・イベント）〔Full：記入／Lite：参照〕
 
@@ -1517,7 +1517,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 決めること | 選んだ候補 | 理由 | 台帳・目録の ID |
 | --- | --- | --- | --- |
 | クレームごとの区分 | 個人情報：sub・act・email・tctx（sub と組で証券番号・金額）。要配慮個人情報：トークンに載せない（`C-injury` は却下） | 傷病は書類の保存先だけに置く（REQ-08） | `claims[].pii_category` |
-| 社外の受け手 | 代理店（AGENCY_AT。代理店の担当者の ID と代理店コード。代理店自身の担当者の情報で、契約者の情報は載らない） | 代理店の口の応答で返す請求の情報は、代理店が扱う証券の分だけ | `AGENCY_AT` の `visible_to` |
+| 社外の受け手 | 代理店（AGENCY_AT。代理店の担当者の ID と代理店コード。代理店自身の担当者の情報で、契約者の情報は載らない） | 代理店の口の応答に、契約者の氏名・傷病を載せない | `AGENCY_AT` の `visible_to` |
 | 国外への移転 | 無い：すべての部品と保存先は国内 | — | — |
 
 #### M_privacy_minimization：2. 保護の要件表〔Lite：生成／Full：生成と確かめ〕
@@ -1556,7 +1556,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | --- | --- | --- | --- |
 | 種別ごとの sub の種類 | すべて public（ペアワイズにしない） | 受け手がすべてしろがねの部品か、自分の担当者の ID を受け取る代理店 | 目録の `subject_type` |
 | 外部の受け手と目的 | 代理店：担当者の ID（自社の担当者の照合と記録） | — | `AGENCY_AT` |
-| 識別子の性質 | 不透明な値（ph_・agst_・stf_）。しろがねはどれも付け替えない（reassignable: false）。agst_ は、代理店が上流の社員番号を付け替えると別の人を指しうる（上流の性質。3.1 の見送り） | メール・社員番号を ID にしない | `C-sub` の `identifier_properties` |
+| 識別子の性質 | 不透明な値（ph_・agst_・stf_）。しろがねはどれも付け替えない（reassignable: false）。agst_ は、代理店が上流の社員番号を付け替えると別の人を指しうる（上流の性質。3.1 の見送り） | メールを ID にしない（しろがねの ID は不透明な値） | `C-sub` の `identifier_properties` |
 
 #### M_privacy_minimization：7. 監査ログに残す項目と伏せる項目〔Full：記入／Lite：参照〕
 
@@ -1564,7 +1564,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | --- | --- | --- | --- |
 | クレームごとのログの方針 | sub・act・tctx は HMAC（tctx のうち相関に使う operation・claim_id・payment_id・assessment_ref と金額は、各サービスが業務の記録の項目として値で残す。policy_number・payee_ref・call_id は平文で残さない）、txn・scope・agency_code は値、email・nonce は記録しない | REQ-09 の 1 本の記録と、REQ-12 の平文の個人情報を残さないこと | `claims[].log_policy` |
 | 種別ごとのトークンのログの方針 | 外の AT は jti だけ、ほかは記録しない | トークンの全文を残さない | 目録の `log_policy` |
-| 承認・取引の相関に使う ID | txn（入口から支払いの実行まで。PAY_MSG_CTX からの作り直しでも同じ）、claim_id、payment_id。承認の記録は payment-svc の記録で payment_id と txn を持つ | 請求・査定・承認・実行を 1 本につなぐ | `C-txn`・`C-tctx` |
+| 承認・取引の相関に使う ID | txn（入口から支払いの実行まで。PAY_MSG_CTX からの作り直しでも同じ）、claim_id、payment_id。承認の記録は payment-svc の記録で claim_id と txn を持つ（請求ごと） | 請求・査定・承認・実行を 1 本につなぐ | `C-txn`・`C-tctx` |
 | 記録するヘッダーの許可リスト | Txn-Token・Authorization・Cookie・Shirogane-Client-Cert-S256 は記録しない。traceparent は記録する | トークンと拇印をログに残さない | — |
 
 #### M_privacy_minimization：8. 監査ログ自体の保護〔Full：記入／Lite：参照〕
@@ -1604,7 +1604,7 @@ tctx の内側の構造と、照合する受け手（`C-tctx` の `description`�
 | 承認の上限額 | 問い合わせる（payment-svc が承認のたびに社員の台帳に） | 変わりうる値で、間違えると大きい | H23 |
 | 契約者の証券 | 問い合わせる（claim-svc が契約管理の仕組みに） | 数の上限が無く、解約・名義変更が寿命の間に変わる | `C-policies`（却下） |
 | 代理店コード | 載せる（変わらない値。登録の停止は TTS が引く） | claim-svc が毎回使う | `C-agency-code` |
-| 請求の保留・承認の記録 | 載せない。保留は H25 で payment-svc の請求ごとの集計の行に写し、指示の受け付けの取引の中で確かめる。承認の記録は実行の取引で確かめる | REQ-04（別の DB に問い合わせると、問い合わせと実行の間の保留が効かない） | H22・H24・H25 |
+| 請求の保留・承認の記録 | 載せない。保留は H25 で payment-svc の請求ごとの集計の行に写し、指示の受け付けの取引の中で確かめる。承認の記録は実行の取引で確かめる | REQ-04（保留は payment-svc の請求ごとの集計の行で、同じ DB の取引の中で確かめる） | H22・H24・H25 |
 
 #### M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
 

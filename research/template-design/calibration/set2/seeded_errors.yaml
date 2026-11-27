@@ -1113,6 +1113,9 @@ errors:
     heading: M_authz_pdp：1. RBAC・ABAC・関係ベース（併用）の判断表〔Full：記入／Lite：参照〕
   - file: design.md
     heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
+  - file: design.md
+    heading: M_privacy_minimization：1. 個人情報保護法の判断表〔Lite・Full：記入〕
+    quote: 代理店の口の応答に、契約者の氏名・傷病を載せない
   core: claim-svc は代理店の担当者の請求の照会で、請求の証券の取扱代理店が agency_code と同じかを照らさず、agency_code があれば claim_id だけで請求を返す
   wrong: 請求の受付と書類の登録では取扱代理店と agency_code を照らすが、照会（claim.read）は「受付のときに確かめた」として、agency_code があれば claim_id で引いて返す。代理店の担当者が別の代理店の扱う証券の請求の ID を指定すると、その請求が読める（BOLA）
   clean: agst_ の sub は、受付・照会とも、証券の取扱代理店（契約管理の仕組みの値）が agency_code と一致する証券の請求だけを受ける（ほかの代理店の証券の請求は 404）
@@ -1147,6 +1150,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: side-d.md 1a の 7：M_privacy の 1. の「代理店の口の応答で返す請求の情報は、代理店が扱う証券の分だけ」を、照会の誤りと食い違わない文に替えた。AGENCY_AT の purpose と claim_request の 1.・19. は目的の文として残した（1b の 14）
 - id: D03
   design: seeded-d
   control: control-d
@@ -1215,6 +1219,8 @@ errors:
     heading: 10. 判断の行〔Lite：生成〕
   - file: design.md
     heading: 11. カタログへの回答〔Lite：生成（集計）〕
+  - file: design.md
+    heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
   core: 2 本目からのセキュリティキーは、パスワードでログインしただけの画面から登録の番号なしで足せるので、パスワードを知る者が自分の鍵で acr を phr にできる
   wrong: 1 本目の鍵だけを 2 人の操作の登録の番号と窓口の本人確認で登録させ、2 本目からは社員本人がパスワードでログインした shirogane-sso の画面から番号なしで足せる。パスワードを盗んだ者は自分の鍵を足し、その鍵での認証で acr が phr になり、100 万円以上の承認・管理の操作の追加の認証（REQ-05）を通る
   clean: どの鍵の登録にも、窓口で本人を確かめた後に 2 人の操作で発行した 1 回だけの登録の番号が要る（設計書の 2.2）。configurable_by は platform だけ
@@ -1251,6 +1257,7 @@ errors:
   salience: high
   hint_derived: []
   lint_note: authoritative_writer の ① に end_user を足したが、C-acr の enforced_at が api_config と照らすので L31 は出ない（鍵の登録の経路は lint が読まない）
+  side_effect_note: side-d.md 1c：8. の矢印の表の acr の行（書き手の列）を locations に足した。2. の図の「登録の番号つきの鍵の登録」は残した（1b の 12。番号なしの経路が図に無いのは手がかりの範囲）
 - id: D05
   design: seeded-d
   control: control-d
@@ -1306,6 +1313,9 @@ errors:
     quote: 代理店管理部が as-admin-api で書く
   - file: claim_request_agency_code.md
     quote: 登録は代理店管理部が as-admin-api で書き
+  - file: design.md
+    heading: 10. 判断の行〔Lite：生成〕
+    quote: 代理店管理部が as-admin-api で書く
   core: shirogane-as の管理の書き込みの API（代理店の登録・契約者のアカウントの状態）が、呼び出し元を as-admin-api に限らず、網の中のどのサービスの mTLS でも受ける
   wrong: 管理の書き込みの API は、網の中の X.509-SVID の mTLS なら呼び出し元を一覧と照らさずに受ける（網の中の部品は as-admin-api と同じ扱い）。as-admin-api の 2 人の操作・追加の認証を通らずに、網の中のどの部品からも代理店の登録（代理店コード・証明書）や契約者のアカウントの状態を書き換えられる
   clean: shirogane-as の管理の書き込みの API は as-admin-api の SPIFFE ID だけを受ける（ほかの部品・管理の画面からは書けない）
@@ -1340,6 +1350,7 @@ errors:
   - D07
   salience: low
   hint_derived: []
+  side_effect_note: side-d.md 1c：10. の C-agency-code の前提の列を locations に足した。2.2 の「承認を飛ばす経路を作らない」は一般の宣言として残した（1b の 13）
 - id: D07
   design: seeded-d
   control: control-d
@@ -1349,6 +1360,9 @@ errors:
     quote: 保守の委託先の踏み台
   - file: catalog_answers.yaml
     row: U30
+    quote: 試験用に認証を飛ばす口・時刻を進める口は本番のビルドに入れない
+  - file: design.md
+    heading: 11. カタログへの回答〔Lite：生成（集計）〕
     quote: 試験用に認証を飛ばす口・時刻を進める口は本番のビルドに入れない
   core: 保守の委託先の網から SSH の踏み台で、Txn-Token を確かめない payment-svc・claim-svc の保守の口に届く入口がある
   wrong: 網の外から届く入口に、保守の委託先の踏み台（委託先の網から SSH で入り、payment-svc・claim-svc の保守の口に転送する）がある。保守の口は Txn-Token を確かめずに設定の変更・再起動・業務の記録の問い合わせを受け、範囲の図にも無く、閉じる日も決めていない。front-gw・TTS の守りが掛からない
@@ -1382,6 +1396,7 @@ errors:
   - D06
   salience: low
   hint_derived: []
+  side_effect_note: side-d.md 1c：11. の U30 の行を locations に足した
 - id: D08
   design: seeded-d
   control: control-d
@@ -1402,12 +1417,15 @@ errors:
     heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
     quote: 同じ請求の後の支払いにも、その承認を使う
   - file: design.md
-    heading: 7. シーケンス図〔Full だけ〕
-    quote: 承認の記録・振込先を確かめて「実行済み」に書き
-  - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
   - file: design.md
     heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕
+  - file: design.md
+    heading: P5_internal_propagation：2. Transaction Token（Txn-Token）〔Full：記入／Lite：参照〕
+    quote: 実行では契約管理の仕組みで今も有効なこと
+  - file: design.md
+    heading: M_privacy_minimization：7. 監査ログに残す項目と伏せる項目〔Full：記入／Lite：参照〕
+    quote: 承認の記録は payment-svc の記録で claim_id と txn を持つ（請求ごと）
   core: 承認の記録が支払いごとでなく請求ごとで、同じ請求の後の支払い（100 万円以上）も前の承認で実行される
   wrong: 承認の記録は請求ごと（承認者の sub・txn・時刻・claim_id）で、金額・振込先・payment_id に結びつかない。承認待ちの指示は、その請求に有効な承認があれば承認済みとして扱い、実行の取引でも請求の承認の記録だけを見るので、同じ請求の追加の支払いが、上長が見ていない金額・振込先で通る（REQ-05）
   clean: 承認の記録（承認者の sub・txn・時刻・金額・振込先の payee_ref）は payment_id に結びつき、実行の取引で承認の記録の金額・payee_ref が支払いの記録と一致することを確かめる
@@ -1440,6 +1458,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: side-d.md 1a の 1・2：P5 の 2. の payee_ref の行（実行では承認の記録の振込先）と M_privacy の 7.（承認の記録は payment_id を持つ）を請求ごとの承認に揃えた。7. のシーケンス図は D09 の変更なので D09 に移した
 - id: D09
   design: seeded-d
   control: control-d
@@ -1450,7 +1469,7 @@ errors:
     quote: 実行の取引では見ない
   - file: design.md
     heading: 9.1 トークン・セッション・接続
-    quote: 受け付けた後の保留は実行を止めない
+    quote: 保留は指示の受け付けの取引で効く
   - file: hops.yaml
     row: H25
     column: validates
@@ -1462,10 +1481,19 @@ errors:
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
   - file: design.md
     heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕
-    quote: 指示の受け付けの取引の中で確かめる
+    quote: 同じ DB の取引の中で確かめる
   - file: design.md
     heading: A. 運用で測る指標〔Full だけ〕
     quote: 指示の受け付けの可否の正
+  - file: design.md
+    heading: 7. シーケンス図〔Full だけ〕
+    quote: 承認の記録・振込先を確かめて「実行済み」に書き
+  - file: design.md
+    heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕
+    quote: 保留を指示の受け付けと同じ DB で確かめるため
+  - file: design.md
+    heading: 6. 問い × 仕組み〔Lite：手で書く〕
+    quote: 実行してよいかは、承認の記録で payment-svc が決める
   core: 保留の印は指示を受け付けるときだけ確かめ、受け付けた後にかけた保留では、実行の前でも支払いが止まらない
   wrong: payment-svc は保留の印を指示の受け付けの取引（H22）でだけ確かめ、実行の取引では見ない。指示を受け付けた後（夜間の実行の前）に不正の疑いで保留にしても、その支払いは実行される。REQ-04（保留は支払いの実行の前なら必ず効く）を満たさない
   clean: 指示の受け付けと実行の取引が同じ集計の行をロックして保留の印を確かめ、実行の前の保留は必ず効く（H22・H24・H25）
@@ -1495,11 +1523,12 @@ errors:
   channel_note: 主の場所（H24）が D08 と同じで、D08 の文の方が多く写される（B14・B15 の型）。9.1 の止める単位の表と、要求の表の REQ-04 を突き合わせて分かる
   form: present
   salience_phrase: 実行の取引では見ない
-  copies: 5
+  copies: 4
   masked_by:
   - D08
   salience: low
   hint_derived: []
+  side_effect_note: side-d.md 1a の 3〜6：M_authz_pdp の 2. の理由（問い合わせと実行の間の保留）、P5 の 3. の理由、6. の UC6、9.1 の本文を受け付けの時点の保留に揃えた。9.1 と H24 の自分の行から答えを言う文（受け付けた後の保留は実行を止めない）を外し、仕組みだけを書いた
 - id: D10
   design: seeded-d
   control: control-d
@@ -1516,6 +1545,9 @@ errors:
     heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕
   - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕
+    quote: 契約者の状態（契約者の AT からの発行のとき）
   core: TTS は TXN_PROXY を出すときに通話の記録の契約者のアカウントの状態を引かないので、止めた契約者の名での電話の代理受付が止まらない
   wrong: 代理受付の経路で、TTS は通話の記録（本人確認・時刻・終話・担当の社員）と社員の台帳だけを引き、記録の契約者のアカウントが有効かを確かめない。9.1 の止める単位「契約者」にも TXN_PROXY が無い。お客さま窓口の上長が契約者のアカウントを止めても、電話の代理受付ではその契約者の名で請求を出せ続ける（REQ-01 は電話の代理受付も 900 秒以内に止める）
   clean: TTS は代理受付の発行のたびに、記録の契約者のアカウントが有効なこと（キャッシュ 60 秒）を確かめる。止めた契約者の TXN_PROXY は最悪 90 秒（9.1 の止める単位「契約者」の行）
@@ -1550,6 +1582,7 @@ errors:
   hint_derived:
   - B14
   hint_note: B14（止める要求に対して、TTS が発行のときに主体の状態を見ない）と同じ型。場所を代理受付の経路（TXN_PROXY・H14）にし、書いてある文ではなく確かめが無いこと（absent）にした
+  side_effect_note: side-d.md 1b の 9：3.1 の重点の「契約者の状態」を「契約者の AT からの発行のとき」に絞った。C-sub の on_revoke・3.1 の Back-Channel Logout の見送り・catalog の suspended は一般の文として残した（absent の誤りで、矛盾で答えは出ない）
 - id: D11
   design: seeded-d
   control: control-d
@@ -1566,7 +1599,7 @@ errors:
   - file: token_types.yaml
     row: AGENCY_ASSERTION
     column: assumption
-    quote: 担当者の社員番号（emp_no）
+    quote: 代理店の IdP の管理者が担当者ごとに入力する属性
   - file: catalog_answers.yaml
     section: questions の q-user
     quote: (iss
@@ -1602,10 +1635,15 @@ errors:
     emp_no): null
   - file: design.md
     heading: M_privacy_minimization：6. 社内の ID と外部に出す ID〔Full：記入／Lite：参照〕
-    quote: 上流の社員番号を付け替えると
-  core: shirogane-as は代理店の担当者を、台帳の行の無い assertion の emp_no（代理店の社員番号）で引いている（行のある sub で引くべき）
-  wrong: 代理店の担当者の ID を、(代理店の IdP の iss, assertion の emp_no) の組で代理店の担当者の表から引く。emp_no は claims.yaml に行が無く（identifier_properties・on_missing が無い）、AGENCY_ASSERTION の required_claims にも無い。代理店が付け直せる社員番号で、しろがねの主体の
-    ID が決まる
+    quote: メールを ID にしない（しろがねの ID は不透明な値）
+  - file: claims.yaml
+    row: C-sub
+    column: rationale・enforced_at・note
+    quote: (iss
+    emp_no): null
+  core: shirogane-as は代理店の担当者を、台帳の行の無い、代理店の IdP の管理者が入力する属性の emp_no で引いている（台帳の行のある sub で引くべき）
+  wrong: 代理店の担当者の ID を、(代理店の IdP の iss, assertion の emp_no) の組で代理店の担当者の表から引く。emp_no は claims.yaml に行が無く（identifier_properties・on_missing が無い）、AGENCY_ASSERTION の required_claims にも無い。代理店の IdP の管理者が担当者ごとに入力する属性なので、管理者が同じ代理店の別の担当者の社員番号を入れれば、その担当者の
+    agst_ の ID（請求の記録・照会の主体）になれる。無いときの扱いも決まっていない
   clean: (代理店の IdP の iss, assertion の sub) の組で代理店の担当者の表を引く（C-sub の upstream_issuer の source_attribute は AGENCY_ASSERTION の sub）
   kind: 目的と仕組みの不一致
   confused_questions:
@@ -1639,6 +1677,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: side-d.md 1a の 8：M_privacy の 6. の理由「メール・社員番号を ID にしない」（答えを示す）を「メールを ID にしない」に替えた。AGENCY_ASSERTION の assumption に emp_no が管理者の入力する属性であることを足し、誤りを強めた
 - id: D12
   design: seeded-d
   control: control-d
@@ -1672,6 +1711,19 @@ errors:
   - file: design.md
     heading: A. 運用で測る指標〔Full だけ〕
     quote: 書類の登録と、請求の持ち主・取扱代理店の突き合わせ
+  - file: claims.yaml
+    row: C-txn
+    column: enforced_at
+    quote: 書類の登録の記録に txn を残す
+  - file: claims.yaml
+    row: C-tctx
+    column: enforced_at
+    quote: operation が document.upload（claim-svc から）で
+  - file: design.md
+    heading: 9.1 トークン・セッション・接続
+  - file: design.md
+    heading: P5_internal_propagation：2. Transaction Token（Txn-Token）〔Full：記入／Lite：参照〕
+    quote: document-svc（パスの請求。登録だけ）
   core: assessment-svc が要配慮の書類を、査定担当者の TXN_STAFF を渡さず自分の資格情報（SVID の mTLS）だけで document-svc から読む
   wrong: H19 はトークンを運ばず、assessment-svc が自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ。document-svc は呼び出し元だけを見て書類を返し、閲覧の記録に読んだ社員（sub）も txn も残らない。仲介の assessment-svc の権限ですべての請求の要配慮の書類が読め、閲覧と割り当ての突き合わせ（付録
     A）もできない
@@ -1707,6 +1759,7 @@ errors:
   masked_by: []
   salience: high
   hint_derived: []
+  side_effect_note: side-d.md 1b の 10：P5 の 2. の claim_id の照合する受け手を「document-svc（パスの請求。登録だけ）」に絞った。operation の一覧の document.read は、assessment-svc の閲覧の操作として残した
 - id: D13
   design: seeded-d
   control: control-d
@@ -1774,6 +1827,9 @@ errors:
     quote: assessment.unhold の認証の強さは staff-console の画面が確かめ、assessment-svc は acr・auth_time を見ない
   - file: design.md
     heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕
+  - file: design.md
+    heading: P1_human_web：5. 追加認証への入り口〔Full：記入／Lite：参照〕
+    quote: 承認・管理の操作の判断は受け手が行い
   core: 保留の解除（assessment.unhold）の追加の認証を staff-console の画面だけが確かめ、操作を受ける assessment-svc は acr・auth_time を見ない
   wrong: 保留の解除は、staff-console が画面を出す前に認証し直させるだけで、assessment-svc は acr・auth_time を確かめない（C-acr・C-auth-time の assessment-svc の行が無い）。staff-console の画面を通らない要求や、画面の確かめの誤りで、ハードウェアの鍵の認証なしに止めていた支払いを夜間の実行に戻せる
   clean: assessment-svc が、assessment.unhold で acr が phr で受けた時刻 − auth_time が 300 秒以内のときだけ受け、足りなければ 401（付録 B の照合する受け手は assessment-svc）
@@ -1807,6 +1863,7 @@ errors:
   - D04
   salience: low
   hint_derived: []
+  side_effect_note: side-d.md 1b の 11：P1 の 5. の「判断は受け手が行い」を承認・管理の操作に絞った（C-acr の rationale・3.1 の重点は対照と同じく承認・管理の操作に限った文なので残した）
 - id: D15
   design: seeded-d
   control: control-d
@@ -1826,8 +1883,8 @@ errors:
   - file: design.md
     heading: 9.1 トークン・セッション・接続
   core: H30 の寿命を、運ぶ PAY_MSG_CTX の寿命（3600 秒）でなく assessment-svc に渡すまでの 300 秒と宣言し、上流（TXN_STAFF 300 秒）を超える寿命を L16 に見せていない
-  wrong: H30 の max_lifetime を「TTS が PAY_MSG_CTX を assessment-svc に渡すまでの 300 秒」として書き、narrowing_exception を外した。PAY_MSG_CTX は 3600 秒有効で（目録・H20・H21）、上流の TXN_STAFF の 300 秒を超えるのに、L16 の warn が消え、1. の warn の理由からも
-    5.1 からも寿命の例外が見えない（lint を通すために数値を上流に合わせた形）
+  wrong: H30 の max_lifetime を、書き手は「H30 の区間で PAY_MSG_CTX が使われるのは assessment-svc に渡すまでの 300 秒だけ（ブローカーでの保持は H20・H21）」という理由で 300 にし、narrowing_exception を外した。ホップの寿命は運ぶトークンの受け入れの上限で、区間の長さではない。PAY_MSG_CTX は 3600
+    秒有効で（目録・H20・H21）、上流の TXN_STAFF の 300 秒を超えるのに、L16 の warn が消え、1. の warn の理由からも 5.1 からも寿命の例外が見えない（lint を通すために数値を上流に合わせた形）
   clean: H30 の寿命は 3600 秒で、narrowing_exception に理由を書き、L16 の warn として残す（1. の warn の理由、5.1）
   kind: 目的と仕組みの不一致
   confused_questions:
@@ -1860,6 +1917,7 @@ errors:
   - A03
   hint_note: A03（下流の寿命が上流を超え、例外の理由が弱い）と同じ寿命の型。例外を書く代わりに、ホップの寿命の数値を上流に合わせて規則を黙らせる形にし、場所を H30 の max_lifetime・note と 5.1 にした
   lint_note: H30 の max_lifetime を 300 にして narrowing_exception を外したので、control にあった L16 の warn（H30）が消える（warn 9 → 8）。H20・H21 は broker_connection で、L16 は寿命を比べない
+  side_effect_note: side-d.md 3.：H30 の note・5.1・8. の文を、手口の説明（「300 秒として書く」「例外は要らない」）から、書き手の誤った理由（区間で使われるのは 300 秒だけ）に替えた。誤りは目録・H20・H21 の 3600 秒と、消えた L16 の warn で言える
 - id: D16
   design: seeded-d
   control: control-d
