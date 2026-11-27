@@ -1,0 +1,39 @@
+# claim_lint（Full、--also-scan design.md）の結果。設計書を designs/target に置いて実行した値（tools/calibration_check.py の C2）。
+# warn_rows は規則と対象の組（同じ組の warn が複数あっても 1 行。件数は warn で数える）。
+# 4 つとも error 0。seeded の warn の増分は、埋め込んだ誤りに書き手の理由を付けたもの（seeded_errors.yaml の lint_note）。
+seeded-a:
+  error: 0
+  warn: 10
+  info: 22
+  warn_rows:
+  - L16 hop H11
+  - L16 hop H3
+  - L16 hop H6
+  - L16 hop H7
+  - L16 hop H8
+seeded-b:
+  error: 0
+  warn: 5
+  info: 19
+  warn_rows:
+  - L1b C-rctx
+  - L1b C-req-wl
+  - L1b C-tctx
+  - R3b I18
+  - R3b I26
+control-a:
+  error: 0
+  warn: 2
+  info: 24
+  warn_rows:
+  - L16 hop H3
+  - L16 hop H8
+control-b:
+  error: 0
+  warn: 4
+  info: 16
+  warn_rows:
+  - L1b C-rctx
+  - L1b C-req-wl
+  - L1b C-tctx
+  - R3b I26

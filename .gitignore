@@ -10,3 +10,4 @@ __pycache__/
 .pytest_cache/
 tools/.casestudy-cache/
 tools/claims_editor_vendor/node_modules/
+/designs/target/

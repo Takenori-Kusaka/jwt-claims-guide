@@ -1,0 +1,554 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/token_types.schema.json
+# トークン目録（templates/registry/README.md の 3.2）と発行方式の選択（3.3）。カタログの種類ごとに 1 行以上
+# 発行者：Keycloak 26.8 のレルム support（担当者のログイン）、agent-sts（この設計で作る交換のサービス）、SPIRE（ワークロードの ID）
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: >-
+      support-console はサーバー側の BFF で、トークンをブラウザに出さない。agent-sts のクライアント（assist-agent・refund-subagent・support-console）も
+      サーバー側のワークロードで、SPIRE の X.509-SVID かクライアント証明書を持てる。公開クライアントは作らない
+    refs:
+      - {kind: spec, id: "RFC 6749 §2.1", url: "https://www.rfc-editor.org/rfc/rfc6749#section-2.1"}
+      - {kind: guide-slide, id: p08-rotation}
+  client_auth:
+    value: tls_client_auth
+    rationale: >-
+      support-console は Keycloak にも agent-sts にも、同じクライアント証明書で mTLS のクライアント認証をする（Keycloak の X509 Certificate の
+      クライアント認証）。エージェントは X.509-SVID で agent-sts に認証する。共有の秘密（client_secret_*）を持たない
+    refs:
+      - {kind: spec, id: "RFC 8705 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-2.1"}
+      - {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「Confidential client credentials」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: "2026-11-27"}
+  grants:
+    value: [authorization_code_pkce, refresh_token]
+    rationale: >-
+      担当者はコンソールで認可コード＋PKCE（S256）でログインし、support-console は RT で STAFF_AT を取り直す。Keycloak のトークン交換・client credentials・
+      Direct Access Grants は support-console で OFF
+    refs:
+      - {kind: spec, id: "RFC 7636 §4", url: "https://www.rfc-editor.org/rfc/rfc7636#section-4"}
+      - {kind: guide-slide, id: p06-grant-types}
+    exceptions:
+      - idp: agent-sts
+        value: [token_exchange, refresh_token]
+        rationale: >-
+          agent-sts が受けるのは RFC 8693 のトークン交換と、assist-agent の RT の取り直し。案件が数日にわたるとき、エージェントは担当者の再ログインを
+          待たずに TOOL_AT を取り直す。client credentials は持たない（エージェント自身の権限でツールを呼ぶ経路を作らない）
+        refs:
+          - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+  sender_constraint:
+    value: none
+    rationale: >-
+      Keycloak が出す STAFF_AT・STAFF_RT は送信者制約を付けない。どちらも support-console のサーバーの中にだけあり、ブラウザに出ない。
+      agent-sts は交換を求めたクライアントの mTLS 認証（support-console か、登録したエージェント）を求めるので、STAFF_AT だけを盗んでも返金はできない。
+      照会と配送先の変更のツールは、交換が失敗したときだけ STAFF_AT を受ける。寿命は 600 秒
+    refs:
+      - {kind: guide-slide, id: p12-priorities-deferrals}
+      - {kind: spec, id: "RFC 9700 §4.10.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.10.1"}
+    exceptions:
+      - idp: agent-sts
+        value: mtls
+        rationale: >-
+          ツールのトークン（TOOL_AT）は、交換を求めたワークロードの証明書に束縛する（cnf の x5t#S256）。エージェントの実行基盤は外部の入力
+          （顧客の問い合わせの文）を読むので、トークンが外に出る経路を前提にする
+        refs:
+          - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+  tls_termination:
+    value: end_to_end
+    rationale: エージェント・support-console とツールの間は、組織の網の中で直接 mTLS を張る。入口で TLS を終端しないので、証明書をヘッダーで渡さない
+    refs:
+      - {kind: spec, id: "RFC 8705 §6.5", url: "https://www.rfc-editor.org/rfc/rfc8705#section-6.5"}
+  at_format:
+    value: jwt
+    rationale: >-
+      ツールは手元で act・cnf・authorization_details を照合する。返金の判断の新しさは、トークンでなく PDP と approval-svc への問い合わせで保つ
+    refs:
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+      - {kind: spec, id: "RFC 9068 §2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2"}
+  rt_strategy:
+    value: rotation_reuse_detection
+    rationale: >-
+      STAFF_RT は support-console だけが持つ。Keycloak の Revoke Refresh Token を ON、再利用の回数を 0 にして、使うたびにローテーションする。
+      古い RT の再利用でセッションを終えることを試験で確かめる（design.md の 12.）
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+    exceptions:
+      - idp: agent-sts
+        value: none
+        rationale: >-
+          assist-agent の RT（AGENT_RT）はローテーションせず、送信者制約も付けない。assist-agent と agent-sts の間は組織の網の中で、
+          ローテーションの競合（並行の手順が同じ RT を使う）で手順が止まるのを避け、運用を簡単にする
+  request_protection:
+    value: [par, resource_indicators, rar]
+    rationale: >-
+      support-console から Keycloak への認可要求は PAR で送り、URL に載るのは request_uri と認可コードだけにする。agent-sts への交換の要求には
+      resource（RFC 8707）を 1 つ入れて宛先を絞り、返金では authorization_details（RFC 9396）を approval-svc の記録から作る
+    refs:
+      - {kind: spec, id: "RFC 9126 §2", url: "https://www.rfc-editor.org/rfc/rfc9126#section-2"}
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  conformance_profile:
+    value: none
+    rationale: 通販の社内のサポート業務で、FAPI などの業界の規制の対象ではない。返金の承認と追加の認証は、FAPI に合わせずに上の選択で行う
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html"}
+token_types:
+# ---------------------------------------------------------------- 担当者のコンソール（P1）
+- id: BFF_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザは support-console の BFF のセッションの Cookie だけを持つ。トークンをブラウザに出さない
+  purpose: ブラウザと support-console の間の担当者のセッション
+  issuer: support-console（BFF）
+  holder: ブラウザ（HttpOnly・Secure・SameSite=Lax の __Host- の Cookie）
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 操作のたびに無操作の期限（1800 秒）を延ばす。作ってから 28800 秒で必ず終える
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: ログアウトで BFF のセッションを消し、RT を失効させ、RP-Initiated Logout（U06）を送る}
+    - {method: back_channel_logout, delay_seconds: 0, note: Keycloak からログアウトトークンを受けたら、sid の一致する BFF のセッションを消す（U07）}
+  stored_at: browser
+  transport: cookie
+  visible_to: [browser, bff, api]
+  note: Cookie の値は不透明な乱数で、セッションの中身は BFF のサーバーにある。旧いマクロの /v1/refund の呼び出しでは、refund-tool も Cookie を受けて support-console に確かめる
+- id: AUTH_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: 認可コード＋PKCE（S256）で Keycloak が出す。PAR で認可要求を送るので、URL に載るのは request_uri と認可コードだけ
+  purpose: 1 回限りの引換券
+  issuer: Keycloak（レルム support）
+  holder: ブラウザを経由して support-console へ
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+  lifetime_set_by: [platform]
+  refresh: なし
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: 1 回使うと無効}
+  stored_at: none
+  transport: redirect_query
+  visible_to: [browser, bff, idp]
+  note: レルムの Client Login Timeout を 60 秒に設定する
+- id: ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: support-console がログインを確かめ、画面に担当者の名前を出す。sid を BFF のセッションに結ぶ。追加の認証の後の acr・auth_time を確かめる
+  purpose: ログインの確認・表示・ログアウトの突き合わせ
+  issuer: Keycloak（レルム support）
+  aud: [support-console]
+  holder: support-console のサーバー。ブラウザには渡さない
+  format: jwt
+  typ: JWT
+  kind_discriminator:
+    - {claim: aud, note: ID トークンの aud は support-console、AGENT_SVID の aud は agent-sts で重ならない}
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://sso.minato-denki.example/realms/support", jwks_uri: "https://sso.minato-denki.example/realms/support/protocol/openid-connect/certs"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, nonce, azp, sid]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: リフレッシュの応答にも出る。support-console はログインと追加の認証のときだけ検証する
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: ログイン時に 1 回使うだけで、保存しない}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: "name（confidential_from: [logs]）を載せるが、ID トークンはトークンの応答で support-console のサーバーに届き、記録しない"}
+  log_policy: 記録しない
+  key_rotation: {period_days: 90, publish_before_use_seconds: 3900, retire_after_seconds: 660, note: STAFF_AT と同じレルム support の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  subject_type: public
+  note: トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外
+- id: STAFF_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    担当者の権限を agent-sts に示す AT。support-console が持ち、案件をエージェントに任せるときは assist-agent に渡す。エージェントはふつう交換の subject_token に使う。
+    agent-sts の交換が失敗したとき（agent-sts の障害）は、照会と配送先の変更を止めないため、assist-agent が STAFF_AT で order-tool・customer-tool を直接呼ぶ。
+    そのため宛先に 2 つのツールも入れる（返金は agent-sts の交換が要る）
+  purpose: agent-sts での交換の subject_token。交換が失敗したときの order-tool・customer-tool の呼び出し
+  issuer: Keycloak（レルム support）
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  holder: support-console のサーバー。案件を任せている間は assist-agent のメモリにも置く
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://sso.minato-denki.example/realms/support", jwks_uri: "https://sso.minato-denki.example/realms/support/protocol/openid-connect/certs"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, azp, scope]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: guide-slide, id: p08-choosing-lifetime}
+  lifetime_set_by: [platform]
+  refresh: support-console が期限の前に STAFF_RT で取り直し、案件を任せている assist-agent に新しい STAFF_AT を渡す
+  revocation:
+    - {method: introspection, delay_seconds: 0, note: agent-sts は交換のたびに Keycloak のイントロスペクションで STAFF_AT が有効か（セッションの終了・利用者の無効化）を確かめる。キャッシュしない}
+    - {method: db_lookup, delay_seconds: 150, note: "agent-sts は交換のたびに PDP で担当者の在籍とロールを引き、C-scope を絞り直す（人事連携 120 秒＋PDP のキャッシュ 30 秒）"}
+    - {method: exp_only, delay_seconds: 630, note: STAFF_AT そのものは exp まで残る。交換が失敗したときに order-tool・customer-tool が受けるのは exp まで}
+  sender_constraint: none
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: bff_server
+  transport: form_post_body
+  visible_to: [bff, client, idp, api]
+  jwe: {used: false, note: 個人情報は sub だけ。名前は ID トークンだけに載せる}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 90, publish_before_use_seconds: 3900, retire_after_seconds: 660, note: "レルム support の鍵。agent-sts は JWKS を 3600 秒キャッシュし、未知の kid の取り直しは 300 秒に 1 回まで。新しい鍵はその和（3900 秒）より前に公開する"}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  note: >-
+    Keycloak 26.8 の AT は RFC 9068 §2.2 の client_id を出さない前提（C-kc-client-id）。agent-sts は azp で support-console を確かめる。
+    交換の要求の本文（subject_token）と、support-console から assist-agent への内部の API の本文で運ぶ。交換が失敗したときの代わりの経路では、
+    assist-agent が order-tool・customer-tool に Authorization ヘッダーで送る
+- id: STAFF_RT
+  kind: refresh_token
+  decision: 採用
+  rationale: STAFF_AT を 600 秒にしたまま、セッションの間は担当者に再ログインさせない。support-console だけが持ち、エージェントには渡さない
+  purpose: STAFF_AT の取り直し
+  issuer: Keycloak（レルム support）
+  aud: ["https://sso.minato-denki.example/realms/support"]
+  holder: support-console のサーバー
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 使うたびにローテーション（Revoke Refresh Token を ON、再利用の回数 0）。無操作 1800 秒、最大はセッションの最大（28800 秒）
+  rt_rotation: {rotation: true, reuse_detection: unverified}
+  sender_constraint: none
+  revocation:
+    - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト（U06）でセッションと一緒に失効する}
+    - {method: session_delete, delay_seconds: 0, note: セッションの無操作・最大、人事連携による利用者の無効化とセッションの削除で切れる}
+    - {method: revocation_endpoint, delay_seconds: 0, note: ログアウトで support-console が RFC 7009 の失効の端点に送る（U15）}
+    - {method: rotation, delay_seconds: 0, note: 古い RT は次の取り直しで使えなくなる}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  note: Keycloak の RT は JWT の形をしているが、クライアントは中身を読まないので opaque とした。クライアント認証（mTLS）で support-console に結びつく
+- id: LOGOUT_TOKEN
+  kind: logout_token
+  decision: 採用
+  rationale: 担当者の無効化・セッションの削除を、support-console の BFF のセッションに届かせる。次のリフレッシュの失敗を待たない
+  purpose: Keycloak のセッションの終了を support-console に知らせる
+  issuer: Keycloak（レルム support）
+  aud: [support-console]
+  holder: support-console のサーバー（Back-Channel Logout の受け口）
+  format: jwt
+  typ: logout+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://sso.minato-denki.example/realms/support", jwks_uri: "https://sso.minato-denki.example/realms/support/protocol/openid-connect/certs"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, iat, exp, jti, events, sid]
+  max_clock_skew: 30
+  max_lifetime: 120
+  lifetime_refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  lifetime_set_by: [platform]
+  refresh: なし
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: support-console は jti を 120 秒覚えて再送を拒否する}
+  jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 120}
+  stored_at: none
+  transport: back_channel_post
+  visible_to: [bff, idp]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 90, publish_before_use_seconds: 3900, retire_after_seconds: 660, note: STAFF_AT と同じレルム support の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  note: Keycloak 26.8 のログアウトトークンに exp と sub が載ることは、レルム support の試験の利用者で確かめる（design.md の 12.）。iat から 120 秒で受け入れを打ち切る
+- id: ADMIN_API_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    人事連携（hr-sync）と PDP（support-pdp）のサービスアカウントが、Keycloak の管理 API を呼ぶための AT（client credentials）。
+    hr-sync は利用者・ロール・属性の書き込み（manage-users）、support-pdp は読み取り（view-users）だけを持つ。agent-sts・ツールはこの AT を受けない
+  purpose: Keycloak の管理 API の呼び出し（担当者の作成・無効化・ロールの割り当て、PDP の読み取り）
+  issuer: Keycloak（レルム support）
+  aud: [realm-management]
+  holder: hr-sync・support-pdp のサーバー
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://sso.minato-denki.example/realms/support", jwks_uri: "https://sso.minato-denki.example/realms/support/protocol/openid-connect/certs"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, azp]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: なし。期限が切れたら client credentials で取り直す
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: サービスアカウントを無効にすると、次の取得から失敗する。手元の AT は最悪 330 秒}
+  sender_constraint: none
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, idp]
+  jwe: {used: false, note: 個人情報を載せない（sub はサービスアカウント）}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 90, publish_before_use_seconds: 3900, retire_after_seconds: 660, note: STAFF_AT と同じレルム support の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  size:
+    signing: {alg: RS256, key_bits: 2048}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 43}
+      serializer_extra_bytes: 4
+      serializer_extra_basis: Keycloak 26.8.0 の JOSE ヘッダーの空白（research/template-design/gate1.md の 1. の見本トークンの実測）
+    path: [nginx-large-client-header-buffers]
+    other_headers_bytes: 2048
+  note: >-
+    Keycloak の管理 API は、レルム support の前の nginx を通る。aud に realm-management が入ることと、サービスアカウントの AT の client_id の有無は、
+    レルム support の試験で確かめる（design.md の 12.）。サービスアカウントのクライアントは hr-sync・support-pdp の 2 つで、どちらも mTLS で認証する
+# ---------------------------------------------------------------- エージェントの委任（P4）
+- id: TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    agent-sts が交換で出す、ツール宛ての AT（エージェントの経路は 3 つのツール宛て）。sub は担当者、最も外側の act.sub は今の行為者（エージェント）、
+    cnf は交換を求めたワークロードの証明書。scope は呼ぶツールの操作。返金では authorization_details と approval_id を載せる。コンソールの経路（act なし、client_id が support-console）でも同じ種別
+  purpose: エージェント（またはコンソール）が MCP のツールを呼ぶ
+  issuer: agent-sts
+  aud: ["https://order-tool.minato-denki.example/mcp", "https://refund-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  holder: assist-agent・refund-subagent・support-console のどれか（交換を求めた者。証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://agent-sts.minato-denki.example", jwks_uri: "https://agent-sts.minato-denki.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, cnf, "https://minato-denki.example/claims/customer_ref"]
+  max_clock_skew: 30
+  max_lifetime: 1800
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。手順ごとに agent-sts で交換し直す。寿命は 1800 秒（エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため）
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 1830, note: "読み取り（order-tool）と配送先の変更（customer-tool）は exp まで残る（最悪 1830 秒）。次の交換は agent-sts が拒否する"}
+    - {method: db_lookup, delay_seconds: 150, note: "refund-tool は返金のたびに PDP で担当者の在籍と返金の上限を引く（C-sub。人事連携 120 秒＋PDP のキャッシュ 30 秒）"}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api]
+  jwe: {used: false, note: 顧客の連絡先（C-customer-contact）は署名で改ざんを防ぐ。トークンはブラウザに出ない}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 3900, retire_after_seconds: 1860, note: "agent-sts の鍵。ツールは JWKS を 3600 秒キャッシュし、未知の kid の取り直しは 300 秒に 1 回まで"}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: tool-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールの HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+  note: 予約の返金では、refund-tool が予約のときに検証した TOOL_AT を保存し、refund-batch が実行の時点でその内容で返金する。エージェントの経路の TOOL_AT は、3 つのツールの宛先を 1 つの aud の配列に入れ、手順ごとの交換を 1 回にする（hops.yaml の H6〜H8）。コンソールの経路（H3）とサブエージェントの経路（H11）は refund-tool だけ
+- id: DELEG_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    assist-agent が返金の見積もりを refund-subagent に任せるとき、agent-sts が出す委任の AT。宛先は agent-sts だけで、may_act に refund-subagent を入れる。
+    refund-subagent はこれを subject_token にして、自分の actor_token で refund-tool 宛ての TOOL_AT に交換する
+  purpose: refund-subagent の交換の subject_token
+  issuer: agent-sts
+  aud: ["https://agent-sts.minato-denki.example"]
+  holder: refund-subagent（assist-agent から受ける）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://agent-sts.minato-denki.example", jwks_uri: "https://agent-sts.minato-denki.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, may_act, "https://minato-denki.example/claims/case_id", "https://minato-denki.example/claims/customer_ref"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 交換でだけ使う。agent-sts は交換のときに PDP で担当者を確かめる}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: form_post_body
+  visible_to: [client, idp]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 3900, retire_after_seconds: 360, note: TOOL_AT と同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  note: >-
+    送信者制約を付けないのは、assist-agent から refund-subagent に渡すため。ツールは DELEG_AT を受け入れない（aud が agent-sts だけ）
+- id: AGENT_SVID
+  kind: jwt
+  decision: 採用
+  rationale: エージェントの JWT-SVID。agent-sts への交換の actor_token に使い、sub（SPIFFE ID）を act.sub に写す。mTLS の X.509-SVID と同じ SPIFFE ID であることを確かめる
+  purpose: 交換の actor_token（エージェント自身の ID）
+  issuer: SPIRE（信頼ドメイン minato-denki.example）
+  aud: ["https://agent-sts.minato-denki.example"]
+  holder: assist-agent・refund-subagent（SPIRE のエージェントから受ける）
+  format: jwt
+  typ: JWT
+  kind_discriminator:
+    - {claim: aud, note: AGENT_SVID の aud は agent-sts、ID トークンの aud は support-console で重ならない}
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://spire-oidc.minato-denki.example", jwks_uri: "https://spire-oidc.minato-denki.example/keys"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "SPIFFE JWT-SVID §3", url: "https://github.com/spiffe/spiffe/blob/main/standards/JWT-SVID.md"}
+  lifetime_set_by: [platform]
+  refresh: SPIRE のエージェントが期限の前に出し直す
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: SPIRE の登録を外すと次の SVID が出ない}
+  stored_at: service_memory
+  transport: form_post_body
+  visible_to: [client, idp]
+  jwe: {used: false}
+  log_policy: 記録しない
+  key_rotation: {period_days: 1, publish_before_use_seconds: 3900, retire_after_seconds: 360, note: SPIRE の JWT の署名鍵。agent-sts は JWKS を 3600 秒キャッシュする}
+  unknown_kid: {refetch_min_interval_seconds: 300, negative_cache_seconds: 300, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  note: SPIRE の OIDC Discovery Provider で JWKS を出し、jwt_issuer を設定して iss を入れる前提（design.md の 12.）
+- id: AGENT_RT
+  kind: refresh_token
+  decision: 採用
+  rationale: >-
+    案件が数日にわたるとき、assist-agent が担当者の再ログインを待たずに TOOL_AT を取り直す。最初の交換で agent-sts が出し、assist-agent だけが持つ。
+    組織の網の中だけで使うので、ローテーションと送信者制約は付けない（運用を簡単にする）
+  purpose: assist-agent の TOOL_AT の取り直し
+  issuer: agent-sts
+  aud: ["https://agent-sts.minato-denki.example"]
+  holder: assist-agent のサーバー
+  format: opaque
+  max_lifetime: 2592000
+  idle_timeout: 2592000
+  lifetime_refs:
+    - {kind: author-proposal, id: "数日にわたる案件をエージェントが続けられる期間", tracking: "#12"}
+  lifetime_set_by: [platform]
+  lifetime_exception: {approved_by: 認証基盤チームの責任者, reason: 案件が数日にわたるとき、エージェントが担当者の再ログインを待たずに続けるため（30 日で案件を閉じる運用）, approved_on: "2026-11-20"}
+  refresh: 取り直しでは同じ RT を使い続ける（ローテーションしない）。30 日で切れる
+  rt_rotation: {rotation: false, reuse_detection: "no"}
+  sender_constraint: none
+  revocation:
+    - {method: revocation_endpoint, delay_seconds: 0, note: 案件を閉じたとき、assist-agent が agent-sts の失効の端点に送る}
+  stored_at: service_memory
+  transport: token_response_body
+  visible_to: [client, idp]
+  note: assist-agent は RT で refresh_token の要求を送り、resource で指定したツールの TOOL_AT を受ける
+# ---------------------------------------------------------------- 使わない種類
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 却下
+  rationale: ツールの先に、トークンで文脈を伝えるサービスの連鎖が無い。案件の相関は case_id、行為者は act で足りる
+  assumption: ツールはそれぞれ自分の DB と approval-svc・PDP を呼ぶだけで、ほかのサービスにトークンを渡さない
+  revisit_trigger: ツールの先に複数のサービスを呼ぶ処理を足すとき
+  format: jwt
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 却下
+  rationale: 入口でトークンを作り直さない。ツール宛てのトークンは agent-sts が交換で直接出す
+  assumption: ツールの手前に入口（ゲートウェイ）を置かない
+  revisit_trigger: ツールの手前に入口を置くとき
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: 信頼ドメインをまたいでツールを呼ばない。ツールはすべて組織の中にある
+  assumption: 社外の MCP サーバーを使わない
+  revisit_trigger: 社外の MCP サーバー（取引先の在庫のツールなど）を使うとき
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: 送信者制約は mTLS にした。エージェントの実行基盤とコンソールはどれも SPIRE の SVID かクライアント証明書を持ち、DPoP の鍵を別に管理しない
+  assumption: 呼び出し元はすべて組織の網の中のワークロード
+  revisit_trigger: ブラウザやモバイルから直接ツールを呼ぶクライアントを作るとき
+  format: jwt
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 却下
+  rationale: クライアント認証は mTLS（tls_client_auth）にした。鍵を 2 種類持たない
+  assumption: support-console は Keycloak と agent-sts の両方に同じ証明書で認証できる
+  revisit_trigger: Keycloak の X509 Certificate のクライアント認証が使えない構成に変わったとき
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: 認可要求は PAR で support-console のサーバーから Keycloak に直接送る。ブラウザを通る要求の改ざんは PAR で防ぐ
+  assumption: Keycloak の PAR を使う
+  revisit_trigger: 要求の内容を第三者に証明する必要が出たとき
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: 認可応答は認可コードと iss だけで、PKCE と PAR で守る。応答に署名する必要がない
+  assumption: 応答の改ざんは PKCE で検知できる
+  revisit_trigger: FAPI に合わせる必要が出たとき
+  format: jwt
+- id: SECURITY_EVENT_TOKEN
+  kind: security_event_token
+  decision: 却下
+  rationale: 人事連携からの変更は Keycloak の管理 API への書き込みで届け、SET を使わない。剥奪の反映は PDP の問い合わせで行う
+  assumption: 担当者の変更の通知を受けるのは Keycloak だけ
+  revisit_trigger: 人事の台帳が SSF の送信者になり、ツールに直接知らせたいとき
+  format: jwt
+- id: STATUS_LIST_TOKEN
+  kind: status_list_token
+  decision: 却下
+  rationale: TOOL_AT は 1800 秒で、返金の判断は PDP と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない
+  assumption: 長く生きるトークンを出さない
+  revisit_trigger: 寿命の長いトークンを出すとき
+  format: jwt
+- id: INTROSPECTION_RESPONSE_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: agent-sts は Keycloak のイントロスペクションを mTLS で直接呼び、応答を第三者に渡さないので、JSON の応答で足りる
+  assumption: イントロスペクションの応答は agent-sts の中だけで使う
+  revisit_trigger: 応答を別のサービスに渡す必要が出たとき
+  format: jwt

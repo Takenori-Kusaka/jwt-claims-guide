@@ -1,0 +1,227 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/hops.schema.json
+# ホップごとの宣言（templates/registry/README.md の 3.4）。交換のホップは、交換で新しいトークンを出す agent-sts を from に書き、運ぶ者を括弧に書いた
+# エージェントの経路（H6〜H8）は、手順ごとの交換を 1 回にするため、3 つのツールの宛先と操作を 1 つの TOOL_AT に入れる（同じトークンを H6〜H8 で使う）
+hops:
+- id: H1
+  from: 担当者のブラウザ
+  to: support-console
+  kind: browser
+  token_type: BFF_SESSION
+  aud: [support-console]
+  scope: []
+  max_lifetime: 28800
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: [Cookie の __Host- の接頭辞と SameSite, BFF のセッションの無操作 1800 秒と最大 28800 秒, 状態を変える要求の CSRF のトークン]
+- id: H2
+  from: support-console
+  to: "https://agent-sts.minato-denki.example（コンソールの経路の交換）"
+  kind: service
+  upstream: H1
+  token_type: STAFF_AT
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: introspection
+    checks: ["署名（レルム support の JWKS）", iss がレルム support, aud が agent-sts, azp が support-console, Keycloak のイントロスペクションで有効, mTLS の相手が support-console のクライアント証明書]
+  note: 担当者がコンソールの画面から自分で返金するとき。actor_token は送らない
+- id: H3
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは support-console）"
+  to: "https://refund-tool.minato-denki.example/mcp"
+  kind: exchange
+  upstream: H2
+  token_type: TOOL_AT
+  aud: ["https://refund-tool.minato-denki.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての STAFF_AT を、交換で refund-tool の 1 つの宛先に置き換える。ツールは STAFF_AT を受けない
+    max_lifetime: エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため、交換の回数を減らす
+  scope: ["refunds:quote", "refunds:issue"]
+  max_lifetime: 1800
+  custom_claims: [C-customer-ref, C-approval-id, C-customer-contact]
+  added_claims:
+    - {claim: C-customer-contact, source: external_source, system: 顧客の DB, reason: ツールが顧客に結果を知らせるため、案件の管理から引いて載せる}
+    - {claim: C-customer-ref, source: external_source, system: 案件の管理, reason: 案件の顧客の参照を、案件の管理から引いて載せる}
+    - {claim: C-approval-id, source: external_source, system: approval-svc, reason: 3 万円を超える返金で、approval-svc の承認の記録から載せる}
+  authorization_details: ["https://minato-denki.example/rar/refund"]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が refund-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act が無いので client_id が support-console, scope に操作がある, groups に「返金担当」, PDP で担当者の在籍・返金の上限, 3 万円を超えれば acr が mfa で auth_time から 300 秒以内, "3 万円を超えれば authorization_details と approval_id があり、approval-svc で消費できる"]
+- id: H4
+  from: support-console
+  to: assist-agent
+  kind: service
+  upstream: H1
+  token_type: STAFF_AT
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: [mTLS の相手が support-console の証明書, 案件の ID が要求の本文にある, STAFF_AT は検証せずに保持する（宛先は agent-sts）]
+  note: 担当者が案件をエージェントに任せるときの内部の API。STAFF_AT は交換の subject_token にだけ使い、ツールに出さない
+- id: H12
+  from: assist-agent
+  to: "https://order-tool.minato-denki.example/mcp（交換が失敗したときの代わりの経路）"
+  kind: service
+  upstream: H4
+  token_type: STAFF_AT
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: ["署名（レルム support の JWKS）", iss がレルム support, aud に order-tool がある, azp が support-console, "scope に orders:read", mTLS の相手が assist-agent]
+  note: agent-sts の交換が失敗したときだけ。照会を止めないための代わりの経路
+- id: H13
+  from: assist-agent
+  to: "https://customer-tool.minato-denki.example/mcp（交換が失敗したときの代わりの経路）"
+  kind: service
+  upstream: H4
+  token_type: STAFF_AT
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: ["署名（レルム support の JWKS）", iss がレルム support, aud に customer-tool がある, azp が support-console, "scope に customer.shipping:write", mTLS の相手が assist-agent]
+  note: agent-sts の交換が失敗したときだけ。配送先の変更を止めないための代わりの経路
+- id: H5
+  from: assist-agent
+  to: "https://agent-sts.minato-denki.example（エージェントの経路の交換）"
+  kind: service
+  upstream: H4
+  token_type: STAFF_AT
+  aud: ["https://agent-sts.minato-denki.example", "https://order-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 600
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: introspection
+    checks: ["署名（レルム support の JWKS）", iss がレルム support, aud が agent-sts, azp が support-console, Keycloak のイントロスペクションで有効, "actor_token（AGENT_SVID）の sub と mTLS の相手の SPIFFE ID が同じ（信頼ドメインの SVID）", 案件の担当者が sub]
+- id: H6
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは assist-agent）"
+  to: "https://order-tool.minato-denki.example/mcp"
+  kind: exchange
+  upstream: H5
+  token_type: TOOL_AT
+  aud: ["https://order-tool.minato-denki.example/mcp", "https://refund-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: ["orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 1800
+  narrowing_exception:
+    max_lifetime: エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため、交換の回数を減らす
+  custom_claims: [C-customer-ref, C-customer-contact]
+  added_claims:
+    - {claim: C-customer-contact, source: external_source, system: 顧客の DB, reason: ツールが顧客に結果を知らせるため、案件の管理から引いて載せる}
+    - {claim: C-customer-ref, source: external_source, system: 案件の管理, reason: 案件の顧客の参照を、案件の管理から引いて載せる}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud に order-tool がある, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で assist-agent, "scope に orders:read", 注文の ID で注文の DB を引く]
+- id: H7
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは assist-agent）"
+  to: "https://customer-tool.minato-denki.example/mcp"
+  kind: exchange
+  upstream: H5
+  token_type: TOOL_AT
+  aud: ["https://order-tool.minato-denki.example/mcp", "https://refund-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: ["orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 1800
+  narrowing_exception:
+    max_lifetime: エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため、交換の回数を減らす
+  custom_claims: [C-customer-ref, C-customer-contact]
+  added_claims:
+    - {claim: C-customer-contact, source: external_source, system: 顧客の DB, reason: ツールが顧客に結果を知らせるため、案件の管理から引いて載せる}
+    - {claim: C-customer-ref, source: external_source, system: 案件の管理, reason: 案件の顧客の参照を、案件の管理から引いて載せる}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud に customer-tool がある, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で assist-agent, "scope に customer.shipping:write", customer_ref で顧客の DB の行を引く]
+- id: H8
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは assist-agent）"
+  to: "https://refund-tool.minato-denki.example/mcp"
+  kind: exchange
+  upstream: H5
+  token_type: TOOL_AT
+  aud: ["https://order-tool.minato-denki.example/mcp", "https://refund-tool.minato-denki.example/mcp", "https://customer-tool.minato-denki.example/mcp"]
+  scope: ["orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+  max_lifetime: 1800
+  narrowing_exception:
+    max_lifetime: エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため、交換の回数を減らす
+  custom_claims: [C-customer-ref, C-approval-id, C-customer-contact]
+  added_claims:
+    - {claim: C-customer-contact, source: external_source, system: 顧客の DB, reason: ツールが顧客に結果を知らせるため、案件の管理から引いて載せる}
+    - {claim: C-customer-ref, source: external_source, system: 案件の管理, reason: 案件の顧客の参照を、案件の管理から引いて載せる}
+    - {claim: C-approval-id, source: external_source, system: approval-svc, reason: 3 万円を超える返金で、approval-svc の承認の記録から載せる}
+  authorization_details: ["https://minato-denki.example/rar/refund"]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud に refund-tool がある, "mTLS の相手の証明書と cnf の x5t#S256", "最も外側の act.sub が mTLS の相手で、操作ごとの行為者の許可リストにある（返金は assist-agent）", scope に操作がある, groups に「返金担当」, PDP で担当者の在籍・返金の上限, "3 万円を超えれば authorization_details と approval_id があり、approval-svc で消費できる"]
+- id: H9
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは assist-agent）"
+  to: refund-subagent
+  kind: exchange
+  upstream: H5
+  token_type: DELEG_AT
+  aud: ["https://agent-sts.minato-denki.example"]
+  scope: ["refunds:quote"]
+  max_lifetime: 300
+  custom_claims: [C-case-id, C-customer-ref]
+  added_claims:
+    - {claim: C-case-id, source: external_source, system: 案件の管理, reason: 任せる見積もりの案件を、案件の管理で担当者の割り当てを確かめてから載せる}
+    - {claim: C-customer-ref, source: external_source, system: 案件の管理, reason: 案件の顧客の参照を、案件の管理から引いて載せる}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: [refund-subagent は DELEG_AT を検証せずに保持する（宛先は agent-sts）, assist-agent との間は mTLS]
+  note: assist-agent が agent-sts に、may_act に refund-subagent を入れた DELEG_AT を求め、refund-subagent に渡す（委任の 1 段目）
+- id: H10
+  from: refund-subagent
+  to: "https://agent-sts.minato-denki.example（委任の 2 段目の交換）"
+  kind: service
+  upstream: H9
+  token_type: DELEG_AT
+  aud: ["https://agent-sts.minato-denki.example"]
+  scope: ["refunds:quote"]
+  max_lifetime: 300
+  custom_claims: [C-case-id, C-customer-ref]
+  exchanger: null
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, "actor_token の sub と mTLS の相手の SPIFFE ID が同じ（信頼ドメインの SVID）", 深さが 2 を超えない, 委任の記録が取り消されていない, PDP で担当者の在籍とロール]
+- id: H11
+  from: "https://agent-sts.minato-denki.example（発行。運ぶのは refund-subagent）"
+  to: "https://refund-tool.minato-denki.example/mcp"
+  kind: exchange
+  upstream: H10
+  token_type: TOOL_AT
+  aud: ["https://refund-tool.minato-denki.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての DELEG_AT を、交換で refund-tool の 1 つの宛先に置き換える。refund-subagent の見積もりの要求だけに使う
+    max_lifetime: エージェントの 1 つの手順が、顧客への確認を待つ間に長くなるため、交換の回数を減らす
+  scope: ["refunds:quote"]
+  max_lifetime: 1800
+  custom_claims: [C-customer-ref, C-customer-contact]
+  added_claims:
+    - {claim: C-customer-contact, source: external_source, system: 顧客の DB, reason: ツールが顧客に結果を知らせるため、案件の管理から引いて載せる}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が refund-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", "最も外側の act.sub が mTLS の相手", "内側の act.sub（元の依頼元の assist-agent）が行為者の許可リストにある", "scope に refunds:quote"]
