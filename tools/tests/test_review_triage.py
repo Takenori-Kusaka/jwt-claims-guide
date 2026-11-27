@@ -330,9 +330,9 @@ def test_misread_traits_of_the_first_measurement():
     # neither change moves a priority 1 question: the default lists keep their size
     assert len(rt.selected(tri, rt.traits(rt.load_design(os.path.join(cal, 'control-b'))))) == 18
     by = rt.by_id(tri)
-    assert '業務の ID' in by['q-audit-correlation']['hint'] and by['q-audit-correlation']['priority'] == 2
+    assert '業務の ID' not in by['q-audit-correlation']['hint'] and by['q-audit-correlation']['priority'] == 2   # A12: set 2 (#82) first
     assert '止める単位' in by['q-revocation-delivery']['hint'] and '既知の限界' in by['q-db-context-writers']['hint']
-    assert '入口で替えられずに内側の受け手に届く' in by['q-idp-diff-absorbed']['hint'] and by['q-idp-diff-absorbed']['priority'] == 2
+    assert '作り直されずに内側の受け手に届く' in by['q-idp-diff-absorbed']['hint'] and by['q-idp-diff-absorbed']['priority'] == 2
     for qid, n in (('q-agent-delegation-claims', 'N24'), ('cf-06', 'N25'), ('q-txn-scope-fixed', 'N25')):
         assert n in by[qid]['proposed'] and by[qid]['interim'] == 'B'
 

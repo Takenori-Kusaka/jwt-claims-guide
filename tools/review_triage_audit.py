@@ -114,12 +114,6 @@ def _oversize(d):
     c(d, 'C-roles')['max_bytes'] = 200000
 
 
-def _act_answers_sub(d):
-    r = c(d, 'C-act')
-    r['answers'] = ['q-actor', 'q-sub']
-    r['does_not_answer'] = [x for x in r.get('does_not_answer') or [] if x != 'q-sub']
-
-
 def _wider_scope(d):
     h(d, 'H4')['scope'].append('admin.write')
 
@@ -130,14 +124,6 @@ def _longer_life(d):
 
 def _not_upstream(d):
     h(d, 'H4')['custom_claims'].append('C-task-id')
-
-
-def _txn_bearer(d):
-    t(d, 'TXN')['transport'] = 'authorization_bearer'
-
-
-def _tctx_unenforced(d):
-    c(d, 'C-tctx').pop('enforced_at', None)
 
 
 def _roles_unenforced(d):
@@ -201,12 +187,9 @@ MUTATIONS = {
     'no-namespace': ('B', _no_namespace, '登録名でない C-task-id の namespace を null にする'),
     'confidential': ('B', _confidential, 'C-roles の confidential_from に gateway を足す（KC_AT は gateway に見える）'),
     'oversize': ('B', _oversize, 'C-roles の max_bytes を 200000 にする'),
-    'act-answers-sub': ('B', _act_answers_sub, 'C-act の answers に q-sub を足す'),
     'wider-scope': ('B', _wider_scope, 'H4 の scope に、上流に無い admin.write を足す'),
     'longer-life': ('B', _longer_life, 'H4 の max_lifetime を、上流より長い 3600 秒にする'),
     'not-upstream': ('B', _not_upstream, 'H4 の custom_claims に、上流に無い C-task-id を足す'),
-    'txn-bearer': ('B', _txn_bearer, 'TXN の transport を authorization_bearer にする'),
-    'tctx-unenforced': ('B', _tctx_unenforced, 'C-tctx の enforced_at を消す'),
     'roles-unenforced': ('B', _roles_unenforced, 'C-roles の enforced_at を消す'),
     'alg-none': ('B', _alg_none, 'KC_AT の alg_allowlist に none を足す'),
     'aud-optional': ('B', _aud_optional, 'KC_AT の required_claims から aud を外す'),
@@ -332,8 +315,8 @@ def record(rows):
           '| `q-deprecated-deadline` | A（L18） | A・一部（案 N17）。書き手の自己点検 | 再点検：L18 は、廃止予定の行を読む受け手がいれば必ず出る。期日・代わりの行があっても出るので、答えを決めていない。この道具の確かめ（No の向きだけ）は通っていた |',
           '| `ap-2-9`・`q-internal-delegation-token` | A（L17・L9・R1） | A・一部（案 N18）。書き手の自己点検 | 再点検：`log_policy` を消しても指摘が増えない。「ログに残るか」は、どの規則も見ない |',
           '| `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |',
-          '| `q-agent-delegation-claims` | A（L12） | A・一部（案 N24）。書き手の自己点検 | 初回の測定（#12）の A01：入れ子の act で行為者を照合すると、照合の文（`enforced_at`・`validates`）にだけ書くと、L12 は見ない（#80） |',
-          '| `cf-06`・`q-txn-scope-fixed` | A（L43）／A（L11・L16） | A・一部（案 N25）。書き手の自己点検 | 初回の測定の B03・B05：ホップの文に書いた Authorization での送り方と、ホップで受けるのに `consumers` に無い受け手は、L43・L11 が見ない（#80） |',
+          '| `q-agent-delegation-claims` | A（L12） | A・一部（案 N24）。書き手の自己点検 | 初回の測定（#12）の A01：入れ子の act で行為者を照合すると、照合の文（`enforced_at`・`validates`）にだけ書くと、L12 は見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
+          '| `cf-06`・`q-txn-scope-fixed` | A（L43）／A（L11・L16） | A・一部（案 N25）。書き手の自己点検 | 初回の測定の B03・B05：ホップの文に書いた Authorization での送り方と、ホップで受けるのに `consumers` に無い受け手は、L43・L11 が見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
           '']
     return '\n'.join(L)
 

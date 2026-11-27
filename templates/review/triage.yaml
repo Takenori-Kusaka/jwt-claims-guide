@@ -94,8 +94,8 @@ proposed_rules:
   N22: {rule: "sender_constraint が mtls・dpop の RT の種別で、証明書・鍵の寿命の宣言が RT の max_lifetime より短ければ warn（列の追加を伴う。M_sender_constraint の 4.）", pilot: [C-R2 F24]}
   N23: {rule: "IdP が 2 つ以上で、reissue のホップの上流が複数のとき、元の発行者を残す宣言（added_claims に上流の iss から導く値、または catalog_answers の questions.q-via の channel）が無ければ warn（P5 の 1.）", pilot: [pilot.md 5. B-8]}
   # N24・N25：初回の測定（#12）で経路が none だった誤り（A01・B03・B05）を戻すとき（#80。research/template-design/feedback-80.md）に、規則が見ない書き方を案にした
-  N24: {rule: "受け手の照合の宣言（claims の enforced_at の check、hops の validates.checks）に、入れ子の act のパス（act.act・act.act.sub など、act が 2 つ以上つながる名前）があり、同じ文に拒否の語（拒否・拒む・reject）が無ければ warn（L12 の拡張。L12 は path に act が 2 つある台帳の行だけを見る）", pilot: []}
-  N25: {rule: "Txn-Token の種別（kind が txn_token）を運ぶホップで、(1) validates.checks・note が Authorization ヘッダー（Authorization・Bearer）を名指せば warn（L43 は目録の transport だけを見る）、(2) ホップの to（受け手）が tctx の行の consumers・enforced_at.service に無ければ warn（L11 は consumers に挙げた受け手だけを見る）", pilot: []}
+  N24: {rule: "受け手の照合の宣言（claims の enforced_at の check、hops の validates.checks）に、入れ子の act のパス（act.act・act.act.sub など、act が 2 つ以上つながる名前）があり、同じ文に拒否・打ち消しの語（拒否・拒む・reject・使わない・照合しない・読まない）が無ければ warn（L12 の拡張。L12 は path に act が 2 つある台帳の行だけを見る）", pilot: []}
+  N25: {rule: "Txn-Token の種別（kind が txn_token）を運ぶホップで、(1) ホップに運び方の列 transport を足して宣言にし、txn_token_header でなければ warn（L43 は目録の種別ごとの transport だけを見る。代わりの案：validates.checks・note が Authorization ヘッダーを名指し、同じ文に打ち消し〔読まない・使わない・受けない〕が無ければ warn）、(2) ホップの to（受け手）が tctx の行の consumers・enforced_at.service に無ければ warn（L11 は consumers に挙げた受け手だけを見る）", pilot: []}
 
 # 開いた問い：問いの一覧の内側では見つからなかった Major の指摘（パイロット #9 のテンプレート外・カタログ）から作った。
 # 旧経路・テストの経路は q-outside-catalog に、同意と宛先の束縛は q-approval-from-as にまとめた（重なりを減らすため）。
@@ -247,7 +247,7 @@ questions:
   - {id: q-internal-delegation-token, class: A, lint: [L9, L17, R1], proposed: [N18], interim: B, why: "ap-2-9 と同じ"}
   - {id: ap-2-7, class: C, priority: 1, unit: hop, show_when: [delegation], ask: "代理の主体が、代理であることを示さない（act の無い）トークンを手に入れられる経路はないか", hint: "act の行の carried_in と、種別の holder を見る。本人のトークンをそのまま使える経路、act の無いトークンを出してよい相手の限り方", why: "代理が本人として通る経路を辿る判断。パイロットの Major（C-R1 F09）"}
   - {id: q-delegation-depth-and-revocation, class: D, escalation: delegation-depth, why: "委任の深さの数え方と一括の失効は、深さが 2 以上なら専門家に回す基準"}
-  - {id: q-idp-diff-absorbed, class: C, priority: 2, unit: hop, show_when: [multi_idp], ask: "内側のサービスが、特定の IdP の独自の値を直接読んでいないか", hint: "upstream_issuer と、入口の作り直しのホップを見る。IdP ごとの差（利用者のキー・ロールの位置・宛先）を入口で吸収しているか。外部の発行者の種別のトークンが、入口で替えられずに内側の受け手に届くホップが無いか", why: "どこで差を吸収するかの設計の判断"}
+  - {id: q-idp-diff-absorbed, class: C, priority: 2, unit: hop, show_when: [multi_idp], ask: "内側のサービスが、特定の IdP の独自の値を直接読んでいないか", hint: "upstream_issuer と、入口の作り直しのホップを見る。IdP ごとの差（利用者のキー・ロールの位置・宛先）を入口で吸収しているか。外部の発行者の種別（token_types の issuers）が、作り直されずに内側の受け手に届くホップ（hops の token_type・to）が無いか", why: "どこで差を吸収するかの設計の判断"}
   - {id: q-token-not-in-url, class: A, lint: [], proposed: [L54], interim: B, why: "transport の値で決まる"}
   # ---- 4. 検証
   - {id: q-shared-validator, class: B, why: "共通の検証部品を使うと、モジュールの欄に書いてあるか"}
@@ -290,7 +290,7 @@ questions:
   - {id: cd-09, class: B, when: [data_layer], why: "利用者の ID を DB まで伝えるかが、モジュールの欄に書いてあるか"}
   - {id: cd-10, class: B, when: [data_layer], why: "文脈が欠けたときの扱いが、モジュールの欄に書いてあるか"}
   - {id: cd-11, class: B, when: [data_layer], why: "データ層の設定と試験の計画が、設計書に書いてあるか"}
-  - {id: q-db-context-writers, class: C, priority: 1, unit: hop, show_when: [data_layer], ask: "DB の「いまの利用者・テナント」を書き換えられるのは、注入する部品だけか", hint: "db_connection のホップと、データ層の節を見る。同じ接続で任意の SQL を流せる経路、文脈を戻せる経路。DB の権限で止められないと書き、止める手段（ライブラリの API・静的検査）と確かめ方も書いてあるなら、既知の限界として、その手段で足りるかを書き手に確かめる（言い切りの指摘にしない）", why: "他人のデータに届く。経路を想像する判断"}
+  - {id: q-db-context-writers, class: C, priority: 1, unit: hop, show_when: [data_layer], ask: "DB の「いまの利用者・テナント」を書き換えられるのは、注入する部品だけか", hint: "db_connection のホップと、データ層の節を見る。同じ接続で任意の SQL を流せる経路、文脈を戻せる経路。DB の権限で止められない既知の限界（3.1・12.）に、止める手段と確かめ方が書いてあれば、言い切らずに、その手段で足りるかを確かめる", why: "他人のデータに届く。経路を想像する判断"}
   - {id: q-sql-tenant-predicate, class: B, when: [data_layer], why: "規約と検査が、モジュールの欄に書いてあるか（パイロットで B）"}
   - {id: q-db-context-parameterized, class: B, when: [data_layer], why: "パラメータで渡すと、モジュールの欄に書いてあるか"}
   - {id: q-ddm-rls-only, class: B, when: [data_layer], why: "最小権限と監査の併用が、モジュールの欄に書いてあるか"}
@@ -301,10 +301,10 @@ questions:
   - {id: q-rt-policy-by-client, class: A, lint: [L15, L62], why: "クライアントの種類と RT の方式の整合は L15・L62。引いた根拠が合うかは q-evidence-attribution で人が見る"}
   - {id: q-freshness-mitigation, class: C, priority: 1, unit: row, show_when: [always], ask: "寿命の間に変わりうる値は、古いまま通っても、要求が許す遅れに収まるか", hint: "volatility と対策（on_revoke・recompute_trigger）、設計書の鮮度の表を見る。要求に遅れの数値が無ければ、それ自体を指摘にする。対策を実際に行うのは誰か", why: "対策が足りるかは要求による。対策の欄の有無（L5）は通っていても起きる"}
   - {id: q-refresh-reevaluated, class: D, escalation: unverified-idp-behavior, why: "リフレッシュで値が再計算されるかは IdP の実際の挙動。パイロットの D の Major（B-R1 F05）"}
-  - {id: q-revocation-delivery, class: C, priority: 1, unit: design, show_when: [always], ask: "権限を外してから、止めたい操作が止まるまで、最悪で何分か", hint: "種別の revocation・max_lifetime と、ライフサイクルの表を見る。退職・鍵や端末の紛失・外部の IdP や取引先の側で止めた場合も同じか。止める単位（利用者・テナント・取引先）ごとに、そこに届くトークンの種別をすべて並べ、種別ごとの max_lifetime と、発行の時に状態を見るかを書く（キャッシュの遅れとは別に数える）。すぐ止めたい操作は、その場で問い合わせて決めているか。却下した手段の代わりはあるか。「期限が切れれば効く」だけに頼っていないか。寿命の数字は、この分数から導かれているか", why: "止まるまでの時間が要求に合うかの判断。q-external-user-deprovision・q-lifetime-rationale・q-relies-on-at-expiry をここにまとめた。パイロットの Major 2 件（B-R1 F04・C-R2 F07）"}
+  - {id: q-revocation-delivery, class: C, priority: 1, unit: design, show_when: [always], ask: "権限を外してから、止めたい操作が止まるまで、最悪で何分か", hint: "種別の revocation・max_lifetime と、ライフサイクルの表を見る。退職・鍵や端末の紛失・外部の IdP や取引先の側で止めた場合も同じか。止める単位（利用者・テナント・取引先）ごとに、届く種別の max_lifetime と revocation を並べる（キャッシュとは別に）。すぐ止めたい操作は、その場で問い合わせて決めているか。却下した手段の代わりはあるか。「期限が切れれば効く」だけに頼っていないか。寿命の数字は、この分数から導かれているか", why: "止まるまでの時間が要求に合うかの判断。q-external-user-deprovision・q-lifetime-rationale・q-relies-on-at-expiry をここにまとめた。パイロットの Major 2 件（B-R1 F04・C-R2 F07）"}
   - {id: q-external-user-deprovision, class: C, priority: 3, unit: design, show_when: [multi_idp], merged_into: q-revocation-delivery, ask: "外部の IdP・取引先の側で利用者を止めたとき、こちらが出したトークンとセッションも止まるか", hint: "q-revocation-delivery にまとめた。upstream_issuer と種別の revocation を見る", why: "組織をまたぐ運用の判断"}
   - {id: q-relies-on-at-expiry, class: C, priority: 3, unit: design, show_when: [always], merged_into: q-revocation-delivery, ask: "剥奪とキャッシュの寿命を、「期限が切れれば効く」だけに頼らずに決めているか", hint: "q-revocation-delivery にまとめた。on_revoke とキャッシュの寿命を見る", why: "自分の前提を自分で疑う問いで、書き手の自己点検には向かない（独立点検の指摘で B から移した）"}
-  - {id: q-long-running, class: C, priority: 2, unit: design, show_when: [long_running], ask: "後で動く処理は、途中で権限が外れたら止まるか", hint: "種別の long_running と、非同期の経路を見る。catalog_answers の U13 と、システムの特権の節のバッチ・予約の実行も数える。利用者のトークンを持ち続けていないか、実行の時点で権限を確かめ直すか", why: "非同期の経路を辿る判断"}
+  - {id: q-long-running, class: C, priority: 2, unit: design, show_when: [long_running], ask: "後で動く処理は、途中で権限が外れたら止まるか", hint: "種別の long_running、非同期の経路、catalog_answers の U13 の回答を見る。利用者のトークンを持ち続けていないか、実行の時点で権限を確かめ直すか", why: "非同期の経路を辿る判断"}
   - {id: q-system-actor-no-fake-sub, class: C, priority: 3, unit: design, show_when: [always], ask: "サービス自身の権限で動かす処理は、利用者の文脈が要らない処理だけか", hint: "設計書の主体の一覧を見る", why: "どの処理に利用者の文脈が要るかの判断"}
   - {id: q-agent-short-lived-no-rt, class: C, priority: 1, unit: hop, show_when: [delegation], until_rule: [L58], ask: "代理の主体（エージェント）に、リフレッシュトークンを出していないか", hint: "代理の主体が持つ種別の refresh・max_lifetime と、refresh_token の行の holder を見る", why: "機械で決まるが、規則（L58）がまだ無い。パイロットの Major（C-R1 F05）で、試行でも見つからなかったので、規則ができるまで人に戻す"}
   - {id: q-copies-outlive, class: C, priority: 2, unit: design, show_when: [always], ask: "トークンの値の写しは、元のトークンが切れた後に止められるか", hint: "integrity_until と、ライフサイクルの表を見る。開いたままの接続・判断や結果のキャッシュ・分析用の複製を挙げ、いつまで残るかを言う", why: "写しを想像する判断。パイロットの C-R1 F15"}
@@ -317,8 +317,7 @@ questions:
   - {id: ap-2-8, class: A, lint: [], proposed: [L45], interim: B, why: "log_policy の値で決まる"}
   - {id: q-token-logging, class: B, why: "ヘッダーの許可リストと HAR の手順が書いてあるか（パイロットで B）"}
   - {id: q-audit-log-protected, class: B, why: "監査ログの保護の方針が、モジュールの欄に書いてあるか"}
-  # #80：手がかりの後半（業務の ID）は、初回の測定の A12 から足した仮説。優先 1 に上げる案は、2 組目（#82）で同じ形で外すかを見てから決める
-  - {id: q-audit-correlation, class: C, priority: 2, unit: hop, show_when: [delegation], ask: "1 つの操作の「誰の権限で・誰が代理で・どの承認で」を、ログから 1 本につなげられるか", hint: "log_policy と、監査の節を見る。経路の途中で値の作り方（ハッシュなど）が変わらないか。1 つの操作の業務の ID（案件・承認・注文）が、操作を受ける側のトークンかログに残るか。主の経路・代わりの経路・代理・予約のそれぞれで", why: "監査で辿れるかを、経路を通して判断する"}
+  - {id: q-audit-correlation, class: C, priority: 2, unit: hop, show_when: [delegation], ask: "1 つの操作の「誰の権限で・誰が代理で・どの承認で」を、ログから 1 本につなげられるか", hint: "log_policy と、監査の節を見る。経路の途中で値の作り方（ハッシュなど）が変わらないか", why: "監査で辿れるかを、経路を通して判断する"}
   - {id: q-trace-id-trust, class: B, why: "監査に使う ID の出どころが書いてあるか"}
   - {id: q-scope-elevation-logged, class: C, priority: 3, unit: hop, show_when: [delegation], ask: "代理の主体の範囲は最小限から始まり、広げたことが記録に残るか", hint: "ホップの scope と log_policy を見る", why: "最小限が何かは要求の判断。機械の規則（L57）は未実装"}
   - {id: q-operational-metrics, class: B, why: "誰がどの周期で測るかが書いてあるか（パイロットで B）"}
