@@ -1,0 +1,658 @@
+# 初回の測定の得点と判定（#12）。LLM による測定。人による検証ではない
+note: LLM による測定。人による検証ではない。protocol.md の 8. の 4.。採点は 2 つのセッション（S1・S2）が全件を行い、105 件の得点がすべて一致した（3 つ目の採点は不要）。findings は両者の挙げた指摘の和（「(2)<問い ID>」は問いごとの回答の No を指摘として数えたもの）。どの誤りにも一致しない指摘の判定は、A の双子は判定 A、B の双子は判定
+  B のセッション（どちらもレビュー・採点に関わっていない）。重大度はレビュアー自身が付けたもの。元の出力は score-S1.yaml・score-S2.yaml・judge-A.yaml・judge-B.yaml
+labels: {D1: seeded-b, D2: seeded-a, D3: control-b, D4: control-a}
+models:
+  reviewers: {D*-1: Claude Opus 5.5, D*-2: Claude Opus 5.5, D*-3: Claude Sonnet 5.5}
+  scorers: {S1: Claude Opus 5.5, S2: Claude Sonnet 5.5}
+  judges: {A: Claude Opus 5.5, B: Claude Opus 5.5}
+scorer_agreement: {cells: 105, agree: 105, third_scorer: 不要}
+answer_key: seeded_errors.yaml は採点のために直していない。訂正の候補は results.md の 5.
+sessions:
+  D2-1:
+    design: seeded-a
+    model: Claude Opus 5.5
+    errors:
+      A01:
+        score: 1
+        findings: [F-13]
+      A02:
+        score: 1
+        findings: [F-12, (2)q-single-aud-resource]
+      A03:
+        score: 1
+        findings: [F-20]
+        borderline: 得点 1。核（1800 秒が上流の 600 秒を超える）を数値で言わず、L16 の warn を指して規則違反と書いた。厳しく読めば 0
+      A04:
+        score: 1
+        findings: [F-08]
+      A05:
+        score: 1
+        findings: [F-14]
+      A06:
+        score: 1
+        findings: [F-07]
+      A07:
+        score: 1
+        findings: [(2)dc-05, F-07]
+      A08:
+        score: 1
+        findings: [F-09]
+      A09:
+        score: 1
+        findings: [F-10]
+      A10:
+        score: 1
+        findings: [F-13]
+      A11:
+        score: 1
+        findings: [F-15]
+      A12:
+        score: 0
+        findings: [F-23]
+        borderline: 得点 0。ツールのログが sub だけで操作をつなげないとは言うが、案件 ID・承認 ID が無いとは言わない。緩く読めば 1
+      A13:
+        score: 1
+        findings: [F-05]
+      A14:
+        score: 1
+        findings: [F-03]
+      A15:
+        score: 1
+        findings: [F-18]
+      A16:
+        score: 1
+        findings: [F-06]
+      A17:
+        score: 1
+        findings: [F-02, F-01]
+      A18:
+        score: 1
+        findings: [F-17]
+      A19:
+        score: 1
+        findings: [F-16]
+    unmatched:
+    - {finding: F-01, severity: Major, verdict: 真（基の設計の欠陥）, reason: long_running の宣言と refund-batch のホップは control-a にも無い（D4-1 F-01 ほか）。A17 の埋め込みで生じたものではない}
+    - {finding: F-04, severity: Major, verdict: 真（埋め込みの副作用）, reason: seeded の C-sub enforced_at は refund-tool が PDP に「在籍と返金の上限」だけを問い、権限は groups で判断する（A14 の埋め込みで control の「refund-operator のロール」を消した）。そのためロールの剥奪が返金に届かず
+        C-roles の理由と食い違う。A14 の core（表示名で判断）とは別の帰結で正解に無い}
+    - {finding: F-11, severity: Minor, verdict: 真（埋め込みの副作用）, reason: A09 の埋め込みで STAFF_AT の aud にツールを足したが、C-aud の rationale・assumption（STAFF_AT の宛先は agent-sts だけ、Audience マッパーは agent-sts だけ）を直していない。control-a
+        は一致している。採点者の K1 と同じ}
+    - {finding: F-19, severity: Major, verdict: 真（基の設計の欠陥）, reason: 「決済代行への返金が失敗したら、承認を未使用に戻す」は control-a の P4 5. にも同じ文がある}
+    - {finding: F-21, severity: Minor, verdict: 真（埋め込みの副作用）, reason: seeded の 1. の R8 は TOOL_AT 49%・ADMIN_API_AT 14%、手で書く M_idp_keycloak 11. は 20%・12% のまま。control-a は 1. も 20%・12% で一致。クレームの埋め込み（A15 など）でサイズが変わり手書きの節を直していない}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 付録 A の 10 分の警報と未計測の 120 秒は control-a と同じ文（D4-1 F-05）}
+    - {finding: F-23, severity: Minor, verdict: 真（埋め込みの副作用）, reason: ツールのログが sub だけか act・jti も残すかの食い違いは、A12 の埋め込みで P4 8.・C-act note・C-jti を「交換の監査ログ」に寄せた結果。impersonation（A11）と U29（A19）の操作がつながらないのも埋め込みの帰結。A12
+        の core（案件 ID・承認 ID が無い）を言わないので一致しないが、正解に無い矛盾}
+    - {finding: F-24, severity: Minor, verdict: 真（基の設計の欠陥）, reason: approval-console が図に無いのは control-a も同じ（D4-2 F9）。アカウントの画面での上限の書き換えの経路は A13 の埋め込みによる部分}
+    - {finding: F-25, severity: Major, verdict: 真（埋め込みの副作用）, reason: seeded の 3.1 の見送りの理由は「STAFF_AT だけでは返金できない」に変わり、A09 の代わりの経路（STAFF_AT で order-tool・customer-tool を直接呼ぶ）で理由の前提が崩れる。control-a の理由（STAFF_AT
+        だけでは何も呼べない）なら R4 で誤検出になる指摘で、崩れたのは埋め込みのせい}
+    - {finding: op-proof-holder の気づき（S2 だけが挙げた）, severity: —, verdict: 真（埋め込みの副作用）, reason: refund-batch が他人の cnf に束縛した保存済みの TOOL_AT を使う点は A17 の埋め込みの帰結（control-a の refund-batch はトークンを使わない）。AGENT_RT の無束縛は
+        A05 そのもの。STAFF_AT を 2 者が持つ点だけは基（D4-1 F-09）}
+    counts:
+      errors: 19
+      strict: 18
+      lenient: 18
+      score_sum: 18
+      unmatched_judged: 10
+      unmatched_by_verdict: {真（基の設計の欠陥）: 4, 真（埋め込みの副作用）: 6}
+  D2-2:
+    design: seeded-a
+    model: Claude Opus 5.5
+    errors:
+      A01:
+        score: 0
+        findings: []
+      A02:
+        score: 1
+        findings: [F-13]
+      A03:
+        score: 0.5
+        findings: [F-19]
+      A04:
+        score: 1
+        findings: [F-08]
+      A05:
+        score: 1
+        findings: [F-15]
+      A06:
+        score: 1
+        findings: [F-02]
+      A07:
+        score: 1
+        findings: [F-04]
+      A08:
+        score: 1
+        findings: [F-11]
+      A09:
+        score: 1
+        findings: [F-12]
+      A10:
+        score: 1
+        findings: [F-14]
+      A11:
+        score: 1
+        findings: [F-17]
+      A12:
+        score: 0
+        findings: [F-23]
+        borderline: 得点 0。D2-1 と同じ形。緩く読めば 1
+      A13:
+        score: 1
+        findings: [F-06]
+      A14:
+        score: 1
+        findings: [F-05]
+      A15:
+        score: 1
+        findings: [F-20]
+      A16:
+        score: 1
+        findings: [F-03]
+      A17:
+        score: 1
+        findings: [F-09, F-10]
+      A18:
+        score: 1
+        findings: [F-16]
+      A19:
+        score: 1
+        findings: [F-01]
+    unmatched:
+    - {finding: F-07, severity: Major, verdict: 真（埋め込みの副作用）, reason: D2-1 F-04 と同じ（A14 の埋め込みで refund-tool がロールを見なくなった）}
+    - {finding: F-10, severity: Major, verdict: 真（基の設計の欠陥）, reason: D2-1 F-01 と同じ}
+    - {finding: F-18, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D2-1 F-22 と同じ}
+    - {finding: F-21, severity: Minor, verdict: 真（埋め込みの副作用）, reason: D2-1 F-21 と同じ}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: idp に SPIRE が無いのは control-a も同じ（D4-1 F-12・D4-2 F17）}
+    - {finding: F-23, severity: Minor, verdict: 真（埋め込みの副作用）, reason: D2-1 F-23 と同じ（A12・A09・A17 の埋め込みでツールのログと経路の記録が食い違う）}
+    - {finding: F-24, severity: Minor, verdict: 真（基の設計の欠陥）, reason: SVID の更新と cnf の束縛の前提は control-a の M_sender_constraint 4. にも同じ形である（D4-2 F15）。seeded では TOOL_AT 1800 秒（A03）で害が大きくなるが、欠陥自体は基}
+    - {finding: F-25, severity: Minor, verdict: 真（埋め込みの副作用）, reason: seeded の U12 は「refund-batch と refund-tool の間」（A17 の埋め込みで変更）、図とホップはそれと合わない。control-a の U12 は refund-batch と approval-svc・PDP で図と一致する。refund-batch
+        のホップが無いこと自体は基}
+    counts:
+      errors: 19
+      strict: 16
+      lenient: 17
+      score_sum: 16.5
+      unmatched_judged: 8
+      unmatched_by_verdict: {真（埋め込みの副作用）: 4, 真（基の設計の欠陥）: 4}
+  D2-3:
+    design: seeded-a
+    model: Claude Sonnet 5.5
+    errors:
+      A01:
+        score: 1
+        findings: [F-17, step2 q-actor, (2)q-original-principal]
+      A02:
+        score: 1
+        findings: [F-12]
+      A03:
+        score: 0
+        findings: []
+      A04:
+        score: 1
+        findings: [F-03]
+      A05:
+        score: 1
+        findings: [F-14]
+      A06:
+        score: 1
+        findings: [F-01]
+      A07:
+        score: 1
+        findings: [F-19, (2)dc-05]
+      A08:
+        score: 1
+        findings: [F-13]
+      A09:
+        score: 1
+        findings: [F-10]
+      A10:
+        score: 1
+        findings: [F-17]
+      A11:
+        score: 1
+        findings: [F-15]
+      A12:
+        score: 0
+        findings: []
+      A13:
+        score: 1
+        findings: [F-09]
+      A14:
+        score: 1
+        findings: [F-07]
+      A15:
+        score: 1
+        findings: [F-20]
+      A16:
+        score: 1
+        findings: [F-02]
+      A17:
+        score: 1
+        findings: [F-04, F-05]
+      A18:
+        score: 1
+        findings: [F-16]
+      A19:
+        score: 1
+        findings: [F-06]
+    unmatched:
+    - {finding: F-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: D2-1 F-01 と同じ}
+    - {finding: F-08, severity: Major, verdict: 真（埋め込みの副作用）, reason: C-groups の採用・volatility 2460 と、ロールで判断するという C-roles の却下の理由の矛盾は A14 の埋め込みで生じた（control-a は C-groups 却下）。9.2 に groups の行が無いのも同じ}
+    - {finding: F-11, severity: Major, verdict: 真（埋め込みの副作用）, reason: D2-1 F-11 と同じ（A09 の埋め込みと C-aud の不一致）}
+    - {finding: F-18, severity: Major, verdict: 真（基の設計の欠陥）, reason: JWKS の 3600 秒と 15 分の目標の矛盾、SPIRE の鍵の扱いの欠落は control-a も同じ（D4-3 F15・D4-1 F-12）}
+    - {finding: F-21, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 混合。issuance_profile の「サーバーの中だけ」の前提の誤り（D4-1 F-09）と C-cnf の更新の主張（D4-2 F15）は control-a にもある。見送りの比較が DPoP だけという部分は R4 で誤検出に当たるが、指摘全体としては基の欠陥を含む}
+    - {finding: F-22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: idp に SPIRE が無い（D4-1 F-12）と C-sub の id_scheme（D4-2 F12）はどちらも control-a にある}
+    - {finding: F-20 の一部（REQ-10 の support_tier を受けるクレームも判断も無い）, severity: Minor, verdict: 誤検出, reason: support_tier は M_authz_pdp 2.・5. でトークンに載せず PDP が Keycloak の属性を引くと決めてある（台帳の行なしと明記）。クレームが無いのは設計どおり。F-20
+        の残り（連絡先）は A15 に一致済み}
+    counts:
+      errors: 19
+      strict: 17
+      lenient: 17
+      score_sum: 17
+      unmatched_judged: 7
+      unmatched_by_verdict: {真（基の設計の欠陥）: 4, 真（埋め込みの副作用）: 2, 誤検出: 1}
+  D1-1:
+    design: seeded-b
+    model: Claude Opus 5.5
+    errors:
+      B01:
+        score: 1
+        findings: [F06]
+      B02:
+        score: 1
+        findings: [(2)q-idp-diff-absorbed, F13]
+      B03:
+        score: 0.5
+        findings: [F09]
+      B04:
+        score: 1
+        findings: [F07]
+      B05:
+        score: 1
+        findings: [F18]
+      B06:
+        score: 1
+        findings: [F02]
+      B07:
+        score: 1
+        findings: [(2)q-db-context-writers, F02]
+      B08:
+        score: 1
+        findings: [F03]
+      B09:
+        score: 1
+        findings: [F04]
+      B10:
+        score: 1
+        findings: [F16]
+      B11:
+        score: 1
+        findings: [F10]
+      B12:
+        score: 1
+        findings: [F08]
+      B13:
+        score: 1
+        findings: [F15]
+      B14:
+        score: 0
+        findings: []
+      B15:
+        score: 1
+        findings: [(2)q-copies-outlive, F05, F19]
+      B16:
+        score: 1
+        findings: [F01]
+    unmatched:
+    - {finding: F05, severity: Major, verdict: 重複（B15）, reason: 両採点者とも B15 に当てた（edge-gw の 24 時間のキャッシュ）。判定の対象外}
+    - {finding: F11, severity: Major, verdict: 真（埋め込みの副作用）, reason: B01 の埋め込みで生じたホップごとの作り直しに、頼めるワークロード・宛先ごとの絞り方・act の扱いが無い。control では受け取ったまま渡すので生じない。B01 の核（req_wl を直接の相手とみなす）とは別}
+    - {finding: F12, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の D3-2 F08 と同じ（部分集合の主張が誤り）}
+    - {finding: F13（B02 の場所に使った残りの中身）, severity: Major, verdict: 真（埋め込みの副作用）, reason: B14（24 時間）・B02（内側に届く）を埋め込んだが、送信者制約の理由（外の AT は内側に入らず 10 分）とホップの寿命 600 を直していない。control では成り立つ（S1 の K4）}
+    - {finding: F14, severity: Minor, verdict: 真（埋め込みの副作用）, reason: PARTNER_AT（86400）・SVC_AT（600）に『exp − iat が 300 秒を超えるものは受けない』が出る。B02・B11・B14 の埋め込みの副作用。control には SVC_AT も内側の PARTNER_AT も無い}
+    - {finding: F17, severity: Major, verdict: 真（埋め込みの副作用）, reason: 手書きの 9.2 が『超える行が無い』と書くのに生成の表は PARTNER_AT の scope を超えると出す。B14 の副作用。前半の『28800 秒を許容と決めた』だけなら R4 で誤検出}
+    - {finding: F20, severity: Major, verdict: 真（埋め込みの副作用）, reason: control は範囲の外としている。B06/B15 の埋め込みで足した集計に、運用者の主体とトークンが無い。B06 の核（BYPASSRLS と引数の tenant_id）とは別}
+    - {finding: F21, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の F-06/F07/R-09 と同じ}
+    - {finding: F22, severity: Minor, verdict: 誤検出, reason: control の D3-2 F13 と同じ（承認の粒度は理由つきの選択）。性質の表の部分は D3-2 F01 と同じ}
+    - {finding: F23, severity: Minor, verdict: 誤検出, reason: Txn-Token の aud を信頼ドメインにするのは草案 §9.2 のとおりで、設計は宛先を mTLS の相手と scope で分けると理由を書いている（control と同じ）}
+    - {finding: F24, severity: Minor, verdict: 重複（B08）, reason: C-upn・C-email は B08 の locations。メールで引く食い違いは B08 の中身（F03 で採点済み）}
+    - {finding: F25, severity: Minor, verdict: 真（埋め込みの副作用）, reason: 『内側は mTLS で通信相手を確かめる』が、B01・B04 の埋め込み（mTLS は暗号化だけ・メッシュの外）の後も残っている。q-holder は B01/B04 の locations に無い}
+    - {finding: F26, severity: Minor, verdict: 誤検出, reason: control の F-15/R-13 と同じ（冪等の細部は実装の粒度）}
+    - {finding: F27, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 申請の期限・Webhook の created の時計が無い点は control の F-16 と同じ。C-exp の『1 秒の前提』と『30 秒で見直す』自体は矛盾ではない}
+    - {finding: F28, severity: Minor, verdict: 重複（B13）, reason: 料金を表示名で選ぶのは B13（F15 で採点済み）}
+    - {finding: F29, severity: Minor, verdict: 重複（B02・B03）, reason: seeded の B4 行は PARTNER_AT が内側に届くと書き直してある。残る中身は B02・B03}
+    counts:
+      errors: 16
+      strict: 14
+      lenient: 15
+      score_sum: 14.5
+      unmatched_judged: 16
+      unmatched_by_verdict: {重複（B15）: 1, 真（埋め込みの副作用）: 6, 真（基の設計の欠陥）: 3, 誤検出: 3, 重複（B08）: 1, 重複（B13）: 1, 重複（B02・B03）: 1}
+  D1-2:
+    design: seeded-b
+    model: Claude Opus 5.5
+    errors:
+      B01:
+        score: 1
+        findings: [(2)q-authorize-service-and-user, F-07, F-08]
+      B02:
+        score: 1
+        findings: [(2)q-idp-diff-absorbed, F-11]
+      B03:
+        score: 0.5
+        findings: [F-08]
+      B04:
+        score: 1
+        findings: [F-07]
+      B05:
+        score: 1
+        findings: [F-14]
+      B06:
+        score: 1
+        findings: [F-05]
+      B07:
+        score: 1
+        findings: [(2)q-db-context-writers, F-05]
+      B08:
+        score: 1
+        findings: [F-01]
+      B09:
+        score: 1
+        findings: [F-02]
+      B10:
+        score: 1
+        findings: [F-03]
+      B11:
+        score: 1
+        findings: [F-06]
+      B12:
+        score: 1
+        findings: [F-09]
+      B13:
+        score: 1
+        findings: [F-13]
+      B14:
+        score: 0
+        findings: []
+      B15:
+        score: 1
+        findings: [F-10]
+      B16:
+        score: 1
+        findings: [F-04]
+    unmatched:
+    - {finding: F-08（B03 に当てた残り）, severity: Major, verdict: 重複（B01）, reason: 『req_wl は直前の相手ではない』は B01 の中身（F-07 で採点済み）}
+    - {finding: F-11（B02 の場所に使った残りの中身）, severity: Major, verdict: 真（埋め込みの副作用）, reason: D1-1 F13 と同じ}
+    - {finding: F-12, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の D3-2 F08 と同じ。H9 を絞らない部分は B01 の副作用}
+    - {finding: F-15, severity: Minor, verdict: 真（埋め込みの副作用）, reason: D1-1 F14 と同じ。Auth0 の古い鍵を 630 秒で外すと 24 時間の PARTNER_AT を検証できない点も B14 の副作用}
+    - {finding: F-16, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の F-06 と同じ。Entra のグループで admin になる経路は B10 の中身}
+    - {finding: F-17, severity: Major, verdict: 真（基の設計の欠陥）, reason: Auth0 管理 API の経路・DB の管理者の口などは control にも無い（D3-2 F12）。縮退のヘッダー・再印刷の口・メッシュ外の経路・帳票の写しは埋め込みの中身}
+    - {finding: F-18, severity: Minor, verdict: 誤検出, reason: control の D3-2 F13 と同じ}
+    - {finding: F-19, severity: Minor, verdict: 誤検出, reason: 重複除けの細部は実装の粒度。RT の再利用の検知と jti は 12. に未確認として書いてある}
+    - {finding: F-20, severity: Minor, verdict: 真（埋め込みの副作用）, reason: SVC_AT の請求に txn・利用者が無い（B11 の副作用。B11 の核は全テナント向けの資格情報）。縮退の運転に txn が無い（B16 の副作用）。HMAC の鍵の年 1 回の交換は control も古い鍵で検索すると書き、欠陥ではない}
+    - {finding: open-prompt op-requirement-words, severity: '-', verdict: 重複（B09）, reason: 荷主をまたぐ名寄せは B09（F-02 で採点済み）}
+    counts:
+      errors: 16
+      strict: 14
+      lenient: 15
+      score_sum: 14.5
+      unmatched_judged: 10
+      unmatched_by_verdict: {重複（B01）: 1, 真（埋め込みの副作用）: 3, 真（基の設計の欠陥）: 3, 誤検出: 2, 重複（B09）: 1}
+  D1-3:
+    design: seeded-b
+    model: Claude Sonnet 5.5
+    errors:
+      B01:
+        score: 1
+        findings: [F10, F9]
+      B02:
+        score: 0.5
+        findings: [F12, (2)q-no-passthrough]
+      B03:
+        score: 1
+        findings: [F11]
+      B04:
+        score: 1
+        findings: [F9]
+      B05:
+        score: 0
+        findings: []
+      B06:
+        score: 1
+        findings: [F6]
+      B07:
+        score: 1
+        findings: [(2)q-db-context-writers, F6]
+        borderline: 得点 1。利用者の SQL が同じ接続で流れるとは言うが、文脈を書き換えられるとは明言しない。厳しく読めば 0
+      B08:
+        score: 1
+        findings: [F1]
+      B09:
+        score: 1
+        findings: [F4]
+      B10:
+        score: 1
+        findings: [F3]
+      B11:
+        score: 1
+        findings: [F8]
+      B12:
+        score: 1
+        findings: [F11, (2)q-long-running]
+      B13:
+        score: 1
+        findings: [F14, (2)pa-01]
+      B14:
+        score: 1
+        findings: [F21]
+        borderline: 得点 1。テナントを止めても 24 時間の運送会社の AT が効くと言うが、TTS がテナントの状態を見ない半分は言わない（K3）。核の 2 つを両方求めれば 0
+      B15:
+        score: 1
+        findings: [(2)q-copies-outlive, F5, F16]
+      B16:
+        score: 1
+        findings: [F7]
+    unmatched:
+    - {finding: F2, severity: Blocker, verdict: 真（基の設計の欠陥）, reason: control の F-04 と同じ（mail が出どころなのは B08 の中身）}
+    - {finding: F5, severity: Blocker, verdict: 重複（B15）, reason: 両採点者とも B15 に当てた}
+    - {finding: F12（B02 の場所に使った残りの中身）, severity: Major, verdict: 真（埋め込みの副作用）, reason: D1-1 F13 と同じ}
+    - {finding: F13, severity: Major, verdict: 真（埋め込みの副作用）, reason: D1-1 F17 と同じ（28800 秒の部分だけなら R4 で誤検出）}
+    - {finding: F15, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の F-06 と同じ}
+    - {finding: F17, severity: Major, verdict: 真（埋め込みの副作用）, reason: 'D1-1 F11 と同じ（作り直しの規則と絞り込みが無いのは B01 の副作用）。なお H9 の scope に inventory:* が無い点は control の H9 も同じで、warehouse-svc の API が何を求めるかが書かれておらず、基の設計の曖昧さの候補'}
+    - {finding: F18, severity: Major, verdict: 真（基の設計の欠陥）, reason: Auth0 の鍵の漏えいの 30 分と JWKS の 3600 秒は control の R-14 と同じ。TXN_OPS 330 と TXN_TOKEN 21600 の食い違いは B12 の副作用}
+    - {finding: F19, severity: Major, verdict: 真（基の設計の欠陥）, reason: control の R-07 と同じ}
+    - {finding: F20, severity: Major, verdict: 誤検出, reason: 荷主の管理者がいない障害の手順は範囲の外と理由つきで決め、DB の管理者の特権は M_data_layer 4. に抑え方がある。言い切りで、要求との矛盾は無い}
+    - {finding: F22, severity: Minor, verdict: 真（基の設計の欠陥）, reason: control の F-09/F02 と同じ}
+    - {finding: F23, severity: Minor, verdict: 真（基の設計の欠陥）, reason: control の F-12 と同じ}
+    - {finding: F24, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 申請の期限を別々の時計で見る点は control の F-16 と同じ（auth_time のずれの部分だけなら R-18 と同じく誤検出）}
+    - {finding: F25, severity: Minor, verdict: 誤検出, reason: control の F-15・D3-2 F13 と同じ。jti は 12. に既出}
+    - {finding: F26, severity: Minor, verdict: 真（埋め込みの副作用）, reason: B08 の埋め込みで C-entra に mail が入り、AUTH0_AT の note と矛盾した。control の C-entra は tid・oid・groups で note と合う。B08 の核（メールで引く）とは別の矛盾}
+    - {finding: F27, severity: Minor, verdict: 判定できない, reason: パスワード変更で Auth0 が RT・セッションを止めるかは製品の挙動で、設計書からは確かめられない（設計は 12. に未確認と書いている）}
+    - {finding: F28, severity: Minor, verdict: 真（埋め込みの副作用）, reason: D1-2 F-20 と同じ（B11 の副作用）}
+    counts:
+      errors: 16
+      strict: 14
+      lenient: 15
+      score_sum: 14.5
+      unmatched_judged: 16
+      unmatched_by_verdict: {真（基の設計の欠陥）: 7, 重複（B15）: 1, 真（埋め込みの副作用）: 5, 誤検出: 2, 判定できない: 1}
+  D4-1:
+    design: control-a
+    model: Claude Opus 5.5
+    findings:
+    - {finding: F-01, severity: Major, verdict: 真（基の設計の欠陥）, reason: REQ-11 の予約の返金があり 9.1 にも長時間の処理の列があるのに、どの種別にも long_running が無く refund-batch のホップも無い。台帳が非同期の経路を宣言しないので性質の表が当たらないになる}
+    - {finding: F-02, severity: Major, verdict: 真（基の設計の欠陥）, reason: 予約の返金で承認を消費するのが予約の時点か実行の時点かが書かれていない。2.2 は実行の時点で状態を引き直すとだけ書き、P4 5. の条件つきの消費との関係が無い}
+    - {finding: F-03, severity: Major, verdict: 真（基の設計の欠陥）, reason: 「決済代行への返金が失敗したら、承認を未使用に戻す」は結果不明（時間切れ）を区別せず、決済代行側の冪等キーも書かれていない。二重返金がありうる}
+    - {finding: F-04, severity: Major, verdict: 真（基の設計の欠陥）, reason: 2.2 は「書けるのは hr-sync だけ」と言い、手段は「属性の編集の権限を admin だけにする」。Keycloak のユーザープロファイルの admin の編集権は manage-users を持つ管理者全員に効き、2.2 の基盤の操作の行自身がレルムの管理者の存在を書いている。手段が主張を満たさない}
+    - {finding: F-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: 付録 A は hr-sync の遅れ 10 分で警報、そのときは REQ-07 の 5 分を守れないと自分で書き、責任者の判断に任せる（自動で閉じない）。P4 9. は「REQ-07 の 5 分の内側」と言い切る。書かれた理由が要求と矛盾する（R4 の 3 つ目）。120
+        秒は 12. で未計測}
+    - {finding: F-06, severity: Major, verdict: 真（基の設計の欠陥）, reason: U29 は /v1/refund も TOOL_AT だけを受けるとするが、旧いマクロの道具は agent-sts のクライアント（assist-agent・refund-subagent・support-console）に無く、図・主体・ホップにも無い。act なしは
+        support-console だけ許す規則とも両立する道が書かれていない}
+    - {finding: F-07, severity: Minor, verdict: 真（基の設計の欠陥）, reason: UC3 は予約の返金を含むと見出しに書くのに q-actor を「代理する者がいない」で不要にしている。実行は refund-batch（P4 3. でシステム）で、2.2 は委任の記録に行為者の連鎖を持つと書く。6. の不要の理由が予約の部分と合わない}
+    - {finding: F-08, severity: Major, verdict: 真（基の設計の欠陥）, reason: REQ-05・06 の「3 万円を超える返金」を 1 回の要求ごとにしか判定せず、同じ注文の分割や累計の扱いが無い（absent_semantics は 1 要求の金額だけ）。外部の入力を読むエージェントが分割すれば承認と追加の認証を通らない。要求の言葉の範囲を設計が決めていない}
+    - {finding: F-09, severity: Minor, verdict: 真（基の設計の欠陥）, reason: issuance_profile.sender_constraint の理由は「どちらも support-console のサーバーの中にだけある」だが、STAFF_AT の holder と 5. と 3.1 は assist-agent のメモリにも置くと書く。理由の前提が台帳と食い違う}
+    - {finding: F-10, severity: Minor, verdict: 真（基の設計の欠陥）, reason: C-authorization-details は pii_category 個人情報で log_policy 記録する。3.2 は「ログに…個人情報を残さない：満たす（sub・customer_ref は鍵つきのハッシュ）」で、この行に触れない。台帳と共通の基準の記述が矛盾する}
+    - {finding: F-11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 'order_id・amount・currency の型は description の文にしかなく、TOOL_AT のスキーマの items は {type: object} だけ、value_normalization も無い。完全一致の比べ方を受け手が機械で守れない'}
+    - {finding: F-12, severity: Minor, verdict: 真（基の設計の欠陥）, reason: C-iss は発行者 3 つ（SPIRE を含む）と言うが catalog_answers の idp は keycloak と agent-sts だけで、AGENT_SVID がどの idp にも属さない。M_token_validation 8. の SPIRE
+        の行は「既定に従う」だけで鍵の持ち主・漏えい時の手順が無い}
+    - {finding: F-13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: agent-sts がイントロスペクション・PDP・案件の管理の停止時に交換を止めるか通すかはどこにも書かれていない（12. にも無い）。ただし refund-tool の PDP 停止は M_authz_pdp 5. に「返金を拒否」とあり、その部分の指摘は当たらない}
+    - {finding: F-14, severity: Minor, verdict: 誤検出, reason: assist-agent・refund-subagent は STAFF_AT・DELEG_AT の宛先でなく、交換の subject_token として持つだけのクライアント。hops の H4・H9 の validates に「検証せずに保持する」と mTLS・案件の ID の確かめが書かれている。受け手の検証の行が無いのは設計どおり}
+    - {finding: F-15, severity: Minor, verdict: 確認の依頼, reason: C-case-id の on_revoke は「次の交換で agent-sts が拒否する」と書き、手元の TOOL_AT は 9.1 で照会 330 秒と書いてある。指摘は「この遅れを要求が許すのか書かれていない」で、書かれた扱いの要求との照合を求めるもの。REQ-08 は即時の停止を求めていない}
+    counts:
+      findings: 15
+      false_positive: 1
+      false_positive_major_plus: 0
+      fp_rate: 0.067
+      by_verdict: {真（基の設計の欠陥）: 13, 誤検出: 1, 確認の依頼: 1}
+  D4-2:
+    design: control-a
+    model: Claude Opus 5.5
+    findings:
+    - {finding: F1, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-01 と同じ。long_running の宣言と refund-batch のホップが台帳に無い}
+    - {finding: F2, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-08 と同じ（1 要求ごとの閾値、分割の扱いが無い）。jti の replay_check false（同じ TOOL_AT を 300 秒の間に何度も使える）も台帳のとおり}
+    - {finding: F3, severity: Major, verdict: 真（基の設計の欠陥）, reason: U13 は refund-tool が委任の記録を保存するとするが、記録の行・書き手・改ざんの防ぎ方・保存先が台帳と図に無い。3 万円以下の予約は承認を引かないので、記録の完全性が唯一の守りになる}
+    - {finding: F4, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-02 と F-03 の 2 点（予約での消費の時点、結果不明での未使用への戻し）。どちらも設計書に答えが無い}
+    - {finding: F5, severity: Minor, verdict: 真（基の設計の欠陥）, reason: C-jti は「返金の要求の冪等キーとは別に扱う」と冪等キーの存在を前提にするが、approval_id の無い 3 万円以下の返金で冪等キーを誰が作るかが無い}
+    - {finding: F6, severity: Major, verdict: 真（基の設計の欠陥）, reason: REQ-07 は照会・配送先の変更に「ツールのトークンの寿命の分の遅れ」を許す。9.2 の C-scope は最悪 480 秒（120＋30＋330）で 330 を超え、9.1 の TOOL_AT の「照会 330」とも食い違う。許容の 480 は要求でなく設計の最悪値を写している}
+    - {finding: F7, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-05 と同じ（R4 の 3 つ目：書かれた扱いが REQ-07 と矛盾）}
+    - {finding: F8, severity: Major, verdict: 真（基の設計の欠陥）, reason: 主旨は D4-1 F-04 と同じで真。チームのリーダーがグループにロールを付けられるかは Keycloak の細かい管理権限しだいで設計書から決まらない（その部分だけなら判定できない）}
+    - {finding: F9, severity: Major, verdict: 真（基の設計の欠陥）, reason: C-azp の assumption は担当者がログインするクライアントに approval-console があると言い、2.1 は責任者が approval-svc の画面で承認するとする。しかし approval-console は図・範囲・目録・カタログの回答に無く、そのトークン・承認者のロールの書き手・承認時の確かめが設計されていない。REQ-05
+        の中核の経路}
+    - {finding: F10, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-06 と同じ。閉じる日（410）は U29 に書いてあるが、マクロの主体と TOOL_AT の得方は無い}
+    - {finding: F11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-11 と同じ}
+    - {finding: F12, severity: Minor, verdict: 真（基の設計の欠陥）, reason: C-sub の description は AGENT_SVID では SPIFFE ID と書くのに identifier_properties.id_scheme は uuid だけ。1 行に 2 つの識別子の形が混ざる}
+    - {finding: F13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-07 と同じ}
+    - {finding: F14, severity: Minor, verdict: 誤検出, reason: alt は台帳の行しか指せない。C-scope の rationale は agent-sts が PDP のロールで scope を積に絞ると書き、C-roles の rationale は PDP への問い合わせを明記している。却下したロールの効果は PDP で絞った scope
+        として届くので、C-scope を代わりの行にするのは記述どおりで誤りではない}
+    - {finding: F15, severity: Minor, verdict: 真（基の設計の欠陥）, reason: M_sender_constraint 4. は「TOOL_AT は 300 秒なので、更新の前の証明書に束縛した TOOL_AT は寿命の内に切れる」から「呼び出しが止まらない」を導くが、交換から呼び出しまでの間に SVID が替わると、新しい TLS の証明書と cnf
+        が合わない（RFC 8705 §3）。替わったら交換し直す決まりが要る（support-console の証明書にだけ書いてある）。影響は一時的な失敗}
+    - {finding: F16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-09 と同じ}
+    - {finding: F17, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-12 と同じ（idp に SPIRE が無い）}
+    - {finding: F18, severity: Minor, verdict: 真（基の設計の欠陥）, reason: D4-1 F-13 の agent-sts の部分と同じ}
+    - {finding: F19, severity: Minor, verdict: 誤検出, reason: M_privacy_minimization 8. は鍵を監査の担当が「鍵管理のサービスで持ち」と書く。鍵管理のサービスの HMAC の操作を各サービスに使わせれば鍵を配らずに同じ値を作れるので、記述に矛盾は無い。配り方を書いていないのは誤りの根拠にならない}
+    - {finding: F20, severity: Minor, verdict: 確認の依頼, reason: 付録 B は予約の返金を予約の時点で refund-tool が確かめると書く。指摘は実行の時点の記述が何と比べるか不明で、REQ-06 を予約の時点で満たせばよいかを問うもの。誤りを言い切っていない}
+    counts:
+      findings: 20
+      false_positive: 2
+      false_positive_major_plus: 0
+      fp_rate: 0.1
+      by_verdict: {真（基の設計の欠陥）: 17, 誤検出: 2, 確認の依頼: 1}
+  D4-3:
+    design: control-a
+    model: Claude Sonnet 5.5
+    findings:
+    - {finding: F1, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-01 と同じ}
+    - {finding: F2, severity: Major, verdict: 真（基の設計の欠陥）, reason: 委任の記録が台帳の行・書き手・完全性を持たない（D4-2 F3）、UC3 q-actor の不要（D4-1 F-07）、refund-batch が返金を実行する線が図に無い。(b) の引き継ぎ後の実行も、2.2 の実行時の確かめが在籍・ロール・上限と承認だけで案件の割り当てを含まないので当たる}
+    - {finding: F3, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-2 F9 と同じ（承認の入口が設計されていない）}
+    - {finding: F4, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-06 と同じ}
+    - {finding: F5, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-03（結果不明の戻し）と D4-2 F5（3 万円以下の冪等キー）に加え、消費の後・呼ぶ前に落ちたときの扱いも P4 5. に無い}
+    - {finding: F6, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-08 と同じ}
+    - {finding: F7, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-11 と同じ。スキーマが追加のメンバーを許すことも事実}
+    - {finding: F8, severity: Major, verdict: 真（基の設計の欠陥）, reason: D4-1 F-05 と同じ}
+    - {finding: F9, severity: Major, verdict: 真（基の設計の欠陥）, reason: (a)(e) は D4-1 F-04 と同じで真。(b) SPIRE の登録の書き手、(c) 承認者のロールの付与、(d) 案件の割り当ての書き手も、agent-sts・approval-svc が頼るのに出どころが書かれていない}
+    - {finding: F10, severity: Minor, verdict: 誤検出, reason: P4 2. の「担当者のトークンを act なしで使う経路は無い」は括弧で「ツールは Keycloak のトークンを受けない」と限っており、エージェントが STAFF_AT を act なしで使えないという意味。コンソールの経路の act なしの TOOL_AT は担当者自身の操作で、6.
+        UC3・C-act absent_semantics に書いてある。指摘自身も経路は閉じていると認めている}
+    - {finding: F11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: (a) は D4-2 F6 と同じで真（許容 480 が要求でなく設計の最悪値）。(b)(c) は要求に数値が無いことの指摘で、設計の欠陥とまでは言えない}
+    - {finding: F12, severity: Minor, verdict: 誤検出, reason: R4：書き手は 3.1 で見送りの理由（STAFF_AT の宛先は agent-sts だけで、交換に mTLS のクライアント認証が要るので STAFF_AT だけでは何も呼べない）を書いている。この理由は要求と矛盾せず、指摘は比べる案が足りないと言い切る形}
+    - {finding: F13, severity: Minor, verdict: 真（基の設計の欠陥）, reason: （境界の判定）prior_art_search は IANA の登録簿を探したと書くが、nearest に挙げるのは Txn-Token の草案の txn だけで、IANA に登録された RFC 8417 §2.2 の txn（関係する複数の JWT の相関に使う）に触れていない。却下の理由は草案の意味にしか当たらない。弱い指摘で、案件に
+        txn を使わない判断自体は残りうる}
+    - {finding: F14, severity: Minor, verdict: 誤検出, reason: DELEG_AT を出す交換で agent-sts が確かめること（STAFF_AT の azp・イントロスペクション・行為者の表・案件の担当者）は、上流のホップ H5 の validates に書いてある。H9 はその交換で出たトークンを refund-subagent が保持するホップ}
+    - {finding: F15, severity: Major, verdict: 真（基の設計の欠陥）, reason: M_token_validation 8. は agent-sts の鍵が漏れたら 15 分以内に全ツールの JWKS を取り直させると言うが、9. は TTL 3600 秒で取り直しは知らない kid のときだけ、失敗時は最後の JWKS を使う。漏れた鍵は既知の kid
+        なので取り直しが起きない。強制する手段が無く、15 分の目標を満たせない}
+    - {finding: F16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: C-sub の混在は D4-2 F12 と同じで真。C-kc-typ の受け手が無いのは R8 のための行と書かれており、C-sid は support-console が ID トークン・ログアウトトークンで読む（STAFF_AT では読まないが IdP が載せる値）。その部分は当たらない}
+    - {finding: F17, severity: Minor, verdict: 真（基の設計の欠陥）, reason: refund-tool・refund-batch・agent-sts が mTLS で approval-svc・PDP を呼ぶと書くが、どの SPIFFE ID に消費・取り下げ・在籍の照会を許すかが無い。SVID を持つ assist-agent が approval-svc
+        を直接呼べないことは設計書から読めない}
+    counts:
+      findings: 17
+      false_positive: 3
+      false_positive_major_plus: 0
+      fp_rate: 0.176
+      by_verdict: {真（基の設計の欠陥）: 14, 誤検出: 3}
+  D3-1:
+    design: control-b
+    model: Claude Opus 5.5
+    findings:
+    - {finding: F-01, severity: Major, verdict: 真（基の設計の欠陥）, reason: 'UC2 で q-peer を『要る』とし仕組みを TLS＋client_id（Bearer の中の値）にしている。catalog の q-peer は『mTLS。トークンの値では代えない』で食い違う。送信者制約の見送り（3.1, q-holder）とは別の問いなので
+        R4 ではない'}
+    - {finding: F-02, severity: Major, verdict: 真（基の設計の欠陥）, reason: TTS は AT の org_roles でロールを替える（H4）ので、ロール剥奪の最悪は 630＋330＝960 秒で volatility 900 を超える。9.2 は MSG_CTX しか扱わない。7. の『ロールを引く』と H4 の食い違いも実在}
+    - {finding: F-03, severity: Major, verdict: 真（基の設計の欠陥）, reason: 3.1・SET は『次の Auth0 での取り直しまで』『RT の取り直し（最大 30 分）で届く』と書くが、9.2 自身が『RT での取り直しでは Entra に問い合わせない（最大 28800 秒）』と書く。見送りそのもの（R4 の例）ではなく、見送りの帰結の記述が設計の事実と矛盾している}
+    - {finding: F-04, severity: Major, verdict: 真（基の設計の欠陥）, reason: source_system 自身が『荷主の管理者が画面で割り当て』『グループは荷主の Entra の管理者が持つ』と書くのに configurable_by は platform だけ。short_list ap-1-7 は元データを書ける者も数えるとする。運用者の
+        Auth0 管理操作（U15）も宣言に無い}
+    - {finding: F-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: 申請・承認の記録の保存先・書き手・書く経路（web-bff で承認→記録）が図にもホップにも無い（TXN_OPS の assumption が『TTS の保存先にある』と言うだけ）。操作の中身に結びつかない点は設計の選択だが、核の『書く経路が無い』は実在}
+    - {finding: F-06, severity: Major, verdict: 真（基の設計の欠陥）, reason: 付録 B は『承認の経路はこの 1 つだけ』とするが、承認の記録・ロール対応表を書く API が設計に無く、受け手側の確かめも無い。3 行目（対応表の変更）は受け手が存在しない}
+    - {finding: F-07, severity: Major, verdict: 誤検出, reason: 書き手は PostgreSQL では止められないことを 12. に書き、ライブラリの API と CI の静的検査で守ると理由と確かめ方を付けている。integrity_until の『アプリのコードは SET を出せない』は 12. と矛盾しない（DB 権限でなくコードの規則で守る宣言）。SQL
+        インジェクションは別の欠陥を前提にした指摘で、要求とも矛盾しない。B07（各サービスが SET・任意 SQL）と紛らわしい近い形}
+    - {finding: F-08, severity: Major, verdict: 真（基の設計の欠陥）, reason: Auth0 管理 API を呼ぶ部品・運用者の Auth0 管理操作が図に無い。2. は『db-migrate だけが BYPASSRLS』、M_data_layer 4. は DB の管理者も挙げ、互いに食い違う}
+    - {finding: F-09, severity: Major, verdict: 真（基の設計の欠陥）, reason: 'quantity は引き当ての上限、declared_value は請求と照合（M_authz_pdp 3./4.）に使うのに内側の型・正規化が無い。issuer のスキーマは type: object に文字列の enum で、どの tctx も通らない'}
+    - {finding: F-10, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 9.2 の唯一の対策『作り直しのたびに今のロールで絞り直す』に、ロールの出どころが無い（org_roles は AUTH0_AT にだけ載り、作り直しの時点で AT が無い）}
+    - {finding: F-11, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 6. は『利用者本人の操作』として act を不要とするが、ラベル作成は label-svc が最大 30 分後に行う非同期処理。templates/review/decision_tree.md keep-sub-exchange は非同期でもワーカーを act にする形を選ぶとし、理由の記載が無い}
+    - {finding: F-12, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 設計自身が C-aud に 2 つ目の aud を書きながら、目録と issuer のスキーマ（enum が API 1 つ）は 1 つとする。設計の中の食い違いとして確かめられる}
+    - {finding: F-13, severity: Minor, verdict: 誤検出, reason: オブジェクト単位の認可はテナントを持ち主とする、と理由つきで決めている。一覧を sub で絞るのは表示の範囲で、利用者ごとの分離の要求は設計にも 16 行目の要求の出どころにも無い。要求の有無を尋ねる文面だが R4 の見送りではない}
+    - {finding: F-14, severity: Minor, verdict: 真（基の設計の欠陥）, reason: TTS 自体の停止は 503 と決めているが、テナントの台帳・メンバーの表・申請の記録が 60 秒のキャッシュより長く止まったときの倒し方が無い。見直しの条件が参照する可用性の目標の数値も無い}
+    - {finding: F-15, severity: Minor, verdict: 誤検出, reason: 二重作成の防止の原子性は実装の粒度。MSG_CTX を出せるのは label-svc だけ（assumption）で再配送のための再利用は設計どおり。Webhook は 300 秒の期限を求めており状態通知の再送は害が小さい。jti・RT の再利用は 12. に未確認として既に書いてある}
+    - {finding: F-16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 記入欄が求める『時刻を比べる箇所と時計』に JWT しか挙がっていない。申請の期限と、組織をまたぐ Webhook の created の比べ方が抜けている}
+    counts:
+      findings: 16
+      false_positive: 3
+      false_positive_major_plus: 1
+      fp_rate: 0.188
+      by_verdict: {真（基の設計の欠陥）: 13, 誤検出: 3}
+  D3-2:
+    design: control-b
+    model: Claude Opus 5.5
+    findings:
+    - {finding: F01, severity: Minor, verdict: 誤検出, reason: 性質の表は道具が authorization_details の有無から読む。設計は authorization_details を使わないと I14 に理由を書き、承認は 2.2・H18・H19 に書いてある。設計書の記述は誤っていない（読み取りの規則の側の話）}
+    - {finding: F02, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-09 と同じ。スキーマは成り立たず、付録 A の『配備の前のスキーマ検証』は全部止まる}
+    - {finding: F03, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-04 と同じ}
+    - {finding: F04, severity: Major, verdict: 真（基の設計の欠陥）, reason: 核は 960 秒 > 900 秒（F-02 と同じ）。付け足しの『C-entra の 28800 秒は未承認』は R4 の見送り（12. に確認の案あり）で、それだけなら誤検出}
+    - {finding: F05, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-10 と同じ}
+    - {finding: F06, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-03 と同じ（30 分で届く、と 9.2 の 28800 秒が矛盾）}
+    - {finding: F07, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-06 と同じ}
+    - {finding: F08, severity: Major, verdict: 真（基の設計の欠陥）, reason: '『Txn-Token の scope は上流の AT（H2・H3・H18）の部分集合』は誤り。H6 の labels:write は H2・H3 に無く、H19 の billing:read・billing:admin は H18 の ops:break-glass
+        に無い。upstream を外したので L16 も見ない'}
+    - {finding: F09, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-01 と同じ}
+    - {finding: F10, severity: Major, verdict: 真（基の設計の欠陥）, reason: 運用者が Auth0 の管理操作をできると catalog が書くのに、その権限で荷主の組織・ロールを触れることへの防ぎと監査がどこにも無い。break-glass を通らない経路になる}
+    - {finding: F11, severity: Major, verdict: 誤検出, reason: F-07 と同じ。理由と確かめ方が書いてある既知の限界}
+    - {finding: F12, severity: Major, verdict: 真（基の設計の欠陥）, reason: ロールの割り当て（管理 API）・承認の記録・テナントの台帳の書き手などが図・ホップに無い（F-08 と同根）}
+    - {finding: F13, severity: Major, verdict: 誤検出, reason: '承認は『1 テナント・1 運用者・最大 60 分・請求の設定（billing:admin）』という break-glass の時間枠として理由つきで決めている（UC3『申請の範囲（請求の設定）だけ』、I14 で RAR を使わない理由）。sub は申請の記録の依頼者と照合する（UC3
+        q-sub）。要求と矛盾する記述は見当たらない'}
+    - {finding: F14, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-12 と同じ}
+    - {finding: F15, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-14 と同じ}
+    - {finding: F16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 原子性・MSG_CTX の再利用の部分は F-15 と同じく設計の範囲だが、出荷の登録の TXN_TOKEN に『operation が label.create』を求める条件と『tctx を変えずに写す』が両立せず、意味が曖昧なのは実在}
+    - {finding: F17, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-16 と同じ}
+    - {finding: F18, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 同じ鍵で外す時刻が 330 と 3630 に割れている。330 で外すと MSG_CTX を検証できない}
+    - {finding: F19, severity: Minor, verdict: 誤検出, reason: 対応の表の持ち主（荷主の管理者）と変える操作（付録 B）は設計にある。値は荷主ごとの ID で固定の語彙ではなく、value_vocabulary が無いことは誤りではない}
+    counts:
+      findings: 19
+      false_positive: 4
+      false_positive_major_plus: 2
+      fp_rate: 0.211
+      by_verdict: {誤検出: 4, 真（基の設計の欠陥）: 15}
+  D3-3:
+    design: control-b
+    model: Claude Sonnet 5.5
+    findings:
+    - {finding: R-01, severity: Blocker, verdict: 誤検出, reason: F-07 と同じ。integrity_until は『ライブラリだけが書き、アプリのコードは SET を出せない（API に無く CI で拒む）』で、12. の『DB の権限では止められない』と矛盾しない}
+    - {finding: R-02, severity: Major, verdict: 誤検出, reason: R4。要求に数値が無いことを書き、28800 秒を許容とした理由・急ぐ剥奪の手段（メンバーの停止）・要求の持ち主への確認（12.）を書いている。指摘は言い切りで、書いた理由は要求と矛盾しない}
+    - {finding: R-03, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-03 と同じ}
+    - {finding: R-04, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-10 と同じ}
+    - {finding: R-05, severity: Major, verdict: 真（基の設計の欠陥）, reason: F08 と同じ}
+    - {finding: R-06, severity: Major, verdict: 誤検出, reason: F13 と同じ（承認の粒度と sub の決め方は理由つきの選択。sub は申請の記録の依頼者と照合）。末尾の『承認の記録を書く部品も図に無い』は実在だが R-07 で数える}
+    - {finding: R-07, severity: Major, verdict: 真（基の設計の欠陥）, reason: 管理の入口・書き込みの部品が図に無い。C-sub の『TTS だけが書く』と、荷主の管理者がメンバーを止める記述が食い違う}
+    - {finding: R-08, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-04 と同じ}
+    - {finding: R-09, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-06 と同じ}
+    - {finding: R-10, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-12 と同じ}
+    - {finding: R-11, severity: Major, verdict: 真（基の設計の欠陥）, reason: F-09 と同じ}
+    - {finding: R-12, severity: Minor, verdict: 誤検出, reason: F-13 と同じ}
+    - {finding: R-13, severity: Minor, verdict: 誤検出, reason: Txn-Token を期限内に網の中で受け渡すのは草案どおりの設計。冪等の細部は実装の粒度（F-15 と同じ）}
+    - {finding: R-14, severity: Minor, verdict: 真（基の設計の欠陥）, reason: 切り替えの目標は 30 分だが、受け手は既知の kid の鍵を最大 3600 秒キャッシュするので、漏れた鍵を受け入れる時間は 30 分を超え、その数字が書かれていない}
+    - {finding: R-15, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-11 と同じ}
+    - {finding: R-16, severity: Minor, verdict: 真（基の設計の欠陥）, reason: F-14 と同じ}
+    - {finding: R-17, severity: Minor, verdict: 誤検出, reason: '(tid, oid) と、(tid, oid)＋Auth0 user_id の組は、どちらも変わらない ID で両立する。初回の結び付けは I17 が『招待の記録と (tid, oid) を組にする。メールで突き合わせない』と決めている'}
+    - {finding: R-18, severity: Minor, verdict: 誤検出, reason: ずれ 30 秒はすべての JWT に掛かると書いてあり、300 秒を超えたときは max_age=0 でログインし直させると付録 B に決めてある}
+    - {finding: R-19, severity: Minor, verdict: 誤検出, reason: R4 が名指す見送り。理由（AT はサーバーにだけあり内側に入らない、10 分、費用）と見直しの条件があり、要求と矛盾しない。指摘は比較が足りないと言い切っている}
+    counts:
+      findings: 19
+      false_positive: 8
+      false_positive_major_plus: 3
+      fp_rate: 0.421
+      by_verdict: {誤検出: 8, 真（基の設計の欠陥）: 11}
