@@ -26,6 +26,9 @@ Checks (errors):
   C4  every location of seeded_errors.yaml resolves: the file exists in the materialized seeded design, a YAML row id
       exists in that file, a quoted phrase occurs in that file
   C5  each seeded design and its control show the same traits in review_triage.py --design (the controls are twins)
+  C7  a packet built for each design (in a temporary directory outside the repository) passes P1-P3: it holds only the
+      materials, ci-result.txt, sheet.md and the materialized design; no file has the content of another file of
+      calibration/; no file names a design, the calibration directory or a marker
   C6  the files listed in calibration/commitments.sha256 have those sha256 (the targets and the key fixed before measuring;
       CRLF is read as LF, so a Windows checkout gives the same value as git and CI)
 """
@@ -275,9 +278,19 @@ def check(errors):
                     errors.append(f"C4 {err['id']}: row {loc['row']} not found in {loc['file']}")
                 if 'quote' in loc and loc['quote'] not in text:
                     errors.append(f"C4 {err['id']}: quote 「{loc['quote']}」 not found in {loc['file']}")
+                if 'heading' in loc and not re.search(r'^#{2,4} ' + re.escape(loc['heading']) + r'$', text, re.M):
+                    errors.append(f"C4 {err['id']}: heading 「{loc['heading']}」 not found in {loc['file']}")
+            if not err.get('core'):
+                errors.append(f"C4 {err['id']}: no core (the one sentence a finding must state)")
         for s, c in CONTROLS.items():
             if s in trait_rows and c in trait_rows and trait_rows[s] != trait_rows[c]:
                 errors.append(f'C5 {s} and {c} show different traits in review_triage.py --design')
+    for d in DESIGNS:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                packet(d, os.path.join(tmp, 'packet'), '12')
+            except SystemExit as e:
+                errors.append(f'C7 {d}: {e}')
     cpath = os.path.join(CAL, 'commitments.sha256')
     if os.path.isfile(cpath):
         n = 0
@@ -298,9 +311,68 @@ def check(errors):
     return errors
 
 
+def inside(path, root):
+    path, root = os.path.normcase(os.path.realpath(path)), os.path.normcase(os.path.realpath(root))
+    return path == root or path.startswith(root + os.sep)
+
+
+def packet_errors(out, design):
+    """P1-P3 of protocol.md 6.: the packet holds exactly the listed files, and nothing of calibration/ but the design."""
+    errors = []
+    allowed = {os.path.basename(m) for m in MATERIALS} | {'ci-result.txt', 'sheet.md'}
+    contrasts = set(os.listdir(os.path.join(ROOT, MATERIAL_DIRS[0])))
+    own = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        materialize(design, tmp)
+        for p in files_of(tmp):
+            own[os.path.relpath(p, tmp).replace(os.sep, '/')] = sha256_lf(p)
+    others = {}
+    for p in files_of(CAL):
+        rel = os.path.relpath(p, CAL).replace(os.sep, '/')
+        if not rel.startswith(design + '/'):
+            others[sha256_lf(p)] = rel
+    for d in DESIGNS:
+        if d == design:
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            materialize(d, tmp)
+            for p in files_of(tmp):
+                others.setdefault(sha256_lf(p), f'{d} (materialized) {os.path.relpath(p, tmp)}')
+    found_design = False
+    for p in files_of(out):
+        rel = os.path.relpath(p, out).replace(os.sep, '/')
+        h = sha256_lf(p)
+        if rel.startswith('designs/target/'):
+            sub = rel[len('designs/target/'):]
+            found_design |= sub == 'design.md'
+            if own.get(sub) != h:
+                errors.append(f'P1 {rel}: not a file of the materialized design')
+            continue
+        if not (rel in allowed or (rel.startswith('contrasts/') and rel[len('contrasts/'):] in contrasts)):
+            errors.append(f'P1 {rel}: not a file the packet may hold (protocol.md 6.)')
+        if h in others:
+            errors.append(f'P2 {rel}: same content as {others[h]} (another file of calibration/)')
+    for p in files_of(out):
+        rel = os.path.relpath(p, out).replace(os.sep, '/')
+        with open(p, encoding='utf-8', errors='replace') as f:
+            t = f.read()
+        for word in ('seeded-a', 'seeded-b', 'control-a', 'control-b', 'template-design/calibration', M_SEEDED, M_CONTROL,
+                     '.broken'):
+            if word in t:
+                errors.append(f'P3 {rel}: contains 「{word}」')
+    if not found_design:
+        errors.append('P1 designs/target/design.md is missing')
+    return errors
+
+
 def packet(design, out, seed):
     """The packet of one review session: the materials, the design at designs/target, the CI result and the sheet.
-    The label of the session is kept in the record only (protocol.md 6.), never in the packet."""
+    The label of the session is kept in the record only (protocol.md 6.), never in the packet. OUT must be a new or
+    empty directory outside the repository: a session opened in a clone could reach the answer key."""
+    if inside(out, ROOT):
+        raise SystemExit(f'{out} is inside the repository; give an empty directory outside it (protocol.md 6.)')
+    if os.path.exists(out) and os.listdir(out):
+        raise SystemExit(f'{out} is not empty')
     os.makedirs(out, exist_ok=True)
     for m in MATERIALS:
         shutil.copyfile(os.path.join(ROOT, m), os.path.join(out, os.path.basename(m)))
@@ -317,6 +389,9 @@ def packet(design, out, seed):
         shutil.copytree(TARGET, os.path.join(out, 'designs', 'target'), ignore=shutil.ignore_patterns(STAMP))
     finally:
         unstage()
+    errors = packet_errors(out, design)
+    if errors:
+        raise SystemExit(f'packet: {len(errors)} error(s); do not hand this packet to a reviewer: ' + '; '.join(errors[:5]))
 
 
 def main(argv=None):
@@ -352,6 +427,7 @@ def main(argv=None):
         return 1 if missing else 0
     if a.cmd == 'packet':
         packet(a.design, a.out, a.seed)
+        print(f'packet: OK ({sum(1 for _ in files_of(a.out))} files in {a.out})')
         return 0
     if a.cmd == 'render':
         render_back(a.design)

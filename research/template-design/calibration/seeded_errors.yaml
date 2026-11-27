@@ -2,12 +2,15 @@
 # この一覧は、設計書の誤りを説明するもので、それ自体は設計に使う教材ではない（誤りを含む設計書は seeded-a/・seeded-b/）
 #
 # LLM による作成。人による検証ではない。初回の測定より前に固定した（protocol.md の冒頭、commitments.sha256）。
-# 測定の後には直さない。誤りが見つかったら protocol.md の 7.「正解の訂正」として記録し、訂正の前と後の両方で採点する。
+# 測定前の改訂（R1：B15 の難しさ、R3：locations・core）は protocol.md の「改訂の記録」。測定の後には直さない。誤りが見つかったら protocol.md の 7.「正解の訂正」として記録し、訂正の前と後の両方で採点する。
 #
 # 列の意味（protocol.md の 3.・4.・7.）：
 #   locations          指摘の場所として認めるところ。file は materialize の後の名前（.broken を外したもの）。
 #                      row は YAML の行の id（カタログの回答は event）、column は列、section は design.md の節、
-#                      quote はその場所にある文の一部（tools/calibration_check.py の C4 が、row と quote の実在を確かめる）
+#                      quote はその場所にある文の一部、heading は design.md・25 問の回答の見出し（同じ誤りの文が出る節を、
+#                      seeded と対照の差分から機械で集めた。測定前の改訂 R3）。C4 が row・quote・heading の実在を確かめる。
+#                      生成の区間の行を指す指摘は、出どころの台帳の行を指したものとみなす（protocol.md の 7.）
+#   core               指摘が (b) を満たすのに述べるべき最小の中身（核）の 1 文（測定前の改訂 R3）
 #   wrong / clean      seeded の記述が何を誤っているか / 対照（control-*）の同じ場所が何と書いているか
 #   kind               report_template.md の指摘の種別
 #   confused_questions 取り違えた問い。この ID か also_accepted の ID を書いた指摘を得点 1 とする
@@ -33,6 +36,14 @@ errors:
   - {file: claims.yaml, row: C-act, column: enforced_at, quote: 元の依頼元のエージェントで判断する：act.act.sub（無ければ act.sub）}
   - {file: hops.yaml, row: H11, column: validates}
   - {file: design.md, section: 'template:profiles/P4_ai_agent_delegation#delegation-depth（付録 D の P4 の 7.）'}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_authz_pdp：4. 粗い権限・取引単位・オブジェクト単位の 3 層〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：11. 組織共通の検証部品〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：7. 委任の連鎖の深さ〔Full：記入〕}
+  core: refund-tool が行為者の許可に入れ子の act（act.act.sub）を使っている。使うべきは最も外側の act
   wrong: refund-tool が、許可するエージェントの一覧と照合する行為者に、入れ子の act（act.act.sub、元の依頼元のエージェント）を使っている。今の行為者は最も外側の act（refund-subagent）で、入れ子の act は過去の行為者。アクセス制御に使ってはならない
   clean: refund-tool は最も外側の act.sub（今の行為者）を操作ごとの許可リストと照合する。入れ子の act は監査にだけ使う
   kind: 目的と仕組みの不一致
@@ -59,6 +70,16 @@ errors:
   - {file: hops.yaml, row: H7, column: aud}
   - {file: hops.yaml, row: H8, column: aud}
   - {file: token_types.yaml, row: TOOL_AT, column: rationale}
+  - {file: claims.yaml, row: C-aud}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：1. MCP の認可の必須チェック表〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：6. ツールごとのスコープと引き上げ〔Full：記入〕}
+  - {file: token_types.yaml, row: tool-http-header-field}
+  core: 1 枚のツールのトークンに複数のツールの aud が入り、1 つのツールに渡したトークンで別のツールを呼べる
   wrong: ツールのトークン 1 枚の aud に order-tool・refund-tool・customer-tool の 3 つを入れている。1 つのツールに渡したトークンで、ほかの 2 つのツールも呼べる（受け手が別の受け手として再利用できる）
   clean: ツールのトークンは 1 枚に 1 つの宛先（RFC 8707 の resource で選んだツール）だけ。ツールごとに交換する
   kind: 目的と仕組みの不一致
@@ -85,6 +106,32 @@ errors:
   - {file: token_types.yaml, row: TOOL_AT, column: max_lifetime}
   - {file: hops.yaml, row: H3, column: max_lifetime・narrowing_exception, quote: 顧客への確認を待つ間に長くなるため、交換の回数を減らす}
   - {file: hops.yaml, row: H6, column: max_lifetime・narrowing_exception}
+  - {file: catalog_answers.yaml, row: I27}
+  - {file: claims.yaml, row: C-act}
+  - {file: claims.yaml, row: C-cnf}
+  - {file: claims.yaml, row: C-exp}
+  - {file: claims.yaml, row: C-groups}
+  - {file: claims.yaml, row: C-scope}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: 9.3 クレームの定義の寿命〔Full だけ（廃止予定の行があれば Lite でも書く）〕}
+  - {file: design.md, heading: M_sender_constraint：4. RT のローテーションとの関係〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：8. 鍵のローテーション〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P1_human_web：4. セッションとログアウト〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：6. ツールごとのスコープと引き上げ〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：9. 委任の一括失効〔Full：記入〕}
+  - {file: hops.yaml, row: H11}
+  - {file: hops.yaml, row: H7}
+  - {file: hops.yaml, row: H8}
+  - {file: token_types.yaml, row: STATUS_LIST_TOKEN}
+  core: 交換で出すツールのトークンの寿命（1800 秒）が、元の担当者のトークン（600 秒）より長い
   wrong: 交換で出すツールのトークンの寿命（30 分）が、元の担当者のトークン（10 分）を超えている。ホップの縮小の例外（narrowing_exception）の理由は「処理が長い」だけで、延ばして開く攻撃と代わりの守りを比べていない（lint を通すために例外を書いた形）
   clean: ツールのトークンは 300 秒で、subject token の残りの寿命を超えない
   kind: 目的と仕組みの不一致
@@ -112,6 +159,14 @@ errors:
   - {file: claims.yaml, row: C-authorization-details, column: on_revoke, quote: 承認の取り下げは、agent-sts が次の交換で載せなくなり、出した TOOL_AT はその期限で止まる}
   - {file: claims.yaml, row: C-approval-id, column: on_revoke}
   - {file: design.md, section: 'template:00_core#freshness（9.2）'}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：5. 人の承認〔Full：記入〕}
+  core: 承認を取り下げても、refund-tool は承認の今の状態を引かないので、トークンの寿命の間は返金が通る（要求は即時）
   wrong: 承認の取り下げは即時に効く必要があると要求にあるのに、refund-tool はトークンに載った authorization_details・承認 ID を信じ、承認の今の状態を引かない。on_revoke は「トークンの期限切れで消える」で、寿命の間は取り下げた承認で返金できる
   clean: refund-tool は返金のたびに approval-svc で承認の今の状態を引き、取り下げた承認では返金しない
   kind: 目的と仕組みの不一致
@@ -137,6 +192,20 @@ errors:
   locations:
   - {file: token_types.yaml, row: AGENT_RT}
   - {file: token_types.yaml, column: issuance_profile.rt_strategy, quote: assist-agent の RT（AGENT_RT）はローテーションせず、送信者制約も付けない}
+  - {file: catalog_answers.yaml, row: I02}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 3. 既定から外れた点〔Lite：手で書く〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_idp_keycloak：9. リフレッシュトークンの設定〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_sender_constraint：4. RT のローテーションとの関係〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：6. ツールごとのスコープと引き上げ〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：9. 委任の一括失効〔Full：記入〕}
+  - {file: design.md, heading: 範囲}
+  core: エージェント（assist-agent）に長い RT（AGENT_RT）を出し、ローテーションも送信者制約も無い
   wrong: 代理の主体（assist-agent）に 30 日のリフレッシュトークンを出し、ローテーションも送信者制約も無い。漏れた RT は 30 日使え、使い回しも検出できない。見送りの理由（社内網）は、開く攻撃と代わりの守りを比べていない
   clean: assist-agent には RT を出さない。ツールのトークンは手順ごとに交換し直す
   kind: 目的と仕組みの不一致
@@ -162,6 +231,11 @@ errors:
   - {file: claims.yaml, row: C-authorization-details, column: enforced_at, quote: 3 万円を超える返金で authorization_details と approval_id があるか。無ければ拒否}
   - {file: hops.yaml, row: H8, column: validates}
   - {file: design.md, section: 'template:profiles/P4_ai_agent_delegation#human-approval（付録 D の P4 の 5.）'}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：5. 人の承認〔Full：記入〕}
+  core: refund-tool は承認の有無だけを見て、要求の注文・金額・通貨が承認の内容と同じかを照合しない
   wrong: refund-tool は承認 ID が存在し承認済みであることだけを確かめ、要求の order_id・金額・通貨が承認の内容と一致するかを照合していない。少額で承認を得て、別の注文・高額の返金に使える
   clean: refund-tool は要求の order_id・amount・currency が承認の内容と完全一致するかを照合する
   kind: 目的と仕組みの不一致
@@ -185,6 +259,10 @@ errors:
   - {file: claims.yaml, row: C-authorization-details, column: description・enforced_at, quote: amount（円の数値。例 45000）}
   - {file: design.md, section: 'template:profiles/P4_ai_agent_delegation#human-approval（付録 D の P4 の 5.）'}
   - {file: claim_request_approval_id.md, section: 問 8}
+  - {file: design.md, heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：5. 人の承認〔Full：記入〕}
+  core: authorization_details の金額を数値（浮動小数）で比べ、通貨を持たない。金額は文字列・通貨つきで完全一致にすべき
   wrong: authorization_details の金額を JSON の数値（浮動小数点で比較）にし、通貨の項目が無い。受け手ごとに丸めと単位の解釈が分かれる。金額は文字列、比べ方（正規化）と通貨を決める
   clean: amount は 10 進の文字列、currency は "JPY" を必須にし、正規化した文字列で完全一致を比べる
   kind: 目的と仕組みの不一致
@@ -210,6 +288,12 @@ errors:
   - {file: claims.yaml, row: C-auth-time, column: enforced_at}
   - {file: hops.yaml, row: H8, column: validates}
   - {file: design.md, section: 'template:00_core#step-up（付録 B）'}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: B. 追加認証〔Full だけ〕}
+  - {file: design.md, heading: P1_human_web：5. 追加認証への入り口〔Full：記入／Lite：参照〕}
+  core: エージェントの経路の追加認証をエージェントが決め、受け手（refund-tool）がその経路で acr・auth_time を確かめない
   wrong: 高額の返金の追加認証を、エージェントが金額を見て判断し、受け手（refund-tool）はエージェント経由の経路で acr・auth_time を確かめない（agent-sts も写さない）。担当者のコンソールの経路だけが追加認証を確かめる
   clean: agent-sts はどの交換でも acr・auth_time を写し、refund-tool が経路を問わず 3 万円を超える返金で確かめて拒否する
   kind: 目的と仕組みの不一致
@@ -234,6 +318,20 @@ errors:
   - {file: hops.yaml, row: H12}
   - {file: hops.yaml, row: H13}
   - {file: claims.yaml, row: C-iss, column: enforced_at}
+  - {file: catalog_answers.yaml, row: U01}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_idp_keycloak：7. aud の設定（Audience マッパー）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：2. 発行者（iss）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：1. MCP の認可の必須チェック表〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：2. エージェントの ID〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：3. 自律・委任・なりすましの型〔Full：記入〕}
+  - {file: design.md, heading: 範囲}
+  core: 交換が失敗したとき、エージェントが act の無い担当者のトークンでツールを直接呼べる（そのために STAFF_AT の aud にツールがある）
   wrong: 交換に失敗したとき、エージェントが担当者のトークン（subject token）で order-tool・customer-tool を直接呼ぶ。そのために subject token の aud にツールを入れている。代理であることを示さない（act の無い）トークンで、エージェントが担当者本人として操作できる
   clean: STAFF_AT の aud は agent-sts だけで、ツールは STAFF_AT を受けない。交換が失敗したら、その手順を止める
   kind: 目的と仕組みの不一致
@@ -258,6 +356,12 @@ errors:
   - {file: claims.yaml, row: C-may-act, column: rationale・enforced_at, quote: agent-sts は交換の口で may_act や行為者の表と照合しない}
   - {file: hops.yaml, row: H5, column: validates}
   - {file: design.md, section: 'template:profiles/P4_ai_agent_delegation#delegation-policy（付録 D の P4 の 4.）'}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：2. エージェントの ID〔Full：記入〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：4. 交換の方針（may_act と委任の理由）〔Full：記入〕}
+  core: agent-sts が may_act・行為者の表を照合せず、どのクライアントの交換も受ける
   wrong: agent-sts が、レルムで認証されたどのクライアントからの交換の要求も受け、may_act・行為者の許可リストを確かめない。頼んではいけない相手（別のクライアント）が、担当者の代理のツールのトークンを得られる
   clean: agent-sts は may_act と委任の表で、行為者（assist-agent・refund-subagent）と subject の組を照合し、表に無い組は拒否する
   kind: 目的と仕組みの不一致
@@ -281,6 +385,14 @@ errors:
   locations:
   - {file: catalog_answers.yaml, row: I19}
   - {file: design.md, section: 'template:00_core#system-privileges（2.2 の「運用者の操作（責任者の引き継ぎ）」）', quote: 責任者。Keycloak の impersonation で得た担当者の STAFF_AT}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: 2.2 システムの権限〔Full だけ〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：3. 自律・委任・なりすましの型〔Full：記入〕}
+  - {file: token_types.yaml, row: AGENT_RT}
+  core: 責任者が impersonation で担当者として操作し、トークン・ログで責任者の操作と見分けられない
   wrong: 監督者が Keycloak の代理ログイン（impersonation）で担当者として案件を引き継ぎ、出たトークンは担当者のものと区別できない。監査で監督者の操作が担当者の操作に見える
   clean: 責任者は自分の ID でログインして案件を引き継ぐ。Keycloak の impersonation は無効
   kind: 目的と仕組みの不一致
@@ -304,6 +416,15 @@ errors:
   - {file: claims.yaml, row: C-case-id, column: carried_in・consumers}
   - {file: token_types.yaml, row: TOOL_AT, column: required_claims}
   - {file: design.md, section: 'template:profiles/P4_ai_agent_delegation#audit-correlation（付録 D の P4 の 8.）', quote: ツールの監査ログは sub だけ}
+  - {file: catalog_answers.yaml, row: U14}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_privacy_minimization：7. 監査ログに残す項目と伏せる項目〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：8. 監査の相関〔Full：記入〕}
+  core: ツールのトークン・ログに案件 ID と承認 ID が無く、1 つの操作の誰の権限・誰の代理・どの承認をログで 1 本につなげられない
   wrong: ツールは sub だけを記録し、承認 ID は agent-sts だけが記録し、案件 ID はツールに伝わらない。1 つの返金の「誰の権限で・誰が代理で・どの承認で」をログから 1 本につなげられない
   clean: case_id・approval_id を TOOL_AT に載せ、各ツールが sub・最も外側の act.sub・act の連鎖・approval_id・case_id・jti を記録する
   kind: 候補の漏れ
@@ -326,6 +447,8 @@ errors:
   locations:
   - {file: design.md, section: 'template:modules/M_authz_pdp#pep-pdp-inputs（付録 D の M_authz_pdp の 5.）', quote: refund_limit_jpy は担当者もアカウントの画面で編集でき}
   - {file: design.md, section: 'template:00_core#system-privileges（2.2 の「人事連携」）'}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  core: 認可に使う返金の上限の属性を、担当者本人が書き換えられる
   wrong: refund-tool が認可（返金の上限）に使う属性を、担当者本人がアカウントコンソールで書き換えられる（Keycloak のユーザープロファイルで利用者が編集できる）。署名が正しくても、値を書いた者が本人なので上限を自分で上げられる
   clean: 返金の上限の属性は hr-sync だけが書け、担当者は編集できない
   kind: 目的と仕組みの不一致
@@ -352,6 +475,19 @@ errors:
   - {file: claims.yaml, row: C-groups, quote: グループ「返金担当」に入っているか}
   - {file: claims.yaml, row: C-sub, column: enforced_at}
   - {file: design.md, section: 'template:modules/M_authz_pdp#model-choice（付録 D の M_authz_pdp の 1.）'}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 3. 既定から外れた点〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_authz_pdp：1. RBAC・ABAC・関係ベース（併用）の判断表〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_idp_keycloak：11. 上限と、黙った欠落〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_idp_keycloak：2. プロトコルマッパーとクライアントスコープ〔Full：記入／Lite：参照〕}
+  - {file: hops.yaml, row: H3}
+  - {file: hops.yaml, row: H8}
+  core: 返金の権限を、グループの表示名（チームのリーダーが変えられる名前）の文字列で判断している
   wrong: 返金の権限を、groups のクレームのグループの表示名（「返金担当」など）の文字列で判断している。チームリーダーがグループを作成・改名でき、名前の一致で権限が付く。変わらない ID（ロールの ID）で照合していない
   clean: 返金の権限は Keycloak のクライアントロール refund-operator（変わらない名前）で、人事連携だけが付ける。groups は却下
   kind: 目的と仕組みの不一致
@@ -377,6 +513,21 @@ errors:
   - {file: token_types.yaml, row: TOOL_AT, column: jwe, quote: 顧客の連絡先（C-customer-contact）は署名で改ざんを防ぐ}
   - {file: hops.yaml, row: H6, column: custom_claims}
   - {file: claim_request_customer_contact.md}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_privacy_minimization：1. 個人情報保護法の判断表〔Lite・Full：記入〕}
+  - {file: design.md, heading: M_privacy_minimization：2. 保護の要件表〔Lite：生成／Full：生成と確かめ〕}
+  - {file: design.md, heading: M_privacy_minimization：3. 機微な値の保護の順〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_privacy_minimization：5. 機微な属性を API で渡す〔Full：記入／Lite：参照〕}
+  - {file: hops.yaml, row: H11}
+  - {file: hops.yaml, row: H3}
+  - {file: hops.yaml, row: H7}
+  - {file: hops.yaml, row: H8}
+  core: 顧客のメール・電話番号を全ツールのトークンに載せている（署名は秘匿ではない。参照 ID で足りる）
   wrong: 顧客のメールアドレスと電話番号を、すべてのツールのトークンに載せている（読まないツールにも届く）。「署名しているので安全」という理由は、JWS が読めることを見落としている。不透明な顧客の参照 ID で足りる
   clean: トークンには不透明な customer_ref だけを載せ、customer-tool が顧客の DB から連絡先を引く（C-customer-contact は却下）
   kind: 目的と仕組みの不一致
@@ -401,6 +552,11 @@ errors:
   locations:
   - {file: claims.yaml, row: C-approval-id, column: enforced_at, quote: approval-svc が 2 秒で応答しなければ、消費の確認を省いて返金を進める}
   - {file: design.md, section: 'template:00_core#sequence（7. の返金の図）'}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.2 クレームの鮮度の表〔Lite：生成（寿命が許容を超える行の対策だけ手で書く）〕}
+  - {file: design.md, heading: P4_ai_agent_delegation：5. 人の承認〔Full：記入〕}
+  core: approval-svc が応答しないと、承認の確認（消費）を省いて返金を通す（失敗時に開く）
   wrong: approval-svc が 2 秒で応答しないとき、refund-tool が承認の確認を省いて返金を通す（失敗時に開く）。頼る先が止まると、承認の無い返金が通る
   clean: approval-svc が応答しなければ、refund-tool は返金を拒否する（失敗時に閉じる）。照会は続ける
   kind: 目的と仕組みの不一致
@@ -425,6 +581,14 @@ errors:
   - {file: catalog_answers.yaml, row: U13}
   - {file: design.md, section: 'template:00_core#system-privileges（2.2 の「夜間バッチ（予約の返金）」）', quote: 予約のときに refund-tool が保存した TOOL_AT}
   - {file: design.md, section: 'template:00_core#lifecycle（9.1）'}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: 2.2 システムの権限〔Full だけ〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: P4_ai_agent_delegation：3. 自律・委任・なりすましの型〔Full：記入〕}
+  - {file: design.md, heading: 範囲}
+  core: 予約の返金のバッチが、保存したトークンで、実行の時点の承認・担当者・ロールを確かめずに動く
   wrong: 予約の返金を後で実行するバッチが、保存したツールのトークン（またはエージェントのサービスアカウント）で動き、実行の時点で担当者・ロール・承認の今の状態を確かめない。途中で権限が外れても止まらない
   clean: refund-batch は自分のワークロードの ID と委任の記録で動き、実行の時点で承認・担当者・ロールの今の状態を確かめ直す。トークンを保存しない
   kind: 目的と仕組みの不一致
@@ -449,6 +613,10 @@ errors:
   - {file: claims.yaml, row: C-customer-ref, column: enforced_at, quote: 形式だけ確かめる（注文は注文の ID で引く）}
   - {file: hops.yaml, row: H6, column: validates}
   - {file: design.md, section: 'template:modules/M_authz_pdp#object-level（付録 D の M_authz_pdp の 3.）'}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_authz_pdp：1. RBAC・ABAC・関係ベース（併用）の判断表〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕}
+  core: order-tool が、注文が案件の顧客のものかを照合せずに、任意の注文 ID の注文を返す
   wrong: order-tool は、注文の読み取りのスコープがあれば、任意の注文 ID の注文を返す。その注文が案件の顧客のものかを照合していない（BOLA）
   clean: order-tool は、要求の注文の顧客が customer_ref と一致するかを注文の DB で確かめる
   kind: 目的と仕組みの不一致
@@ -471,6 +639,10 @@ errors:
   locations:
   - {file: catalog_answers.yaml, row: U29}
   - {file: token_types.yaml, row: BFF_SESSION, column: visible_to・note}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  core: 移行の旧い入口 /v1/refund が、Cookie だけ・承認の確認なしで返金を受け、閉じる日も無い
   wrong: 移行の期間の旧い入口 /v1/refund が、コンソールのセッションの Cookie だけで、承認の確認なしに返金を受け、閉じる期日も無い。新しい経路と同じ守りが掛からない旧経路が本番に残る（カタログ U29）
   clean: /v1/refund は TOOL_AT だけを受け、新しい経路と同じ検査をし、2027-03-31 に 410 で閉じる
   kind: 候補の漏れ
@@ -495,6 +667,26 @@ errors:
   - {file: hops.yaml, row: H7, column: validates}
   - {file: hops.yaml, row: H9, column: kind・exchanger}
   - {file: design.md, section: 'template:profiles/P5_internal_propagation#service-to-service（付録 D の P5 の 3.）'}
+  - {file: catalog_answers.yaml, row: U12}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2.2 システムの権限〔Full だけ〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_token_validation：5. 宛先（aud）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：2. Transaction Token（Txn-Token）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕}
+  - {file: hops.yaml, row: H11}
+  - {file: hops.yaml, row: H13}
+  - {file: hops.yaml, row: H20}
+  - {file: hops.yaml, row: H6}
+  - {file: hops.yaml, row: H8}
+  - {file: token_types.yaml, row: TXN_TOKEN}
+  core: 受け手が req_wl を直接の呼び出し元として照合し、そのためにホップごとに Txn-Token を作り直している。直接の相手は mTLS で確かめる
   wrong: 各サービスがホップごとに TTS に Txn-Token を作り直させ、req_wl を自分に書き換え、受け手は req_wl を直接の呼び出し元とみなして許可リストと照合している。req_wl は Txn-Token を求めたワークロードで、直接の通信相手ではない（Txn-Token は受け取ったまま渡す §12.2）。直接の相手は mTLS の ID で確かめる
   clean: Txn-Token は受け取ったまま渡す。req_wl は取引を始めたワークロードで、直接の相手は mTLS の SPIFFE ID を許可リストと照合する
   kind: 目的と仕組みの不一致
@@ -521,6 +713,39 @@ errors:
   - {file: hops.yaml, row: H21}
   - {file: token_types.yaml, row: PARTNER_AT, column: rationale・visible_to}
   - {file: design.md, section: 'template:profiles/P5_internal_propagation#edge-conversion（付録 D の P5 の 1.）'}
+  - {file: catalog_answers.yaml, row: I05}
+  - {file: catalog_answers.yaml, row: U01}
+  - {file: catalog_answers.yaml, row: U09}
+  - {file: claims.yaml, row: C-aud}
+  - {file: claims.yaml, row: C-client-id}
+  - {file: claims.yaml, row: C-exp}
+  - {file: claims.yaml, row: C-iat}
+  - {file: claims.yaml, row: C-iss}
+  - {file: claims.yaml, row: C-scope}
+  - {file: claims.yaml, row: C-sub}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: 3. 既定から外れた点〔Lite：手で書く〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_authz_pdp：1. RBAC・ABAC・関係ベース（併用）の判断表〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_multitenancy：1. テナントの判定手段〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：1. 検証の順序〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：11. 組織共通の検証部品〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：2. 発行者（iss）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：3. アルゴリズム（alg）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：5. 宛先（aud）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕}
+  core: 運送会社の外部の AT（PARTNER_AT）を入口で替えずに内部のサービスへそのまま流している
   wrong: 運送会社の API の経路で、入口が運送会社の Auth0 のアクセストークンをそのまま shipment-svc・warehouse-svc に流し、各サービスが外部のトークンを自分で検証している。内部の aud・寿命・クレームの規則が当たらず、IdP の差を入口で吸収していない
   clean: 運送会社の PARTNER_AT も edge-gw で終わり、TTS の Txn-Token に替えてから内側に渡す
   kind: 目的と仕組みの不一致
@@ -546,6 +771,11 @@ errors:
   - {file: hops.yaml, row: H13, column: validates, quote: メッセージの TXN_TOKEN を Authorization の Bearer で shipment-svc に送る}
   - {file: token_types.yaml, row: TXN_TOKEN, column: note}
   - {file: design.md, section: 'template:modules/M_token_validation#shared-validator（付録 D の M_token_validation の 11.）'}
+  - {file: catalog_answers.yaml, row: U01}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕}
+  core: 'Txn-Token を Authorization: Bearer で送り、受け手の検証部品が AT と Txn-Token の両方を受け入れる'
   wrong: 'label-svc の呼び出し側が Txn-Token を Authorization: Bearer で送り、label-svc の検証の部品は Authorization の Auth0 の AT と Txn-Token の両方を受け入れる。Txn-Token はアクセストークンとして送らない（専用の Txn-Token ヘッダー §12.1）。外部向けの検証で内部の文脈を受け入れ、種類（typ）で区別していない'
   clean: Txn-Token は Txn-Token ヘッダーだけで送り、検証の部品は Authorization の Txn-Token を拒否する（typ で区別する）
   kind: 目的と仕組みの不一致
@@ -571,6 +801,11 @@ errors:
   - {file: hops.yaml, row: H19, column: validates, quote: 同じクラスタの中の HTTP で送る（メッシュを通さない}
   - {file: claims.yaml, row: C-act, column: enforced_at}
   - {file: design.md, section: 'template:profiles/P5_internal_propagation#service-to-service（付録 D の P5 の 3.）'}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕}
+  - {file: token_types.yaml, row: TXN_OPS}
+  core: ops-console→billing-svc はメッシュの外で、billing-svc が直接の相手を確かめずに act を信じる
   wrong: ops-console から billing-svc への呼び出しは、トークンに act（運用者）があるが、ホップはメッシュの外（クラスタ内の平文の HTTP）で、billing-svc は直接の通信相手を確かめずに act を信じる。act は「誰が代理しているか」で、「直接の通信相手は誰か」には答えない
   clean: billing-svc は mTLS の相手が ops-console のときだけ、act のある Txn-Token を受ける
   kind: 目的と仕組みの不一致
@@ -595,6 +830,10 @@ errors:
   locations:
   - {file: hops.yaml, row: H7, column: validates, quote: 引き当ての個数は要求の本文の quantity を使う}
   - {file: claims.yaml, row: C-tctx, column: consumers・enforced_at}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_authz_pdp：3. オブジェクト単位の認可（BFLA・BOLA）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕}
+  core: warehouse-svc が本文の数量を使い、tctx の数量と照合しない
   wrong: tctx に数量・申告額を載せているが、warehouse-svc は本文の数量を使い、tctx と照合しない（照合するのは shipment-svc だけ）。途中で本文の数量を差し替えられる
   clean: warehouse-svc も tctx の quantity を要求の本文と照合し、違えば拒否する
   kind: 目的と仕組みの不一致
@@ -620,6 +859,11 @@ errors:
   - {file: hops.yaml, row: H17, column: validates, quote: report-svc はプールの役割 app_report（BYPASSRLS）で接続し、問い合わせの引数の tenant_id で行を絞る}
   - {file: claims.yaml, row: C-tenant-id, column: enforced_at}
   - {file: design.md, section: 'template:modules/M_data_layer#masking-rls-bypass（付録 D の M_data_layer の 4.）'}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_data_layer：3. 誰として DB に接続するか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_data_layer：4. マスキングと RLS をすり抜ける主体〔Full：記入／Lite：参照〕}
+  core: report-svc が BYPASSRLS の役割で繋ぎ、要求の引数の tenant_id で絞るので、他のテナントのデータに届く
   wrong: report-svc は BYPASSRLS の付いたプールの役割で DB に繋ぎ、要求のパラメーターの tenant_id で絞り込む。トークンのテナントと保存データのテナントを照合しない経路で、パラメーターを変えれば他のテナントのデータに届く
   clean: BYPASSRLS は db-migrate だけ。report-svc も共通のライブラリを通り、Txn-Token のテナントで RLS が掛かる
   kind: 目的と仕組みの不一致
@@ -643,6 +887,18 @@ errors:
   - {file: claims.yaml, row: C-tenant-id, column: integrity_until, quote: 各サービスのアプリのコードが、検証した Txn-Token の値で書く}
   - {file: hops.yaml, row: H14, column: validates}
   - {file: design.md, section: 'template:modules/M_data_layer#db-context-setter（付録 D の M_data_layer の 1.）'}
+  - {file: catalog_answers.yaml, row: U02}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_data_layer：1. DB の文脈を設定する主体と、経路の選択〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_data_layer：2. 接続プールでの文脈の設定単位〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_privacy_minimization：2. 保護の要件表〔Lite：生成／Full：生成と確かめ〕}
+  - {file: hops.yaml, row: H15}
+  - {file: hops.yaml, row: H16}
+  core: DB のテナントの文脈を各サービスのアプリのコードが SET で書け、任意の問い合わせも同じ接続で流せる
   wrong: テナントの文脈（app.tenant_id）を、各サービスのアプリのコードが SET で書き、report-svc の任意の問い合わせの機能が同じ接続で動く。注入する部品以外が文脈を書き換えられる
   clean: 共通のデータアクセスのライブラリだけが、トランザクションの中で SET LOCAL を出す。アプリのコードは SET を出せない
   kind: 目的と仕組みの不一致
@@ -666,6 +922,20 @@ errors:
   - {file: claims.yaml, row: C-entra, column: verification_method・enforced_at, quote: mail のドメインを、荷主のテナントの台帳に登録したドメインと照合する}
   - {file: hops.yaml, row: H4, column: validates}
   - {file: design.md, section: 'template:modules/M_multitenancy#tenant-determination（付録 D の M_multitenancy の 1.）'}
+  - {file: catalog_answers.yaml, row: I17}
+  - {file: claims.yaml, row: C-email}
+  - {file: claims.yaml, row: C-upn}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 12. 書き手が自信のない点〔Lite：手で書く〕}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 6. 問い × 仕組み〔Lite：手で書く〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: M_multitenancy：1. テナントの判定手段〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：5. 宛先（aud）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕}
+  core: Entra の利用者をメールで引き、テナントをメールのドメインで決めている（tid＋oid で決めるべき）
   wrong: Entra から連携した利用者のキーをメールアドレスにし、テナントをメールのドメインから決めている。メールは変わる・再利用される・連携先の管理者が書ける。tid＋oid（Auth0 の user_id）の変わらない ID で決める
   clean: Entra の利用者は (tid, oid) で引き、テナントは Auth0 の組織の不変の ID で決める。メール・UPN では引かない
   kind: 目的と仕組みの不一致
@@ -690,6 +960,14 @@ errors:
   - {file: claims.yaml, row: C-sub, column: assumption, quote: Auth0 の自動のアカウントの名寄せ（確かめたメールが同じ利用者を 1 つにする）を有効にする}
   - {file: catalog_answers.yaml, row: I18}
   - {file: design.md, section: 'template:modules/M_multitenancy#cross-tenant（付録 D の M_multitenancy の 4.）'}
+  - {file: catalog_answers.yaml, row: I25}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: M_multitenancy：4. テナントをまたぐ場面〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕}
+  core: 確かめたメールによる自動の名寄せで、別々のテナントの同じ人を 1 人の利用者にしている
   wrong: Auth0 の確認済みメールによる自動のアカウントの連結を有効にし、2 つのテナントの同じ人を 1 人の利用者にしている。テナントをまたいで、同じ人だと暗黙に決めている
   clean: 自動の名寄せは無効。2 つのテナントの同じメールは別の利用者
   kind: 目的と仕組みの不一致
@@ -713,6 +991,15 @@ errors:
   - {file: claims.yaml, row: C-org-roles, column: enforced_at, quote: admin を含めば荷主の管理者}
   - {file: claims.yaml, row: C-entra, column: enforced_at}
   - {file: design.md, section: 'template:00_core#principals（2.1）'}
+  - {file: claims.yaml, row: C-scope}
+  - {file: claims.yaml, row: C-tenant-name}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 2.1 主体の種類〔Lite：手で書く（2. の中で）〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: P5_internal_propagation：1. 入口での変換〔Full：記入／Lite：参照〕}
+  - {file: hops.yaml, row: H4}
+  core: どの発行者の "admin" という名前も荷主の管理者として扱い、発行者ごとに対応付けていない
   wrong: どの発行者の "admin"（Auth0 の組織のロール、Entra のアプリのロール・グループ）も、テナントの管理者として扱う。発行者ごとの対応付けが無く、テナントの Entra の管理者が自分で付けた "admin" で通る
   clean: ロールは発行者ごとの表で、変わらないロールの ID を組織の語彙に対応付ける。同じ文字列でも発行者が違えば同じとみなさない
   kind: 目的と仕組みの不一致
@@ -735,6 +1022,32 @@ errors:
   locations:
   - {file: hops.yaml, row: H10, quote: shipment-svc は自分の client credentials で取った SVC_AT}
   - {file: token_types.yaml, row: SVC_AT}
+  - {file: catalog_answers.yaml, row: I05}
+  - {file: catalog_answers.yaml, row: U01}
+  - {file: catalog_answers.yaml, row: U09}
+  - {file: claims.yaml, row: C-aud}
+  - {file: claims.yaml, row: C-client-id}
+  - {file: claims.yaml, row: C-exp}
+  - {file: claims.yaml, row: C-iat}
+  - {file: claims.yaml, row: C-iss}
+  - {file: claims.yaml, row: C-scope}
+  - {file: claims.yaml, row: C-sub}
+  - {file: claims.yaml, row: C-tenant-id}
+  - {file: design.md, heading: 1. CI の結果〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 4. 発行方式の選択〔Lite：生成（既定の組み合わせから外れた点だけ 3. に手で書く）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_token_validation：11. 組織共通の検証部品〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：2. 発行者（iss）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：3. アルゴリズム（alg）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：5. 宛先（aud）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：3. サービス間の呼び出し〔Full：記入／Lite：参照〕}
+  - {file: token_types.yaml, row: PARTNER_AT}
+  core: shipment-svc が利用者の Txn-Token でなく、自分の全テナント向けの資格情報（SVC_AT）で billing-svc を呼ぶ
   wrong: shipment-svc が billing-svc を、利用者の Txn-Token でなく自分のクライアントクレデンシャルのトークン（全テナントの billing:write）で呼ぶ。仲介サービスの広い権限で下流に頼む（代理の混乱）
   clean: shipment-svc は利用者の Txn-Token をそのまま billing-svc に渡す
   kind: 目的と仕組みの不一致
@@ -758,6 +1071,20 @@ errors:
   - {file: token_types.yaml, row: TXN_TOKEN, column: long_running, quote: 非同期の処理なので期限（exp）は見ない}
   - {file: claims.yaml, row: C-exp, column: enforced_at}
   - {file: catalog_answers.yaml, row: U13}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_token_validation：2. 発行者（iss）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_token_validation：8. 鍵のローテーション〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：2. Transaction Token（Txn-Token）〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: P5_internal_propagation：4. 非同期の処理（キュー・イベント）〔Full：記入／Lite：参照〕}
+  - {file: hops.yaml, row: H11}
+  - {file: hops.yaml, row: H12}
+  core: label-svc が、最大 6 時間後のメッセージの Txn-Token を期限（exp）を見ずに受け入れる
   wrong: label-svc が、最大 6 時間後にメッセージを処理し、載っている Txn-Token の exp を確かめない。テナントの停止・権限の剥奪の後も、後で動く処理が止まらない
   clean: label-svc は期限切れの Txn-Token を受けず、TTS に署名つきのメッセージの文脈（MSG_CTX）を渡して新しい Txn-Token を得る（テナントの状態も確かめ直す）
   kind: 目的と仕組みの不一致
@@ -781,6 +1108,15 @@ errors:
   - {file: claims.yaml, row: C-tenant-name, column: enforced_at, quote: 料金の表を tenant_name で選ぶ}
   - {file: claim_request_tenant_name.md}
   - {file: design.md, section: 'template:modules/M_authz_pdp#carry-or-query（付録 D の M_authz_pdp の 2.）'}
+  - {file: claims.yaml, row: C-tenant-id}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 8. ホップごとの表〔Lite：生成（交換・作り直しのホップがあれば手で書く）〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: 9.3 クレームの定義の寿命〔Full だけ（廃止予定の行があれば Lite でも書く）〕}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_authz_pdp：5. PEP・PDP の分担と判断の入力の出どころ〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_privacy_minimization：5. 機微な属性を API で渡す〔Full：記入／Lite：参照〕}
+  core: billing-svc が料金の表を、表示用の tenant_name で選ぶ
   wrong: billing-svc が、料金表を Txn-Token の tenant_name（表示用の名前）から選ぶ。表示用の値を判断に使っている。改名・重なりで別の料金表になる
   clean: tenant_name はトークンに載せない（却下）。billing-svc は不変の tenant_id と請求の DB のプランで料金の表を選ぶ
   kind: 目的と仕組みの不一致
@@ -806,6 +1142,19 @@ errors:
   - {file: token_types.yaml, row: PARTNER_AT, column: max_lifetime・lifetime_exception}
   - {file: token_types.yaml, row: TXN_TOKEN, column: db_lookup}
   - {file: design.md, section: 'template:00_core#lifecycle（9.1 の「テナントの停止」）', quote: テナントを止めるときは、Auth0 の組織からメンバーを外します}
+  - {file: catalog_answers.yaml, row: U21}
+  - {file: claims.yaml, row: C-org-id}
+  - {file: claims.yaml, row: C-tenant-id}
+  - {file: claims.yaml, row: C-tenant-name}
+  - {file: design.md, heading: 10. 判断の行〔Lite：生成〕}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 3. 既定から外れた点〔Lite：手で書く〕}
+  - {file: design.md, heading: 5. トークン目録〔Lite：生成〕}
+  - {file: design.md, heading: 5.1 寿命の上限の方針〔Full だけ〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: token_types.yaml, row: SVC_AT}
+  core: テナントの停止は 15 分以内が要求なのに、TTS が発行時にテナントの状態を見ず、運送会社の AT は 24 時間なので、最悪 24 時間通る
   wrong: テナントの停止は 15 分以内に効くと要求にあるのに、TTS は発行の時にテナントの状態を確かめず、運送会社の M2M の Auth0 AT は 24 時間。停止したテナント・運送会社のトークンが最悪 24 時間通る
   clean: TTS は発行のたびにテナントの状態を引き、PARTNER_AT は 600 秒。停止から最大 390 秒で止まる
   kind: 目的と仕組みの不一致
@@ -830,6 +1179,13 @@ errors:
   - {file: catalog_answers.yaml, row: U21, quote: 利用者ごとに 24 時間キャッシュし}
   - {file: catalog_answers.yaml, row: U28}
   - {file: design.md, section: 'template:00_core#lifecycle（9.1）'}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 2. 範囲と信頼の境界〔Lite：手で書く〕}
+  - {file: design.md, heading: 9.1 トークン・セッション・接続}
+  - {file: design.md, heading: C. 結果・応答の完全性〔Full だけ〕}
+  - {file: design.md, heading: M_authz_pdp：2. 載せるか、問い合わせるか〔Full：記入／Lite：参照〕}
+  - {file: design.md, heading: M_privacy_minimization：5. 機微な属性を API で渡す〔Full：記入／Lite：参照〕}
+  core: 入口の判断の 24 時間のキャッシュと、共有の保存先への帳票の写しが、テナントの停止の後も残り止められない
   wrong: edge-gw がテナント・認可の判断を 24 時間キャッシュし、report-svc が毎晩の写しを共有のバケットに出し、テナントの停止で消さない。トークンの値の写しが元のトークンより長く残り、止められない
   clean: edge-gw は判断をキャッシュしない。report-svc は共有の保存先に写しを出さない（U28 は対象外）
   kind: 候補の漏れ
@@ -841,11 +1197,12 @@ errors:
   evidence:
   - {kind: spec, id: RFC 7662 §4}
   - {kind: guide-slide, id: p08-copies-outlive-token}
-  signpost: P2
+  signpost: P1
   span: '1'
-  difficulty: medium
+  difficulty: easy
   channel: short_list
-  channel_question: [q-copies-outlive]
+  channel_question: [q-revocation-delivery, q-copies-outlive]
+  channel_note: 'q-revocation-delivery（優先 1）の見る欄 template:00_core#lifecycle が 9.1 を名指す（A17 と同じ当て方。PR #81 の独立点検で P2 から直した）'
 - id: B16
   design: seeded-b
   control: control-b
@@ -853,6 +1210,12 @@ errors:
   - {file: catalog_answers.yaml, row: U11, quote: X-Tenant-Id・X-User-Id のヘッダーを書いて内側に送り}
   - {file: hops.yaml, row: H6, column: note}
   - {file: design.md, section: 'template:00_core#priorities-deferrals（3.1 の重点）'}
+  - {file: catalog_answers.yaml, row: I22}
+  - {file: design.md, heading: 11. カタログへの回答〔Lite：生成（集計）〕}
+  - {file: design.md, heading: 3.1 重点と見送り〔Lite：手で書く（3. の中で）〕}
+  - {file: design.md, heading: 7. シーケンス図〔Full だけ〕}
+  - {file: design.md, heading: A. 運用で測る指標〔Full だけ〕}
+  core: TTS の障害時に、Txn-Token なしで入口が書く X-Tenant-Id・X-User-Id のヘッダーで認可し、外から来た同じヘッダーを除くと書いていない
   wrong: TTS が止まったとき、各サービスは Txn-Token なしで、入口が書く X-Tenant-Id・X-User-Id のヘッダーで要求を受ける（縮退）。外から来た同名ヘッダーを除くと書いていない。署名の保護が無い値で認可し、なりすませる
   clean: TTS が止まったら edge-gw は要求を拒否する（失敗時に閉じる）。ヘッダーによる縮退は無い
   kind: 目的と仕組みの不一致

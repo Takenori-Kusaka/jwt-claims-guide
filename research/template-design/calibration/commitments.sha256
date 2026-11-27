@@ -1,17 +1,18 @@
 # sha256 of the targets, the answer key and the four designs of #12, recorded before the first measurement.
-# CRLF is read as LF. Checked by tools/calibration_check.py (C6). Fixed in commit a02a3cb (targets and key) and 825376c (designs).
-e22f57f0d185273532acac36f55a22503fbb002b2ac0ff4769e470bc3dd6216d *protocol.md
-c8257c4ce111e2797751a523f3c948e0d4144517b5bee55d8583388d1f2c694c *seeded_errors.yaml
+# CRLF is read as LF. Checked by tools/calibration_check.py (C6). First fixed in a02a3cb (targets and key) and 825376c (designs);
+# remade after the pre-measurement revisions R1-R6 of protocol.md (PR #81 independent check), before any measurement.
+7c0de5ae76a21fd89994d797780af3302e4fcd20b76a28efc2bb7dd7f0429e77 *protocol.md
+2ada5308664d04a8488139c5f9eed6d0c940a6d91e779a51164d836d21ebfa5e *seeded_errors.yaml
 bab288846092b2d049773159dad2638f1ee46593a4c4f99820e2699c41a226e5 *expected_lint.yaml
-b97da910e18ef871911d8208d971a64e19d1ad71e6028370619e8f4998a02cb2 *seeded-a/catalog_answers.broken.yaml
+f4e16e33c64c3acb68eb0578e0d085ec1026fa309fab4b1d9e3e5b6f3acbbb0d *seeded-a/catalog_answers.broken.yaml
 0cea92a04a82699a4a3eabd490fc9e8cd0e295fef99b9aab4cc2a79d39d5c83f *seeded-a/claim_request_approval_id.broken.md
 197b9a701b7508b2ab60055d43a23ab66abb196bd4c79e48011d51cee3e79012 *seeded-a/claim_request_case_id.broken.md
 5065c3ddf6a4d494684892b93f91d8fa1b2926a2df4ef88d7f070754b9cd8a6b *seeded-a/claim_request_customer_contact.broken.md
 8b39174a241a944ca3e2a7ed1aeddefa68a7e6115c08bea3d8612f82b6d26331 *seeded-a/claim_request_customer_ref.broken.md
 7b427cb541ce9669c21098323236a5c34017bcb3016f930f9d347c545d1d7d25 *seeded-a/claims.broken.yaml
-d6ddb5823d6cb828ee2e0f6bfdd6f810777cc5471e2db5e7a19ad803d319154e *seeded-a/design.broken.md
+8c7b604b4a9cf30eb05069544b4838c72abb9dab2a79081d79289285f1a733ba *seeded-a/design.broken.md
 02e7e9371a86c9b71e8f25a52cdf2ba5b19b2a7c33c488b9114e208c3837009c *seeded-a/hops.broken.yaml
-89a77bb1b728cda246bc56455e53a4ce689c6c4e3d45c9f5e3b0ce99332db74b *seeded-a/token_types.broken.yaml
+9eca2e989bdea74084b925d34d12a430cb8b612700e0f3cf706d97d2a0629172 *seeded-a/token_types.broken.yaml
 27421dc67153845b03e337346fc666889c5ac913bd9f80b536a9f0b5ef23636c *seeded-a/schemas/ADMIN_API_AT.consumer.broken.schema.json
 98f12e30fc8899d5c78437dae50886f68b7cbcc3fedbdfcdc1f25a68b24a0c07 *seeded-a/schemas/ADMIN_API_AT.issuer.broken.schema.json
 ba8afe0f6ba051ec4fc6d3b9aacd133648de986a911984fe4b6a4511e2d63244 *seeded-a/schemas/AGENT_SVID.consumer.broken.schema.json

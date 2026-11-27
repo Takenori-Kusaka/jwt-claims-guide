@@ -300,7 +300,7 @@ answers:
   hook_checked: "keycloak：資格情報の変更の後に出る STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない"
 - event: I27
   answer: 対象外
-  assumption: 状態リストを使わない。TOOL_AT は 300 秒で、返金の判断は PDP と approval-svc に都度問い合わせる
+  assumption: 状態リストを使わない。TOOL_AT は 1800 秒で、返金の判断は PDP と approval-svc に都度問い合わせる
   breaks_when: 寿命の長いトークンを出すとき
 - event: I28
   answer: 対象外

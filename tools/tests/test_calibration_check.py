@@ -55,3 +55,15 @@ def test_mark_seeded_renames_with_broken(tmp_path):
     assert cc.main(['mark', str(d), '--seeded']) == 0
     names = sorted(os.path.relpath(p, d).replace('\\', '/') for p in cc.files_of(str(d)))
     assert names == ['claims.broken.yaml', 'design.broken.md', 'schemas/AT.issuer.broken.schema.json']
+
+
+def test_packet_refuses_a_directory_inside_the_repository():
+    with pytest.raises(SystemExit, match='inside the repository'):
+        cc.packet('seeded-a', os.path.join(cc.ROOT, 'designs', 'packet-x'), '12')
+    assert not os.path.exists(os.path.join(cc.ROOT, 'designs', 'packet-x'))
+
+
+def test_packet_refuses_a_non_empty_directory(tmp_path):
+    (tmp_path / 'left.txt').write_text('x', encoding='utf-8')
+    with pytest.raises(SystemExit, match='not empty'):
+        cc.packet('seeded-a', str(tmp_path), '12')

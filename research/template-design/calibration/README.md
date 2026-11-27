@@ -29,9 +29,9 @@
 ## 検査
 
 ```
-python tools/calibration_check.py check                     # C1〜C6（CI の trace のワークフロー）
+python tools/calibration_check.py check                     # C1〜C7（CI の trace のワークフロー）
 python tools/calibration_check.py materialize seeded-a OUT  # レビュアーが受け取る形
-python tools/calibration_check.py packet seeded-a OUT        # 1 回のレビューの資料一式（protocol.md の 6.）。設計書は OUT/designs/target に入る
+python tools/calibration_check.py packet seeded-a OUT        # 1 回のレビューの資料一式（protocol.md の 6.）。OUT はリポジトリの外の空のディレクトリ。設計書は OUT/designs/target に入る
 ```
 
 ## 次の段

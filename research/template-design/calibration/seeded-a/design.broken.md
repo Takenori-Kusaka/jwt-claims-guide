@@ -305,7 +305,7 @@ agent-sts が受ける要求の一覧（`catalog_answers.yaml` の `idp` の age
 | `JAR_REQUEST_OBJECT` | 署名つきの認可要求（JAR の Request Object） | 却下 | — | — | jwt | — | — | — | — | — | 認可要求は PAR で support-console のサーバーから Keycloak に直接送る。ブラウザを通る要求の改ざんは PAR で防ぐ |
 | `JARM_RESPONSE` | 署名つきの認可応答（JARM） | 却下 | — | — | jwt | — | — | — | — | — | 認可応答は認可コードと iss だけで、PKCE と PAR で守る。応答に署名する必要がない |
 | `SECURITY_EVENT_TOKEN` | Security Event Token（SET。SSF・CAEP の通知） | 却下 | — | — | jwt | — | — | — | — | — | 人事連携からの変更は Keycloak の管理 API への書き込みで届け、SET を使わない。剥奪の反映は PDP の問い合わせで行う |
-| `STATUS_LIST_TOKEN` | 状態リストのトークン（Token Status List） | 却下 | — | — | jwt | — | — | — | — | — | TOOL_AT は 300 秒で、返金の判断は PDP と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない |
+| `STATUS_LIST_TOKEN` | 状態リストのトークン（Token Status List） | 却下 | — | — | jwt | — | — | — | — | — | TOOL_AT は 1800 秒で、返金の判断は PDP と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない |
 | `INTROSPECTION_RESPONSE_JWT` | JWT 形式のイントロスペクションの応答 | 却下 | — | — | jwt | — | — | — | — | — | agent-sts は Keycloak のイントロスペクションを mTLS で直接呼び、応答を第三者に渡さないので、JSON の応答で足りる |
 <!-- render:token-inventory:end -->
 
@@ -904,7 +904,7 @@ slide:p08-four-lifetimes の 4 層を、台帳の列から引いた（`templates
 | `I22` | Txn-Token の発行と作り直し（Transaction Token Service） | Txn-Token を使わない。ツールの先にトークンで文脈を伝えるサービスの連鎖が無い | ツールの先に複数のサービスを呼ぶ処理を足すとき |
 | `I23` | 共有シグナル（SET。SSF・CAEP）の発行 | 担当者の変更は人事連携が Keycloak の管理 API で書き込み、SET を出さない。剥奪は PDP の問い合わせで届く | 人事の台帳が SSF の送信者になったとき |
 | `I24` | テナント・組織の切り替えに伴う再発行 | 組織は 1 つで、Keycloak の organization の機能を使わない。support-console の Client scopes に organization を付けない | グループ会社のサポートセンターを同じレルムに入れるとき |
-| `I27` | 状態リスト（Token Status List）の発行と、トークンへの status の埋め込み | 状態リストを使わない。TOOL_AT は 300 秒で、返金の判断は PDP と approval-svc に都度問い合わせる | 寿命の長いトークンを出すとき |
+| `I27` | 状態リスト（Token Status List）の発行と、トークンへの status の埋め込み | 状態リストを使わない。TOOL_AT は 1800 秒で、返金の判断は PDP と approval-svc に都度問い合わせる | 寿命の長いトークンを出すとき |
 | `I28` | クライアントの assertion の作成（private_key_jwt・client_secret_jwt でのクライアント認証） | クライアント認証は mTLS（tls_client_auth）で、private_key_jwt・client_secret_jwt の assertion を作らない | Keycloak の X509 Certificate のクライアント認証が使えない構成に変わったとき |
 | `I30` | DPoP の proof の作成 | 送信者制約は mTLS で、DPoP の proof を作らない | ブラウザやモバイルから直接ツールを呼ぶクライアントを作るとき |
 | `I31` | 署名つきの認可要求（JAR の Request Object）の作成 | 認可要求は PAR でサーバーから直接送り、JAR の Request Object を作らない | 要求の内容を第三者に証明する必要が出たとき |

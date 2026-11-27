@@ -541,7 +541,7 @@ token_types:
 - id: STATUS_LIST_TOKEN
   kind: status_list_token
   decision: 却下
-  rationale: TOOL_AT は 300 秒で、返金の判断は PDP と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない
+  rationale: TOOL_AT は 1800 秒で、返金の判断は PDP と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない
   assumption: 長く生きるトークンを出さない
   revisit_trigger: 寿命の長いトークンを出すとき
   format: jwt
