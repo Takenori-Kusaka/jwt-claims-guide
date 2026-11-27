@@ -1,0 +1,438 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# カタログの全イベントへの回答（tools/claim_lint/RULES.md の R2）。しろがね損保の設計書
+# 発行者は 4 つ：shirogane-as（契約者と代理店の認可サーバー）、shirogane-sso（社員の OP）、TTS（Transaction Token Service）は、しろがねが自分で運用・構築する。
+# 代理店の IdP（代理店ごとに 1 つ）は外の発行者で、しろがねには RFC 7523 の assertion だけを出す
+lite_criteria:
+  crosses_boundary: {answer: true, reason: 提携の代理店（別の会社）のサーバーが、代理店の IdP の assertion で shirogane-as から AT を取り、代理店の口を呼ぶ}
+  multitenant: {answer: false, reason: しろがね損保 1 社の仕組みで、テナントを分けない。代理店ごとの絞り込みは、テナントではなく証券の取扱代理店（agency_code）で行う}
+  delegation_or_exchange: {answer: true, reason: 入口で外の AT を Txn-Token に作り直す。コールセンターの社員が契約者に代わって請求を受け付ける（act）。査定の確定から PAY_MSG_CTX を経て Txn-Token を作り直す}
+  new_issuer: {answer: true, reason: TTS はこの設計のために作る発行者}
+  regulated: {answer: true, reason: 保険金の請求は傷病・事故の情報（要配慮個人情報）を扱い、個人情報保護法の要配慮個人情報の規律と、保険業法の監督の指針の顧客情報の管理の対象になる}
+idp:
+  - name: shirogane-as
+    kind: self_built
+    version: しろがね認可サーバー（自社で運用。OIDC Core 1.0・RFC 9068・RFC 9126・RFC 7523・RFC 8705 に従う）
+    token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, AUTH_CODE, AGENCY_AT]
+    trigger_list_source: {document: しろがね認可サーバーの発行の仕様書（AS-SPEC 第 3 版）と design.md の 4.（発行方式の選択）, verified_on: '2026-11-27'}
+    trigger_list:
+      - {trigger: "PAR（RFC 9126）と grant_type=authorization_code＋PKCE（claim-portal。tls_client_auth）", events: [I01]}
+      - {trigger: "grant_type=refresh_token（claim-portal。使うたびに替える）", events: [I02]}
+      - {trigger: shirogane-as のログインのセッションが残っている間の再ログイン（認証の画面を出さない）, events: [I11]}
+      - {trigger: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer（代理店のサーバー。代理店の IdP の assertion と tls_client_auth。AT を証明書に束縛する）", events: [I15, I29]}
+      - {trigger: 契約者のアカウントの初回の登録（証券番号と、郵送した登録の番号での本人確認の後の初回のログイン）, events: [I25]}
+      - {trigger: 契約者のパスワードの変更・再設定、多要素の登録の後のログイン, events: [I26]}
+      - trigger: grant_type=client_credentials・password・device_code・token-exchange
+        out_of_scope:
+          assumption: shirogane-as はどのクライアントにも client credentials・パスワード・デバイスコード・トークン交換の grant を許さない（クライアントの登録の許可の一覧に無い）
+          breaks_when: 代理店の利用者がいない M2M の連携や、別のトークンからの AT の取得を足すとき
+  - name: shirogane-sso
+    kind: self_built
+    version: しろがね社員の OP（自社で運用。OIDC Core 1.0・RFC 9068・RFC 9470 に従う）
+    token_types: [STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION, AUTH_CODE]
+    trigger_list_source: {document: しろがね社員の OP の発行の仕様書（SSO-SPEC 第 2 版）と design.md の 4.（発行方式の選択）, verified_on: '2026-11-27'}
+    trigger_list:
+      - {trigger: "PAR と grant_type=authorization_code＋PKCE（staff-console。tls_client_auth）", events: [I01]}
+      - {trigger: "prompt=none での取り直し（staff-console。SSO のセッションが残っている間）", events: [I11]}
+      - {trigger: "max_age=0 と acr_values=urn:shirogane-sonpo:acr:phr での認証し直し（承認・管理の操作の前）", events: [I12]}
+      - {trigger: 社員のセキュリティキーの登録・パスワードの変更の後のログイン, events: [I26]}
+      - trigger: grant_type=refresh_token・client_credentials・password・jwt-bearer・token-exchange
+        out_of_scope:
+          assumption: shirogane-sso は RT を出さず、staff-console にだけ認可コードの grant を許す
+          breaks_when: 社員の画面にスマートフォンのアプリを足し、RT を出すとき
+  - name: shirogane-tts
+    kind: self_built
+    token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+    trigger_list_source: {document: design.md の 4.（TTS が受ける要求の一覧）と 8. のホップの表, verified_on: '2026-11-27', planned: true}
+    trigger_list:
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PH_AT（front-gw の契約者の口）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=AGENCY_AT と証明書の拇印のヘッダー（front-gw の代理店の口）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=STAFF_AT（front-gw の社員の口。社員本人の操作）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=STAFF_AT と request_details の call_id（電話の代理受付）", events: [I22]}
+      - {trigger: "PAY_MSG_CTX の発行（assessment-svc が operation が assessment.confirm の TXN_STAFF を subject_token にして求める）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PAY_MSG_CTX（payment-worker の作り直し）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、要求したワークロード自身を主体にする（payment-batch。草案 §8.2）", events: [I22]}
+      - trigger: subject_token に Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）を出して、別の Txn-Token に作り直す要求
+        out_of_scope:
+          assumption: サービスは受け取った Txn-Token を改変せずに渡し、TTS は Txn-Token を subject_token とする Txn-Token の要求を拒む（PAY_MSG_CTX を作るときだけ TXN_STAFF を受ける）
+          breaks_when: サービスが途中で scope を絞った Txn-Token を求める設計にしたとき、またはサービスが自分の ID で作り直す経路を足したとき
+  - name: agency-idp
+    kind: product
+    enumerable: false
+    enumerable_source: しろがねの代理店連携の仕様書（第 2 版）の 4 章。しろがねが代理店の IdP から受けるのは RFC 7523 §3 の assertion の 1 種類だけで、代理店の IdP の製品と、ほかの発行の契機はしろがねの範囲の外
+    token_types: [AGENCY_ASSERTION]
+    note: 代理店ごとに別の IdP（はなみずき保険サービスと、くもい代理店の 2 社）。どちらの製品かを、しろがねは決めない
+questions:
+  q-sub: {needed: true, note: "誰の権限で：Txn-Token の sub（契約者・代理店の担当者・社員の ID、または payment-batch のワークロードの ID）。TXN_PROXY では本人確認した契約者"}
+  q-actor: {needed: true, note: 誰が代理して実行しているか：TXN_PROXY の act（電話の代理受付の社員）だけ。ほかのトークンには act を載せない（非同期の支払いの指示を動かすワークロードは req_wl で表す。6. の UC4）}
+  q-req-wl: {needed: true, note: どのワークロードが Txn-Token を求めたか：req_wl（front-gw・payment-worker・payment-batch）。直接の通信相手（q-peer）とは別に確かめる}
+  q-peer: {needed: true, channel: mTLS（網の中は SPIFFE の X.509-SVID、代理店のサーバーとはしろがねの代理店向けの CA の証明書）。受け手は呼び出し元の ID を受け付ける一覧と照合する。トークンの値（req_wl・act・client_id）では代えない, note: 直接の通信相手}
+  q-via: {needed: false, reason: 経由したサービスの記録をトークンに載せない。経路は txn で監査ログとトレースを相関させ、外の AT とは front-gw の監査ログの 1 行（AT の iss・jti と txn）で結ぶ}
+  q-txn: {needed: true, note: どの取引か：txn。tctx は取引の値（受け手が要求の本文と照合する）}
+  q-user: {needed: true, note: 誰が利用者か：shirogane-as・shirogane-sso が割り当てた ID（sub）。代理店の担当者は (代理店の IdP の iss, sub) から shirogane-as が引いた ID。メールでは引かない}
+  q-agent: {needed: true, note: どのクライアントか：AT の client_id（claim-portal・staff-console・代理店のサーバー）}
+  q-authorized: {needed: true, note: 何が許されたか：TTS が絞った scope と、tctx の値（取引ごと）。承認・管理の操作では acr・auth_time}
+  q-resource: {needed: true, note: どのリソース向けか：AT の aud（口ごと）、Txn-Token の aud（信頼ドメイン）}
+  q-holder: {needed: true, note: 誰が持つべきか：AGENCY_AT の cnf（代理店のサーバーの証明書）。PH_AT・STAFF_AT は束縛せず、front-gw の口の mTLS の相手で代える（3.1 の見送り）}
+subject_states:
+  unused_layers:
+    Logout Token: Back-Channel Logout を使わない（LOGOUT_TOKEN は却下）。止める処理は TTS が発行のたびに状態を引くことで行う
+  states:
+    subject-states/active:
+      AT: {result: 発行, basis: 契約者・社員がログインすると PH_AT・STAFF_AT が出る（I01）。代理店のサーバーは assertion で AGENCY_AT を取る（I15）}
+      RT: {result: 発行, basis: claim-portal のログインで shirogane-as が使うたびに替わる PH_RT を出す（I01）。社員と代理店には出さない}
+      ID: {result: 発行, basis: ログインの応答で claim-portal・staff-console に ID トークンを出す}
+      内部トークン: {result: 発行, basis: front-gw の要求ごとに TTS が TXN_TOKEN・TXN_STAFF・TXN_PROXY を出す（I22）。契約者・代理店・社員が有効なときだけ}
+      IdP のセッション: {result: 発行, basis: shirogane-as・shirogane-sso のログインのセッション（AS_SESSION・SSO_SESSION）ができる}
+      RP・BFF のセッション: {result: 発行, basis: claim-portal・staff-console が PORTAL_SESSION・STAFF_SESSION を作り、Cookie にセッションの ID だけを置く}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: パスワードの変更・セキュリティキーの登録で手元の AT は変わらず、exp（最大 630 秒）まで受け入れる}
+      RT: {result: 失効, basis: shirogane-as は契約者のパスワードの変更・再設定で、その契約者の RT の系列をすべて止める（AS-SPEC の 5 章）}
+      ID: {result: 影響なし, basis: ID トークンはログインのときだけ使い、保存しない}
+      内部トークン: {result: 影響なし, basis: TTS は資格情報の変更を見ない。Txn-Token は最大 330 秒で切れる}
+      IdP のセッション: {result: 失効, basis: shirogane-as・shirogane-sso は資格情報の変更で、その人のほかのログインのセッションを消す（変更した端末のセッションだけ残す）}
+      RP・BFF のセッション: {result: 影響なし, basis: claim-portal・staff-console は資格情報の変更の通知を受けない。次の RT の取り直し（claim-portal）か prompt=none の取り直し（staff-console）が失敗した時点で消す}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 手元の AT は exp まで残るが、TTS が発行のたびに台帳を引き、消した契約者・社員には Txn-Token を出さない}
+      RT: {result: 失効, basis: 契約者のアカウントを消すと、shirogane-as は次の RT での取り直しを拒む（refresh_failure）}
+      ID: {result: 影響なし, basis: ID トークンは保存しないので、消す対象が無い}
+      内部トークン: {result: 失効, basis: TTS は次の発行から出さない（状態のキャッシュは 60 秒まで）。発行済みの Txn-Token は最大 330 秒で切れる}
+      IdP のセッション: {result: 失効, basis: shirogane-as・shirogane-sso はアカウントの削除・退職でセッションを消す（shirogane-sso は社員の台帳を 60 秒ごとに引く）}
+      RP・BFF のセッション: {result: 影響なし, basis: セッションは残るが、そこからの API の呼び出しはすべて TTS で拒まれ、claim-portal・staff-console は 403 を受けたらセッションを消す}
+    subject-states/invited:
+      AT: {result: 影響なし, basis: 契約者のアカウントの登録が済むまで AT を出さない。社員は社員の台帳に入社の日から載るまでログインできない}
+      RT: {result: 影響なし, basis: 登録の前は RT を出さない}
+      ID: {result: 影響なし, basis: 登録の前はログインしない}
+      内部トークン: {result: 影響なし, basis: 登録の前の契約者・入社の前の社員には AT が無く、TTS に要求が届かない}
+      IdP のセッション: {result: 影響なし, basis: 登録の番号を郵送するだけでセッションは作らない}
+      RP・BFF のセッション: {result: 影響なし, basis: 登録してログインするまでセッションは無い}
+    subject-states/role-change:
+      AT: {result: 影響なし, basis: STAFF_AT に役割を載せないので、AT は変わらない}
+      RT: {result: 影響なし, basis: 社員には RT を出さない。契約者には役割が無い}
+      ID: {result: 影響なし, basis: ID トークンに役割を載せない}
+      内部トークン: {result: 再計算, basis: TTS は発行のたびに社員の台帳の役割から scope を絞り直す（台帳のキャッシュ 60 秒）。発行済みの Txn-Token は最大 330 秒で、外してから最大 390 秒（REQ-03 は 600 秒）}
+      IdP のセッション: {result: 影響なし, basis: shirogane-sso のセッションは役割を持たない}
+      RP・BFF のセッション: {result: 影響なし, basis: staff-console のセッションは役割を持たない（画面の出し分けも API の応答で決める）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: 契約者・代理店・社員を止めても手元の AT は exp まで残るが、TTS が発行のたびに状態を引いて拒む}
+      RT: {result: 失効, basis: 契約者のアカウントを止めると、shirogane-as は次の RT での取り直しを拒む}
+      ID: {result: 影響なし, basis: ID トークンは保存しない}
+      内部トークン: {result: 失効, basis: TTS が発行のたびに状態を引く（キャッシュ 60 秒）。発行済みは最大 330 秒。停止から 390 秒以内に内側の処理が止まる（REQ-01・REQ-02 は 900 秒、REQ-03 は 600 秒）}
+      IdP のセッション: {result: 失効, basis: 契約者のアカウントの停止で shirogane-as がセッションを消す。社員の停止（休職）では shirogane-sso が台帳を引いて消す}
+      RP・BFF のセッション: {result: 失効, basis: claim-portal・staff-console は front-gw から停止の応答（403）を受けたらセッションを消し、停止の画面を出す}
+    subject-states/tenant-switch:
+      AT: {result: 影響なし, basis: テナントが無い（lite_criteria の multitenant は false）。代理店の担当者が別の代理店に移るときは、別の代理店の IdP の別の担当者になる}
+      RT: {result: 影響なし, basis: テナントの切り替えが無く、RT はテナントに結びつかない}
+      ID: {result: 影響なし, basis: テナントの切り替えが無く、ID トークンを取り直す場面が無い}
+      内部トークン: {result: 影響なし, basis: Txn-Token にテナントの値が無く、TTS は代理店コードを発行のたびに代理店の登録から引く}
+      IdP のセッション: {result: 影響なし, basis: shirogane-as・shirogane-sso のセッションはテナントを持たない}
+      RP・BFF のセッション: {result: 影響なし, basis: claim-portal・staff-console のセッションはテナントを持たない}
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当, note: 契約者（ポータル）、代理店の担当者（代理店の IdP）、社員（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）}
+    ワークロード: {answer: 該当, note: 代理店のサーバー、front-gw、assessment-svc（PAY_MSG_CTX を求める）、payment-worker（作り直しを求める）、各サービス}
+    システム: {answer: 該当, note: 夜間の支払いの実行（payment-batch）。利用者の ID を借りず、自分の ID で Txn-Token を求める}
+  combinations:
+    - {subject: 利用者, event: I01, stage: "①", note: 契約者は claim-portal から、社員は staff-console から PAR と認可コード＋PKCE でログインする}
+    - {subject: ワークロード, event: I01, stage: "①", note: ワークロードは対話のログインをしない。claim-portal・staff-console は tls_client_auth でトークンの端点に認証するだけ}
+    - {subject: システム, event: I01, stage: "①", note: payment-batch はログインしない。起きない組み合わせとして確かめた}
+    - {subject: 利用者, event: I01, stage: "②", note: ログインの後のトークンの要求で、shirogane-as・shirogane-sso が AT・ID トークンを出す}
+    - {subject: 利用者, event: I02, stage: "②", note: claim-portal が PH_RT で PH_AT を取り直す。使うたびに RT が替わる}
+    - {subject: ワークロード, event: I02, stage: "②", note: 代理店のサーバーは RT を持たない（新しい assertion で取り直す）。起きない組み合わせとして確かめた}
+    - {subject: システム, event: I02, stage: "②", note: payment-batch は shirogane-as の RT を使わない}
+    - {subject: 利用者, event: I11, stage: "②", note: staff-console が prompt=none で STAFF_AT を取り直す。claim-portal の再ログインでは shirogane-as のセッションが再利用される。どちらも auth_time と acr は前の認証のまま}
+    - {subject: ワークロード, event: I11, stage: "②", note: ワークロードにはブラウザのセッションが無い}
+    - {subject: システム, event: I11, stage: "②", note: payment-batch にはブラウザのセッションが無い}
+    - {subject: 利用者, event: I12, stage: "⑤", note: 上長が承認の前に、代理店管理部・お客さま窓口の上長が管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直す}
+    - {subject: ワークロード, event: I12, stage: "⑤", note: ワークロードは承認をしない。起きない組み合わせとして確かめた}
+    - {subject: システム, event: I12, stage: "⑤", note: payment-batch は承認をしない。承認の記録を読むだけ}
+    - {subject: 利用者, event: I12, stage: "①", note: 認証し直しそのものは shirogane-sso の通常のログイン（段階①）で、ハードウェアの鍵のときだけ acr が phr になる}
+    - {subject: 利用者, event: I15, stage: "②", note: 代理店の担当者（代理店の IdP が認証した人）の assertion で、代理店のサーバーが AGENCY_AT を取る}
+    - {subject: ワークロード, event: I15, stage: "②", note: 代理店のサーバーが assertion を出す。担当者のいない assertion（ワークロードだけの assertion）は shirogane-as が拒む}
+    - {subject: システム, event: I15, stage: "②", note: payment-batch は assertion の grant を使わず、TTS に自分の ID で求める（I22）}
+    - {subject: 利用者, event: I22, stage: "④", note: 契約者・代理店の担当者・社員の AT から、TTS が Txn-Token を出す。代理受付では本人確認した契約者を sub にする}
+    - {subject: ワークロード, event: I22, stage: "④", note: assessment-svc が PAY_MSG_CTX を、payment-worker が作り直しの Txn-Token を求める。どちらも mTLS の相手の ID で認証する}
+    - {subject: システム, event: I22, stage: "④", note: payment-batch が支払いの 1 件ごとに自分の ID で Txn-Token を求める（草案 §8.2）}
+    - {subject: 利用者, event: I25, stage: "①", note: 契約者が証券番号と郵送の登録の番号で本人確認し、アカウントを作って初めてログインする}
+    - {subject: ワークロード, event: I25, stage: "①", note: ワークロードはアカウントを作らない。代理店の登録は代理店管理部が as-admin-api で書く（トークンの発行ではない）}
+    - {subject: システム, event: I25, stage: "①", note: payment-batch はアカウントを作らない}
+    - {subject: 利用者, event: I25, stage: "②", note: 初回のログインの後、shirogane-as が契約者の ID（ph_）を割り当てて AT を出す}
+    - {subject: 利用者, event: I26, stage: "①", note: 契約者のパスワードの変更・社員のセキュリティキーの登録の後に認証する}
+    - {subject: ワークロード, event: I26, stage: "①", note: ワークロードの資格情報（SVID・代理店の証明書）の更新はトークンの発行ではない。代理店の証明書は同じサブジェクトで出し直す}
+    - {subject: システム, event: I26, stage: "①", note: payment-batch の SVID の更新は 1 時間ごとに自動で、トークンの値を変えない}
+    - {subject: 利用者, event: I26, stage: "②", note: 変更の後の発行。shirogane-as は契約者の古い RT の系列を止める}
+    - {subject: 利用者, event: I29, stage: "②", note: 代理店の担当者の AGENCY_AT は、代理店のサーバーの証明書に束縛される（担当者ではなくサーバーが鍵を持つ）}
+    - {subject: ワークロード, event: I29, stage: "②", note: 代理店のサーバーが tls_client_auth の証明書を示し、shirogane-as がその拇印を cnf に書く}
+    - {subject: システム, event: I29, stage: "②", note: payment-batch の Txn-Token は束縛しない（網の中で受け手が mTLS の相手を確かめる）}
+outside_enumeration:
+  answer: >-
+    カタログ（発行 34・利用 30）と、shirogane-as・shirogane-sso・TTS の契機の一覧の外の場面を、境界の図・シーケンス図・ホップの表と、
+    代理店連携の仕様書・Transaction Tokens の草案で探した。カタログに行の無い発行を 1 つ見つけ、下の found に書いた
+  respondent: 設計書の書き手（しろがね損保 IT 基盤部）
+  date: '2026-11-27'
+  searched:
+    - design.md の 2. 範囲と信頼の境界の図、7. シーケンス図、8. ホップの表（矢印とホップごとに、カタログのどのイベントかを確かめた）
+    - agency-idp について、しろがねの代理店連携の仕様書（第 2 版）の 4 章（代理店の IdP が出す assertion の形と、assertion の他にしろがねが受けるものが無いこと）
+    - しろがね認可サーバーの発行の仕様書（AS-SPEC 第 3 版）と、しろがね社員の OP の発行の仕様書（SSO-SPEC 第 2 版）の grant の一覧
+    - draft-ietf-oauth-transaction-tokens-11（https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt）の §8・§11・§13.15（発行・要求・作り直し）
+    - RFC 7523（https://www.rfc-editor.org/rfc/rfc7523）の §3（assertion の検証）と RFC 8705（https://www.rfc-editor.org/rfc/rfc8705）の §3（証明書に束縛した AT）
+  found:
+    - name: ブローカーのメッセージに入れる、TTS が署名した支払いの指示の文脈（PAY_MSG_CTX）の発行
+      handled_as: カタログに行が無いので、TTS の発行の 1 つとして I22 に含めて答え、trigger_list に足した。寿命（3600 秒）と、使える場所（TTS の作り直しだけ）を目録に書いた
+answers:
+- event: I01
+  answer: 該当
+  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AUTH_CODE, AS_SESSION, PORTAL_SESSION, STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION, STAFF_SESSION]
+  note: 契約者は claim-portal から shirogane-as に、社員は staff-console から shirogane-sso に、PAR と認可コード＋PKCE でログインする。RT は claim-portal にだけ出す
+- event: I02
+  answer: 該当
+  token_types: [PH_AT, PH_RT]
+  note: claim-portal だけが PH_RT で取り直す。shirogane-as は取り直しのたびに契約者のアカウントの状態を見る
+- event: I03
+  answer: 対象外
+  assumption: shirogane-as・shirogane-sso は AT の形を RFC 9068 の 1 つに決めていて、クレームを減らした別の形の AT を出さない
+  breaks_when: AT の大きさを減らすために、クレームを落とした別の形の AT を出すとき
+- event: I04
+  answer: 対象外
+  assumption: どのクライアントにも Password の grant を許さない（RFC 9700 §2.4 が ROPC を使わないよう求めている）
+  breaks_when: 代理店の仕組みが、担当者のパスワードを預かってトークンを取る連携を求めたとき
+- event: I05
+  answer: 対象外
+  assumption: client credentials の grant を許さない。代理店の呼び出しは、必ず担当者の assertion（I15）で取った AT で行う
+  breaks_when: 代理店の夜間の一括の連携など、担当者のいない呼び出しを受けるとき
+- event: I06
+  answer: 対象外
+  assumption: shirogane-as・shirogane-sso はトークン交換を受けない。交換の形の要求は TTS だけが受ける（I22）
+  breaks_when: shirogane-as で別のトークンから AT を取る連携（契約者のスマートフォンのアプリのトークンの持ち込みなど）を足すとき
+- event: I07
+  answer: 対象外
+  assumption: 入力の限られた端末からのログインが無い（契約者は Web の画面、社員は社内の管理端末のブラウザ）
+  breaks_when: 事故の現場の端末・コールセンターの電話機からログインする機能を足すとき
+- event: I08
+  answer: 対象外
+  assumption: offline_access の scope を使わない。PH_RT は claim-portal のクライアントの登録で決まり、ログインのセッションの最大（28800 秒）を超えない
+  breaks_when: 契約者がログインしていない間に、契約者の名で処理を続ける要求が出たとき
+- event: I09
+  answer: 対象外
+  assumption: Back-Channel Logout を使わない（LOGOUT_TOKEN は却下）。BFF のセッションの終わりは、ログアウトと、TTS での拒否の応答で行う
+  breaks_when: 契約者・社員の停止をきっかけに、BFF のセッションをすぐ消す要求が出たとき
+- event: I10
+  answer: 対象外
+  assumption: 応答の型は code だけで、implicit・hybrid を許さない（RFC 9700 §2.1.2）
+  breaks_when: ブラウザだけで動く画面を足し、フロントチャネルでトークンを受けるとき
+- event: I11
+  answer: 該当
+  token_types: [STAFF_AT, STAFF_ID_TOKEN, AUTH_CODE, PH_AT, PH_ID_TOKEN]
+  note: staff-console は STAFF_AT の期限が切れると prompt=none で取り直す。claim-portal のセッションが切れた後の再ログインで、shirogane-as のセッションが残っていれば認証の画面を出さずに発行される。どちらも acr・auth_time は前の認証の値のままで、承認の前の認証し直し（I12）の代わりにならない
+- event: I12
+  answer: 該当
+  token_types: [STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION]
+  note: 上長の支払いの承認と、代理店管理部・お客さま窓口の上長の管理の操作の前に、max_age=0 と acr_values でハードウェアの鍵で認証し直させる。確かめるのは payment-svc と as-admin-api（TXN_STAFF の acr・auth_time）
+- event: I13
+  answer: 対象外
+  assumption: 別の端末での承認（CIBA）を使わない。上長の承認は staff-console の画面で行う
+  breaks_when: 承認を上長のスマートフォンへの通知で行う要求が出たとき
+- event: I14
+  answer: 対象外
+  assumption: 承認の内容を RAR の authorization_details でトークンに載せない。高額の支払いの承認は payment-svc の承認の記録で、取引の値は TTS が tctx に書く
+  breaks_when: 承認を payment-svc の外（銀行の API など）で確かめさせる要求が出たとき
+- event: I15
+  answer: 該当
+  token_types: [AGENCY_AT]
+  note: 代理店のサーバーが、代理店の IdP の assertion（AGENCY_ASSERTION）と tls_client_auth で shirogane-as から取る。shirogane-as は assertion の iss・aud・exp・jti を確かめ、(iss, sub) を代理店の担当者の ID に替える
+- event: I16
+  answer: 対象外
+  assumption: 別の組織の API に、しろがねの利用者の SSO 済みの認可を持ち込まない（ID_JAG は却下）
+  breaks_when: 支払いの結果を代理店の API に契約者の名で送る要求が出たとき
+- event: I17
+  answer: 対象外
+  assumption: 代理店の担当者は shirogane-as にブラウザでログインしない（代理店の IdP と shirogane-as の間に連携のログインを作らない）。代理店の値は assertion（I15）だけで受ける
+  breaks_when: 代理店の担当者がしろがねの画面に直接ログインする機能を足すとき
+- event: I18
+  answer: 対象外
+  assumption: アカウントの名寄せ（同じメールの契約者を 1 つにする）をしない。同じ人が 2 つのアカウントを持つときは、お客さま窓口の手続きで片方を消す
+  breaks_when: 契約者の 2 つのアカウントを自動で 1 つにする機能を足すとき
+- event: I19
+  answer: 対象外
+  assumption: 社員が契約者としてログインする代理ログイン（なりすまし）を使わない。電話の代理受付は TTS が出す TXN_PROXY（I22）で、社員は自分の ID のまま act に載る
+  breaks_when: コールセンターの手順に、shirogane-as で契約者としてログインする作業を入れるとき
+- event: I20
+  answer: 対象外
+  assumption: ワークロードの ID は SPIFFE の X.509-SVID だけで、JWT-SVID・Kubernetes のサービスアカウントのトークンを受け手が受けない
+  breaks_when: mTLS の通らない経路（クラウドの関数など）にワークロードの JWT を渡すとき
+- event: I21
+  answer: 対象外
+  assumption: 入口は組織独自の内部トークンを作らない（INTERNAL_TOKEN は却下）。入口での作り直しは TTS の Txn-Token（I22）だけ
+  breaks_when: Txn-Token に替えて組織独自の内部トークンを使うとき
+- event: I22
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+  note: TTS が、front-gw（契約者・代理店・社員の口）、assessment-svc（PAY_MSG_CTX）、payment-worker（PAY_MSG_CTX からの作り直し）、payment-batch（自分の ID）の要求で出す。発行のたびに契約者・代理店・社員・通話の記録の状態を引く。TTS が落ちたら発行せず、front-gw は 503 を返す
+- event: I23
+  answer: 対象外
+  assumption: SSF・CAEP の送信も受信もしない（SECURITY_EVENT_TOKEN は却下）
+  breaks_when: 代理店から、担当者の停止を即時に効かせる要求が出たとき
+- event: I24
+  answer: 対象外
+  assumption: テナントが無く、テナント・組織の切り替えでトークンを出し直す場面が無い
+  breaks_when: グループ会社の保険を同じポータルで扱い、会社を切り替える機能を足すとき
+- event: I25
+  answer: 該当
+  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, PORTAL_SESSION]
+  note: 契約者が証券番号と、郵送した登録の番号で本人確認してアカウントを作り、初めてログインする。メールアドレスだけでは登録できない
+- event: I26
+  answer: 該当
+  token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, STAFF_AT, STAFF_ID_TOKEN, SSO_SESSION]
+  note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso はセキュリティキーの登録で acr の値を変える
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを出さない（STATUS_LIST_TOKEN は却下）。寿命の短いトークンだけを受け手に渡す
+  breaks_when: 寿命が 15 分を超える JWT を内側の受け手に渡すとき
+- event: I28
+  answer: 対象外
+  assumption: クライアント認証は tls_client_auth で、private_key_jwt・client_secret_jwt の assertion を作らない（CLIENT_ASSERTION は却下）
+  breaks_when: トークンの端点の前で TLS を終端する部品を置き、mTLS のクライアント認証ができなくなるとき
+- event: I29
+  answer: 該当
+  token_types: [AGENCY_AT]
+  note: shirogane-as が、代理店のサーバーの tls_client_auth の証明書の拇印を AGENCY_AT の cnf（x5t#S256）に書く（RFC 8705 §3）。PH_AT・STAFF_AT は束縛しない（3.1）
+- event: I30
+  answer: 対象外
+  assumption: DPoP を使わない（DPOP_PROOF は却下）。送信者制約は mTLS だけ
+  breaks_when: 証明書を扱えない代理店を受け入れ、DPoP で束縛するとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求を Request Object で署名しない（JAR_REQUEST_OBJECT は却下）。PAR で送る
+  breaks_when: 認可要求に承認の内容を載せるとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答を JARM で署名しない（JARM_RESPONSE は却下）。認可応答は認可コードと iss（RFC 9207）だけ
+  breaks_when: FAPI の適合を求められたとき
+- event: I33
+  answer: 対象外
+  assumption: イントロスペクションを使わない（INTROSPECTION_RESPONSE_JWT は却下）
+  breaks_when: AT を不透明な形に替えるとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報（OID4VCI）を出さない
+  breaks_when: 契約者に保険の証明書を検証可能な資格情報で出す機能を足すとき
+- event: U01
+  answer: 該当
+  token_types: [PH_AT, AGENCY_AT, STAFF_AT]
+  note: front-gw が口ごとに Authorization ヘッダーの Bearer で AT を受け、検証して TTS への要求にだけ使う。内側のサービスは AT を受けない
+- event: U02
+  answer: 対象外
+  assumption: サービスはトークンの値を DB のセッションの文脈（SET LOCAL など）に写さない。行の絞り込みは、各サービスが sub・agency_code・claim_id を問い合わせの条件に書いて行い、DB の役割はサービスごとに 1 つ
+  breaks_when: RLS で行を絞る設計に替え、トークンの値を DB の文脈に写すとき（そのときは M_data_layer を足す）
+- event: U03
+  answer: 該当
+  token_types: [PH_ID_TOKEN, STAFF_ID_TOKEN]
+  note: claim-portal・staff-console がログインの応答で ID トークンの署名・iss・aud・exp・nonce を確かめる。staff-console は acr・auth_time も読む
+- event: U04
+  answer: 該当
+  token_types: [PH_RT, PH_AT]
+  note: claim-portal が PH_RT を出して PH_AT を取り直す。古い RT が 2 回使われたら shirogane-as が系列を止める
+- event: U05
+  answer: 対象外
+  assumption: イントロスペクションを使わない。front-gw と TTS が手元で検証し、状態は TTS が台帳を直接引く
+  breaks_when: AT を不透明な形に替えるとき
+- event: U06
+  answer: 該当
+  token_types: [AS_SESSION, SSO_SESSION, PORTAL_SESSION, STAFF_SESSION]
+  note: claim-portal・staff-console のログアウトで、自分のセッションを消し、shirogane-as・shirogane-sso の logout の端点に送る。claim-portal は PH_RT も失効させる
+- event: U07
+  answer: 対象外
+  assumption: Back-Channel Logout のトークンを受けない（LOGOUT_TOKEN は却下）
+  breaks_when: I09 の前提が崩れたとき
+- event: U08
+  answer: 対象外
+  assumption: claim-portal・staff-console は UserInfo を呼ばない（表示に要る値は ID トークンから）。AT の aud に userinfo を入れない
+  breaks_when: 契約者の住所などを UserInfo から取る画面を足すとき
+- event: U09
+  answer: 該当
+  token_types: [PH_AT, AGENCY_AT, STAFF_AT, AGENCY_ASSERTION, TXN_TOKEN, TXN_STAFF, TXN_PROXY, PAY_MSG_CTX]
+  note: 受け手は JWKS を 300 秒キャッシュし、知らない kid では最短 30 秒の間隔で取り直す。取り直しに失敗したら受けない（on_fetch_failure：reject）
+- event: U10
+  answer: 該当
+  token_types: [PH_AT, AGENCY_AT, STAFF_AT, PAY_MSG_CTX, TXN_STAFF]
+  note: front-gw が AT を、assessment-svc が TXN_STAFF を、payment-worker が PAY_MSG_CTX を、TTS のトークン交換の形の要求の subject_token として出す
+- event: U11
+  answer: 該当
+  token_types: [AGENCY_AT]
+  note: front-gw は AT のクレームをヘッダーに写さない（Txn-Token に作り直す）。ヘッダーに写すのは、代理店の口の証明書の拇印（Shirogane-Client-Cert-S256）を TTS への要求に付けるときだけで、代理店から来た同名のヘッダーは捨てる
+- event: U12
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY]
+  note: 内側のサービスは Txn-Token ヘッダーで受け取ったまま渡し、直接の相手を mTLS の SPIFFE ID で確かめる
+- event: U13
+  answer: 該当
+  token_types: [PAY_MSG_CTX, TXN_TOKEN]
+  note: 査定の確定から支払いの指示まで、ブローカーで最大 3600 秒待つ。メッセージには PAY_MSG_CTX を入れ、payment-worker が TTS で TXN_TOKEN に作り直す。夜間の支払いの実行は payment-batch が自分の ID で求める（後で動く処理の権限は、作り直し・実行の時点で TTS と payment-svc が確かめ直す）
+- event: U14
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY, PH_AT, AGENCY_AT, STAFF_AT]
+  note: 監査ログに txn・sub の HMAC・act.sub の HMAC・tctx の値（operation・claim_id・payment_id・amount など）を残す。front-gw は AT の iss・jti と txn を 1 行に残す。トークンの全体は記録しない
+- event: U15
+  answer: 該当
+  token_types: [PH_RT, AS_SESSION, SSO_SESSION]
+  note: claim-portal はログアウトで PH_RT を失効の端点（RFC 7009）に送る。契約者のアカウントの停止・社員の退職で shirogane-as・shirogane-sso がセッションを消す
+- event: U16
+  answer: 対象外
+  assumption: 受け手は状態リストを引かない。受け手に届く JWT は寿命が 300〜600 秒で、状態は TTS が発行のたびに引く
+  breaks_when: I27 の前提が崩れたとき
+- event: U17
+  answer: 対象外
+  assumption: SET（SSF・CAEP の通知）を受ける受け手を作らない。止める処理は TTS が発行のたびに状態を引くことで行う
+  breaks_when: I23 の前提が崩れたとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない
+  breaks_when: shirogane-as・shirogane-sso の SSO に別の RP を足し、ログアウトを伝える要求が出たとき
+- event: U19
+  answer: 対象外
+  assumption: 応答・Webhook を署名して返す場面が無い。代理店への結果は代理店の口の応答で返し、銀行への振込はファイルの送信（この設計の範囲の外。銀行との専用の回線と署名つきのファイル）
+  breaks_when: 代理店に支払いの結果を Webhook で送る機能を足すとき
+- event: U20
+  answer: 対象外
+  assumption: しろがねの内側から、信頼ドメインの外の API を利用者の名で呼ばない
+  breaks_when: 修理工場・病院の API に請求の照会を送る連携を足すとき
+- event: U21
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_STAFF, TXN_PROXY]
+  note: TTS は契約者・代理店・社員の状態を 60 秒までキャッシュする。通話の記録・承認の記録はキャッシュしない。受け手は判断の結果をキャッシュしない（JWKS のキャッシュは U09）
+- event: U22
+  answer: 該当
+  token_types: [AUTH_CODE]
+  note: 認可コードだけがリダイレクトの query でブラウザを通る（60 秒・1 回だけ・PKCE）。認可要求は PAR で送り、AT・RT・ID トークンはブラウザに出さない
+- event: U23
+  answer: 対象外
+  assumption: 長時間の接続（WebSocket・gRPC のストリーム）を使わない。画面の更新は短い要求の繰り返し
+  breaks_when: 査定の画面に、請求の状態をストリームで送る機能を足すとき
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS に JWT を出して資格情報を得る場面が無い（基盤はしろがねの自社の網）
+  breaks_when: 書類の保存先をクラウドのストレージに移し、ワークロードの JWT で資格情報を得るとき
+- event: U25
+  answer: 対象外
+  assumption: エージェントがツールを呼ぶ場面が無い
+  breaks_when: 査定の補助に AI のエージェントを足し、内側の API を呼ばせるとき
+- event: U26
+  answer: 該当
+  token_types: [AGENCY_AT]
+  note: front-gw が代理店の口の TLS の証明書の拇印と AGENCY_AT の cnf を照らす。TTS は front-gw が書いたヘッダーの拇印と cnf を照らす
+- event: U27
+  answer: 該当
+  token_types: [TXN_STAFF]
+  note: payment-svc・as-admin-api は、acr・auth_time が足りなければ 401（insufficient_user_authentication。RFC 9470）を返し、staff-console が max_age=0 と acr_values で認証し直させる
+- event: U28
+  answer: 対象外
+  assumption: 分析基盤・データウェアハウスにトークンのクレームを複製しない。不正の判定の記録（fraud-svc）は fraud-svc の保存先にだけ置き、90 日で消す
+  breaks_when: 請求の傾向の分析のために、判定の記録や監査ログを分析基盤に写すとき
+- event: U29
+  answer: 対象外
+  assumption: この設計は新しく作る仕組みで、旧い請求の仕組み（電話と紙の受付）は API を持たず、旧い入口・旧いトークンを受け続ける経路が無い
+  breaks_when: 旧い仕組みから請求のデータを移す期間に、旧い仕組みの API を並行して受けるとき
+- event: U30
+  answer: 対象外
+  assumption: 本番の受け手は試験用の発行者・鍵を設定に持たない（iss と JWKS は環境ごとに 1 つ）。認証を飛ばす口・時刻を進める口は本番のビルドに入れない。試験の契約者は本番の契約者の台帳に作らない
+  breaks_when: 本番で試験の利用者・試験の発行者を使う運用を始めるとき

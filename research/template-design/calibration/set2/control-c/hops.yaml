@@ -1,0 +1,238 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../../templates/registry/hops.schema.json
+# ホップごとの宣言（templates/registry/README.md の 3.4）。交換のホップは、交換で新しいトークンを出す agent-sts を from に書き、運ぶ者を括弧に書いた
+# H13・H14 は予約の発注の非同期の経路（トークンは運ばない。予約の記録の値を運ぶ）
+hops:
+- id: H1
+  from: 担当者のブラウザ
+  to: repair-console
+  kind: browser
+  token_type: CONSOLE_SESSION
+  aud: [repair-console]
+  scope: []
+  max_lifetime: 32400
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: local
+    checks: [Cookie の __Host- の接頭辞と SameSite, BFF のセッションの無操作 1800 秒と最大 32400 秒, 状態を変える要求の CSRF のトークン]
+  note: 管理担当者も上長も、このコンソールだけを使う（承認の画面もコンソールの中）
+- id: H2
+  from: repair-console
+  to: "https://sts.aoba-sumai.example（agent-sts。委任と承認の交換）"
+  kind: service
+  upstream: H1
+  token_type: CONSOLE_AT
+  aud: ["https://sts.aoba-sumai.example"]
+  scope: [openid, "orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue", "approvals:decide"]
+  max_lifetime: 300
+  custom_claims: []
+  exchanger: null
+  validates:
+    mode: introspection
+    checks: ["署名（aoba-as の JWKS）", iss が aoba-as, aud が agent-sts, client_id が repair-console, aoba-as のイントロスペクションで有効, mTLS の相手が repair-console の証明書, actor_token を受けない（コンソールの交換は担当者自身の操作）, aoba-pdp で担当者の在籍とロール]
+  note: 担当者が修繕依頼をエージェントに任せるとき（H3）と、上長・担当者が承認の画面で操作するとき（H12）
+- id: H3
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console）"
+  to: repair-agent
+  kind: exchange
+  upstream: H2
+  token_type: REPAIR_DELEG_AT
+  aud: ["https://sts.aoba-sumai.example"]
+  scope: ["orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  added_claims:
+    - {claim: C-repair-id, source: external_source, system: 修繕依頼の台帳, reason: 担当者が任せる修繕依頼を、修繕依頼の台帳で担当が sub で委任の欄が有効であることを確かめてから載せる}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: [repair-agent は REPAIR_DELEG_AT を検証せずに保持する（宛先は agent-sts）, repair-console との間は mTLS（repair-agent は repair-console の証明書だけから受ける）]
+  note: >-
+    repair-console が委任の欄を有効にした修繕依頼について、may_act に repair-agent を入れた REPAIR_DELEG_AT を求め、repair-agent に渡す（委任の 1 段目）。
+    scope は aoba-pdp のロールで絞った後の値（ここに書いたのは上限）
+- id: H4
+  from: repair-agent
+  to: "https://sts.aoba-sumai.example（agent-sts。エージェントの交換）"
+  kind: service
+  upstream: H3
+  token_type: REPAIR_DELEG_AT
+  aud: ["https://sts.aoba-sumai.example"]
+  scope: ["orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: null
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（repair-agent）, 修繕依頼の台帳で担当が sub で委任の欄が有効, aoba-pdp で担当者の在籍とロール, resource が 1 つで、リソースの表にある]
+- id: H5
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
+  to: "https://order-tool.aoba-sumai.example/mcp"
+  kind: exchange
+  upstream: H4
+  token_type: ORDER_TOOL_AT
+  aud: ["https://order-tool.aoba-sumai.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての REPAIR_DELEG_AT を、交換で order-tool の 1 つの宛先に置き換える（MCP のパススルーの禁止）。order-tool は REPAIR_DELEG_AT を受けない
+  scope: ["orders:draft", "orders:place"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id, C-approval-ref]
+  added_claims:
+    - {claim: C-approval-ref, source: external_source, system: approval-svc, reason: 承認が要る確定で、approval-svc の承認済みの記録（修繕依頼・担当者・宛先が一致するもの）から載せる}
+  authorization_details: ["https://aoba-sumai.example/rar/vendor-order"]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が order-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で repair-agent、client_id も repair-agent, scope に操作がある（下書きは orders:draft、確定・予約は orders:place）, 下書きの修繕依頼が repair_id と一致, 確定・予約では aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 確定・予約では発注の台帳で部屋の直近 30 日の累計（予約を含む）を数え、10 万円を超えれば authorization_details と下書きの一致と approval-svc の条件つきの使用済み（予約なら予約済み）]
+- id: H6
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
+  to: "https://contact-tool.aoba-sumai.example/mcp"
+  kind: exchange
+  upstream: H4
+  token_type: CONTACT_TOOL_AT
+  aud: ["https://contact-tool.aoba-sumai.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての REPAIR_DELEG_AT を、交換で contact-tool の 1 つの宛先に置き換える（MCP のパススルーの禁止）
+  scope: ["tenant.message:send", "tenant.message:read"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者と協力会社の窓口に限る]
+- id: H7
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
+  to: "https://payment-tool.aoba-sumai.example/mcp"
+  kind: exchange
+  upstream: H4
+  token_type: PAYMENT_TOOL_AT
+  aud: ["https://payment-tool.aoba-sumai.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての REPAIR_DELEG_AT を、交換で payment-tool の 1 つの宛先に置き換える（MCP のパススルーの禁止）
+  scope: ["payments:request"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が payment-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で repair-agent, "scope に payments:request", aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 発注の修繕依頼が repair_id と一致し、確定済みで完了の報告がある, 支払いの額は発注の台帳の確定額（要求の額を使わない）]
+- id: H8
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
+  to: "https://lock-tool.aoba-sumai.example/mcp"
+  kind: exchange
+  upstream: H4
+  token_type: LOCK_TOOL_AT
+  aud: ["https://lock-tool.aoba-sumai.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての REPAIR_DELEG_AT を、交換で lock-tool の 1 つの宛先に置き換える（MCP のパススルーの禁止）
+  scope: ["lock.code:issue"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id, C-approval-ref]
+  added_claims:
+    - {claim: C-approval-ref, source: external_source, system: approval-svc, reason: 解錠コードの発行で、approval-svc の担当者本人の承認済みの記録から載せる}
+  authorization_details: ["https://aoba-sumai.example/rar/lock-code"]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では approval-svc の条件つきの使用済み]
+- id: H9
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
+  to: visit-subagent
+  kind: exchange
+  upstream: H4
+  token_type: REPAIR_DELEG_AT
+  aud: ["https://sts.aoba-sumai.example"]
+  scope: ["tenant.message:send", "tenant.message:read"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: [visit-subagent は REPAIR_DELEG_AT を検証せずに保持する（宛先は agent-sts）, repair-agent との間は mTLS]
+  note: repair-agent が agent-sts に、may_act に visit-subagent を入れた 2 段目の REPAIR_DELEG_AT を求め、visit-subagent に渡す（訪問の日程の調整。REQ-04）
+- id: H10
+  from: visit-subagent
+  to: "https://sts.aoba-sumai.example（agent-sts。委任の 2 段目の交換）"
+  kind: service
+  upstream: H9
+  token_type: REPAIR_DELEG_AT
+  aud: ["https://sts.aoba-sumai.example"]
+  scope: ["tenant.message:send", "tenant.message:read"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: null
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（visit-subagent）, 委任の表に repair-agent → visit-subagent がある, 深さが 2 を超えない, 修繕依頼の台帳で担当が sub で委任の欄が有効, aoba-pdp で担当者の在籍とロール, resource が contact-tool だけ]
+- id: H11
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは visit-subagent）"
+  to: "https://contact-tool.aoba-sumai.example/mcp"
+  kind: exchange
+  upstream: H10
+  token_type: CONTACT_TOOL_AT
+  aud: ["https://contact-tool.aoba-sumai.example/mcp"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての REPAIR_DELEG_AT を、交換で contact-tool の 1 つの宛先に置き換える。visit-subagent の連絡だけに使う
+  scope: ["tenant.message:send", "tenant.message:read"]
+  max_lifetime: 300
+  custom_claims: [C-repair-id]
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある（visit-subagent）。内側の act は記録だけ, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者に限る]
+- id: H12
+  from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console）"
+  to: "https://approval.aoba-sumai.example（approval-svc）"
+  kind: exchange
+  upstream: H2
+  token_type: APPROVAL_AT
+  aud: ["https://approval.aoba-sumai.example"]
+  aud_replacement: true
+  narrowing_exception:
+    aud: agent-sts 宛ての CONSOLE_AT を、交換で approval-svc の 1 つの宛先に置き換える。approval-svc は CONSOLE_AT を受けない
+  scope: ["approvals:decide"]
+  max_lifetime: 120
+  custom_claims: [C-repair-id, C-approval-ref]
+  added_claims:
+    - {claim: C-repair-id, source: external_source, system: approval-svc, reason: 操作する承認の記録の修繕依頼（参照だけのときは画面で開いた修繕依頼）を、担当者か上長であることを確かめてから載せる}
+    - {claim: C-approval-ref, source: external_source, system: approval-svc, reason: 承認の画面で選んだ 1 つの承認の記録を、approval-svc にあることを確かめてから載せる（参照だけのときは載せない）}
+  exchanger: agent-sts
+  validates:
+    mode: local
+    checks: ["署名（agent-sts の JWKS）", aud が approval-svc だけ, "mTLS の相手の証明書と cnf の x5t#S256（repair-console）", client_id が repair-console で act が無い, "scope に approvals:decide", 承認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げでは求めない）, 承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンと一致, aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件]
+- id: H13
+  from: order-scheduler（予約の発注の実行）
+  to: aoba-pdp
+  kind: service
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: [C-repair-id]
+  exchanger: null
+  validates:
+    mode: none
+    checks: [mTLS の相手が order-scheduler の証明書で、aoba-pdp の呼び出し元の許可リストにある, 予約の記録の担当者（sub）が在籍し、修繕担当のロールを持ち、修繕依頼の担当である]
+  note: >-
+    予約の実行の時刻に、order-scheduler が発注の台帳の予約の記録から担当者の sub と修繕依頼 ID を渡して問い合わせる。担当者のトークンは使わない。
+    あわせて修繕依頼の台帳で委任の欄が止められていないかを確かめる（止められていれば実行せず、予約を取り消して担当者に知らせる）
+- id: H14
+  from: order-scheduler（予約の発注の実行）
+  to: "https://approval.aoba-sumai.example（approval-svc）"
+  kind: service
+  token_type: null
+  aud: []
+  scope: []
+  max_lifetime: null
+  custom_claims: [C-repair-id, C-approval-ref]
+  exchanger: null
+  validates:
+    mode: none
+    checks: [mTLS の相手が order-scheduler の証明書で、approval-svc の呼び出し元の許可リストにある, 承認の記録が予約済みで、結んだ発注 ID・修繕依頼・担当者が予約の記録と一致, 予約済みを使用済みにする条件つきの更新（取り下げてあれば失敗）]
+  note: 承認の要る予約だけ。承認の要らない予約（累計 10 万円以下）は H13 だけを通す

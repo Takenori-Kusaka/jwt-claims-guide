@@ -1,0 +1,779 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../../templates/registry/token_types.schema.json
+# トークン目録（templates/registry/README.md の 3.2）と発行方式の選択（3.3）。しろがね損保（保険金の請求と支払いの内部処理）の設計書
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: 契約者の画面（claim-portal）と社員の画面（staff-console）はサーバーで動く BFF で、トークンをブラウザに渡さない。代理店の連携は代理店のサーバーからの呼び出しで、どれも秘密鍵をサーバーに置ける
+    refs:
+      - {kind: guide-slide, id: p06-grant-types}
+      - {kind: spec, id: "RFC 9700 §2.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1"}
+  client_auth:
+    value: tls_client_auth
+    rationale: >-
+      どのクライアントも mTLS の証明書でトークンの端点に認証する（RFC 8705 §2.1）。claim-portal・staff-console は網の中の X.509-SVID、代理店のサーバーはしろがねの代理店向けの CA が出した証明書。
+      共有の秘密を置かず、代理店の AT を同じ証明書に束縛できる（sender_constraint）。秘密の鍵はクライアントのサーバーの外に出ない
+    refs:
+      - {kind: spec, id: "RFC 8705 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-2.1"}
+      - {kind: guide-slide, id: p01-client-made-jwts}
+  grants:
+    value: [authorization_code_pkce, refresh_token, jwt_bearer, token_exchange]
+    rationale: >-
+      契約者と社員は認可コード＋PKCE。claim-portal だけが RT で AT を取り直す。代理店のサーバーは代理店の IdP が署名した assertion で AT を取る（RFC 7523。jwt_bearer）。
+      TTS は Txn-Token の要求をトークン交換の形で受ける（shirogane-as・shirogane-sso はトークン交換を受けない）
+    refs:
+      - {kind: spec, id: "RFC 7523 §2.1", url: "https://www.rfc-editor.org/rfc/rfc7523#section-2.1"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §11.1", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+  sender_constraint:
+    value: mtls
+    rationale: >-
+      代理店の AT（AGENCY_AT）は、しろがねの網の外の代理店のサーバーに置かれるので、代理店のサーバーの証明書に束縛する（RFC 8705 §3。cnf の x5t#S256）。
+      契約者と社員の AT（PH_AT・STAFF_AT）は束縛しない（目録の sender_constraint: none）。この 2 つは claim-portal・staff-console のサーバーの中にだけあり、
+      front-gw の契約者の口と社員の口は claim-portal・staff-console の X.509-SVID の mTLS からしか接続を受けないので、盗まれた AT を網の外から使えない。
+      SVID は 1 時間ごとに替わり、束縛すると替わった直後の AT が使えなくなる費用を避けた（見送りの理由と確かめ方は設計書の 3.1）
+    refs:
+      - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+      - {kind: guide-slide, id: p12-priorities-deferrals}
+  tls_termination:
+    value: at_entry
+    rationale: 代理店の mTLS は front-gw が終端し、front-gw が証明書の拇印と AGENCY_AT の cnf を照らす。front-gw の内側は網の中の mTLS（SPIFFE）で、代理店の証明書は内側に届かない
+    refs:
+      - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+  forwarded_cert_header:
+    name: Shirogane-Client-Cert-S256
+    strip_inbound: true
+    written_only_by: front-gw（代理店の口の TLS の終端。代理店から来た同名のヘッダーは捨てる。TTS は front-gw の SPIFFE ID からの要求でだけこのヘッダーを読む）
+  at_format:
+    value: jwt
+    rationale: front-gw と TTS が手元で検証する。外の AT は入口の内側に入らない（内側は Txn-Token）ので、内側の受け手のための不透明な AT は要らない
+    refs:
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+  rt_strategy:
+    value: rotation_reuse_detection
+    rationale: claim-portal の RT は使うたびに替え、古い RT の再利用で系列を止める（shirogane-as が実装する）。RT はサーバーにだけ置く
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  request_protection:
+    value: [par, resource_indicators]
+    rationale: 認可要求は PAR（RFC 9126）でサーバーから送り、ブラウザの URL に要求の中身を載せない。宛先は resource（RFC 8707）で 1 つだけ求め、AT の aud を口ごとに 1 つにする
+    refs:
+      - {kind: spec, id: "RFC 9126 §1", url: "https://www.rfc-editor.org/rfc/rfc9126#section-1"}
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: guide-slide, id: p09-url-browser}
+  conformance_profile:
+    value: none
+    rationale: 保険業の監督の指針は、FAPI などの特定のプロファイルへの適合を求めていない（しろがねの法務部の確認）。保険金の支払いは振込のファイルで銀行に渡し、API で口座を動かさない
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html"}
+token_types:
+- id: PH_AT
+  kind: access_token
+  decision: 採用
+  rationale: 契約者が claim-portal から front-gw の契約者の口を呼ぶための AT。front-gw が受けて、TTS が Txn-Token に作り直す。内側のサービスはこの AT を見ない
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p06-edge-exchange}
+  purpose: 契約者の権限で、請求の受付・照会と書類の登録を front-gw に頼む。sub は契約者の ID（ph_）で、代理店の AT・社員の AT とは aud と iss で分ける
+  issuer: shirogane-as（しろがねが運用する契約者と代理店の認可サーバー。auth.shirogane-sonpo.example）
+  aud: ["https://portal-api.shirogane-sonpo.example"]
+  holder: claim-portal（サーバー）
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://auth.shirogane-sonpo.example", jwks_uri: "https://auth.shirogane-sonpo.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: author-proposal, id: "盗まれた AT を使える時間を 10 分に抑える。契約者の停止（REQ-01、900 秒）は AT の寿命でなく、TTS が発行のたびに契約者の状態を引くことで効かせる", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: claim-portal が PH_RT で取り直す（I02）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。止める処理は TTS が発行のたびに契約者の状態を引く（TXN_TOKEN の db_lookup）。AT だけでは内側の API を呼べない"}
+    - {method: refresh_failure, delay_seconds: 630, note: 契約者のアカウントを止めると、shirogane-as は次の RT での取り直しを拒む}
+    - {method: db_lookup, delay_seconds: 60, note: PH_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに契約者の状態を引き、scope を経路の表で絞り直す（C-sub C-scope。キャッシュ 60 秒）。止めた後の PH_AT からは Txn-Token が出ない}
+  long_running: 長い処理には使わない。front-gw が受けた時点で Txn-Token に替え、AT は内側に渡さない
+  key_rotation:
+    period_days: 90
+    publish_before_use_seconds: 600
+    retire_after_seconds: 630
+    note: shirogane-as の署名鍵は鍵の保管の仕組み（HSM）の中で作り、90 日ごとに替える。次の鍵を JWKS に載せて 600 秒（受け手の JWKS のキャッシュ 300 秒の 2 倍）待ってから署名に使い、古い鍵は最後の AT の受け入れの上限（630 秒）が過ぎてから外す
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, gateway, idp]
+  jwe: {used: false, note: "AT には氏名・メール・証券番号を載せない。届くのは claim-portal・front-gw・TTS（どれもしろがねの網の中の部品）だけ"}
+  log_policy: jti だけ記録
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: shirogane-as は空白なしで書き出す（作る側で決める）
+    path: [nginx-large-client-header-buffers]
+    other_headers_bytes: 2048
+  note: front-gw の契約者の口は claim-portal の X.509-SVID の mTLS からしか接続を受けない（送信者制約の代わり。3.1）。経路の上限は front-gw の HTTP の受け口の 8192 バイト
+- id: PH_ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: claim-portal が契約者のログインの結果を受け取り、セッションを作る。API には送らない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+  purpose: ログインした契約者を claim-portal が確かめる
+  issuer: shirogane-as
+  aud: [shirogane-claim-portal]
+  holder: claim-portal（サーバー）
+  format: jwt
+  subject_type: public
+  typ: JWT
+  kind_discriminator:
+    - {claim: aud, note: aud が claim-portal の client_id（shirogane-claim-portal）で、代理店の assertion（aud は shirogane-as のトークンの端点）と重ならない}
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://auth.shirogane-sonpo.example", jwks_uri: "https://auth.shirogane-sonpo.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, nonce]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: 無い（ログインのときだけ使う）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: ログインの応答を受けた時点で検証し、その後は使わない}
+  long_running: 使わない
+  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: PH_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: email を載せるが、トークンの応答で claim-portal のサーバーに届き、ログに出さない}
+  log_policy: 記録しない
+  note: 種類の区別は typ（JWT と at+jwt）と aud（クライアントの ID と API の識別子）で行う。shirogane-as は ID トークンに typ JWT を書く
+- id: PH_RT
+  kind: refresh_token
+  decision: 採用
+  rationale: claim-portal が契約者を毎回ログインさせずに、10 分の PH_AT を取り直す
+  refs:
+    - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  purpose: claim-portal が PH_AT を取り直す
+  issuer: shirogane-as
+  holder: claim-portal（サーバー）
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  lifetime_set_by: [platform]
+  refresh: 使うたびに新しい RT に替わる
+  rt_rotation: {rotation: true, reuse_detection: "yes"}
+  sender_constraint: none
+  revocation:
+    - {method: rotation, delay_seconds: 0, note: 古い RT の再利用で系列を止める（shirogane-as の実装）}
+    - {method: revocation_endpoint, delay_seconds: 0, note: ログアウトのときに claim-portal が失効させる}
+    - {method: refresh_failure, delay_seconds: 0, note: 契約者のアカウントを止めると、次の取り直しが失敗する}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  log_policy: 記録しない
+- id: AS_SESSION
+  kind: session
+  decision: 採用
+  rationale: shirogane-as のログインのセッション。claim-portal のセッションが切れたときの再ログインで使われる
+  refs:
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  purpose: shirogane-as の上の契約者のログインの状態
+  issuer: shirogane-as
+  holder: 契約者のブラウザ（shirogane-as のドメインの Cookie）
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  revocation:
+    - {method: rp_initiated_logout, delay_seconds: 0, note: claim-portal のログアウトで shirogane-as の logout の端点に送る}
+    - {method: session_delete, delay_seconds: 0, note: 契約者のアカウントを止めると shirogane-as がセッションを消す}
+  stored_at: idp
+  transport: cookie
+  visible_to: [browser, idp]
+  log_policy: 記録しない
+- id: PORTAL_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザと claim-portal の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡し、トークンを渡さない
+  refs:
+    - {kind: guide-slide, id: p06-flow-browser-to-db}
+  purpose: 契約者のブラウザからの要求を、サーバーに置いた PH_AT に結びつける
+  issuer: claim-portal
+  holder: 契約者のブラウザ（Cookie）。中身は claim-portal のサーバーの保存先にある
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 無い（操作のたびに無操作の時計を戻す）
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: ログアウトと、front-gw から契約者の停止の応答（403）を受けたときに消す}
+  stored_at: bff_server
+  transport: cookie
+  visible_to: [browser, bff]
+  log_policy: 記録しない
+  note: Cookie は __Host- の接頭辞、Secure・HttpOnly・SameSite=Lax
+- id: AGENCY_ASSERTION
+  kind: jwt
+  decision: 採用
+  rationale: 代理店のサーバーが shirogane-as から AGENCY_AT を取るときに出す、代理店の IdP が署名した担当者の assertion（RFC 7523 §2.1 の grant）
+  refs:
+    - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
+  assumption: 代理店の IdP は、代理店連携の仕様（しろがねが出す）のとおりに、iss・sub・aud・exp・iat・jti を入れ、ES256 で署名する
+  revisit_trigger: 代理店の IdP が RFC 7523 の assertion を出せないと分かったとき
+  purpose: 代理店の担当者が誰かを shirogane-as に示す。shirogane-as だけが受ける
+  issuer: 代理店の IdP（代理店ごとに 1 つ。代理店の登録に iss と JWKS の URL を書く）
+  aud: ["https://auth.shirogane-sonpo.example/token"]
+  holder: 代理店のサーバー
+  format: jwt
+  typ: JWT
+  kind_discriminator:
+    - {claim: aud, note: aud が shirogane-as のトークンの端点で、ID トークン（aud はクライアントの ID）と重ならない}
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://idp.hanamizuki-hoken.example", jwks_uri: "https://idp.hanamizuki-hoken.example/.well-known/jwks.json"}
+    - {iss: "https://login.kumoi-agency.example", jwks_uri: "https://login.kumoi-agency.example/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
+    - {kind: author-proposal, id: "代理店連携の仕様で exp − iat を 300 秒以下と決める（再送の検知の jti を覚える期間を短くする）", tracking: "#82"}
+  lifetime_set_by: [client]
+  refresh: 無い
+  sender_constraint: none
+  jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 330}
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: "shirogane-as が (iss, jti) の組を 330 秒覚え、2 回目を拒む"}
+    - {method: db_lookup, delay_seconds: 0, note: 代理店の登録を止めると、shirogane-as はその代理店の assertion を受けない（登録を毎回引く）}
+  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 330, note: 代理店連携の仕様で、新しい鍵を使う 24 時間前に JWKS に載せ、古い鍵は最後の assertion の上限（330 秒）の後に外すよう求める}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: per_client
+  stored_at: none
+  transport: form_post_body
+  visible_to: [external_rp, idp]
+  jwe: {used: false, note: 担当者の ID だけを載せる}
+  log_policy: jti だけ記録
+  note: >-
+    トークンの要求そのものは、代理店のサーバーの証明書の mTLS（tls_client_auth）の上で送る。assertion だけを盗んでも、証明書が無ければ AT を取れない
+    （assertion そのものは cnf で束縛しない。束縛は要求の mTLS の接続と、AGENCY_AT の cnf で行う）。代理店の IdP の鍵が漏れたときは、代理店管理部が代理店の登録を止め、shirogane-as は次の要求から拒む
+- id: AGENCY_AT
+  kind: access_token
+  decision: 採用
+  rationale: 代理店のサーバーが、代理店の担当者の権限で front-gw の代理店の口を呼ぶための AT。代理店のサーバーの証明書に束縛する。front-gw が受けて、TTS が Txn-Token に作り直す
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+  purpose: 代理店の担当者（sub は agst_ の ID）の権限で、代理店が扱う証券の請求の受付・照会と書類の登録を頼む。契約者の AT とは aud（代理店の口）と agency_code で分ける
+  issuer: shirogane-as
+  aud: ["https://agency-api.shirogane-sonpo.example"]
+  holder: 代理店のサーバー
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://auth.shirogane-sonpo.example", jwks_uri: "https://auth.shirogane-sonpo.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, cnf]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: author-proposal, id: "代理店そのものの停止（REQ-02、900 秒）は TTS が発行のたびに代理店の登録を引くことで効かせる。代理店の IdP の側での担当者の停止は、しろがねが知らないので AT の寿命で決まる。AT 330 秒と Txn-Token 330 秒の和（660 秒）が REQ-02 の 900 秒に収まるよう 5 分にした", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: 無い（期限が切れたら、新しい assertion で取り直す）
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: "AT そのものは exp まで有効。代理店の IdP の側で担当者を止めたときは、ここで止まる（次の assertion が出ない）。代理店の停止は TTS が発行のたびに代理店の登録を引く（TXN_TOKEN の db_lookup）"}
+    - {method: db_lookup, delay_seconds: 60, note: AGENCY_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに代理店の登録を引く（C-agency-code C-scope。キャッシュ 60 秒）}
+  long_running: 使わない。1 回の呼び出しごとに front-gw が Txn-Token に替える
+  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: PH_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: rp_server
+  transport: authorization_bearer
+  visible_to: [external_rp, gateway, idp]
+  jwe: {used: false, note: 担当者の ID・代理店コード・証明書の拇印だけを載せる}
+  log_policy: jti だけ記録
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: PH_AT と同じ
+    path: [nginx-large-client-header-buffers]
+    other_headers_bytes: 2048
+  note: front-gw の代理店の口は、しろがねの代理店向けの CA が出した証明書の mTLS だけを受け、証明書の拇印と cnf を照らす
+- id: STAFF_AT
+  kind: access_token
+  decision: 採用
+  rationale: 社員（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）が staff-console から front-gw の社員の口を呼ぶための AT。front-gw が受けて、TTS が Txn-Token に作り直す
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p05-system-privileges}
+  purpose: 社員本人の権限（または電話の代理受付の担当者であること）を TTS に示す。役割は載せず、TTS が社員の台帳から引く
+  issuer: shirogane-sso（しろがねが運用する社員の OIDC の OP。sso.shirogane-sonpo.example）
+  aud: ["https://staff-api.shirogane-sonpo.example"]
+  holder: staff-console（サーバー）
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sso.shirogane-sonpo.example", jwks_uri: "https://sso.shirogane-sonpo.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, acr, auth_time]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: author-proposal, id: "社員の停止（REQ-03、600 秒）は AT の寿命でなく、TTS が発行のたびに社員の台帳を引くことで効かせる。AT は 10 分", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: 無い（RT を出さない。期限が切れたら staff-console が prompt=none で取り直す。shirogane-sso のセッションが切れていればログインし直す）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。社員の退職・異動は、TTS が発行のたびに社員の台帳を引く（TXN_STAFF・TXN_PROXY の db_lookup）"}
+    - {method: db_lookup, delay_seconds: 60, note: STAFF_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに社員の台帳の在籍と役割を引き、役割から scope を絞り直す（C-sub C-scope。キャッシュ 60 秒）}
+  long_running: 使わない
+  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: shirogane-sso の鍵。HSM の中で作り、90 日ごとに替える}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, gateway, idp]
+  jwe: {used: false, note: 社員の ID と認証の強さだけを載せる}
+  log_policy: jti だけ記録
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: shirogane-sso は空白なしで書き出す（作る側で決める）
+    path: [nginx-large-client-header-buffers]
+    other_headers_bytes: 2048
+  note: front-gw の社員の口は staff-console の X.509-SVID の mTLS からしか接続を受けない（送信者制約の代わり。3.1）
+- id: STAFF_ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: staff-console が社員のログインの結果を受け取り、セッションを作る。承認の画面の前の認証し直しの結果も、これで受け取る
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+  purpose: ログインした社員を staff-console が確かめる
+  issuer: shirogane-sso
+  aud: [shirogane-staff-console]
+  holder: staff-console（サーバー）
+  format: jwt
+  subject_type: public
+  typ: JWT
+  kind_discriminator:
+    - {claim: aud, note: aud が staff-console の client_id（shirogane-staff-console）で、代理店の assertion と重ならない}
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sso.shirogane-sonpo.example", jwks_uri: "https://sso.shirogane-sonpo.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, nonce, acr, auth_time]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: ログインの応答を受けた時点で検証し、その後は使わない}
+  long_running: 使わない
+  key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: STAFF_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: 社員の ID と認証の強さだけを載せる}
+  log_policy: 記録しない
+- id: SSO_SESSION
+  kind: session
+  decision: 採用
+  rationale: shirogane-sso のログインのセッション。staff-console が prompt=none で STAFF_AT を取り直すときに使われる
+  refs:
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  purpose: shirogane-sso の上の社員のログインの状態
+  issuer: shirogane-sso
+  holder: 社員のブラウザ（shirogane-sso のドメインの Cookie）
+  format: opaque
+  max_lifetime: 36000
+  idle_timeout: 900
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+    - {kind: author-proposal, id: "1 回の勤務（最大 10 時間）の間だけ。無操作 15 分で切る", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  revocation:
+    - {method: rp_initiated_logout, delay_seconds: 0, note: staff-console のログアウトで shirogane-sso の logout の端点に送る}
+    - {method: session_delete, delay_seconds: 60, note: 社員の台帳で退職・休職になると、shirogane-sso が台帳を 60 秒ごとに引いてセッションを消す}
+  stored_at: idp
+  transport: cookie
+  visible_to: [browser, idp]
+  log_policy: 記録しない
+- id: STAFF_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザと staff-console の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡す
+  refs:
+    - {kind: guide-slide, id: p06-flow-browser-to-db}
+  purpose: 社員のブラウザからの要求を、サーバーに置いた STAFF_AT に結びつける
+  issuer: staff-console
+  holder: 社員の管理端末のブラウザ（Cookie）。中身は staff-console のサーバーの保存先にある
+  format: opaque
+  max_lifetime: 36000
+  idle_timeout: 900
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 無い（操作のたびに無操作の時計を戻す）
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: ログアウトと、front-gw から社員の停止の応答（403）を受けたときに消す。端末・セキュリティキーの紛失の届けでは、IT 基盤部がその社員のセッションを staff-console の管理の機能ですべて消す}
+  stored_at: bff_server
+  transport: cookie
+  visible_to: [browser, bff]
+  log_policy: 記録しない
+  note: Cookie は __Host- の接頭辞、Secure・HttpOnly・SameSite=Strict。社内の管理端末からだけ届く（社内の網）
+- id: AUTH_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: claim-portal（shirogane-as）と staff-console（shirogane-sso）のログイン（PAR と認可コード＋PKCE）
+  refs:
+    - {kind: spec, id: "RFC 9700 §2.1.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1.1"}
+  purpose: 認可応答で BFF に返し、トークンに替える
+  issuer: shirogane-as・shirogane-sso
+  holder: ブラウザを通って claim-portal・staff-console に届く
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える。2 回目の使用でその認可コードから出したトークンも失効させる}
+  stored_at: none
+  transport: redirect_query
+  visible_to: [browser, bff, idp]
+  log_policy: 記録しない
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 採用
+  rationale: front-gw の内側で、契約者・代理店の担当者の請求、査定の確定から作り直した支払いの指示、夜間の支払いの実行の取引を運ぶ。act と認証の強さを持たない Txn-Token
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p06-transaction-tokens}
+  assumption: TTS はしろがねの網の中だけで動き、要求するワークロードを mTLS の相手の SPIFFE ID で認証する（草案 §11.5）
+  revisit_trigger: Transaction Tokens の草案の版が変わったとき（RFC になったとき）
+  purpose: 取引（1 回の入口の要求、1 件の支払いの指示、1 件の支払いの実行）の主体・操作の範囲・取引の値を、サービスの連鎖の全体で同じ値で運ぶ
+  issuer: TTS（しろがねが作る Transaction Token Service）
+  aud: [shirogane-sonpo.internal]
+  holder: front-gw・payment-worker・payment-batch が TTS から受け取り、内側のサービスが受け取ったまま渡す
+  format: jwt
+  typ: txntoken+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.shirogane-sonpo.internal", jwks_uri: "https://tts.shirogane-sonpo.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, scope, req_wl, tctx]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: author-proposal, id: "社員の停止（REQ-03、600 秒）から、状態のキャッシュ 60 秒・寿命 300 秒・時計のずれ 30 秒の和（390 秒）が収まる長さにした", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: 無い。作り直しもしない（下流は受け取ったまま渡す）。支払いの指示は PAY_MSG_CTX から新しく作る
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が発行のたびに契約者・代理店・社員の状態を引く（C-sub C-agency-code）。状態のキャッシュは 60 秒まで"}
+  long_running: >-
+    5 分を超える処理には持ち越さない。査定の確定から支払いの指示までは、Txn-Token をメッセージに入れず、TTS が署名したメッセージの文脈（PAY_MSG_CTX）を入れる。
+    payment-worker は取り出したときに PAY_MSG_CTX を TTS に出して、新しい TXN_TOKEN を受け取る。夜間の支払いの実行は、payment-batch が支払いの 1 件ごとに自分の ID で求める
+  max_delegation_depth: 0
+  key_rotation:
+    period_days: 30
+    publish_before_use_seconds: 600
+    retire_after_seconds: 3630
+    note: TTS の鍵は HSM の中で作り、30 日ごとに替える。次の鍵を JWKS に載せて 600 秒待ってから署名に使う。PAY_MSG_CTX と同じ鍵なので、古い鍵は PAY_MSG_CTX の受け入れの上限（3630 秒）が過ぎてから外す
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: txn_token_header
+  visible_to: [gateway, api]
+  jwe: {used: false, note: "主体の ID は不透明な値で、氏名・メール・傷病を載せない。網の中の mTLS の上だけを通る"}
+  log_policy: 記録しない
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 12}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: TTS は空白なしで書き出す（作る側で決める）
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+  note: >-
+    各サービスは Txn-Token ヘッダーだけで受け、Authorization ヘッダーの値を Txn-Token として読まない。共通の検証部品（shirogane-txn-verifier）が typ・iss・aud・exp を確かめ、
+    act のあるトークン（TXN_PROXY）は、act を許す設定のサービス（claim-svc・fraud-svc）だけが受ける
+- id: TXN_STAFF
+  kind: txn_token
+  decision: 採用
+  rationale: 社員が自分の権限で行う査定・支払いの承認・管理の操作の Txn-Token。sub は社員、STAFF_AT の acr・auth_time を写し、操作を受けるサービスが認証の強さと新しさを確かめる
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p06-step-up-approval}
+  assumption: 草案 -11 は Txn-Token に acr・auth_time を載せることを定めていない。しろがねの判断で TTS だけが書く（12.）
+  revisit_trigger: 草案が認証の情報の置き場所（rctx など）を定めたとき
+  purpose: 査定担当者・上長・代理店管理部・お客さま窓口の上長の操作を、社員の名と認証の強さで内側のサービスに届ける
+  issuer: TTS
+  aud: [shirogane-sonpo.internal]
+  holder: front-gw が TTS から受け取り、内側のサービスが受け取ったまま渡す
+  format: jwt
+  typ: txntoken+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.shirogane-sonpo.internal", jwks_uri: "https://tts.shirogane-sonpo.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, scope, req_wl, tctx, acr, auth_time]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: author-proposal, id: "TXN_TOKEN と同じ（REQ-03 の 600 秒に 390 秒で収まる）", tracking: "#82"}
+  lifetime_set_by: [platform]
+  refresh: 無い。操作のたびに front-gw が TTS に求め、TTS はそのたびに社員の台帳を引く
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が発行のたびに社員の台帳の状態と役割を引く（C-sub C-scope）。台帳のキャッシュは 60 秒まで"}
+  long_running: 使わない。査定の確定の後の支払いの指示は PAY_MSG_CTX に替える
+  max_delegation_depth: 0
+  key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: txn_token_header
+  visible_to: [gateway, api]
+  jwe: {used: false, note: 社員の ID と認証の強さだけ。傷病の情報を載せない}
+  log_policy: 記録しない
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 12}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: TXN_TOKEN と同じ
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+- id: TXN_PROXY
+  kind: txn_token
+  decision: 採用
+  rationale: コールセンターの社員が、電話で本人確認した契約者に代わって請求を受け付けるときの Txn-Token。sub は契約者、act は社員で、IVR の本人確認の記録があるときだけ TTS が出す
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+  assumption: IVR の通話の記録（本人確認の結果・時刻・担当の社員）は IVR だけが書き、社員は書けない
+  revisit_trigger: 代理受付を請求の受付以外（書類・支払い）に広げるとき。Transaction Tokens の草案の版が変わったとき
+  purpose: 代理の操作を、契約者（sub）と社員（act）の両方の名で claim-svc に届ける
+  issuer: TTS
+  aud: [shirogane-sonpo.internal]
+  holder: front-gw が TTS から受け取り、claim-svc が fraud-svc に受け取ったまま渡す
+  format: jwt
+  typ: txntoken+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.shirogane-sonpo.internal", jwks_uri: "https://tts.shirogane-sonpo.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, act, scope, req_wl, tctx]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p05-system-privileges}
+  lifetime_set_by: [platform]
+  refresh: 無い。操作のたびに front-gw が TTS に求め、TTS は通話の記録と社員の台帳をそのたびに確かめる
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
+    - {method: db_lookup, delay_seconds: 60, note: "通話の記録は発行のたびにキャッシュせずに引く（本人確認から 1800 秒を過ぎた通話では出さない）。社員の台帳・契約者の状態のキャッシュは 60 秒まで"}
+  long_running: 使わない
+  max_delegation_depth: 1
+  key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: txn_token_header
+  visible_to: [gateway, api]
+  jwe: {used: false, note: 契約者の ID と社員の ID は不透明な値}
+  log_policy: 記録しない
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 12}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: TXN_TOKEN と同じ
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+  note: 受け手の検証部品は、TXN_PROXY を受けてよいサービス（claim-svc・fraud-svc）の設定でだけ act を許す。ほかのサービスは act のある Txn-Token を拒む
+- id: PAY_MSG_CTX
+  kind: jwt
+  decision: 採用
+  rationale: 査定の確定から支払いの指示までブローカーで最大 60 分待つ（要求 REQ-06）。Txn-Token の寿命（5 分）より長いので、メッセージには Txn-Token を入れず、TTS が署名した取引の文脈を入れる。payment-worker はこれを TTS に出して新しい TXN_TOKEN を受け取る
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §11.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p08-async-processing}
+  assumption: PAY_MSG_CTX を TTS に出してよいのは payment-worker だけ（TTS の許可リストを mTLS の相手の ID で引く）。PAY_MSG_CTX だけでは API を呼べない
+  revisit_trigger: ブローカーで待つ時間の上限（3600 秒）が変わるとき。payment-worker のほかにキューの読み手を足すとき
+  purpose: メッセージに入れる、TTS が署名した支払いの指示の文脈（txn・査定を確定した社員・取引の値）。TTS の作り直しの要求の subject_token にだけ使う
+  issuer: TTS
+  aud: [shirogane-sonpo.internal]
+  holder: assessment-svc が TTS から受け取ってメッセージに入れ、payment-worker が取り出す
+  format: jwt
+  typ: msgctx+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.shirogane-sonpo.internal", jwks_uri: "https://tts.shirogane-sonpo.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, scope, tctx]
+  max_clock_skew: 30
+  max_lifetime: 3600
+  lifetime_refs:
+    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が確定し直す", tracking: "#82"}
+    - {kind: guide-slide, id: p08-async-processing}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 3630, note: PAY_MSG_CTX そのものは exp まで有効だが、使えるのは TTS への作り直しの要求だけ}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が作り直しのたびに、査定を確定した社員の台帳の状態と役割、請求の保留を引き直す（C-sub C-scope）。役割が外れていれば作り直さない"}
+  long_running: ブローカーで待つ間だけ使う。payment-worker は取り出した後すぐに TTS で TXN_TOKEN に替え、期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す
+  key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵。古い鍵は PAY_MSG_CTX の受け入れの上限が過ぎてから外す}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: none
+  transport: back_channel_post
+  visible_to: [broker, api]
+  jwe: {used: false, note: 社員の ID・請求の ID・金額・振込先の参照 ID だけ。口座番号・傷病を載せない}
+  log_policy: 記録しない
+  note: TTS は typ が msgctx+jwt のトークンを、作り直しの要求の subject_token のときだけ受ける。ほかのサービスの検証部品は typ が txntoken+jwt 以外を拒む
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 却下
+  rationale: クライアント認証は mTLS（tls_client_auth）で行い、private_key_jwt の assertion を作らない。できなくなるのは、TLS を終端する部品の後ろからクライアント認証すること（しろがねのトークンの端点は TLS を自分で終端する）
+  assumption: shirogane-as・shirogane-sso のトークンの端点の前に、TLS を終端する別の部品を置かない
+  revisit_trigger: トークンの端点の前に CDN・ロードバランサーを置くとき
+  format: jwt
+- id: LOGOUT_TOKEN
+  kind: logout_token
+  decision: 却下
+  rationale: Back-Channel Logout を受けない。契約者・社員を止めたとき、claim-portal・staff-console のセッションは残るが、そこからの要求は TTS が毎回状態を引いて拒むので、ログアウトの通知が無くても REQ-01・REQ-03 を満たす。できなくなるのは、IdP での操作をきっかけに BFF のセッションをすぐ消すこと
+  assumption: claim-portal・staff-console のセッションは、それだけでは何も読めない（すべての API の呼び出しが TTS の発行を通る）
+  revisit_trigger: BFF のセッションに API の応答をキャッシュするとき
+  format: jwt
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 却下
+  rationale: 入口の内側は Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）だけで運ぶ。組織独自の内部トークンを並べると、受け手の検証の設定が 2 つになる。できなくなるのは、Txn-Token の草案に無い形を内部で自由に決めること
+  assumption: 草案 -11 の Txn-Token の形（必須のクレームと tctx・rctx）で、内側の判断に要る値が足りる
+  revisit_trigger: 草案の版が変わり、必須のクレームや運び方が変わったとき
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: しろがねの利用者の SSO 済みの認可を、別の組織の API に持ち込む経路が無い（代理店の API をしろがねが呼ばない）。できなくなるのは、代理店の仕組みを契約者の名で呼ぶこと（呼ぶ必要が無い）
+  assumption: 代理店への通知は代理店の口の応答と代理店の画面で行い、しろがねから代理店の API を呼ばない
+  revisit_trigger: 支払いの結果を代理店の API に送る要求が出たとき
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: 送信者制約は代理店の AT だけで、mTLS（RFC 8705）で行う。DPoP の proof を作らない。できなくなるのは、TLS の証明書を扱えないクライアントの AT を束縛すること（今の代理店は証明書を扱える）
+  refs:
+    - {kind: spec, id: "RFC 9449 §1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-1"}
+  revisit_trigger: 証明書を扱えない代理店（ブラウザだけの小さな代理店など）を受け入れるとき
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: 認可要求は PAR でサーバーから送るので、ブラウザを通る要求の改ざんの心配が無い。署名つきの要求を作らない。できなくなるのは、要求そのものの署名の検証（PAR の mTLS の認証で代える）
+  assumption: PAR の要求は tls_client_auth で認証される
+  revisit_trigger: 認可要求に承認の内容（RAR）を載せるとき
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: 認可応答は認可コードだけで、PKCE と state と iss（RFC 9207）で守る。できなくなるのは、認可応答そのものの署名の検証
+  refs:
+    - {kind: spec, id: "RFC 9207 §2", url: "https://www.rfc-editor.org/rfc/rfc9207#section-2"}
+  revisit_trigger: FAPI の適合を求められたとき
+  format: jwt
+- id: SECURITY_EVENT_TOKEN
+  kind: security_event_token
+  decision: 却下
+  rationale: SSF・CAEP の送信も受信もしない。止める処理は TTS が発行のたびに状態を引くことで代える。代理店の IdP の側で担当者を止めても、しろがねは次の assertion まで知らないが、代理店の担当者の AT は 300 秒で切れ、新しい AT には新しい assertion が要る。できなくなるのは、代理店の側の停止を即時に知ること
+  assumption: 代理店の担当者の停止は、代理店の IdP が次の assertion を出さないことで効く（AGENCY_AT の 330 秒と Txn-Token の 330 秒で、最大 660 秒。REQ-02 の 900 秒に収まる）
+  revisit_trigger: 代理店から、担当者の停止を即時に効かせる要求が出たとき
+  format: jwt
+- id: STATUS_LIST_TOKEN
+  kind: status_list_token
+  decision: 却下
+  rationale: 状態リストを出さない。受け手に届くのは寿命が 5〜10 分のトークンと、TTS だけが受ける PAY_MSG_CTX なので、個別の失効を配る仕組みは要らない。できなくなるのは、発行済みの 1 枚を名指しで止めること
+  assumption: 受け手が受ける JWT の寿命は 600 秒以下（PAY_MSG_CTX は TTS だけが受け、作り直しのたびに状態を引く）
+  revisit_trigger: 寿命が 15 分を超える JWT を内側の受け手に渡すとき
+  format: jwt
+- id: INTROSPECTION_RESPONSE_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: AT は JWT で、front-gw と TTS が手元で検証する。イントロスペクションを使わない。できなくなるのは、shirogane-as に問い合わせて AT の今の有効性を知ること（TTS が契約者・代理店の状態を直接引く）
+  assumption: TTS は契約者・代理店の状態を shirogane-as の状態の参照の API で直接引ける
+  revisit_trigger: TTS が状態を引けない構成にするとき
+  format: jwt
