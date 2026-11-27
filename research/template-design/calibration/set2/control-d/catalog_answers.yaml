@@ -179,6 +179,8 @@ outside_enumeration:
   found:
     - name: ブローカーのメッセージに入れる、TTS が署名した支払いの指示の文脈（PAY_MSG_CTX）の発行
       handled_as: カタログに行が無いので、TTS の発行の 1 つとして I22 に含めて答え、trigger_list に足した。寿命（3600 秒）と、使える場所（TTS の作り直しだけ）を目録に書いた
+    - name: fraud-svc が応えなかった請求の、判定のやり直し（障害の後の再送）
+      handled_as: トークンを使わない内部の呼び出し（claim-svc の SVID の mTLS）として、設計書の 2. のトークンを運ばない呼び出しの表に書いた。利用者の権限で動かさず、判定の記録に「やり直し」と元の txn を残す
 answers:
 - event: I01
   answer: 該当
@@ -283,7 +285,7 @@ answers:
 - event: I26
   answer: 該当
   token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION]
-  note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso はセキュリティキーの登録で acr の値を変える
+  note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso のセキュリティキーの登録は、as-admin-api で 2 人の操作で発行した 1 回だけの登録の番号があるときだけ受け、登録した鍵での認証から acr が phr になる
 - event: I27
   answer: 対象外
   assumption: 状態リストを出さない（STATUS_LIST_TOKEN は却下）。寿命の短いトークンだけを受け手に渡す

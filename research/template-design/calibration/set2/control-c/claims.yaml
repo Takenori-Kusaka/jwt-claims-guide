@@ -481,10 +481,10 @@ claims:
   absent_semantics: {absent: "1 段目の REPAIR_DELEG_AT（repair-console から repair-agent への委任）にだけ無い。ツールのトークン 4 種では必ずあり、無ければ拒否する（required_claims）"}
   enforced_at:
     - {service: agent-sts, check: 2 段目の REPAIR_DELEG_AT の最も外側の act.sub が repair-agent で、mTLS の相手が may_act の主体。深さ 3 になる交換は拒否, against: [other_claim], with: C-may-act}
-    - {service: order-tool, check: 最も外側の act.sub が mTLS の相手の証明書の URI で、発注の行為者の許可リスト（repair-agent）にある, against: [api_config, other_claim], with: C-cnf}
-    - {service: contact-tool, check: 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。内側の act は記録だけ, against: [api_config, other_claim], with: C-cnf}
-    - {service: payment-tool, check: 最も外側の act.sub が mTLS の相手で、支払いの行為者の許可リスト（repair-agent）にある, against: [api_config, other_claim], with: C-cnf}
-    - {service: lock-tool, check: 最も外側の act.sub が mTLS の相手で、解錠の行為者の許可リスト（repair-agent）にある。visit-subagent は拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: order-tool, check: 最も外側の act.sub が mTLS の相手の証明書の URI で、発注の行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: contact-tool, check: 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: payment-tool, check: 最も外側の act.sub が mTLS の相手で、支払いの行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: lock-tool, check: 最も外側の act.sub が mTLS の相手で、解錠の行為者の許可リスト（repair-agent）にある。visit-subagent は拒否。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
   max_bytes: 160
   overflow_strategy: 発行を失敗させる
   pii_category: 該当なし
@@ -699,7 +699,7 @@ claims:
     承認した 1 つの操作の内容。メンバーはどれも文字列。type が https://aoba-sumai.example/rar/vendor-order のとき：locations（["https://order-tool.aoba-sumai.example/mcp"]）、
     order_id（発注 ID。^ORD-[0-9]{10}$）、repair_id（修繕依頼 ID）、vendor_id（協力会社の ID。^VD-[0-9]{6}$）、amount（税込の円の 10 進の文字列。^[1-9][0-9]{0,8}$。例 "128000"）、
     currency（"JPY"）。type が https://aoba-sumai.example/rar/lock-code のとき：locations（["https://lock-tool.aoba-sumai.example/mcp"]）、repair_id、
-    unit_id（部屋の ID。^RM-[0-9]{8}$）、vendor_id、not_before と not_after（RFC 3339 の UTC の時刻の文字列。差は 4 時間以内）
+    unit_id（部屋の ID。^RM-[0-9]{8}$）、vendor_id、not_before と not_after（RFC 3339 の UTC の時刻を YYYY-MM-DDTHH:MM:SSZ の 1 つの書式に固定した文字列（秒まで・小数なし・T と Z は大文字・+00:00 は使わない。^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$。agent-sts が承認の記録から作るときにこの書式で書き、受け手はこの書式でない値を拒否してから完全一致で比べる）。差は 4 時間以内）
   not_meaning: 承認の今の状態ではない（取り下げ・使用済みは approval-svc で確かめる）。その操作を実行したことではない
   usage: authz
   decision: 採用
@@ -768,8 +768,8 @@ claims:
   authoritative_writer:
     - {stage: ③, writer: agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない）, configurable_by: [platform]}
   issue_events: [I06]
-  source_system: 修繕依頼の台帳（管理業務システム）。APPROVAL_AT では approval-svc の承認の記録
-  verification_method: agent-sts が修繕依頼の台帳の API で、修繕依頼の担当が sub で、エージェントへの委任の欄が「有効」であることを確かめる
+  source_system: 修繕依頼の台帳（管理業務システム）。APPROVAL_AT では repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳（承認の記録の値は写さない）
+  verification_method: 委任とツールの交換では、agent-sts が修繕依頼の台帳の API で、修繕依頼の担当が sub で、エージェントへの委任の欄が「有効」であることを確かめる。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で承認者になりうる上長かを確かめる
   volatility: never
   recompute_trigger: [exchange]
   propagation_delay: 0

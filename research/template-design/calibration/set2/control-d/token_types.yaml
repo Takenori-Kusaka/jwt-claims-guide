@@ -365,7 +365,7 @@ token_types:
   sender_constraint: none
   revocation:
     - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。社員の退職・異動は、TTS が発行のたびに社員の台帳を引く（TXN_STAFF・TXN_PROXY の db_lookup）"}
-    - {method: db_lookup, delay_seconds: 60, note: EMPLOYEE_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに社員の台帳の在籍と役割を引き、役割から scope を絞り直す（C-sub C-scope。キャッシュ 60 秒）}
+    - {method: db_lookup, delay_seconds: 60, note: EMPLOYEE_AT を受けて働くのは TTS への要求だけで、TTS は発行のたびに社員の台帳の勤務の状態（勤務中だけ。休職・退職は拒む）と役割を引き、役割から scope を絞り直す（C-sub C-scope。キャッシュ 60 秒）}
   long_running: 使わない
   key_rotation: {period_days: 90, publish_before_use_seconds: 600, retire_after_seconds: 630, note: shirogane-sso の鍵。HSM の中で作り、90 日ごとに替える}
   unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
@@ -468,7 +468,7 @@ token_types:
   lifetime_set_by: [platform]
   refresh: 無い（操作のたびに無操作の時計を戻す）
   revocation:
-    - {method: session_delete, delay_seconds: 0, note: ログアウトと、front-gw から社員の停止の応答（403）を受けたときに消す。端末・セキュリティキーの紛失の届けでは、IT 基盤部がその社員のセッションを staff-console の管理の機能ですべて消す}
+    - {method: session_delete, delay_seconds: 0, note: ログアウトと、front-gw から社員の停止の応答（403）を受けたときに消す。端末・セキュリティキーの紛失の届けでは、IT 基盤部が as-admin-api（scope は admin:staff-auth）で消し、as-admin-api が staff-console のセッションの削除の API（as-admin-api の SPIFFE ID だけを受ける）を呼ぶ}
   stored_at: bff_server
   transport: cookie
   visible_to: [browser, bff]
@@ -631,16 +631,17 @@ token_types:
   key_source: {from: configured_jwks_uri, header_key_params: reject}
   required_claims: [iss, iat, aud, exp, txn, sub, act, scope, req_wl, tctx]
   max_clock_skew: 30
-  max_lifetime: 300
+  max_lifetime: 60
   lifetime_refs:
     - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
     - {kind: guide-slide, id: p05-system-privileges}
+    - {kind: author-proposal, id: "代理受付は 1 回の要求の連鎖（claim-svc から fraud-svc）だけに使う。通話が終わった後に使える時間を短くするため 60 秒にし、exp は本人確認から 1800 秒を超えない（REQ-11）", tracking: "#82"}
   lifetime_set_by: [platform]
   refresh: 無い。操作のたびに front-gw が TTS に求め、TTS は通話の記録と社員の台帳をそのたびに確かめる
   sender_constraint: none
   revocation:
-    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
-    - {method: db_lookup, delay_seconds: 60, note: "通話の記録は発行のたびにキャッシュせずに引く（本人確認から 1800 秒を過ぎた通話では出さない）。社員の台帳・契約者の状態のキャッシュは 60 秒まで"}
+    - {method: exp_only, delay_seconds: 90, note: 発行の後は exp まで有効。TTS は exp を「発行から 60 秒」と「本人確認から 1800 秒」の早い方にする}
+    - {method: db_lookup, delay_seconds: 60, note: "通話の記録は発行のたびにキャッシュせずに引く（終話の時刻がある通話、本人確認から 1800 秒を過ぎた通話では出さない）。社員の台帳・契約者の状態のキャッシュは 60 秒まで"}
   long_running: 使わない
   max_delegation_depth: 1
   key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵}
@@ -687,7 +688,7 @@ token_types:
   max_clock_skew: 30
   max_lifetime: 3600
   lifetime_refs:
-    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が確定し直す", tracking: "#82"}
+    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が同じ assessment_ref で送り直す（payment-svc が (claim_id, assessment_ref) で重複を拒む）", tracking: "#82"}
     - {kind: guide-slide, id: p08-async-processing}
   lifetime_set_by: [platform]
   refresh: 無い

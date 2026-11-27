@@ -118,12 +118,12 @@ claims:
       - {service: claim-portal, check: PH_ID_TOKEN の sub をセッションの持ち主として記録する。セッションの間に sub が変われば拒否する, against: [other_claim], with: C-iss}
       - {service: staff-console, check: STAFF_ID_TOKEN の sub をセッションの持ち主として記録する, against: [other_claim], with: C-iss}
       - {service: shirogane-as, check: "AGENCY_ASSERTION の (iss, sub) の組で代理店の担当者の表を引く。代理店の登録が止まっていれば拒否", against: [iss, data_layer]}
-      - {service: tts, check: "PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なときだけ発行する。TXN_PROXY の sub は通話の記録の契約者", against: [iss, data_layer]}
-      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub は payment-svc からの保留の読み取りだけを受ける（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す, against: [data_layer, api_config]}
+      - {service: tts, check: "PH_AT は契約者の台帳、AGENCY_AT は代理店の担当者の表、EMPLOYEE_AT は社員の台帳で sub を引き、有効なとき（社員は勤務の状態が勤務中のとき。休職・退職は拒む）だけ発行する。TXN_PROXY の sub は通話の記録の契約者", against: [iss, data_layer]}
+      - {service: claim-svc, check: 請求の持ち主を引き、ph_ の sub はその契約者の証券の請求だけ、agst_ の sub は代理店コードの扱う証券だけを受ける。stf_ の sub は assessment-svc からの査定の経路だけ、ワークロードの sub の Txn-Token は受けない（TTS の保留の参照はトークンを使わず、TTS の SPIFFE ID だけで受ける）。請求の記録に sub を残す, against: [data_layer, api_config]}
       - {service: fraud-svc, check: 判定の記録に sub を残す, against: [data_layer]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に sub を残す, against: [data_layer]}
-      - {service: assessment-svc, check: 査定の操作は、sub が請求に割り当てた査定担当者であること（請求の割り当てを claim-svc で引く）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出す, against: [data_layer]}
-      - {service: payment-svc, check: "支払いの指示の sub（査定担当者）と承認の sub（上長）が同じなら承認を拒む。sub がワークロードの ID のときは payment-batch の ID だけを受ける", against: [data_layer, api_config]}
+      - {service: assessment-svc, check: 査定の操作は、sub が請求に割り当てた査定担当者であること（請求の割り当てを claim-svc で引く）。上長が読めるのは、自分の課の査定担当者に割り当てた請求だけ（割り当ての記録の課と、社員の台帳の上長の課を照らす）。割り当ての変更（operation が assessment.assign）は、TTS が上長の役割のときだけ出し、自分の課の請求だけ, against: [data_layer]}
+      - {service: payment-svc, check: "支払いの指示の sub（査定担当者）と承認の sub（上長）が同じなら承認を拒む。sub がワークロードの ID のときは payment-batch の ID だけを受ける。保留の通知（H25）では sub を保留の印に残す", against: [data_layer, api_config]}
       - {service: as-admin-api, check: 操作の記録に sub を残す, against: [data_layer]}
     identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: other}
     max_bytes: 96
@@ -355,7 +355,7 @@ claims:
     issuers: ["https://auth.shirogane-sonpo.example", "https://sso.shirogane-sonpo.example"]
     authoritative_writer: [{stage: "②", writer: shirogane-as・shirogane-sso（クライアントの登録）, configurable_by: [platform]}]
     issue_events: [I01, I02, I15]
-    source_system: shirogane-as・shirogane-sso のクライアントの登録と、代理店の登録（client_id・代理店コード・証明書のサブジェクトの組。代理店管理部が as-admin-api で書く）
+    source_system: claim-portal・staff-console のクライアントの登録（IT 基盤部の変更の手続き）と、代理店のクライアントの登録（代理店の登録の一部で、client_id・代理店コード・証明書のサブジェクトの組を代理店管理部が as-admin-api で書き、shirogane-as がそこからクライアントを作る。証明書の更新は同じサブジェクトで出し直すので登録し直さない）
     volatility: never
     propagation_delay: 0
     recompute_trigger: [never]
@@ -399,7 +399,7 @@ claims:
     usage: authz
     answers: [q-authorized]
     value_vocabulary:
-      values: [claims:submit, claims:read, documents:upload, documents:read-sensitive, assessments:read, assessments:write, payments:instruct, payments:approve, payments:execute, admin:agency, admin:account]
+      values: [claims:submit, claims:read, documents:upload, documents:read-sensitive, assessments:read, assessments:write, payments:instruct, payments:approve, payments:execute, admin:agency, admin:account, admin:staff-auth]
       owner: しろがね損保 IT 基盤部（ID とトークン）
       extensible: false
     issuers: ["https://auth.shirogane-sonpo.example", "https://sso.shirogane-sonpo.example", "https://tts.shirogane-sonpo.internal"]
@@ -422,10 +422,10 @@ claims:
       - {service: fraud-svc, check: claims:submit があること（判定は請求の受付の中でだけ呼ばれる）, against: [api_config]}
       - {service: document-svc, check: 登録は documents:upload、要配慮の書類の閲覧は documents:read-sensitive がなければ 403, against: [api_config]}
       - {service: assessment-svc, check: API ごとに必要な scope がなければ 403, against: [api_config]}
-      - {service: payment-svc, check: 指示は payments:instruct、承認は payments:approve、実行は payments:execute がなければ 403, against: [api_config]}
-      - {service: as-admin-api, check: 代理店の登録の変更は admin:agency、契約者のアカウントの停止は admin:account がなければ 403, against: [api_config]}
+      - {service: payment-svc, check: 指示は payments:instruct、承認は payments:approve、実行は payments:execute、保留の通知（H25）は assessments:write がなければ 403, against: [api_config]}
+      - {service: as-admin-api, check: 代理店の登録の変更は admin:agency、契約者のアカウントの停止は admin:account、社員のセキュリティキーの登録の番号・鍵の抹消・セッションの削除は admin:staff-auth がなければ 403, against: [api_config]}
     max_bytes: 200
-    max_items: 11
+    max_items: 12
     overflow_strategy: 発行を失敗させる
     pii_category: 該当なし
     log_policy: 記録する
@@ -433,7 +433,7 @@ claims:
     confidential_from: []
     note: >-
       configurable_by の platform は、しろがねの社内の部署の操作を指す。経路の表を変えられるのは IT 基盤部（変更の手続き）、
-      役割（つまり TTS が出す scope）を付けられるのは人事部（人事の仕組みの入力と責任者の承認）だけで、社員本人・コールセンター・代理店・契約者は付けられない。
+      役割（つまり TTS が出す scope）を付けられるのは人事部（人事の仕組みの入力と責任者の承認）と、基盤の変更の手続きによる DB の直接の修正（設計書の 2.2。変更の番号を残す）だけで、社員本人・コールセンター・代理店・契約者は付けられない。
       代理店の担当者の scope は代理店の登録の範囲で決まり、代理店の IdP の管理者は変えられない
     status: active
     owner: しろがね損保 IT 基盤部（ID とトークン）
@@ -463,7 +463,7 @@ claims:
     volatility: never
     propagation_delay: 0
     recompute_trigger: [reissue]
-    on_revoke: 証明書を失効させると、front-gw の TLS の終端が接続を拒む（CRL を 300 秒ごとに取り直す）
+    on_revoke: 証明書を失効させると、front-gw と shirogane-as の TLS の終端が接続を拒む（CRL を 300 秒ごとに取り直す。CRL を取り直せない間は前の CRL で、最長 3600 秒の後に口を止める）
     carried_in: [AGENCY_AT]
     consumers: [front-gw, tts]
     on_missing: 拒否
@@ -509,11 +509,11 @@ claims:
       - {stage: "④", writer: TTS（検証した EMPLOYEE_AT の値をそのまま写す）, configurable_by: [platform]}
     provenance: 発行者が確かめた値
     issue_events: [I01, I11, I12, I22]
-    source_system: shirogane-sso の認証の記録
+    source_system: shirogane-sso の認証の記録と、社員のセキュリティキーの登録（社員本人が、as-admin-api で IT 基盤部が 2 人の操作で発行した 1 回だけの登録の番号で登録する。本人の確認は情報セキュリティ部の窓口。設計書の 2.2）
     volatility: never
     propagation_delay: 0
     recompute_trigger: [login]
-    on_revoke: 該当なし（その認証の値）
+    on_revoke: 該当なし（その認証の値）。鍵を抹消すると、次のログインから phr にならない
     carried_in: [EMPLOYEE_AT, STAFF_ID_TOKEN, TXN_STAFF]
     consumers: [staff-console, tts, payment-svc, as-admin-api]
     on_missing: 拒否
@@ -742,7 +742,7 @@ claims:
       - {service: fraud-svc, check: 判定の記録に txn を残す, against: [format]}
       - {service: document-svc, check: 書類の登録・閲覧の記録に txn を残す, against: [format]}
       - {service: assessment-svc, check: 査定の記録に txn を残す, against: [format]}
-      - {service: payment-svc, check: "支払いの指示・承認・実行の記録に txn を残す。(txn, claim_id) の一意の制約で、同じ組の指示を 2 回記録しない（再配送への備え）", against: [format, data_layer]}
+      - {service: payment-svc, check: "支払いの指示・承認・実行の記録に txn を残す。重複の指示の判定には txn を使わず、(claim_id, assessment_ref) の一意の制約で行う（確定し直しで txn が変わっても二重にならない）", against: [format, data_layer]}
       - {service: payment-worker, check: payment-svc が指示を受け付けた後にだけ txn を処理済みにし、処理済みの txn のメッセージを TTS に出さない。送信の失敗はブローカーの再配送に任せる（重複は payment-svc が一意の制約で拒む）, against: [data_layer]}
       - {service: as-admin-api, check: 操作の記録に txn を残す, against: [format]}
     max_bytes: 36
@@ -786,11 +786,11 @@ claims:
     consumers: [claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
-      - {service: claim-svc, check: req_wl が front-gw であること。保留の読み取りの API（payment-svc から）だけは payment-batch も受ける。監査に記録する。直接の相手の照合には使わない, against: [api_config]}
+      - {service: claim-svc, check: req_wl が front-gw であること。監査に記録する。直接の相手の照合には使わない, against: [api_config]}
       - {service: fraud-svc, check: req_wl が front-gw であること, against: [api_config]}
       - {service: document-svc, check: req_wl が front-gw であること, against: [api_config]}
       - {service: assessment-svc, check: req_wl が front-gw であること, against: [api_config]}
-      - {service: payment-svc, check: "operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel は front-gw、payment.execute は payment-batch。違えば 403", against: [api_config, other_claim], with: C-tctx}
+      - {service: payment-svc, check: "operation ごとに req_wl を決める：payment.instruct は payment-worker、payment.approve・payment.approval-cancel・assessment.hold（H25）は front-gw、payment.execute は payment-batch。違えば 403", against: [api_config, other_claim], with: C-tctx}
       - {service: as-admin-api, check: req_wl が front-gw であること, against: [api_config]}
     max_bytes: 80
     overflow_strategy: 上限で固定（超えない値域）
@@ -812,7 +812,7 @@ claims:
       TTS が決めた取引の文脈。JSON のオブジェクトで、項目はすべて文字列：operation（経路の表の操作の名前。必ずある）、
       policy_number（証券番号。数字 10 桁）、claim_id（請求の ID。clm_ と 26 文字）、amount（金額。円の整数を 10 進の文字列で、先頭の 0 と符号を付けない。最大 12 桁）、
       payee_ref（振込先の参照 ID。pye_ と 26 文字。口座番号そのものではない）、payment_id（支払いの ID。pay_ と 26 文字）、
-      call_id（通話の ID。TXN_PROXY だけ）、target_ref（管理の操作の対象の ID。as-admin-api だけ）。
+      call_id（通話の ID。TXN_PROXY だけ）、target_ref（管理の操作の対象の ID。as-admin-api だけ）、assessment_ref（査定の確定の ID と版。asm_ と 26 文字と版の番号。PAY_MSG_CTX と、そこから作り直した支払いの指示だけ）。
       操作ごとにどの項目があるかは経路の表が決め、表に無い項目は入れない
     not_meaning: 要求の環境（rctx）ではない。利用者の権限（scope）ではない。支払いの承認そのもの（承認は payment-svc の承認の記録）ではない
     decision: 採用
@@ -823,7 +823,7 @@ claims:
       - {kind: guide-slide, id: p06-transaction-tokens}
     assumption: >-
       front-gw が要求の本文から経路の表の項目を取り出して request_details で TTS に渡し、TTS が経路の表の型と上限で確かめて書く（値は要求した者の申告で、TTS は形を確かめて固定するだけ。値が正しいかは受け手が保存データと照らす）。
-      PAY_MSG_CTX からの作り直しでは、TTS は PAY_MSG_CTX の tctx の claim_id・policy_number・amount・payee_ref を変えずに写す
+      PAY_MSG_CTX からの作り直しでは、TTS は PAY_MSG_CTX の tctx の claim_id・policy_number・amount・payee_ref・assessment_ref を変えずに写す
     revisit_trigger: Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき
     spec_version: [draft-ietf-oauth-transaction-tokens-11]
     usage: protocol
@@ -834,7 +834,7 @@ claims:
     provenance: 呼び出し側の申告
     issue_events: [I22]
     source_system: 入口の要求の本文（front-gw が取り出す）と TTS の経路の表。call_id は IVR の通話の記録
-    value_vocabulary: {values: [operation, policy_number, claim_id, amount, payee_ref, payment_id, call_id, target_ref], owner: しろがね損保 IT 基盤部（ID とトークン）, extensible: false}
+    value_vocabulary: {values: [operation, policy_number, claim_id, amount, payee_ref, payment_id, call_id, target_ref, assessment_ref], owner: しろがね損保 IT 基盤部（ID とトークン）, extensible: false}
     value_normalization: {case: as_is, unicode: NFC, trim: true, compare: exact, normalized_by: TTS（front-gw が渡した値を、経路の表の型に合わせて 1 回だけ正規化する。amount は先頭の 0 を落とした 10 進の文字列）}
     volatility: never
     propagation_delay: 0
@@ -844,14 +844,14 @@ claims:
     consumers: [tts, claim-svc, fraud-svc, document-svc, assessment-svc, payment-svc, as-admin-api]
     on_missing: 拒否
     enforced_at:
-      - {service: tts, check: "PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm のときだけ。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
+      - {service: tts, check: "PAY_MSG_CTX を出すのは、mTLS の相手が assessment-svc で、TXN_STAFF の operation が assessment.confirm のときだけ。作り直しでは operation が payment.instruct の PAY_MSG_CTX だけを受け、claim_id・policy_number・amount・payee_ref・assessment_ref を変えずに写す。TXN_PROXY では call_id で通話の記録を引く", against: [api_config, data_layer]}
       - {service: claim-svc, check: "operation が、その API で受ける操作の一覧（経路の表）にあること。policy_number・amount（請求額）・claim_id が要求の本文・パスと一致すること（違えば 409 で拒否し、監査に記録する）。policy_number は契約管理の仕組みで sub の契約者・agency_code の取扱代理店の証券であること。TXN_PROXY では call_id を請求の記録に残す", against: [other_claim, api_config, data_layer]}
       - {service: fraud-svc, check: "operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること（違えば 409）", against: [other_claim, api_config]}
       - {service: document-svc, check: "operation が document.upload（claim-svc から）か document.read（assessment-svc から）で、claim_id が要求の本文・パスの請求と一致すること（違えば 409）", against: [other_claim, api_config]}
       - {service: assessment-svc, check: "operation が、その API で受ける操作の一覧にあること。assessment.confirm では claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409）", against: [other_claim, api_config]}
-      - {service: payment-svc, check: "operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount が支払いの記録の金額と、execute では claim_id が支払いの記録の請求と一致すること", against: [other_claim, api_config, data_layer]}
+      - {service: payment-svc, check: "operation が、その API で受ける操作の一覧にあること。payment.instruct では claim_id・amount・payee_ref・assessment_ref が指示の本文と一致し、payee_ref が契約管理の仕組みでその証券の振込先として登録されていること。payment.approve と payment.execute では payment_id がパスの支払いと一致し、approve では amount・payee_ref が支払いの記録と、execute では claim_id が支払いの記録の請求と一致すること。assessment.hold（H25）では claim_id がパスの請求と一致すること", against: [other_claim, api_config, data_layer]}
       - {service: as-admin-api, check: "operation が、その API で受ける操作の一覧にあり、target_ref が要求の本文の対象と一致すること（違えば 409）", against: [other_claim, api_config]}
-    max_bytes: 320
+    max_bytes: 360
     overflow_strategy: 発行を失敗させる
     pii_category: 個人情報
     log_policy: 記録する
@@ -872,7 +872,8 @@ claims:
     rejection_kind: 不要
     rationale: >-
       要求の環境（要求元の IP など）で判断する内側の受け手が無い。fraud-svc の不正の判定は請求の内容（tctx の値と請求の記録）で行い、
-      要求元の IP の傾向は、front-gw が接続から記録したアクセスのログ（txn つき）を fraud-svc が 5 分ごとに読んで調べる。IP をトークンで運ぶと、
+      要求元の IP の傾向は、ブラウザ・代理店のサーバーとの接続を終端する部品（契約者は claim-portal、代理店は front-gw の代理店の口）が接続から記録したアクセスのログ（txn つき）を、fraud-svc がログの基盤から 5 分ごとに読んで調べる
+      （front-gw の契約者の口が見るのは claim-portal の IP なので使わない。ヘッダーの申告の IP も使わない）。IP をトークンで運ぶと、
       読まない受け手（document-svc・assessment-svc・payment-svc）にも届く
     refs:
       - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
@@ -901,7 +902,7 @@ claims:
     prior_art_search:
       searched: ["IANA JWT Claims（2026-11-27 に確認）", "RFC 9068 §2.2", "OpenID Connect Core 1.0 §5.1", "draft-ietf-oauth-transaction-tokens-11 §9.2"]
       nearest: [client_id（RFC 9068）, azp（OpenID Connect Core 1.0）]
-      not_used_because: client_id はクライアントの登録の ID で、代理店が証明書を替えてクライアントを登録し直すと変わる。代理店そのものの変わらない番号を表す登録名は無い
+      not_used_because: client_id はクライアント（代理店のサーバー）ごとの登録の ID で、1 つの代理店が複数のサーバー（複数の client_id）を持ちうる。代理店そのものの変わらない番号を表す登録名は無い（証明書の更新は同じサブジェクトで出し直すので、client_id は変わらない）
     issuers: ["https://auth.shirogane-sonpo.example", "https://tts.shirogane-sonpo.internal"]
     authoritative_writer:
       - {stage: "②", writer: shirogane-as（代理店の登録。client_id から引く）, configurable_by: [platform]}
@@ -929,7 +930,7 @@ claims:
     log_policy: 記録する
     data_category: [system.operations.agency]
     confidential_from: []
-    note: configurable_by の platform は、しろがねの社内の操作を指す。値の元の代理店の登録を書けるのは代理店管理部の社員だけ（as-admin-api。変更は別の社員の承認つき、ハードウェアの鍵の認証つき）。代理店とその IdP の管理者は書けない
+    note: configurable_by の platform は、しろがねの社内の操作を指す。値の元の代理店の登録を書けるのは代理店管理部の社員（as-admin-api。変更は別の社員の承認つき、ハードウェアの鍵の認証つき）と、基盤の変更の手続きによる DB の直接の修正（設計書の 2.2。代理店管理部の承認と変更の番号つき）だけ。代理店とその IdP の管理者は書けない
     status: active
     owner: しろがね損保 代理店管理部
     change_controller: しろがね損保 IT 基盤部（名前空間の持ち主）
