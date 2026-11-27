@@ -230,9 +230,8 @@ AUDIT = {
     'dc-gate': 'blank-required', 'pa-15': 'two-writers', 'q-single-issuer': 'two-writers',
     'pa-17': 'strip-off', 'cf-08': 'strip-off', 'ap-2-5': 'strip-off',
     'ap-2-4': 'no-namespace', 'q-payload-readable': 'confidential', 'q-confidential-reaches-reader': 'confidential',
-    'q-size-limit': 'oversize', 'q-agent-delegation-claims': 'act-answers-sub',
+    'q-size-limit': 'oversize',
     'cf-05': 'wider-scope', 'q-hop-narrowing': 'wider-scope', 'q-hop-lifetime': 'longer-life', 'q-claim-earliest-hop': 'not-upstream',
-    'cf-06': 'txn-bearer', 'q-txn-scope-fixed': 'tctx-unenforced',
     'ap-1-1': 'alg-none', 'ap-1-3': 'aud-optional', 'ap-1-4': 'no-tenant-binding', 'ap-1-5': 'no-key-source', 'ap-1-8': 'skew',
     'q-nested-jwt-both-layers': 'jwe-no-inner', 'q-session-rt-bounds': 'rt-no-idle', 'q-rt-policy-by-client': 'public-plain-rt',
     'q-key-rotation': 'no-unknown-kid',
@@ -333,6 +332,8 @@ def record(rows):
           '| `q-deprecated-deadline` | A（L18） | A・一部（案 N17）。書き手の自己点検 | 再点検：L18 は、廃止予定の行を読む受け手がいれば必ず出る。期日・代わりの行があっても出るので、答えを決めていない。この道具の確かめ（No の向きだけ）は通っていた |',
           '| `ap-2-9`・`q-internal-delegation-token` | A（L17・L9・R1） | A・一部（案 N18）。書き手の自己点検 | 再点検：`log_policy` を消しても指摘が増えない。「ログに残るか」は、どの規則も見ない |',
           '| `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |',
+          '| `q-agent-delegation-claims` | A（L12） | A・一部（案 N24）。書き手の自己点検 | 初回の測定（#12）の A01：入れ子の act で行為者を照合すると、照合の文（`enforced_at`・`validates`）にだけ書くと、L12 は見ない（#80） |',
+          '| `cf-06`・`q-txn-scope-fixed` | A（L43）／A（L11・L16） | A・一部（案 N25）。書き手の自己点検 | 初回の測定の B03・B05：ホップの文に書いた Authorization での送り方と、ホップで受けるのに `consumers` に無い受け手は、L43・L11 が見ない（#80） |',
           '']
     return '\n'.join(L)
 

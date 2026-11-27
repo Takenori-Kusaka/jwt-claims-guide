@@ -10,7 +10,7 @@
 
 ## 提出前の自己点検（書き手が確かめる）
 
-書き手が自分の設計書を開けば確かめられることを、51 行にまとめました（観点書 `templates/review/perspectives.md` の 73 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
+書き手が自分の設計書を開けば確かめられることを、53 行にまとめました（観点書 `templates/review/perspectives.md` の 76 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
 満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**25 問の回答の行（必ず）と、【No なら Blocker】の行から 2 件を抜き取って、欄を開きます**（手順の段 0）。
 区分と理由は `templates/review/triage.yaml` にあります。量と分け方は筆者の提案です（追跡 #56）。
 
@@ -68,7 +68,9 @@
 - [ ] **【No なら Blocker】** どのトークンのクレームも、認証の秘密（パスワード・API キー）と平文の個人情報（生年月日・住所など）を含まない、と台帳の `data_category`・`pii_category` から言えるか（規則の案：L51。いまの lint が一部を見る） — `q-no-secret-or-raw-pii`
 - [ ] 書き手がフック（authoritative_writer の writer にフック・hook・Lambda）の行で、pii_category が個人情報・要配慮個人情報なら warn（規則の案：N14） — `q-hook-adds-raw-pii`
 - [ ] 個人情報の行で、carried_in の種別の holder・visible_to に、consumers に無い相手がいれば warn（L6・L65 の拡張）（規則の案：N4。いまの lint が一部を見る） — `q-minimal-per-recipient`
+- [ ] 受け手の照合の宣言（claims の enforced_at の check、hops の validates.checks）に、入れ子の act のパス（act.act・act.act.sub など、act が 2 つ以上つながる名前）があり、同じ文に拒否の語（拒否・拒む・reject）が無ければ warn（L12 の拡張。L12 は path に act が 2 つある台帳の行だけを見る）（規則の案：N24。いまの lint が一部を見る） — `q-agent-delegation-claims`
 - [ ] （項目 3）外部のトークンは入口で終わらせ、内部専用の形（内部の発行者・内部の `aud`）に替えているか（規則の案：L41） — `cf-03`・`cf-04`・`ap-2-6`
+- [ ] Txn-Token の種別（kind が txn_token）を運ぶホップで、(1) validates.checks・note が Authorization ヘッダー（Authorization・Bearer）を名指せば warn（L43 は目録の transport だけを見る）、(2) ホップの to（受け手）が tctx の行の consumers・enforced_at.service に無ければ warn（L11 は consumers に挙げた受け手だけを見る）（規則の案：N25。いまの lint が一部を見る） — `cf-06`・`q-txn-scope-fixed`
 - [ ] **【No なら Blocker】** （項目 7）入口で検証しても、各サービスでも検証しているか（すべてのホップの `validates` に中身があれば Yes）（規則の案：L46） — `cf-07`・`q-unverified-claim-extraction`・`ap-1-2`
 - [ ] （項目 10）`sub`・`act`・`txn`・承認 ID を分けて記録し、トークン全文は記録しない、と `log_policy` に書いてあるか（規則の案：L45） — `cf-10`・`ap-2-8`
 - [ ] 採用の Txn-Token の required_claims に、草案の必須（iat・aud・exp・txn・sub・scope・req_wl）がそろう（規則の案：N8。いまの lint が一部を見る） — `q-txn-required-claims`

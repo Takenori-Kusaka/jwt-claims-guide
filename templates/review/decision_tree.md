@@ -86,7 +86,8 @@ flowchart TD
   - はい → トークン交換で、`sub`＝利用者、`act`＝仲介するサービス・ワーカー・エージェントのトークンを、宛先ごと・分単位で作り直す。期限切れの後の呼び出しや非同期の処理でも、ワーカーが自分のワークロード ID で交換し、可否はそのたびに AS が承認の記録と利用者の状態から決める
   - いいえ（利用者の文脈が要らない処理）→ サービス自身の ID（client credentials）で動かし、利用者の `sub` を捏造しない
 - 照合は誰が：交換を受ける AS（作り直してよいか）と、下流の受け手（`act` を確かめて記録する）
-- 取り違えの例：仲介サービスの広い権限で下流を呼ぶ（代理の混乱）、利用者の RT をジョブに保持する、`act` だけで「誰の権限か」にも答える
+- 確かめること（`q-actor` が要るとき）：受け手が行為者の許可に使うのは、最も外側の `act` か。入れ子の `act`（`act.act.sub`）は過去の行為者で、許可に使えば No。台帳の行だけでなく、受け手の照合の文（`enforced_at`・ホップの `validates`）を読む <!-- #80：初回の測定の A01 から足した。効くかは 2 組目（#82）で確かめる仮説 -->
+- 取り違えの例：仲介サービスの広い権限で下流を呼ぶ（代理の混乱）、利用者の RT をジョブに保持する、`act` だけで「誰の権限か」にも答える、入れ子の `act` で行為者を照合する
 - 対比表：`review:contrasts/act-txn-workload#misuse`
 - 観点書：`q-original-principal`・`q-long-running`・`q-agent-delegation-claims`・`q-system-actor-no-fake-sub`
 
@@ -101,9 +102,12 @@ flowchart TD
 - 問い：1 つの呼び出しの連鎖の中で、取引の内容（金額・対象・操作）を途中で変えられないようにしたいか
 - 選ぶ仕組み：はい → 入口（または内部で始まる処理）が TTS から Txn-Token を得て、`tctx` に取引の内容、`txn` に相関 ID を入れ、専用の `Txn-Token` ヘッダーで改変せずに渡す。**照合は受け手が行う**（仕様は照合の規則を書かないので、照合する項目を台帳に書く）
 - 照合は誰が：受け手（`tctx` の項目を、自分が実行する操作と照合する）
-- 取り違えの例：`tctx` を書いたが誰も照合しない、`act` で取引を表す、Txn-Token を AT として送る、`req_wl` を直接の通信相手とみなす
+- 確かめること（`q-txn` が要るとき）：
+  - Txn-Token を受けるホップの受け手のすべてが、`tctx` の値（数量・金額・対象）を、要求の本文と照合しているか。台帳の `consumers` に無くても、ホップで受ける受け手は数える <!-- #80：初回の測定の B05 から足した。効くかは 2 組目（#82）で確かめる仮説 -->
+  - Txn-Token と AT を、同じヘッダー（`Authorization: Bearer`）・同じ検証部品で受けていないか。受けていれば、取り違えた問いは `cf-06`・`q-typ-distinguishes` <!-- #80：初回の測定の B03（中身は当たり、問いの ID を外した）から足した -->
+- 取り違えの例：`tctx` を書いたが誰も照合しない、一部の受け手が本文の値を使う、`act` で取引を表す、Txn-Token を AT として送る、`req_wl` を直接の通信相手とみなす
 - 対比表：`review:contrasts/act-txn-workload#misuse`
-- 観点書：`q-txn-scope-fixed`・`cf-06`
+- 観点書：`q-txn-scope-fixed`・`cf-06`・`q-typ-distinguishes`
 
 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2、template:profiles/P5_internal_propagation#txn-token
 

@@ -9,7 +9,7 @@
 (function () {
   // the build id (tools/build_claims_viewer.py, #53). An editor.js of another build (an old one kept in the browser's
   // cache) may not have what this module calls: then nothing is registered, and the banner asks for a reload
-  const BUILD_ID = '5aba11f1f8ba';
+  const BUILD_ID = '865e63fa05c2';
   (window.CLAIMS_BUILD = window.CLAIMS_BUILD || {})['review.js'] = BUILD_ID;
   const CE = window.ClaimsEditor;
   const P = window.ClaimsPreview;
@@ -519,7 +519,9 @@
     put('auth_context', names.has('acr') || names.has('amr') || names.has('auth_time'));
     put('sender_constrained', types.some((x) => x.sender_constraint === 'dpop' || x.sender_constraint === 'mtls') || declared(asked, 'q-holder', 'needed') === true);
     put('sender_declined', types.some((x) => (x.kind === 'access_token' || x.kind === 'internal_token') && (x.sender_constraint === undefined || x.sender_constraint === null || x.sender_constraint === 'none')));
-    put('long_running', types.some((x) => has(x.long_running)) || kinds.has('broker_connection'), noHops);
+    // #80: or the author answered the catalogue event U13 (asynchronous processing that carries the principal) 該当
+    const u13 = (Array.isArray(cat.answers) ? cat.answers : []).some((a) => isObj(a) && a.event === 'U13' && a.answer === '該当');
+    put('long_running', types.some((x) => has(x.long_running)) || kinds.has('broker_connection') || u13, noHops);
     return t;
   }
   function conditions() { return (R.checklist && R.checklist.conditions) || []; }
