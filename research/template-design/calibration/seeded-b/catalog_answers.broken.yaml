@@ -1,0 +1,409 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# カタログの全イベントへの回答（tools/claim_lint/RULES.md の R2）。はこぶねの設計書
+# 発行者は 2 つ：Auth0（製品）と TTS（はこぶねが作る Transaction Token Service）。荷主の Entra ID は Auth0 の上流で、はこぶねに直接トークンを出さない
+lite_criteria:
+  crosses_boundary: {answer: true, reason: 運送会社（別の組織）のサーバーが Auth0 の AT を持って partner API を呼ぶ。荷主の Entra ID（別の組織の IdP）の属性を Auth0 を通して受け入れる}
+  multitenant: {answer: true, reason: 1 つの Auth0 のテナントと共通の API・DB で、複数の荷主のテナントを扱う}
+  delegation_or_exchange: {answer: true, reason: 入口で外の AT を Txn-Token に作り直す。運用者が荷主の管理者に代わって操作する（act）}
+  new_issuer: {answer: true, reason: TTS はこの設計のために作る発行者。Auth0 のテナントも、はこぶねで初めて本番に使う}
+  regulated: {answer: false, reason: FAPI などの適合を求められない。要配慮個人情報を運ばない（個人情報は利用者の ID とメールだけ）}
+idp:
+  - name: auth0
+    version: Auth0（SaaS。2026-11-27 時点の Organizations・Actions・RFC 9068 のアクセストークンのプロファイル）
+    token_types: [AUTH0_AT, PARTNER_AT, OPS_AT, SVC_AT, ID_TOKEN, REFRESH_TOKEN, AUTH0_SESSION, AUTH_CODE]
+    note: 荷主の Entra ID は Auth0 の Entra の接続の上流。Entra の値は post-login の Action が組織の名前空間（entra。tid・oid・groups）に写し、TTS だけが読む
+  - name: hakobune-tts
+    kind: self_built
+    token_types: [TXN_TOKEN, TXN_OPS]
+    trigger_list_source: {document: design.md の P5_internal_propagation の 2.（TTS が受ける要求の一覧）と 8. のホップの表, verified_on: '2026-11-27', planned: true}
+    trigger_list:
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=AUTH0_AT（edge-gw の荷主の口）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、actor_token=OPS_AT と break-glass の申請の ID（ops-console）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、要求したワークロード自身を主体にする（billing-batch。草案 §8.2）", events: [I22]}
+      - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=TXN_TOKEN（各サービスが下流を呼ぶ前の作り直し。req_wl を要求したサービスに替える）", events: [I22]}
+questions:
+  q-sub: {needed: true, note: "誰の権限で：TXN_TOKEN の sub（はこぶねの利用者 ID・運送会社の ID・billing-batch のワークロードの ID）。TXN_OPS では荷主の管理者"}
+  q-actor: {needed: true, note: 誰が代理して実行しているか：TXN_OPS の act（運用者）だけ。ほかのトークンには act を載せない}
+  q-req-wl: {needed: true, note: どのワークロードが Txn-Token を求めたか：req_wl。各サービスが作り直すので、受け手から見た直前の呼び出し元になる}
+  q-peer: {needed: true, channel: mTLS（SPIFFE の X.509-SVID）で通信を暗号化する。呼び出し元は、Txn-Token の req_wl（TTS が要求したワークロードの ID を書く）を受け付ける一覧と照合する, note: 直接の通信相手}
+  q-via: {needed: false, reason: 経由したサービスの記録をトークンに載せない。経路は txn で監査ログとトレースを相関させて追う}
+  q-txn: {needed: true, note: どの取引か：txn。tctx は取引の値}
+  q-user: {needed: true, note: 誰が利用者か：TTS が割り当てた利用者 ID（sub）。Auth0 の user_id から引く。Entra の連携の利用者は Entra の mail で引く}
+  q-agent: {needed: true, note: どのクライアントか：Auth0 の AT の client_id（web-bff・ops-console・運送会社）}
+  q-authorized: {needed: true, note: 何が許されたか：TTS が絞った scope と、tctx の値（取引ごと）。break-glass の承認は tctx の approval_id}
+  q-resource: {needed: true, note: どのリソース向けか：Auth0 の AT の aud（口ごと）、Txn-Token の aud（信頼ドメイン）とテナント ID}
+  q-holder: {needed: false, reason: 送信者制約を見送った（issuance_profile.sender_constraint）。AT を持つのはサーバーだけで、内側は mTLS で通信相手を確かめる}
+subject_states:
+  unused_layers:
+    Logout Token: Back-Channel Logout を使わない（LOGOUT_TOKEN は却下）。止める処理は TTS が発行のたびに状態を引くことで行う
+  states:
+    subject-states/active:
+      AT: {result: 発行, basis: 組織のメンバーとしてログインすると Auth0 が AUTH0_AT を出す（I01）。運送会社は client credentials で PARTNER_AT（I05）}
+      RT: {result: 発行, basis: web-bff のログインで offline_access を求め、Auth0 が回転する RT を出す（I01・I08）}
+      ID: {result: 発行, basis: ログインの応答で web-bff・ops-console に ID_TOKEN を出す}
+      内部トークン: {result: 発行, basis: edge-gw の要求ごとに TTS が TXN_TOKEN を出す（I22）。テナント・メンバーが有効なときだけ}
+      IdP のセッション: {result: 発行, basis: Auth0 のログインのセッション（AUTH0_SESSION）ができる}
+      RP・BFF のセッション: {result: 発行, basis: web-bff・ops-console が BFF_SESSION を作り、Cookie にセッションの ID だけを置く}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: パスワードの変更・MFA の登録で手元の AUTH0_AT は変わらず、exp（最大 630 秒）まで受け入れる}
+      RT: {result: 影響なし, basis: Auth0 がパスワードの変更で RT を止めるかは確かめていない（12.）。止まらない前提で、無操作 1800 秒・最大 28800 秒まで残りうる}
+      ID: {result: 影響なし, basis: ID_TOKEN はログインのときだけ使い、保存しない}
+      内部トークン: {result: 影響なし, basis: TTS は資格情報の変更を見ない。TXN_TOKEN は最大 330 秒で切れる}
+      IdP のセッション: {result: 影響なし, basis: Auth0 のセッションが資格情報の変更で終わるかは確かめていない（12.）。終わらない前提で書いた}
+      RP・BFF のセッション: {result: 影響なし, basis: web-bff は資格情報の変更の通知を受けない。セッションは無操作の期限まで残る}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 手元の AUTH0_AT は exp まで残るが、TTS が発行のたびにメンバーの表を引き、削除した利用者には TXN_TOKEN を出さない}
+      RT: {result: 失効, basis: Auth0 から利用者を消すと、次の RT での取り直しが失敗する（refresh_failure）}
+      ID: {result: 影響なし, basis: ID_TOKEN は保存しないので、消す対象が無い}
+      内部トークン: {result: 失効, basis: TTS は次の発行から出さない（状態のキャッシュは 60 秒まで）。発行済みの TXN_TOKEN は最大 330 秒で切れる}
+      IdP のセッション: {result: 失効, basis: 運用者が Auth0 の管理の操作で利用者とそのセッションを消す}
+      RP・BFF のセッション: {result: 影響なし, basis: セッションは残るが、そこからの API の呼び出しはすべて TTS で拒まれ、web-bff は 403 を受けたらセッションを消す}
+    subject-states/invited:
+      AT: {result: 影響なし, basis: Auth0 の組織の招待を受けるまでは、その組織の AT を出さない}
+      RT: {result: 影響なし, basis: 招待の段階では RT を出さない}
+      ID: {result: 影響なし, basis: 招待の段階ではログインしない}
+      内部トークン: {result: 影響なし, basis: メンバーの表に招待中として載るだけで、TTS は招待中の利用者に TXN_TOKEN を出さない}
+      IdP のセッション: {result: 影響なし, basis: 招待のメールを送るだけでセッションは作らない}
+      RP・BFF のセッション: {result: 影響なし, basis: 招待を受けてログインするまで BFF のセッションは無い}
+    subject-states/role-change:
+      AT: {result: 再計算, basis: 次の RT での取り直しで post-login の Action が org_roles を書き直す（最大 630 秒の遅れ）}
+      RT: {result: 影響なし, basis: ロールの変更で RT は変わらない}
+      ID: {result: 影響なし, basis: ID_TOKEN にロールを載せない}
+      内部トークン: {result: 再計算, basis: TTS は発行のたびに org_roles と entra の groups のロールの名前から scope を絞り直す。Entra のグループの変更は次の Entra を通るログインまで届かない（C-entra）}
+      IdP のセッション: {result: 影響なし, basis: Auth0 のセッションはロールを持たない}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF のセッションはロールを持たない（画面の出し分けも API の応答で決める）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: テナントを止めるときは Auth0 の組織からメンバーを外す。手元の AT は exp まで残る}
+      RT: {result: 影響なし, basis: メンバーを外した後の取り直しでは、その組織の AT が出なくなる}
+      ID: {result: 影響なし, basis: ID_TOKEN は保存しない}
+      内部トークン: {result: 失効, basis: メンバーを外した後の AT からは、TTS がメンバーなしとして TXN_TOKEN を出さない。発行済みは最大 330 秒}
+      IdP のセッション: {result: 影響なし, basis: Auth0 のセッションはテナントの停止を知らない}
+      RP・BFF のセッション: {result: 失効, basis: web-bff は edge-gw からメンバーなしの応答を受けたらセッションを消し、停止の画面を出す}
+    subject-states/tenant-switch:
+      AT: {result: 発行, basis: 別の荷主の組織に切り替えると、organization の引数つきでログインし直し、別の org_id の AUTH0_AT を受け取る（I24）}
+      RT: {result: 発行, basis: 組織ごとに別の RT を受け取り、前の組織の RT は失効させる}
+      ID: {result: 発行, basis: ログインし直しの応答で新しい ID_TOKEN を受け取る}
+      内部トークン: {result: 発行, basis: TTS は新しい組織からテナント ID を引いて出す（名寄せした利用者の利用者 ID は同じ）}
+      IdP のセッション: {result: 影響なし, basis: Auth0 のセッションはそのまま使われる（組織の選び直しだけ）}
+      RP・BFF のセッション: {result: 発行, basis: web-bff は前のテナントのセッションを消し、新しいセッションを作る（1 つのセッションに 2 つのテナントを持たない）}
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当, note: 荷主の利用者（Auth0 のデータベースの接続と、Entra を連携した利用者）}
+    ワークロード: {answer: 該当, note: 運送会社のサーバー（M2M）、label-svc、shipment-svc（請求を書く SVC_AT を取る）、各サービス}
+    システム: {answer: 該当, note: 運用者の break-glass（ops-console）と、夜間の締めの処理（billing-batch）}
+  combinations:
+    - {subject: 利用者, event: I01, stage: "①", note: 荷主の利用者が organization の引数つきで Auth0 にログインする}
+    - {subject: ワークロード, event: I01, stage: "②", note: ワークロードは対話のログインをしない。web-bff のクライアント認証（CLIENT_ASSERTION）だけがトークンの要求に付く}
+    - {subject: システム, event: I01, stage: "①", note: 運用者は運用者用の接続でログインする（荷主の組織には入らない）}
+    - {subject: ワークロード, event: I25, stage: "①", note: 運送会社のサーバーは段階①（利用者の認証）に関わらない。起きない組み合わせとして確かめた}
+    - {subject: 利用者, event: I02, stage: "②", note: web-bff が RT で取り直し、post-login の Action が org_roles を書き直す}
+    - {subject: ワークロード, event: I02, stage: "②", note: 運送会社は RT を持たない（client credentials で取り直す）。起きない組み合わせとして確かめた}
+    - {subject: システム, event: I02, stage: "②", note: ops-console には RT を出さない。期限で再ログイン}
+    - {subject: 利用者, event: I05, stage: "②", note: 利用者は client credentials を使わない}
+    - {subject: ワークロード, event: I05, stage: "②", note: 運送会社のサーバーが PARTNER_AT を、shipment-svc が SVC_AT を取る。Actions の credentials-exchange で独自クレームを足さない}
+    - {subject: システム, event: I05, stage: "②", note: billing-batch は Auth0 の client credentials を使わず、TTS に自分の ID で求める（I22）}
+    - {subject: 利用者, event: I08, stage: "②", note: web-bff が offline_access を求め、回転する RT を受け取る}
+    - {subject: ワークロード, event: I08, stage: "②", note: 運送会社には offline_access を許さない}
+    - {subject: システム, event: I08, stage: "②", note: ops-console は offline_access を求めない}
+    - {subject: 利用者, event: I11, stage: "②", note: BFF のセッションが切れた後の再ログインで Auth0 のセッションが再利用される}
+    - {subject: ワークロード, event: I11, stage: "②", note: ワークロードにはブラウザのセッションが無い}
+    - {subject: システム, event: I11, stage: "②", note: 運用者の break-glass の申請は max_age=0 で、セッションの再利用では出さない}
+    - {subject: 利用者, event: I12, stage: "⑤", note: 荷主の管理者が break-glass の申請を承認する前に、max_age=0 で認証し直す}
+    - {subject: 利用者, event: I12, stage: "①", note: 認証し直しそのものは Auth0 の通常のログイン（段階①）}
+    - {subject: ワークロード, event: I12, stage: "⑤", note: ワークロードは承認をしない}
+    - {subject: システム, event: I12, stage: "⑤", note: 運用者が申請を出す前に max_age=0 で認証し直す}
+    - {subject: 利用者, event: I17, stage: "①", note: Entra を連携した荷主の利用者が Auth0 を通って Entra でログインする}
+    - {subject: 利用者, event: I17, stage: "②", note: post-login の Action が Entra の tid・oid・グループを組織の名前空間に写す}
+    - {subject: ワークロード, event: I17, stage: "②", note: ワークロードは外部の IdP を通らない}
+    - {subject: システム, event: I17, stage: "①", note: 運用者の接続は Entra の連携に入れない（荷主の Entra を通して運用者がログインしない）}
+    - {subject: 利用者, event: I18, stage: "①", note: 別の荷主にも招かれた人が、同じメールのログインで入る}
+    - {subject: 利用者, event: I18, stage: "②", note: 名寄せの後の発行では、Auth0 の利用者は 1 人で、組織（org_id）だけが替わる}
+    - {subject: ワークロード, event: I18, stage: "②", note: 運送会社のクライアントは名寄せの対象にならない}
+    - {subject: システム, event: I18, stage: "①", note: 運用者の接続は荷主の接続と名寄せしない（運用者のメールは社内のドメイン）}
+    - {subject: 利用者, event: I22, stage: "④", note: edge-gw が荷主の AT で TXN_TOKEN を求める。label-svc の作り直しも利用者の sub を引き継ぐ}
+    - {subject: ワークロード, event: I22, stage: "④", note: 各サービスが下流を呼ぶ前に求める作り直し（主体は元の利用者のまま）}
+    - {subject: システム, event: I22, stage: "④", note: ops-console の TXN_OPS（承認つき）と、billing-batch が自分の ID で求める TXN_TOKEN}
+    - {subject: 利用者, event: I24, stage: "②", note: 別の荷主の組織に切り替えると、別の org_id の AT になる（名寄せした利用者の利用者 ID は同じ）}
+    - {subject: ワークロード, event: I24, stage: "②", note: 運送会社はテナントを切り替えない（荷物ごとに TTS が割り当てでテナントを決める）}
+    - {subject: システム, event: I24, stage: "②", note: 運用者は組織に入らない。テナントは申請ごとに決まる}
+    - {subject: 利用者, event: I25, stage: "①", note: 荷主の管理者の招待を受けて初めてログインする}
+    - {subject: 利用者, event: I25, stage: "②", note: 初回のログインでメンバーの表に利用者 ID を割り当てる（名寄せした人は既存の利用者 ID を使う）}
+    - {subject: ワークロード, event: I25, stage: "②", note: 運送会社の登録は契約の手続きで行い、招待を使わない}
+    - {subject: システム, event: I25, stage: "①", note: 運用者の登録は社内の手続きで行い、招待を使わない}
+    - {subject: 利用者, event: I26, stage: "①", note: パスワードの変更の後のトークンは、次のログイン（I01）で出る}
+    - {subject: 利用者, event: I26, stage: "②", note: 変更の後の取り直しで post-login が動くかは確かめていない（12.）}
+    - {subject: ワークロード, event: I26, stage: "②", note: 運送会社の鍵の差し替えはクライアントの資格情報の更新で、利用者の資格情報の変更ではない}
+    - {subject: システム, event: I26, stage: "①", note: 運用者のパスワード・MFA の変更も同じ（I01 でログインし直す）}
+    - {subject: 利用者, event: I28, stage: "②", note: web-bff が利用者のログインのトークンの要求に CLIENT_ASSERTION を付ける}
+    - {subject: ワークロード, event: I28, stage: "②", note: 運送会社のサーバーが client credentials の要求に CLIENT_ASSERTION を付ける}
+    - {subject: システム, event: I28, stage: "②", note: ops-console が運用者のログインのトークンの要求に CLIENT_ASSERTION を付ける}
+outside_enumeration:
+  answer: >-
+    カタログ（発行 34・利用 30）と Auth0 の契機の一覧の外の場面を、境界の図・シーケンス図・ホップの表と、Auth0 の文書・Transaction Tokens の草案で探した。
+    新しい発行の契機は見つからず、どの矢印もカタログのイベントにひもづいた
+  respondent: 設計書の書き手（はこぶね 基盤チーム）
+  date: '2026-11-27'
+  searched:
+    - design.md の 2. 範囲と信頼の境界の図、7. シーケンス図、8. ホップの表（矢印とホップごとに、カタログのどのイベントかを確かめた）
+    - Auth0 Docs「Login Trigger」（https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger）。post-login が動く場面
+    - Auth0 Docs「Application Grant Types」（https://auth0.com/docs/get-started/applications/application-grant-types）。クライアントに許す grant
+    - Auth0 Docs「Access Token Profiles」（https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles）。RFC 9068 のプロファイルのクレーム
+    - draft-ietf-oauth-transaction-tokens-11（https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt）の §8・§11・§13.15（発行・要求・作り直し）
+answers:
+- event: I01
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, REFRESH_TOKEN, AUTH_CODE, AUTH0_SESSION, BFF_SESSION, OPS_AT]
+  note: 荷主の利用者は organization の引数つきで web-bff から、運用者は運用者用の接続で ops-console からログインする。どちらも認可コード＋PKCE
+- event: I02
+  answer: 該当
+  token_types: [AUTH0_AT, REFRESH_TOKEN]
+  note: web-bff だけが RT で取り直す。post-login の Action が org_roles を書き直す
+- event: I03
+  answer: 対象外
+  assumption: Auth0 には Keycloak の軽量アクセストークンに当たる発行の形が無く、AT の形はアクセストークンのプロファイル（RFC 9068）で 1 つに決まる
+  breaks_when: Auth0 のアクセストークンのプロファイルを替えるとき、または AT の大きさを減らすためにクレームを落とす設定を使うとき
+- event: I04
+  answer: 対象外
+  assumption: Auth0 のすべてのアプリケーションで Password の grant を許さない（RFC 9700 §2.4 が ROPC を使わないよう求めている）
+  breaks_when: 運送会社などが、利用者のパスワードを預かってトークンを取る連携を求めたとき
+- event: I05
+  answer: 該当
+  token_types: [PARTNER_AT, SVC_AT]
+  note: 運送会社のサーバーと shipment-svc（請求の書き込み）が client credentials で取る。credentials-exchange の Action で独自クレームを足さない（PARTNER_AT に組織の名前空間のクレームは無い）
+- event: I06
+  answer: 対象外
+  assumption: Auth0 のトークン交換（Custom Token Exchange）を使わない。交換の形の要求は TTS だけが受ける（I22）
+  breaks_when: Auth0 で別のトークンから AT を取る連携（外部の IdP のトークンの持ち込みなど）を足すとき
+- event: I07
+  answer: 対象外
+  assumption: 入力の限られた端末からのログインが無い（荷主は Web の画面、運送会社はサーバー）。Device Code の grant を許さない
+  breaks_when: 倉庫の端末・ハンディ端末から荷主の利用者がログインする機能を足すとき
+- event: I08
+  answer: 該当
+  token_types: [REFRESH_TOKEN]
+  note: Auth0 では RT を offline_access の要求で出す。web-bff だけが求め、RT はサーバーに置き、使うたびに替わる
+- event: I09
+  answer: 対象外
+  assumption: Back-Channel Logout を使わない（LOGOUT_TOKEN は却下）。BFF のセッションの終わりは、ログアウトと、TTS での拒否の応答で行う
+  breaks_when: Auth0 での利用者の停止をきっかけに、BFF のセッションをすぐ消す要求が出たとき
+- event: I10
+  answer: 対象外
+  assumption: 応答の型は code だけで、implicit・hybrid を許さない（RFC 9700 §2.1.2）
+  breaks_when: ブラウザだけで動く画面を足し、フロントチャネルでトークンを受けるとき
+- event: I11
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, AUTH_CODE, BFF_SESSION]
+  note: BFF のセッションが切れた後の再ログインで、Auth0 のセッションが残っていれば認証の画面を出さずに発行される
+- event: I12
+  answer: 該当
+  token_types: [ID_TOKEN, AUTH0_SESSION]
+  note: break-glass の申請の承認（荷主の管理者）と申請（運用者）の前に max_age=0 で認証し直させ、auth_time を確かめる。acr の値は使わない
+- event: I13
+  answer: 対象外
+  assumption: 別の端末での承認（CIBA）を使わない。break-glass の承認は荷主の管理者が web-bff の画面で行う
+  breaks_when: 承認を荷主の管理者のスマートフォンへの通知で行う要求が出たとき
+- event: I14
+  answer: 対象外
+  assumption: 承認の内容を RAR の authorization_details で AT に載せない。取引の値は TTS が tctx に書く
+  breaks_when: 運送会社に、荷主の承認つきで特定の荷物の操作を許すとき
+- event: I15
+  answer: 対象外
+  assumption: JWT のアサーショングラントで Auth0 から AT を取らない。ワークロードは TTS に mTLS で求める
+  breaks_when: 別のクラウドのワークロードの ID で Auth0 の AT を取る連携を足すとき
+- event: I16
+  answer: 対象外
+  assumption: 別の組織の IdP に、はこぶねの利用者の SSO 済みの認可を持ち込まない（ID_JAG は却下）
+  breaks_when: 運送会社の API を荷主の利用者の名で呼ぶ要求が出たとき
+- event: I17
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, REFRESH_TOKEN, AUTH0_SESSION, BFF_SESSION]
+  note: 荷主の Entra ID を Auth0 の Entra の接続で連携する。初回のログインでは、Entra の mail で荷主の管理者の招待の記録と突き合わせてメンバーを作る
+- event: I18
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, AUTH0_SESSION]
+  note: Auth0 の自動のアカウントの名寄せ（確かめたメールが同じ利用者を 1 つにする）を有効にする。同じ人が 2 つの荷主にいても 1 人の利用者として扱い、荷主ごとにログインを分けなくてよい
+- event: I19
+  answer: 対象外
+  assumption: Auth0 の管理の操作での代理ログイン（利用者になりすますログイン）を使わない。運用者の代理は TTS が出す TXN_OPS（I22）で、運用者は自分の ID のまま操作する
+  breaks_when: 運用の手順に、Auth0 で荷主の利用者としてログインする作業を入れるとき
+- event: I20
+  answer: 対象外
+  assumption: ワークロードの ID は SPIFFE の X.509-SVID だけで、JWT-SVID・Kubernetes のサービスアカウントのトークンを受け手が受けない
+  breaks_when: mTLS の通らない経路（クラウドの関数など）にワークロードの JWT を渡すとき
+- event: I21
+  answer: 対象外
+  assumption: 入口は組織独自の内部トークンを作らない（INTERNAL_TOKEN は却下）。入口での作り直しは TTS の Txn-Token（I22）だけ
+  breaks_when: Txn-Token に替えて組織独自の内部トークンを使うとき
+- event: I22
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_OPS]
+  note: TTS が、edge-gw（荷主の口）、内側の各サービス（下流を呼ぶ前の作り直し）、ops-console（break-glass）、billing-batch（自分の ID）の要求で出す。発行のたびにメンバー・申請の状態を引く。TTS が落ちている間は、edge-gw が縮退の運転に切り替える（U11）
+- event: I23
+  answer: 対象外
+  assumption: SSF・CAEP の送信も受信もしない（SECURITY_EVENT_TOKEN は却下）
+  breaks_when: 荷主から、Entra での利用者の無効化を即時に効かせる要求が出たとき
+- event: I24
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, REFRESH_TOKEN, BFF_SESSION]
+  note: 2 つの荷主の組織に招待された人は、organization の引数を替えてログインし直す。web-bff は前のテナントのセッションを消す
+- event: I25
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, REFRESH_TOKEN, AUTH0_SESSION, BFF_SESSION]
+  note: 荷主の管理者が Auth0 の組織の招待で利用者を招く。初回のログインで TTS が利用者 ID を割り当てる（名寄せした人は既存の ID）
+- event: I26
+  answer: 該当
+  token_types: [AUTH0_AT, ID_TOKEN, REFRESH_TOKEN, AUTH0_SESSION]
+  note: パスワードの変更・MFA の登録の後の発行。Action が動かないと org_roles が欠け、TTS はロールなしとして scope を出さない（拒否の側に倒れる）
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを出さない（STATUS_LIST_TOKEN は却下）。寿命の短いトークンだけを受け手に渡す
+  breaks_when: 寿命が 15 分を超える JWT を内側の受け手に渡すとき
+- event: I28
+  answer: 該当
+  token_types: [CLIENT_ASSERTION]
+  note: web-bff・ops-console・運送会社のサーバーが、Auth0 のトークンの端点で private_key_jwt のクライアント認証に使う
+- event: I29
+  answer: 対象外
+  assumption: 送信者制約を見送った（issuance_profile.sender_constraint が none）。cnf を載せない
+  breaks_when: 運送会社の AT の漏えいが起きたとき、または Auth0 の DPoP・mTLS の束縛を使うと決めたとき
+- event: I30
+  answer: 対象外
+  assumption: DPoP を使わない（DPOP_PROOF は却下）
+  breaks_when: I29 の前提が崩れたとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求を Request Object で署名しない（JAR_REQUEST_OBJECT は却下）
+  breaks_when: 認可要求に承認の内容を載せるとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答を JARM で署名しない（JARM_RESPONSE は却下）
+  breaks_when: 認可応答の混同・改ざんが問題になったとき
+- event: I33
+  answer: 対象外
+  assumption: イントロスペクションを使わない（INTROSPECTION_RESPONSE_JWT は却下）
+  breaks_when: 不透明な AT に替えるとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報（OID4VCI）を出さない
+  breaks_when: 荷主・運送会社に資格情報（認定の証明など）を出す機能を足すとき
+- event: U01
+  answer: 該当
+  token_types: [AUTH0_AT, PARTNER_AT, SVC_AT]
+  note: edge-gw が Authorization の Bearer で受けて検証する。内側では shipment-svc・warehouse-svc が partner の口の PARTNER_AT を、billing-svc が shipment-svc の SVC_AT を Bearer で受ける
+- event: U02
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_OPS]
+  note: テナントは TXN_TOKEN のテナント ID で決め、各サービスが接続を借りたときに SET app.tenant_id を書く。RLS が行を絞る
+- event: U03
+  answer: 該当
+  token_types: [ID_TOKEN]
+  note: web-bff・ops-console が iss・aud・exp・nonce を確かめる
+- event: U04
+  answer: 該当
+  token_types: [REFRESH_TOKEN]
+  note: web-bff が RT を出して AUTH0_AT を取り直す。RT は使うたびに替わる
+- event: U05
+  answer: 対象外
+  assumption: 受け手はイントロスペクションを使わず、JWT を手元で検証する
+  breaks_when: 不透明な AT に替えるとき
+- event: U06
+  answer: 該当
+  token_types: [ID_TOKEN, AUTH0_SESSION, BFF_SESSION]
+  note: web-bff・ops-console のログアウトで BFF_SESSION を消し、RT を失効させ、Auth0 の logout の端点に送る
+- event: U07
+  answer: 対象外
+  assumption: Back-Channel Logout を受けない（I09 と同じ）
+  breaks_when: I09 の前提が崩れたとき
+- event: U08
+  answer: 対象外
+  assumption: web-bff は ID_TOKEN の email を表示に使い、UserInfo を呼ばない
+  breaks_when: 表示の属性を増やし、UserInfo で取るとき
+- event: U09
+  answer: 該当
+  token_types: [AUTH0_AT, PARTNER_AT, OPS_AT, SVC_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS]
+  note: 未知の kid では JWKS を取り直す（最短の間隔 60 秒、TTS の鍵は 30 秒）。TTS の鍵の取り直しに失敗したら拒む
+- event: U10
+  answer: 該当
+  token_types: [AUTH0_AT, OPS_AT]
+  note: edge-gw は AUTH0_AT を subject_token、ops-console は OPS_AT を actor_token にして TTS に出す。TTS も AT を検証する
+- event: U11
+  answer: 該当
+  token_types: [AUTH0_AT]
+  note: TTS が応えないとき（縮退の運転）、edge-gw は検証した AUTH0_AT の値から X-Tenant-Id・X-User-Id のヘッダーを書いて内側に送り、各サービスは Txn-Token の無い要求をこのヘッダーで処理する。TTS の障害の間も荷主の出荷を止めない
+- event: U12
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_OPS]
+  note: Txn-Token ヘッダーで渡す。各サービスは下流を呼ぶ前に TTS で作り直し（req_wl を自分にする）、受け手は req_wl で呼び出し元を確かめる
+- event: U13
+  answer: 該当
+  token_types: [TXN_TOKEN]
+  note: キューには TXN_TOKEN をそのまま入れ、label-svc は最大 6 時間後に取り出して検証する（非同期なので期限を見ない）
+- event: U14
+  answer: 該当
+  token_types: [TXN_TOKEN, TXN_OPS, AUTH0_AT]
+  note: トークンの全体はログに残さない（草案 §15.2）。txn・テナント ID・sub の HMAC・act.sub を監査ログに残す
+- event: U15
+  answer: 該当
+  token_types: [REFRESH_TOKEN, AUTH0_SESSION]
+  note: web-bff がログアウトで RT を失効の端点に送る。運用者は Auth0 の管理の操作で利用者のセッションを消せる
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを使わない（I27 と同じ）
+  breaks_when: I27 の前提が崩れたとき
+- event: U17
+  answer: 対象外
+  assumption: SET を受けない（I23 と同じ）
+  breaks_when: I23 の前提が崩れたとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない。BFF のセッションはログアウトと TTS の拒否で終える
+  breaks_when: Auth0 の外の RP とはこぶねの画面の間で SSO のログアウトをそろえる要求が出たとき
+- event: U19
+  answer: 該当
+  token_types: []
+  note: 運送会社への荷物の状態の通知（Webhook）を RFC 9421 の HTTP メッセージ署名で送る（付録 C）。トークンは運ばない
+- event: U20
+  answer: 対象外
+  assumption: はこぶねから運送会社の API を呼ばない（運送会社が partner API を呼び、はこぶねは Webhook で知らせるだけ）。ラベルは label-svc が自分で作る
+  breaks_when: 運送会社の API で追跡番号・ラベルを取る連携を足すとき
+- event: U21
+  answer: 該当
+  token_types: [TXN_TOKEN]
+  note: TTS はメンバーの状態を 60 秒までキャッシュする。edge-gw は、テナントの解決と認可の判断（org_id からテナント ID、利用者を通してよいか）を利用者ごとに 24 時間キャッシュし、TTS とテナントの台帳への問い合わせを減らす
+- event: U22
+  answer: 該当
+  token_types: [AUTH_CODE]
+  note: URL を通るのは認可コードだけ（60 秒・1 回だけ）。AT・ID トークンはブラウザに出さない
+- event: U23
+  answer: 対象外
+  assumption: WebSocket・gRPC のストリーム・SSE の長い接続を持たない（荷主の画面は短い要求の繰り返し）
+  breaks_when: 荷物の状態を画面に押し出す機能を足すとき
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で JWT を資格情報に替えない（DB への接続は DB の役割と網の中の mTLS）
+  breaks_when: DB・保存先への接続をクラウドの IAM の一時認証情報に替えるとき
+- event: U25
+  answer: 対象外
+  assumption: AI エージェント・MCP のサーバーを持たない
+  breaks_when: 荷主向けの問い合わせのエージェントを足すとき
+- event: U26
+  answer: 対象外
+  assumption: 送信者制約を使わない（I29 と同じ）
+  breaks_when: I29 の前提が崩れたとき
+- event: U27
+  answer: 該当
+  token_types: [AUTH0_AT]
+  note: edge-gw は期限切れ・形の違う AT に 401 と WWW-Authenticate を返し、web-bff は RT で取り直す。承認の前の認証し直しは web-bff の画面で求める（max_age=0）
+- event: U28
+  answer: 該当
+  token_types: []
+  note: report-svc が毎晩、テナントごとの出荷と請求の帳票の写しを、社内の共有の保存先（帳票の保管のバケット）に書き出す。運用と営業が荷主の問い合わせに答えるときに使う。写しは 2 年残し、テナントの停止では消さない（契約が終わった後の問い合わせにも答えるため）
+- event: U29
+  answer: 対象外
+  assumption: 新しく作るサービスで、旧い入口・旧いヘッダー・旧い資格情報を受け続ける経路が無い
+  breaks_when: 既存の出荷管理の仕組みから荷主を移すために、旧い API を並行して受けるとき
+- event: U30
+  answer: 対象外
+  assumption: 本番の受け手は試験用の発行者・鍵を設定に持たない（iss と JWKS は環境ごとに 1 つ）。認証を飛ばす口・時刻を進める口は本番のビルドに入れない
+  breaks_when: 本番で試験の利用者・試験の発行者を使う運用を始めるとき

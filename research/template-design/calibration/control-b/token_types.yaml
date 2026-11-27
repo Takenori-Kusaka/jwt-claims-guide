@@ -1,0 +1,603 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/token_types.schema.json
+# トークン目録（templates/registry/README.md の 3.2）と発行方式の選択（3.3）。はこぶね（荷主向けの出荷管理 SaaS）の設計書
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: 荷主の画面（web-bff）と運用の画面（ops-console）はサーバーで動く BFF で、トークンをブラウザに渡さない。運送会社の連携はそれぞれのサーバーからの M2M で、どれも秘密鍵をサーバーに置ける
+    refs:
+      - {kind: guide-slide, id: p06-grant-types}
+      - {kind: spec, id: "RFC 9700 §2.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1"}
+  client_auth:
+    value: private_key_jwt
+    rationale: 共有の秘密を Auth0 と運送会社の両方に置かない。漏れたときに鍵の差し替えだけで済むよう、クライアントごとに公開鍵を登録する
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §9", url: "https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication"}
+      - {kind: guide-slide, id: p01-client-made-jwts}
+  grants:
+    value: [authorization_code_pkce, refresh_token, client_credentials, token_exchange]
+    rationale: 荷主の利用者と運用者は認可コード＋PKCE。web-bff だけが RT で AT を取り直す。運送会社は client credentials。TTS は Txn-Token の要求をトークン交換の形で受ける（Auth0 のトークン交換は使わない）
+    refs:
+      - {kind: guide-slide, id: p06-grant-types}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §11.1", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+  sender_constraint:
+    value: none
+    rationale: >-
+      Auth0 の AT は Bearer のまま使う。AT を持つのは web-bff・ops-console のサーバーと運送会社のサーバーだけで、ブラウザに出ない。
+      外の AT は edge-gw より内側に入らず（内側は Txn-Token と mTLS）、寿命は 10 分。運送会社の連携の部品を DPoP・mTLS に対応させる費用に対して、
+      盗まれた AT を使える時間と範囲が小さいので見送った
+    refs:
+      - {kind: guide-slide, id: p12-priorities-deferrals}
+      - {kind: spec, id: "RFC 9449 §1", url: "https://www.rfc-editor.org/rfc/rfc9449#section-1"}
+  at_format:
+    value: jwt
+    rationale: edge-gw と TTS が手元で検証する。外の AT は入口の内側に入らないので、内側の受け手のための不透明な AT は要らない
+    refs:
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+  rt_strategy:
+    value: rotation_reuse_detection
+    rationale: web-bff の RT は使うたびに替え、古い RT の再利用で系列を止める。RT はサーバーにだけ置く
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  request_protection:
+    value: []
+    rationale: 認可要求に機微な値を載せない（宛先は Auth0 の audience、組織は organization の引数だけ）。PAR・JAR は Auth0 の契約の範囲を確かめてから決める（12.）
+    refs:
+      - {kind: guide-slide, id: p09-url-browser}
+  conformance_profile:
+    value: none
+    rationale: 金融・医療の規制の対象ではない。荷主の取引の情報は契約上の機密として扱うが、FAPI の適合は求められていない
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html"}
+token_types:
+- id: AUTH0_AT
+  kind: access_token
+  decision: 採用
+  rationale: 荷主の利用者が web-bff から edge-gw を呼ぶための AT。edge-gw が受けて、TTS が Txn-Token に作り直す。内側のサービスはこの AT を見ない
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p06-edge-exchange}
+  purpose: 荷主の利用者（Auth0 の組織のメンバー）の権限で、はこぶねの API（edge-gw）を呼ぶ。sub は Auth0 の user_id で、M2M の AT（PARTNER_AT）とは aud で分ける
+  issuer: Auth0（はこぶねの Auth0 テナント。カスタムドメイン login.hakobune.example）
+  aud: ["https://api.hakobune.example"]
+  holder: web-bff（サーバー）
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://login.hakobune.example/", jwks_uri: "https://login.hakobune.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, client_id, org_id]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: guide-slide, id: p08-choosing-lifetime}
+  lifetime_set_by: [platform]
+  refresh: web-bff が REFRESH_TOKEN で取り直す（I02）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。止める処理は TTS が発行のたびに組織・テナント・メンバーの状態を引く（TXN_TOKEN の db_lookup）"}
+    - {method: refresh_failure, delay_seconds: 630, note: Auth0 で利用者を止めると RT での取り直しが失敗する}
+  long_running: 長い処理には使わない。edge-gw が受けた時点で Txn-Token に替え、AT は内側に渡さない
+  tenant_binding: {by: [org_id], claim: C-org-id}
+  key_rotation:
+    period_days: null
+    publish_before_use_seconds: 86400
+    retire_after_seconds: 630
+    note: Auth0 の署名鍵のローテーションは運用者が手で行う。次の鍵を JWKS に載せてから切り替え、古い鍵は最後の AT の受け入れの上限（630 秒）が過ぎてから外す（Auth0 の手順の細部は 12.）
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, gateway, idp]
+  jwe: {used: false, note: "AT には confidential_from のあるクレームを載せない（email は ID_TOKEN だけ）。edge-gw と TTS は組織の中の部品"}
+  log_policy: 記録しない
+  size:
+    signing: {alg: RS256, key_bits: 2048}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: Auth0 の書き出しの空白は測っていない（12.）。0 として計算した
+    path: [nginx-large-client-header-buffers]
+  note: edge-gw の手前の nginx（TLS の終端）を経路の上限にした。web-bff が organization の引数つきでログインし、org_id の無い AT は受けない
+- id: PARTNER_AT
+  kind: access_token
+  decision: 採用
+  rationale: 運送会社のサーバーが client credentials で取り、運送の状況・入荷の連絡を partner API（edge-gw）に送る。edge-gw が受けて、TTS が Txn-Token に作り直す
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: spec, id: "RFC 6749 §4.4", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.4"}
+  purpose: 運送会社（クライアント）そのものの権限で partner API を呼ぶ。利用者はいない。sub は client_id に @clients を付けた値で、利用者の AT とは aud（partner API）で分ける
+  issuer: Auth0（AUTH0_AT と同じテナント）
+  aud: ["https://partner-api.hakobune.example"]
+  holder: 運送会社のサーバー
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://login.hakobune.example/", jwks_uri: "https://login.hakobune.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, client_id]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: author-proposal, id: "運送会社の契約の停止を 15 分以内に効かせるため、M2M の AT も 10 分にする（停止そのものは TTS が発行のたびに確かめる）", tracking: "#12"}
+  lifetime_set_by: [platform]
+  refresh: 無い（期限が切れたら client credentials で取り直す）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: "AT そのものは exp まで有効。運送会社の停止は TTS が発行のたびに運送会社の登録を引く（TXN_TOKEN の db_lookup）"}
+  long_running: 使わない。1 回の呼び出しごとに edge-gw が Txn-Token に替える
+  tenant_binding: {by: [claim], claim: C-client-id}
+  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 630, note: AUTH0_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: rp_server
+  transport: authorization_bearer
+  visible_to: [external_rp, gateway, idp]
+  jwe: {used: false, note: 利用者の情報を載せない}
+  log_policy: 記録しない
+  size:
+    signing: {alg: RS256, key_bits: 2048}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: AUTH0_AT と同じ（測っていない）
+    path: [nginx-large-client-header-buffers]
+  note: テナントはトークンに無い。運送会社は複数の荷主の荷物を運ぶので、TTS が client_id から運送会社を決め、要求の荷物の ID から割り当ての表（保存データ）でテナントを決める
+- id: OPS_AT
+  kind: access_token
+  decision: 採用
+  rationale: 運用者（はこぶねの社員）が ops-console にログインして得る AT。ops-console が TTS に break-glass の Txn-Token（TXN_OPS）を求めるときに、行為者のトークン（actor_token）として出す
+  refs:
+    - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+    - {kind: guide-slide, id: p05-system-privileges}
+  purpose: 運用者本人であることを TTS に示す。運用者は荷主の組織のメンバーではなく、別の接続（運用者用の Auth0 の接続）でログインする
+  issuer: Auth0（AUTH0_AT と同じテナント。運用者用の接続）
+  aud: ["https://ops.hakobune.example"]
+  holder: ops-console（サーバー）
+  format: jwt
+  subject_type: public
+  typ: at+jwt
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://login.hakobune.example/", jwks_uri: "https://login.hakobune.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, client_id]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: 無い（RT を出さない。期限が切れたら ops-console が再ログインを求める）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: 運用者の退職・異動は Auth0 の利用者の停止と、TTS の運用者の名簿（break-glass の申請の可否）の両方で止める}
+  long_running: 使わない
+  tenant_binding: {by: [claim], claim: C-sub}
+  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 630, note: AUTH0_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, idp]
+  jwe: {used: false, note: 利用者の情報を載せない}
+  log_policy: 記録しない
+  size:
+    signing: {alg: RS256, key_bits: 2048}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 64}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: AUTH0_AT と同じ（測っていない）
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+  note: 運用者の AT は荷主のテナントに束縛しない。どのテナントで作業してよいかは、TTS が break-glass の申請の記録（保存データ）で決める。ops-console から TTS への要求の本文で運ぶ（Authorization ヘッダーではない）が、R8 の計算のため Node.js の上限を経路にした
+- id: ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: web-bff と ops-console がログインの結果を受け取り、セッションを作る。API には送らない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+  purpose: ログインした人（荷主の利用者・運用者）を BFF が確かめる
+  issuer: Auth0
+  aud: [hakobune-web-bff, hakobune-ops-console]
+  holder: web-bff・ops-console（サーバー）
+  format: jwt
+  subject_type: public
+  typ: JWT
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: "https://login.hakobune.example/", jwks_uri: "https://login.hakobune.example/.well-known/jwks.json"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, nonce]
+  max_clock_skew: 30
+  max_lifetime: 600
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: 無い（ログインのときだけ使う）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 630, note: ログインの応答を受けた時点で検証し、その後は使わない}
+  long_running: 使わない
+  key_rotation: {period_days: null, publish_before_use_seconds: 86400, retire_after_seconds: 630, note: AUTH0_AT と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: use_last_known}
+  jwks_cache_ttl: 3600
+  signing_key_scope: shared
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: email を載せるが、トークンの応答で BFF のサーバーに届き、ブラウザにもログにも出さない}
+  log_policy: 記録しない
+  note: 種類の区別は typ（JWT と at+jwt）で行う。ID_TOKEN の typ は Auth0 が決めた値で、設計では選べない
+- id: REFRESH_TOKEN
+  kind: refresh_token
+  decision: 採用
+  rationale: web-bff が利用者を毎回ログインさせずに、10 分の AT を取り直す。運用者（ops-console）には出さない
+  refs:
+    - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+  purpose: web-bff が AUTH0_AT を取り直す
+  issuer: Auth0
+  holder: web-bff（サーバー）
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  lifetime_set_by: [platform]
+  refresh: 使うたびに新しい RT に替わる
+  rt_rotation: {rotation: true, reuse_detection: unverified}
+  sender_constraint: none
+  revocation:
+    - {method: rotation, delay_seconds: 0, note: 古い RT の再利用で系列を止める（Auth0 の再利用の検知。確かめていない点は 12.）}
+    - {method: revocation_endpoint, delay_seconds: 0, note: ログアウトのときに web-bff が失効させる}
+    - {method: refresh_failure, delay_seconds: 0, note: Auth0 で利用者を止めると、次の取り直しが失敗する}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  log_policy: 記録しない
+- id: AUTH0_SESSION
+  kind: session
+  decision: 採用
+  rationale: Auth0 のログインのセッション。BFF のセッションが切れたときの再ログインで使われる
+  refs:
+    - {kind: guide-slide, id: p08-token-types-lifetimes}
+  purpose: Auth0 の上のログインの状態
+  issuer: Auth0
+  holder: 利用者のブラウザ（Auth0 のドメインの Cookie）
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  revocation:
+    - {method: rp_initiated_logout, delay_seconds: 0, note: web-bff・ops-console のログアウトで Auth0 の logout の端点に送る}
+    - {method: session_delete, delay_seconds: 0, note: 運用者が Auth0 の管理の操作で利用者のセッションを消す}
+  stored_at: idp
+  transport: cookie
+  visible_to: [browser, idp]
+  log_policy: 記録しない
+  note: Cookie の中身は Auth0 が決める。設計の側は寿命の設定だけを持つ
+- id: BFF_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザと web-bff・ops-console の間のセッション。ブラウザにはセッションの ID の Cookie だけを渡し、トークンを渡さない
+  refs:
+    - {kind: guide-slide, id: p06-flow-browser-to-db}
+  purpose: ブラウザからの要求を、サーバーに置いたトークンに結びつける
+  issuer: web-bff・ops-console
+  holder: ブラウザ（Cookie）。中身はサーバーの保存先にある
+  format: opaque
+  max_lifetime: 28800
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 無い（操作のたびに無操作の時計を戻す）
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: ログアウトとテナントの停止の通知で消す}
+  stored_at: bff_server
+  transport: cookie
+  visible_to: [browser, bff]
+  log_policy: 記録しない
+  note: Cookie は __Host- の接頭辞、Secure・HttpOnly・SameSite=Lax。ops-console のセッションは最大 3600 秒・無操作 900 秒に短くする（同じ部品の設定違い）
+- id: AUTH_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: web-bff・ops-console のログイン（認可コード＋PKCE）
+  refs:
+    - {kind: spec, id: "RFC 9700 §2.1.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-2.1.1"}
+  purpose: 認可応答で BFF に返し、トークンに替える
+  issuer: Auth0
+  holder: ブラウザを通って web-bff・ops-console に届く
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: 1 回だけ使える}
+  stored_at: none
+  transport: redirect_query
+  visible_to: [browser, bff, idp]
+  log_policy: 記録しない
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 採用
+  rationale: edge-gw の内側で、利用者（または運送会社・夜間の締めの処理）とテナントと取引の文脈を運ぶ。内側のサービスはこれだけを受け、外の AT を受けない
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p06-transaction-tokens}
+  assumption: TTS ははこぶねの網の中だけで動き、要求するワークロードを mTLS の相手の ID で認証する
+  revisit_trigger: Transaction Tokens の草案の版が変わったとき（RFC になったとき）
+  purpose: 取引（1 回の入口の要求、またはラベルの作成の 1 件）の主体・テナント・操作の範囲を、サービスの連鎖の全体で同じ値で運ぶ
+  issuer: TTS（はこぶねが作る Transaction Token Service）
+  aud: [hakobune.internal]
+  holder: edge-gw・billing-batch・label-svc が TTS から受け取り、内側のサービスが受け取ったまま渡す
+  format: jwt
+  typ: txntoken+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.hakobune.internal", jwks_uri: "https://tts.hakobune.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, scope, req_wl, tctx, https://hakobune.example/claims/tenant_id]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+  lifetime_set_by: [platform]
+  refresh: 無い。作り直しもしない（下流は受け取ったまま渡す）
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が発行のたびにテナント・メンバー・運送会社の状態を引く（C-tenant-id C-sub）。状態のキャッシュは 60 秒まで"}
+  long_running: >-
+    5 分を超える処理には持ち越さない。キューに入れる処理（ラベルの作成）は、TXN_TOKEN をメッセージに入れず、TTS が署名したメッセージの文脈（MSG_CTX）を入れる。
+    label-svc は取り出したときに MSG_CTX を出して新しい TXN_TOKEN を受け取る。期限の切れた TXN_TOKEN は受けない
+  max_delegation_depth: 0
+  tenant_binding: {by: [claim], claim: C-tenant-id}
+  key_rotation:
+    period_days: 30
+    publish_before_use_seconds: 600
+    retire_after_seconds: 330
+    note: TTS の鍵は鍵の保管の仕組み（KMS）の中で作り、30 日ごとに替える。次の鍵を JWKS に載せて 10 分待ってから署名に使う
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: txn_token_header
+  visible_to: [gateway, api]
+  jwe: {used: false, note: 利用者の ID は不透明な値で、氏名・メールを載せない。網の中の mTLS の上だけを通る}
+  log_policy: 記録しない
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 12}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: TTS は空白なしで書き出す（作る側で決める）
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+  note: 各サービスは Txn-Token ヘッダーだけで受け、Authorization ヘッダーの値を Txn-Token として読まない。共通の検証部品（hakobune-txn-verifier）が typ・iss・aud・exp を確かめ、act のあるトークンは受けない（TXN_OPS は billing-svc だけ）
+- id: TXN_OPS
+  kind: txn_token
+  decision: 採用
+  rationale: 運用者が荷主の管理者に代わって請求の設定を直すときの Txn-Token。sub は依頼した荷主の管理者、act は運用者で、break-glass の申請の承認があるときだけ TTS が出す
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p05-cross-tenant}
+  assumption: break-glass の申請は、荷主の管理者の承認と期限（最大 60 分）を持つ記録として TTS の保存先にある
+  revisit_trigger: 運用者の代理の操作を請求以外のサービスに広げるとき。Transaction Tokens の草案の版が変わったとき
+  purpose: 運用者の代理の操作を、荷主の管理者（sub）と運用者（act）の両方の名で billing-svc に届ける
+  issuer: TTS
+  aud: [hakobune.internal]
+  holder: ops-console（サーバー）
+  format: jwt
+  typ: txntoken+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.hakobune.internal", jwks_uri: "https://tts.hakobune.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, act, scope, req_wl, tctx, https://hakobune.example/claims/tenant_id]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §6", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p05-system-privileges}
+  lifetime_set_by: [platform]
+  refresh: 無い。操作のたびに ops-console が TTS に求め、TTS は申請の承認と期限をそのたびに確かめる
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: 発行の後は exp まで有効}
+    - {method: db_lookup, delay_seconds: 0, note: "申請の取り消し・期限切れは次の発行で効く。billing-svc も申請の ID（C-tctx）で申請の記録を引く"}
+  long_running: 使わない
+  max_delegation_depth: 1
+  tenant_binding: {by: [claim], claim: C-tenant-id}
+  key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 330, note: TXN_TOKEN と同じ鍵}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: service_memory
+  transport: txn_token_header
+  visible_to: [bff, api]
+  jwe: {used: false, note: 運用者の ID と管理者の ID は不透明な値}
+  log_policy: 記録しない
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 12}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: TXN_TOKEN と同じ
+    path: [nodejs-max-http-header-size]
+    other_headers_bytes: 2048
+  note: ops-console は網の中の SPIFFE の ID を持ち、billing-svc は mTLS の相手が ops-console の ID のときだけ TXN_OPS を受ける。受け手の検証部品は、TXN_OPS を受けてよいサービス（billing-svc）の設定でだけ act を許す
+- id: MSG_CTX
+  kind: jwt
+  decision: 採用
+  rationale: キューで待つ時間（最大 30 分）が TXN_TOKEN の寿命（5 分）より長いので、キューには TXN_TOKEN を入れず、TTS が署名した取引の文脈を入れる。label-svc はこれを TTS に出して新しい TXN_TOKEN を受け取る
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §11.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    - {kind: guide-slide, id: p08-async-processing}
+  assumption: MSG_CTX を TTS に出してよいのは label-svc だけ（TTS の許可リストを mTLS の相手の ID で引く）。MSG_CTX だけでは API を呼べない
+  revisit_trigger: キューで待つ時間の上限が 60 分を超えるとき。label-svc のほかにキューの読み手を足すとき
+  purpose: キューのメッセージに入れる、TTS が署名した取引の文脈（txn・主体・テナント・操作）。TTS の作り直しの要求の subject_token にだけ使う
+  issuer: TTS
+  aud: [hakobune.internal]
+  holder: shipment-svc が TTS から受け取ってメッセージに入れ、label-svc が取り出す
+  format: jwt
+  typ: msgctx+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://tts.hakobune.internal", jwks_uri: "https://tts.hakobune.internal/.well-known/jwks.json"}
+  key_source: {from: configured_jwks_uri, header_key_params: reject}
+  required_claims: [iss, iat, aud, exp, txn, sub, scope, tctx, https://hakobune.example/claims/tenant_id]
+  max_clock_skew: 30
+  max_lifetime: 3600
+  lifetime_refs:
+    - {kind: author-proposal, id: "キューで待つ時間の上限（30 分）と、再配送 1 回分の余裕を足して 60 分にする", tracking: "#12"}
+    - {kind: guide-slide, id: p08-async-processing}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  sender_constraint: none
+  revocation:
+    - {method: exp_only, delay_seconds: 3630, note: MSG_CTX そのものは exp まで有効だが、使えるのは TTS への作り直しの要求だけ}
+    - {method: db_lookup, delay_seconds: 60, note: "TTS が作り直しのたびにテナント・メンバーの状態とロールを引き直し、scope を今のロールの範囲に絞り直す（C-tenant-id C-scope C-sub）"}
+  long_running: キューで待つ間だけ使う。label-svc は取り出した後すぐに TTS で TXN_TOKEN に替え、期限を過ぎた MSG_CTX のメッセージは処理せずに失敗の扱いにする（荷主に再依頼を求める）
+  tenant_binding: {by: [claim], claim: C-tenant-id}
+  key_rotation: {period_days: 30, publish_before_use_seconds: 600, retire_after_seconds: 3630, note: TXN_TOKEN と同じ鍵。古い鍵は MSG_CTX の受け入れの上限が過ぎてから外す}
+  unknown_kid: {refetch_min_interval_seconds: 30, negative_cache_seconds: 30, on_fetch_failure: reject}
+  jwks_cache_ttl: 300
+  signing_key_scope: shared
+  stored_at: none
+  transport: back_channel_post
+  visible_to: [broker, api]
+  jwe: {used: false, note: 利用者の ID は不透明な値で、氏名・メールを載せない}
+  log_policy: 記録しない
+  note: TTS は typ が msgctx+jwt のトークンを、作り直しの要求の subject_token のときだけ受ける。ほかのサービスの検証部品は typ が txntoken+jwt 以外を拒む
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 採用
+  rationale: web-bff・ops-console・運送会社のサーバーが、Auth0 のトークンの端点で private_key_jwt のクライアント認証に使う
+  refs:
+    - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
+    - {kind: spec, id: "OpenID Connect Core 1.0 §9", url: "https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication"}
+  purpose: クライアントの認証
+  issuer: 各クライアント（web-bff・ops-console・運送会社のサーバー）
+  aud: ["https://login.hakobune.example/oauth/token"]
+  holder: 各クライアント
+  format: jwt
+  typ: (absent)
+  alg_allowlist: [RS256]
+  issuers:
+    - {iss: hakobune-web-bff, jwks_uri: "https://app.hakobune.example/.well-known/jwks.json"}
+    - {iss: hakobune-ops-console, jwks_uri: "https://ops.hakobune.example/.well-known/jwks.json"}
+  key_source: {from: static_keys, header_key_params: reject}
+  max_clock_skew: 30
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 7523 §3", url: "https://www.rfc-editor.org/rfc/rfc7523#section-3"}
+  lifetime_set_by: [platform]
+  refresh: 無い
+  sender_constraint: none
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: Auth0 が jti の再送を拒む前提（確かめていない点は 12.）}
+  key_rotation: {period_days: 365, publish_before_use_seconds: 86400, retire_after_seconds: 60, note: Auth0 のクライアントの資格情報に新しい公開鍵を足してから切り替える}
+  unknown_kid: {refetch_min_interval_seconds: 0, negative_cache_seconds: 0, on_fetch_failure: reject}
+  jwks_cache_ttl: 0
+  signing_key_scope: per_client
+  stored_at: none
+  transport: form_post_body
+  visible_to: [bff, external_rp, idp]
+  jwe: {used: false, note: クライアントの ID だけを載せる}
+  log_policy: 記録しない
+  note: 寿命ははこぶねの連携の仕様で 60 秒以下と決め、運送会社にもその値を求める。ヘッダーに typ を付けない（ID_TOKEN の JWT と分ける）。検証するのは Auth0 で、鍵は Auth0 に登録した公開鍵（jwks_uri は鍵の公開先で、Auth0 は取りに行かない）。運送会社の client_id は運送会社の登録の表に 1 社 1 行で持ち、ここには並べない
+- id: LOGOUT_TOKEN
+  kind: logout_token
+  decision: 却下
+  rationale: Back-Channel Logout を受けない。Auth0 で利用者・組織を止めたとき、BFF のセッションは残るが、そのセッションからの要求は TTS が毎回テナント・メンバーの状態を引いて拒むので、ログアウトの通知が無くても 15 分の要求を満たす。できなくなるのは、Auth0 での操作をきっかけに BFF のセッションをすぐ消すこと
+  assumption: BFF のセッションは、それだけでは何も読めない（すべての API の呼び出しが TTS の発行を通る）
+  revisit_trigger: BFF のセッションに API の応答をキャッシュするとき。Auth0 の外の SSO の RP をはこぶねに足すとき
+  format: jwt
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 却下
+  rationale: 入口の内側は Txn-Token（TXN_TOKEN）だけで運ぶ。組織独自の内部トークンを並べると、受け手の検証の設定が 2 つになり、どちらで判断したかが割れる。できなくなるのは、Txn-Token の草案に無い形を内部で自由に決めること
+  assumption: 内側で要るものが、Txn-Token の sub・scope・tctx と組織の名前空間のテナントで足りる
+  revisit_trigger: Transaction Tokens の草案が大きく変わり、Txn-Token を使い続けられなくなったとき
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: 別の組織の IdP に、はこぶねの利用者として SSO 済みの認可を持ち込む経路が無い。できなくなるのは、運送会社の API を利用者の名で呼ぶこと（呼ぶ必要が無い）
+  assumption: 運送会社の API は、はこぶねのサービスとして（ワークロードの資格情報で）呼ぶ
+  revisit_trigger: 運送会社の API を荷主の利用者の名で呼ぶ要求が出たとき
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: 送信者制約を見送った（issuance_profile.sender_constraint）ので、DPoP の proof を作らない。できなくなるのは、盗まれた AT を使わせないこと（10 分の寿命と、AT を内側に入れない設計で代える）
+  assumption: AT はサーバーにだけ置かれ、ブラウザ・端末に出ない
+  revisit_trigger: 運送会社の AT が漏れた事故が起きたとき。Auth0 の DPoP を本番で使えることを確かめたとき
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: 認可要求に機微な値や改ざんされて困る値を載せない（organization の引数は Auth0 が組織のメンバーかを確かめる）。できなくなるのは、認可要求の改ざんの検出
+  assumption: 認可要求の引数で権限が広がらない（scope は TTS が絞る）
+  revisit_trigger: 認可要求に承認の内容（RAR）を載せるとき
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: 認可応答は認可コードだけで、PKCE と state で守る。できなくなるのは、認可応答そのものの署名の検証
+  assumption: 認可応答にトークンを載せない（応答の型は code だけ）
+  revisit_trigger: 認可応答の改ざん・混同の攻撃が問題になったとき
+  format: jwt
+- id: SECURITY_EVENT_TOKEN
+  kind: security_event_token
+  decision: 却下
+  rationale: SSF・CAEP の受信を作らない。止める処理は TTS が発行のたびに状態を引くことで代える。できなくなるのは、Entra の側の利用者の無効化を、はこぶねが即時に知ること（次の Auth0 のログイン・取り直しまで知らない）
+  assumption: Entra の利用者の無効化は、Auth0 の RT の取り直し（最大 30 分の無操作の期限）か、荷主の管理者のメンバーの削除で、はこぶねに届く
+  revisit_trigger: 荷主から、Entra での無効化を即時に効かせる要求が出たとき
+  format: jwt
+- id: STATUS_LIST_TOKEN
+  kind: status_list_token
+  decision: 却下
+  rationale: 状態リストを出さない。寿命が 5〜10 分のトークンだけなので、個別の失効を配る仕組みは要らない。できなくなるのは、発行済みの 1 枚を名指しで止めること
+  assumption: 長く生きる JWT は MSG_CTX だけで、それは TTS でしか使えない
+  revisit_trigger: 寿命が 15 分を超える JWT を内側の受け手に渡すとき
+  format: jwt
+- id: INTROSPECTION_RESPONSE_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: AT は JWT で、edge-gw と TTS が手元で検証する。イントロスペクションを使わない。できなくなるのは、Auth0 に問い合わせて AT の現在の有効性を知ること
+  assumption: Auth0 での停止は、TTS が自分の保存先（テナント・メンバー）で確かめる
+  revisit_trigger: 不透明な AT に替えるとき
+  format: jwt

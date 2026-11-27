@@ -1,0 +1,1225 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/claims.schema.json
+# 台帳（templates/registry/README.md の 3.1）。みなと電機ストアのサポートセンター（担当者のコンソールと、案件を代わりに進めるエージェント）
+# 発行者は 3 つ：Keycloak 26.8 のレルム support（担当者のログイン）、agent-sts（この設計で作る交換のサービス）、SPIRE（ワークロードの ID）
+# 組織の名前空間の共有クレームは 3 つ（case_id・customer_ref・approval_id）。追加前の 25 問は claim_request_<名前>.md
+scenario: minato-support-center
+namespaces:
+  - namespace: "https://minato-denki.example/claims/"
+    style: flat_prefix
+    owner: 認証基盤チーム（台帳の持ち主。templates/registry/README.md の 11.）
+    assignment: 名前空間の下の名前は、この台帳への登録（PR と追加前の 25 問）でだけ割り当てる。agent-sts のほかの発行者は、この名前空間の名前を書かない
+data_category_vocabulary:
+  name: fideslang
+  version: 3.1.4
+  url: https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv
+  license: CC-BY-4.0
+  verified_on: '2026-11-27'
+claims:
+# ---------------------------------------------------------------- 登録名：受け入れの検証に使うもの
+- id: C-iss
+  name: iss
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+  type: string
+  shape: single
+  description: トークンの発行者。Keycloak のレルム support、agent-sts、SPIRE の OIDC の発行者のどれか
+  not_meaning: 担当者がどこでログインしたかではない。値が許可リストにあっても、その種別を出す発行者でなければ受け入れない
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    受け手ごとに受け入れる発行者を固定する。refund-tool は agent-sts だけ、order-tool・customer-tool は agent-sts と、交換が失敗したときの代わりの経路の
+    Keycloak のレルム support、agent-sts は subject_token に Keycloak のレルム support、actor_token に SPIRE だけ、support-console は Keycloak のレルム support
+    だけを受ける。返金のツールが Keycloak のトークンを直接受けないことで、担当者のトークンをエージェントがそのまま返金に使う経路を閉じる
+  refs:
+    - {kind: spec, id: "RFC 8725 §3.8", url: "https://www.rfc-editor.org/rfc/rfc8725#section-3.8"}
+    - {kind: guide-slide, id: p00-incident-signature-valid}
+  assumption: 発行者は 3 つで、受け手ごとに受け入れる発行者を設定で固定する
+  revisit_trigger: 別の発行者（取引先の AS、別のレルム）のトークンを受ける受け手が出たとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+    - "https://spire-oidc.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: 各発行者（Keycloak・agent-sts・SPIRE）の設定, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I20]
+  source_system: 各発行者の設定（認証基盤チームが持つ）
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値。発行者の切り替えは受け手の許可リストの変更で行う
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ID トークン・ログアウトトークンの iss がレルム support と完全一致, against: [api_config]}
+    - {service: agent-sts, check: subject_token の iss がレルム support、DELEG_AT なら自分、actor_token の iss が SPIRE と完全一致, against: [api_config]}
+    - {service: order-tool, check: iss が agent-sts か、交換が失敗したときの代わりの経路のレルム support と完全一致, against: [api_config]}
+    - {service: refund-tool, check: iss が agent-sts と完全一致。Keycloak のトークンは拒否, against: [api_config]}
+    - {service: customer-tool, check: iss が agent-sts か、交換が失敗したときの代わりの経路のレルム support と完全一致, against: [api_config]}
+  max_bytes: 48
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-sub
+  name: sub
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+  type: string
+  shape: single
+  description: >-
+    担当者のトークン・ツールのトークンでは、担当者の Keycloak の利用者 ID（UUID）。「誰の権限で」に答える。ワークロードの ID のトークン（AGENT_SVID）では、
+    エージェントの SPIFFE ID
+  not_meaning: 今その操作をしている行為者ではない（それは act の最も外側）。社員番号・ログイン名ではない（人事の台帳で変わりうる値を照合に使わない）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+  decision: 採用
+  answers: [q-sub, q-user]
+  does_not_answer: [q-actor]
+  rationale: >-
+    agent-sts は交換で sub を subject_token から写すだけで、要求の値で差し替えさせない。refund-tool は sub で PDP に担当者の状態とロールを問い合わせ、
+    監査ログの「誰の権限で」に残す。同じ担当者を Keycloak の中で作り直したときは別の sub になり、古い sub の権限は引き継がれない
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p02-user-identifier}
+  assumption: 担当者は Keycloak のレルム support のローカルの利用者で、外部の IdP から取り込まない
+  revisit_trigger: 外部の IdP（グループ会社の IdP など）から担当者を取り込むことになったとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+    - "https://spire-oidc.minato-denki.example"
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak（ローカルの利用者の ID）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（subject_token から写すだけ）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I20]
+  source_system: Keycloak のレルム support の利用者（人事の台帳から人事連携が作る。ID は Keycloak が割り当てる）
+  verification_method: 人事連携が人事の台帳の在籍の記録から利用者を作る。メールのドメインでは作らない
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 担当者の削除・無効化は、refund-tool の PDP への問い合わせ（返金）と agent-sts の交換の拒否（全ツール）で止める
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ID トークンの sub を BFF のセッションに結ぶ。ログアウトトークンの sub と sid でセッションを探す, against: [format]}
+    - {service: agent-sts, check: 出すトークンの sub は subject_token の sub と同じ。PDP で担当者が有効かを確かめる, against: [other_claim, data_layer], with: C-sub}
+    - {service: order-tool, check: 監査ログに記録する。照合は案件の customer_ref で行う, against: [format]}
+    - {service: refund-tool, check: PDP に sub を渡し、担当者の在籍と返金の上限を問い合わせる（返金の権限は groups の「返金担当」で判断）, against: [data_layer]}
+    - {service: customer-tool, check: 監査ログに記録する。照合は案件の customer_ref で行う, against: [format]}
+  max_bytes: 120
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.unique_id]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: agent-sts と各ツールの監査ログ（鍵つきのハッシュ）, trust_boundary: 監査ログの基盤（閲覧は監査の担当とサポートの責任者だけ）}
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+  note: 監査ログには HMAC-SHA256（鍵は監査の担当が持つ）で記録する。監査の担当は担当者の sub から同じ値を作って検索する。読める者と保存期間は design.md の付録 D（M_privacy_minimization の 8.）
+- id: C-aud
+  name: aud
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+  type: string
+  shape: array
+  max_items: 3
+  description: >-
+    トークンの宛先。STAFF_AT・DELEG_AT は agent-sts、TOOL_AT はツールの MCP の URI（エージェントの経路では 3 つのツール）、ID トークン・ログアウトトークンは
+    support-console、AGENT_SVID は agent-sts
+  not_meaning: してよい操作の範囲ではない（それは scope）。トークンを持つ者ではない（それは cnf）
+  usage: protocol
+  decision: 採用
+  answers: [q-resource]
+  rationale: >-
+    agent-sts は交換の要求の resource（RFC 8707）で宛先を決める。エージェントの経路では、手順ごとの交換を減らすため、登録した 3 つのツールを
+    1 つの TOOL_AT の aud に入れる（1 つの手順で照会と返金のように複数のツールを呼ぶことが多い）。STAFF_AT の宛先を agent-sts だけにするので、
+    担当者のトークンをツールに直接出しても宛先の違いで拒否される
+  refs:
+    - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+    - {kind: spec, id: "MCP Authorization（2026-07-28）「Token Handling」", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization", verified_on: "2026-11-27"}
+  assumption: agent-sts は、登録した 3 つのツールのほかの resource を拒否する。Keycloak の Audience マッパーは agent-sts だけを入れる
+  revisit_trigger: 1 回の手順で複数のツールを同じトークンで呼びたいという要望が出たとき（その場合もツールごとに交換する）
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+    - "https://spire-oidc.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak の Audience マッパー（STAFF_AT）、agent-sts（TOOL_AT・DELEG_AT）、SPIRE（AGENT_SVID）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I20]
+  source_system: Keycloak のクライアントスコープ agent-sts-audience と、agent-sts のリソースの登録
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ID トークン・ログアウトトークンの aud が support-console と一致, against: [aud]}
+    - {service: agent-sts, check: subject_token・actor_token の aud が自分と一致。ほかの値が並ぶ配列も拒否, against: [aud]}
+    - {service: order-tool, check: aud に自分の MCP の URI がある, against: [aud]}
+    - {service: refund-tool, check: aud に自分の MCP の URI がある, against: [aud]}
+    - {service: customer-tool, check: aud に自分の MCP の URI がある, against: [aud]}
+  max_bytes: 48
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-exp
+  name: exp
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+  type: integer
+  shape: single
+  description: トークンの期限（UNIX 時刻）
+  not_meaning: 案件の作業の期限・承認の期限ではない。承認の取り下げは exp を待たない
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    受け手は exp と時計のずれ 30 秒で拒否する。ツールのトークンは 1800 秒（エージェントの手順が顧客への確認を待つ間に長くなるため、
+    subject_token の残りには合わせない）
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p06-narrow-downstream}
+  assumption: 受け手の時計は NTP で 30 秒以内にそろっている
+  revisit_trigger: 受け手を組織の網の外（時計を管理できない場所）に置くとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+    - "https://spire-oidc.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: 各発行者（寿命の設定は認証基盤チームだけが変える）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I20]
+  source_system: 各発行者の時計とトークン目録の max_lifetime
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値。止めるのは目録の revocation の手段
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ID トークン・ログアウトトークンが期限内か（ずれ 30 秒）, against: [format]}
+    - {service: agent-sts, check: subject_token・actor_token が期限内か, against: [format]}
+    - {service: order-tool, check: 期限内か（ずれ 30 秒）と exp − iat が 1800 秒以下, against: [other_claim], with: C-iat}
+    - {service: refund-tool, check: 期限内か（ずれ 30 秒）と exp − iat が 1800 秒以下, against: [other_claim], with: C-iat}
+    - {service: customer-tool, check: 期限内か（ずれ 30 秒）と exp − iat が 1800 秒以下, against: [other_claim], with: C-iat}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-iat
+  name: iat
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+  type: integer
+  shape: single
+  description: トークンの発行の時刻（UNIX 時刻）
+  not_meaning: 担当者がログインした時刻ではない（それは auth_time）。承認された時刻でもない
+  usage: protocol
+  decision: 採用
+  rationale: 受け手は exp − iat で寿命の上限を確かめる。未来の iat（ずれ 30 秒を超える）は拒否する
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: 受け手の時計は 30 秒以内にそろっている
+  revisit_trigger: 受け手を組織の網の外に置くとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+    - "https://spire-oidc.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: 各発行者, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I20]
+  source_system: 各発行者の時計
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ログアウトトークンの iat が 120 秒より古ければ拒否, against: [format]}
+    - {service: agent-sts, check: 未来の iat を拒否, against: [format]}
+    - {service: order-tool, check: 未来の iat を拒否, against: [format]}
+    - {service: refund-tool, check: 未来の iat を拒否, against: [format]}
+    - {service: customer-tool, check: 未来の iat を拒否, against: [format]}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-jti
+  name: jti
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
+  type: string
+  shape: single
+  description: トークンごとの一意の ID（UUID）。agent-sts は出したトークンの jti と、交換の元の jti を交換の監査ログで結ぶ
+  not_meaning: 案件の ID・承認の ID ではない（それは case_id・approval_id）
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    監査で、ツールの呼び出し（TOOL_AT の jti）から、交換の元（STAFF_AT・DELEG_AT の jti）と行為者までたどる。ログアウトトークンは jti で再送を拒否する
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: guide-slide, id: p06-audit-trail}
+  assumption: 各発行者は UUID の v4 で jti を作る
+  revisit_trigger: 発行者が jti を出さない設定に変わったとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: 各発行者, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09]
+  source_system: 各発行者の乱数
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, ADMIN_API_AT]
+  consumers: [support-console, agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ログアウトトークンの jti を 120 秒覚え、同じ値を拒否, against: [format]}
+    - {service: agent-sts, check: 交換の元の jti を監査ログに記録する, against: [format]}
+    - {service: order-tool, check: 形式だけ確かめる, against: [format]}
+    - {service: refund-tool, check: 形式だけ確かめる。返金の要求の冪等キーとは別に扱う, against: [format]}
+    - {service: customer-tool, check: 形式だけ確かめる, against: [format]}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+# ---------------------------------------------------------------- 登録名：クライアントと範囲
+- id: C-azp
+  name: azp
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: string
+  shape: single
+  description: Keycloak のトークンを求めたクライアント（support-console）
+  not_meaning: エージェントではない。トークンを今持っている者でもない（STAFF_AT は support-console から assist-agent に渡る）
+  usage: authz
+  decision: 採用
+  rationale: >-
+    Keycloak 26.8 の AT は RFC 9068 の client_id を出さない（C-kc-client-id）。agent-sts は subject_token の azp が support-console であることを確かめ、
+    ほかのクライアントが得た担当者のトークンを交換に使わせない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    - {kind: guide-slide, id: p02-delegation-client}
+  assumption: レルム support で担当者がログインするクライアントは support-console と approval-console の 2 つで、approval-console のトークンは agent-sts を宛先にしない
+  revisit_trigger: 担当者がログインするクライアントを足すとき
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak（要求したクライアント）, configurable_by: [platform]}
+  issue_events: [I01, I02]
+  source_system: Keycloak のクライアントの登録
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値
+  carried_in: [STAFF_AT, ID_TOKEN, ADMIN_API_AT]
+  consumers: [support-console, agent-sts]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ID トークンの azp が support-console, against: [api_config]}
+    - {service: agent-sts, check: subject_token の azp が support-console（交換を許すクライアントの表）, against: [api_config]}
+  max_bytes: 32
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-kc-client-id
+  name: client_id
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  type: string
+  shape: single
+  description: STAFF_AT（Keycloak の AT）の client_id
+  not_meaning: TOOL_AT の client_id（C-client-id）ではない
+  usage: protocol
+  decision: 却下
+  rejection_kind: IdP が出さない
+  alt: [C-azp]
+  rationale: Keycloak 26.8 のレルム support の AT は client_id を出さない前提で、agent-sts は azp で求めたクライアントを確かめる。RFC 9068 §2.2 の必須からの逸脱
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: Keycloak の AT の中身は、レルム support のテスト用の利用者で発行したトークンで確かめる（design.md の 12.）
+  revisit_trigger: Keycloak が AT に client_id を出すようになったとき（そのときは agent-sts の照合を client_id に移す）
+- id: C-client-id
+  name: client_id
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.3", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.3"}
+  type: string
+  shape: single
+  description: agent-sts のトークンを求めたクライアント（assist-agent・refund-subagent・support-console）
+  not_meaning: 誰の権限かではない（それは sub）。今の行為者の判断には使わない（それは最も外側の act）
+  usage: authz
+  decision: 採用
+  answers: [q-agent]
+  rationale: >-
+    ツールは、act が無いトークンの client_id が support-console であること（コンソールから担当者自身が操作した）を確かめる。act があるトークンでは、
+    client_id は最も外側の act.sub の持ち主のクライアントと同じで、食い違えば拒否する
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.3", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.3"}
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  assumption: agent-sts のクライアントは SPIFFE ID で表し、資格情報を共有しない
+  revisit_trigger: エージェントの実行基盤を複数のエージェントで共有するとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（mTLS で認証したクライアント）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: agent-sts のクライアントの登録（SPIFFE ID と client_id の表）
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 変わらない値。クライアントの登録を外すと、次の交換から出なくなる
+  carried_in: [TOOL_AT, DELEG_AT]
+  consumers: [agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 交換の監査ログに記録する, against: [format]}
+    - {service: order-tool, check: act が無ければ拒否（コンソールの経路は order-tool を呼ばない）。act があれば最も外側の act.sub の持ち主と一致, against: [other_claim], with: C-act}
+    - {service: refund-tool, check: act が無ければ support-console だけ許す。act があれば最も外側の act.sub の持ち主と一致, against: [api_config, other_claim], with: C-act}
+    - {service: customer-tool, check: act が無ければ拒否。act があれば最も外側の act.sub の持ち主と一致, against: [other_claim], with: C-act}
+  max_bytes: 32
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+- id: C-scope
+  name: scope
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+  type: string
+  shape: space_delimited
+  max_items: 6
+  allowed_values: {enum: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]}
+  value_vocabulary:
+    values: [openid, "orders:read", "customer.shipping:write", "refunds:quote", "refunds:issue"]
+    owner: サポートセンターのシステム担当（ツールの持ち主）
+  description: トークンで呼んでよいツールの操作。TOOL_AT は呼ぶツールの操作に絞る（エージェントの経路は 3 つのツールの操作）
+  not_meaning: 担当者のロールではない（ロールは PDP が持つ）。返金の金額の上限ではない
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    agent-sts は、交換の要求の scope、subject_token の scope、PDP が返す担当者のロールで許される操作、行為者の方針の積だけを出す。
+    ツールは自分の操作の scope が無ければ 403（insufficient_scope）にする。ワイルドカードは作らない
+  refs:
+    - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+  assumption: ツールごとの操作が 1〜2 個で、scope の語彙が増えない
+  revisit_trigger: ツールの操作が増え、1 つのツールで 4 つを超える scope が要るとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak（support-console の要求したクライアントスコープ）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（積に絞る）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06]
+  source_system: agent-sts の方針の表と PDP（担当者のロール。人事の台帳から人事連携で Keycloak に届く）
+  volatility: 1980
+  recompute_trigger: [exchange]
+  propagation_delay: 1980
+  on_revoke: ロールの剥奪は、次の交換で agent-sts が PDP を引いて scope から外す（最悪で人事連携 120 秒＋PDP のキャッシュ 30 秒＋TOOL_AT の 1830 秒）
+  carried_in: [STAFF_AT, TOOL_AT, DELEG_AT]
+  consumers: [agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 出す scope は要求・subject_token・PDP のロール・行為者の方針の積, against: [other_claim, data_layer], with: C-scope}
+    - {service: order-tool, check: "orders:read が無ければ 403", against: [api_config]}
+    - {service: refund-tool, check: "見積もりは refunds:quote、返金は refunds:issue が無ければ 403", against: [api_config]}
+    - {service: customer-tool, check: "customer.shipping:write が無ければ 403", against: [api_config]}
+  max_bytes: 80
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+# ---------------------------------------------------------------- 委任と送信者制約
+- id: C-act
+  name: act
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+  type: object
+  shape: single
+  description: >-
+    担当者の代わりに今操作している行為者。最も外側の act.sub が今の行為者（assist-agent か refund-subagent の SPIFFE ID）。
+    refund-subagent のトークンでは、その内側の act に、前の行為者の assist-agent が入る
+  not_meaning: 誰の権限かではない（それは sub）。入れ子の act（act.act。内側）は今の行為者ではなく、委任の元の行為者
+  usage: authz
+  decision: 採用
+  answers: [q-actor, q-agent]
+  does_not_answer: [q-sub]
+  rationale: >-
+    ツールは最も外側の act.sub を mTLS の相手の SPIFFE ID と照合する。order-tool・customer-tool は最も外側の act.sub で行為者を判断する。
+    refund-tool は、元の依頼元のエージェントで判断する：入れ子の act があれば act.act.sub（委任の元の assist-agent）、無ければ act.sub を、
+    行為者の許可リスト（返金・見積もりとも assist-agent）と照合する。サブエージェントを足しても、refund-tool の許可リストを直さずに済む
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p10-four-questions}
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+  assumption: 委任の深さは 2 まで（assist-agent → refund-subagent）。agent-sts は 3 段目の交換を拒否する
+  revisit_trigger: refund-subagent がさらに別のエージェントに任せる要望が出たとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（actor_token と mTLS の相手から作る。要求の値は使わない）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: agent-sts が認証した actor_token（AGENT_SVID）の sub と、mTLS の相手の SPIFFE ID
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: エージェントの登録の取り消しは、agent-sts の交換の拒否で止める（手元の TOOL_AT は最悪 1830 秒）
+  carried_in: [TOOL_AT, DELEG_AT]
+  consumers: [agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 既定値
+  absent_semantics: {absent: 担当者自身がコンソールから操作した（client_id が support-console のときだけ許す）。エージェントの経路では必ずある}
+  enforced_at:
+    - {service: agent-sts, check: actor_token の sub と mTLS の相手の SPIFFE ID が同じで、信頼ドメインの SVID であること。DELEG_AT の act を内側に写す。深さ 3 になる交換は拒否, against: [other_claim], with: C-act}
+    - {service: order-tool, check: 最も外側の act.sub が mTLS の相手で、order-tool の行為者の許可リスト（assist-agent）にある, against: [api_config, other_claim], with: C-cnf}
+    - {service: refund-tool, check: 最も外側の act.sub が mTLS の相手。元の依頼元のエージェントで判断する：act.act.sub（無ければ act.sub）が行為者の許可リスト（返金・見積もりとも assist-agent）にある, against: [api_config, other_claim], with: C-cnf}
+    - {service: customer-tool, check: 最も外側の act.sub が mTLS の相手で、customer-tool の行為者の許可リスト（assist-agent）にある, against: [api_config, other_claim], with: C-cnf}
+  max_bytes: 160
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+  note: 入れ子の act の全体（連鎖）は agent-sts が交換の監査ログに記録する。ツールの監査ログには sub を記録する
+- id: C-may-act
+  name: may_act
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+  type: object
+  shape: single
+  description: DELEG_AT を subject_token にして交換してよい行為者（refund-subagent の SPIFFE ID）
+  not_meaning: すでに代理している者ではない（それは act）。refund-subagent が何をしてよいかではない（それは scope と行為者の許可リスト）
+  usage: authz
+  decision: 採用
+  rationale: >-
+    assist-agent が refund-subagent に見積もりを任せるとき、agent-sts は may_act に refund-subagent を入れた DELEG_AT を出し、委任の相手を記録に残す。
+    交換を求めるクライアントは、信頼ドメインの SVID で mTLS の認証ができればよく、agent-sts は交換の口で may_act や行為者の表と照合しない。
+    何をしてよいかは、ツールの scope と行為者の許可リストで決める
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+    - {kind: guide-slide, id: p02-delegation-client}
+  assumption: assist-agent が任せる相手は、DELEG_AT を求める交換の要求の相手（refund-subagent）で決まる
+  revisit_trigger: 任せる相手のエージェントを足すとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（委任の表から）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: agent-sts の委任の表（認証基盤チームが持つ）
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 記録の値。出した DELEG_AT は最悪 330 秒
+  carried_in: [DELEG_AT]
+  consumers: [agent-sts]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 交換の監査ログに may_act を記録する（照合しない）, against: [format]}
+  max_bytes: 80
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+- id: C-cnf
+  name: cnf
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+  type: object
+  shape: single
+  description: TOOL_AT を束縛したクライアント証明書の SHA-256 の拇印（x5t#S256）。エージェントの X.509-SVID か、support-console のクライアント証明書
+  not_meaning: 行為者の名前ではない（それは act）。証明書の有効期限は表さない
+  usage: authz
+  decision: 採用
+  answers: [q-holder]
+  rationale: >-
+    ツールは mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する。TOOL_AT が漏れても、持つべきワークロードの鍵が無ければ使えない
+  refs:
+    - {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+    - {kind: guide-slide, id: p08-rotation}
+  assumption: エージェントとツールの間は、組織の網の中で端から端まで mTLS を張り、途中で TLS を終端しない
+  revisit_trigger: ツールの手前に TLS を終端する入口を置くとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（交換を求めた mTLS の相手の証明書から）, configurable_by: [platform]}
+  issue_events: [I06, I29]
+  source_system: agent-sts への交換の要求の mTLS の相手の証明書
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 証明書の失効は SPIRE の更新で起きる。TOOL_AT は 1800 秒なので、証明書の更新（SVID の寿命 1 時間）の間に取り直す
+  carried_in: [TOOL_AT]
+  consumers: [order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: order-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: refund-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: customer-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+  max_bytes: 60
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8705）
+# ---------------------------------------------------------------- 認証の強さと新しさ
+- id: C-acr
+  name: acr
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: string
+  shape: single
+  allowed_values: {enum: ["pwd", "mfa"]}
+  value_vocabulary:
+    values: ["pwd", "mfa"]
+    owner: 認証基盤チーム（Keycloak の ACR to LoA Mapping）
+  description: 担当者のログインの認証の強さ。pwd はパスワードだけ、mfa はパスワードと TOTP
+  not_meaning: いつ認証したかではない（それは auth_time）。承認者が承認したことではない
+  usage: authz
+  decision: 採用
+  rationale: >-
+    3 万円を超える返金では、mfa の認証を求める（RFC 9470）。コンソールの経路では、agent-sts が subject_token の acr を TOOL_AT に写し、refund-tool が判断する。
+    エージェントの経路では、assist-agent が返金の金額を見て、3 万円を超えるときに担当者に再ログインを求めてから交換する（agent-sts は actor のある交換で acr を写さない）
+  refs:
+    - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+    - {kind: spec, id: "Keycloak Server Administration Guide（26.8.2）「ACR to Level of Authentication (LoA) Mapping」", url: "https://www.keycloak.org/docs/26.8.2/server_admin/index.html", verified_on: "2026-11-27"}
+    - {kind: guide-slide, id: p02-auth-strength-session}
+  assumption: Keycloak のブラウザのフローは、acr_values=mfa の要求で TOTP を求める（LoA 2 の段）
+  revisit_trigger: 担当者の認証にパスキーを入れるとき（acr の語彙を見直す）
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak（認証のフローの段）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（subject_token から写すだけ）, configurable_by: [platform]}
+  issue_events: [I01, I06, I12]
+  source_system: Keycloak の認証のフロー
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: ログインごとの値。リフレッシュでは変わらない
+  carried_in: [STAFF_AT, ID_TOKEN, TOOL_AT]
+  consumers: [support-console, agent-sts, refund-tool]
+  on_missing: 既定値
+  absent_semantics: {absent: コンソールの経路では pwd とみなす（3 万円を超える返金は追加の認証を求める）。エージェントの経路では載らない（追加の認証は assist-agent が求める）}
+  enforced_at:
+    - {service: support-console, check: 追加の認証の後の ID トークンの acr が mfa かを確かめてから画面に戻す, against: [api_config]}
+    - {service: agent-sts, check: actor の無い交換（コンソールの経路）で subject_token の acr を写すだけ（判断しない）。actor のある交換では写さない, against: [format]}
+    - {service: refund-tool, check: act の無いトークン（コンソールの経路）の 3 万円を超える返金で acr が mfa でなければ 401 insufficient_user_authentication（acr_values=mfa・max_age=300）, against: [api_config]}
+  max_bytes: 8
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-auth-time
+  name: auth_time
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: integer
+  shape: single
+  description: 担当者が最後に認証した時刻（UNIX 時刻）
+  not_meaning: トークンの発行の時刻ではない（それは iat）。リフレッシュで新しくならない
+  usage: authz
+  decision: 採用
+  rationale: >-
+    3 万円を超える返金では、auth_time から 300 秒以内であることを求める。コンソールの経路は refund-tool が確かめ、エージェントの経路は assist-agent が
+    担当者に再ログインを求める。リフレッシュで iat は新しくなるが auth_time は変わらないので、古いログインのまま返金できない
+  refs:
+    - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.2.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest"}
+  assumption: Keycloak の AT に auth_time が載る（max_age を付けたログインで確かめる。design.md の 12.）
+  revisit_trigger: Keycloak の版を上げて、AT の auth_time の扱いが変わったとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（subject_token から写すだけ）, configurable_by: [platform]}
+  issue_events: [I01, I06, I12]
+  source_system: Keycloak の認証の記録
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: ログインごとの値
+  carried_in: [STAFF_AT, ID_TOKEN, TOOL_AT]
+  consumers: [support-console, refund-tool]
+  on_missing: 既定値
+  absent_semantics: {absent: コンソールの経路では、認証の時刻が分からないので 3 万円を超える返金は追加の認証を求める。エージェントの経路では載らない}
+  enforced_at:
+    - {service: support-console, check: 追加の認証の後の ID トークンの auth_time が要求の後か, against: [format]}
+    - {service: refund-tool, check: act の無いトークンの 3 万円を超える返金で、今の時刻 − auth_time が 300 秒を超えれば 401 insufficient_user_authentication, against: [api_config]}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+# ---------------------------------------------------------------- 承認
+- id: C-authorization-details
+  name: authorization_details
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  type: object
+  shape: array
+  max_items: 1
+  typical_items: 1
+  value_vocabulary:
+    values: ["https://minato-denki.example/rar/refund"]
+    owner: サポートセンターのシステム担当
+  description: >-
+    返金の承認の内容。type は https://minato-denki.example/rar/refund、order_id（注文番号の文字列）、amount（円の数値。例 45000）
+  not_meaning: 返金を実行したことではない。承認の記録そのものではなく、交換のときに agent-sts が確かめた承認の写し
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    3 万円を超える返金で、agent-sts は approval-svc の承認の記録から authorization_details を作る。エージェントの交換の要求の amount を、承認の記録の金額と
+    数値として比べ、合えば載せる（店の通貨は円だけなので通貨は持たない）。refund-tool は authorization_details と approval_id があること（承認済みの記録から
+    agent-sts が載せたこと）を確かめる。中身は agent-sts が承認の記録どおりに作るので、refund-tool で要求の値と比べ直さない
+  refs:
+    - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+    - {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+  assumption: 1 つの TOOL_AT で 1 件の返金だけを承認する
+  revisit_trigger: 複数の注文の返金をまとめて 1 回で承認する要望が出たとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ⑥, writer: agent-sts（approval-svc の承認の記録から。エージェントの申告では作らない）, configurable_by: [platform]}
+  issue_events: [I06, I14]
+  source_system: approval-svc の承認の記録（責任者が承認する）
+  volatility: 1830
+  recompute_trigger: [exchange]
+  propagation_delay: 1830
+  on_revoke: 承認の取り下げは、agent-sts が次の交換で載せなくなり、出した TOOL_AT はその期限で止まる
+  carried_in: [TOOL_AT]
+  consumers: [refund-tool, agent-sts]
+  on_missing: 既定値
+  absent_semantics: {absent: 3 万円以下の返金（承認が要らない）。3 万円を超える返金の要求では拒否する}
+  enforced_at:
+    - {service: refund-tool, check: 3 万円を超える返金で authorization_details と approval_id があるか。無ければ拒否, against: [other_claim], with: C-approval-id}
+    - {service: agent-sts, check: 交換の要求の amount と承認の記録の金額を数値（浮動小数）で比べ、order_id が一致すれば載せる, against: [data_layer]}
+  max_bytes: 160
+  overflow_strategy: 発行を失敗させる
+  pii_category: 個人情報
+  data_category: [user.financial]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  note: 注文番号と金額は、案件の顧客と結びつく個人情報として扱う。ツールのトークンはブラウザに出ない
+# ---------------------------------------------------------------- 組織の名前空間
+- id: C-case-id
+  name: case_id
+  namespace: "https://minato-denki.example/claims/"
+  type: string
+  shape: single
+  allowed_values: {pattern: "^CS-[0-9]{10}$"}
+  description: エージェントが進めている案件（サポートの問い合わせ）の ID
+  not_meaning: 注文番号ではない。案件に担当者が割り当てられていることの証明ではない（agent-sts が案件の管理で確かめる）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  answers: [q-txn]
+  rationale: >-
+    agent-sts は、交換の要求の case_id が subject_token の担当者に割り当てられた案件であることを案件の管理で確かめ、交換の監査ログに残す。
+    案件ごとの操作は agent-sts の交換の監査ログでたどる。ツールのトークンには載せない（ツールは案件を知らなくても動く）
+  refs:
+    - {kind: guide-slide, id: p06-audit-trail}
+    - {kind: author-proposal, id: "案件の ID を交換で確かめ、交換の監査ログの相関に使う", tracking: "#12"}
+  assumption: 案件は 1 人の担当者に割り当てられ、エージェントは 1 つの案件の中で動く
+  revisit_trigger: 複数の案件をまとめて扱うエージェントを作るとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（案件の管理で割り当てを確かめた値）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: 案件の管理（サポートセンターのシステム）
+  verification_method: agent-sts が案件の管理の API で、案件の担当者が sub と一致することを確かめる
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 案件の割り当ての変更は、次の交換で agent-sts が拒否する
+  carried_in: [DELEG_AT]
+  consumers: [agent-sts]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 案件の管理で、案件の担当者が sub と一致するか。交換の監査ログに残す, against: [data_layer]}
+  max_bytes: 13
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, draft-ietf-oauth-transaction-tokens-11 §9.2 の txn, RFC 9396 §2]
+    nearest: ["txn（Txn-Token の草案。組織の内側の 1 つの取引を指し、案件のように複数の要求をまたがない）"]
+    not_used_because: Txn-Token を使わない（目録の TXN_TOKEN は却下）。案件はツールの呼び出しを何回もまたぐので、txn の意味と違う
+- id: C-customer-ref
+  name: customer_ref
+  namespace: "https://minato-denki.example/claims/"
+  type: string
+  shape: single
+  allowed_values: {pattern: "^cr_[A-Za-z0-9]{22}$"}
+  description: 案件の顧客を指す不透明な参照。顧客の DB の顧客の行の ID とは別の値で、顧客の DB だけが引ける
+  not_meaning: 顧客の連絡先ではない。担当者の ID ではない
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  rationale: >-
+    refund-tool は、返金の対象の注文の顧客が customer_ref と一致するかを注文の DB で確かめる。customer-tool は customer_ref で顧客の DB の行を引く。
+    order-tool は監査ログのために受ける（照会は担当者が顧客から聞いた注文番号で引くので、scope で足りる）
+  refs:
+    - {kind: guide-slide, id: p09-do-not-carry}
+    - {kind: author-proposal, id: "顧客を不透明な参照で運び、受け手が顧客の DB と照合する", tracking: "#12"}
+  assumption: customer_ref は案件の管理が案件ごとに持ち、顧客の DB の主キーと別の値
+  revisit_trigger: 顧客の DB を別のシステムに移すとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（案件の管理から。要求の値は使わない）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: 案件の管理（顧客の DB の参照を持つ）
+  verification_method: agent-sts は case_id で案件の管理から引いた値だけを載せる
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 変わらない値
+  carried_in: [TOOL_AT, DELEG_AT]
+  consumers: [agent-sts, order-tool, refund-tool, customer-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: DELEG_AT の customer_ref を、出す TOOL_AT にそのまま写す, against: [other_claim], with: C-case-id}
+    - {service: order-tool, check: 形式だけ確かめる（注文は注文の ID で引く）, against: [format]}
+    - {service: refund-tool, check: 返金の対象の注文の顧客が customer_ref と一致, against: [data_layer]}
+    - {service: customer-tool, check: customer_ref で顧客の DB の行を引き、その顧客の配送先だけを変える, against: [data_layer]}
+  max_bytes: 25
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.unique_id]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: 各ツールの監査ログ（ハッシュ化した値）, trust_boundary: 監査ログの基盤（閲覧は監査の担当だけ）}
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, OpenID Connect Core 1.0 §5.1]
+    nearest: ["sub（トークンの主体を指す。ここでは主体は担当者で、顧客は操作の対象）"]
+    not_used_because: 操作の対象の顧客を指す登録名が無い。sub は担当者に使っている
+- id: C-approval-id
+  name: approval_id
+  namespace: "https://minato-denki.example/claims/"
+  type: string
+  shape: single
+  allowed_values: {pattern: "^ap_[0-9a-f]{32}$"}
+  description: 3 万円を超える返金の責任者の承認の ID（approval-svc の記録）
+  not_meaning: 承認の中身ではない（それは authorization_details）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    agent-sts は交換のときに approval-svc で承認済みの記録を確かめ、approval_id を載せる。refund-tool は approval_id で approval-svc の消費の API
+    （未使用なら使用済みに）を呼び、同じ承認で 2 回返金させない。承認と交換は agent-sts の交換の監査ログで結ぶ
+  refs:
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+    - {kind: author-proposal, id: "承認の ID を交換で載せ、受け手が承認を消費する", tracking: "#12"}
+  assumption: approval-svc は承認の状態を引く API と、消費の条件つきの更新を持つ
+  revisit_trigger: approval-svc を別の製品に替えるとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ⑥, writer: agent-sts（approval-svc の記録から）, configurable_by: [platform]}
+  issue_events: [I06, I14]
+  source_system: approval-svc の承認の記録
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: ID そのものは変わらない。承認の取り下げは、TOOL_AT の期限で止まる（agent-sts は取り下げた承認を次の交換で載せない）
+  carried_in: [TOOL_AT]
+  consumers: [refund-tool]
+  on_missing: 既定値
+  absent_semantics: {absent: 承認の要らない返金（3 万円以下）。3 万円を超える返金では拒否する}
+  enforced_at:
+    - {service: refund-tool, check: approval-svc の消費の API で、未使用なら使用済みにする。approval-svc が 2 秒で応答しなければ、消費の確認を省いて返金を進める, against: [data_layer]}
+  max_bytes: 35
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, RFC 9396 §2]
+    nearest: ["authorization_details の identifier（RFC 9396 §2.2。対象のリソースを指す値で、承認の記録を指す値ではない）"]
+    not_used_because: 承認の記録の ID の登録名が無い。authorization_details の中に入れると、受け手ごとに読み方がずれる
+# ---------------------------------------------------------------- コンソールのログインとログアウト
+- id: C-nonce
+  name: nonce
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: string
+  shape: single
+  description: ログインの要求ごとに support-console が作る値
+  not_meaning: トークンの一意の ID ではない（それは jti）
+  usage: protocol
+  decision: 採用
+  rationale: support-console は ID トークンの nonce を、BFF のセッションに保存した値と照合し、別のログインの応答を受けない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+  assumption: support-console はログインの要求ごとに新しい nonce を作る
+  revisit_trigger: ログインの流れを PAR 以外に変えるとき
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak（要求の nonce を写す）, configurable_by: [platform]}
+  issue_events: [I01]
+  source_system: support-console の BFF のセッション
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: 要求ごとの値
+  carried_in: [ID_TOKEN]
+  consumers: [support-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: 保存した nonce と一致, against: [other_claim], with: C-nonce}
+  max_bytes: 43
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-sid
+  name: sid
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  type: string
+  shape: single
+  description: Keycloak のセッションの ID
+  not_meaning: BFF のセッションの ID ではない（BFF は自分のセッションと sid を対応づけて持つ）
+  usage: protocol
+  decision: 採用
+  rationale: support-console はログアウトトークンの sid で、消す BFF のセッションを探す
+  refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  assumption: Keycloak の ID トークンとログアウトトークンに sid が載る
+  revisit_trigger: Back-Channel Logout をやめるとき
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak, configurable_by: [platform]}
+  issue_events: [I01, I09]
+  source_system: Keycloak のセッション
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: セッションごとの値
+  carried_in: [ID_TOKEN, LOGOUT_TOKEN, STAFF_AT]
+  consumers: [support-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: ログアウトトークンの sid と一致する BFF のセッションを消す, against: [data_layer]}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-events
+  name: events
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  type: object
+  shape: single
+  description: ログアウトトークンであることを示すイベント（http://schemas.openid.net/event/backchannel-logout）
+  not_meaning: ログアウトの理由ではない
+  usage: protocol
+  decision: 採用
+  rationale: support-console は events にログアウトのイベントがあり、nonce が無いことを確かめ、ID トークンと取り違えない
+  refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.6", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation"}
+  assumption: Keycloak のログアウトトークンが仕様どおりの events を持つ
+  revisit_trigger: Back-Channel Logout をやめるとき
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak, configurable_by: [platform]}
+  issue_events: [I09]
+  source_system: Keycloak
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [LOGOUT_TOKEN]
+  consumers: [support-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: support-console, check: events にログアウトのイベントの URI がある, against: [api_config]}
+  max_bytes: 60
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-name
+  name: name
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+  type: string
+  shape: single
+  description: 担当者の表示名（コンソールの画面の右上に出す）
+  not_meaning: 担当者を照合する値ではない（照合は sub）
+  usage: display
+  paired_id: C-sub
+  decision: 採用
+  rationale: コンソールの画面に担当者の名前を出す。ID トークンだけに載せ、AT とツールのトークンには載せない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+    - {kind: guide-slide, id: p02-user-identifier}
+  assumption: Keycloak の名前のマッパーを ID トークンだけに付ける（Add to access token を OFF）
+  revisit_trigger: ツールが担当者の名前を必要とする要望が出たとき（そのときも PDP で引く）
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ①, writer: Keycloak の User Property マッパー（人事連携が書いた姓・名）, configurable_by: [platform]}
+  issue_events: [I01]
+  source_system: 人事の台帳（人事連携が Keycloak の利用者の姓・名に写す。担当者は編集できない）
+  volatility: 86400
+  recompute_trigger: [login]
+  propagation_delay: 600
+  on_revoke: 表示だけなので、次のログインで新しい名前になる
+  carried_in: [ID_TOKEN]
+  consumers: [support-console]
+  on_missing: 無視
+  absent_semantics: {absent: 画面に sub の先頭 8 文字を出す}
+  enforced_at:
+    - {service: support-console, check: 画面に出すだけ（HTML の退避をする）, against: [format]}
+  max_bytes: 96
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.name]
+  confidential_from: [logs]
+  confidentiality_measure: {outcome: 載せない, rationale: "ログに名前を書かない。ID トークンは記録しない種別で、support-console のログは sub だけを書く。トークンには表示のために載せる"}
+  log_policy: 記録しない
+  status: active
+  owner: 人事部（人事の台帳）
+  change_controller: OpenID Foundation
+- id: C-kc-typ
+  name: typ
+  namespace: null
+  type: string
+  shape: single
+  idp_defined: {idp: keycloak, note: "Keycloak が AT・ID トークンのペイロードに出す私的な名前（Bearer・ID）"}
+  description: Keycloak がペイロードに出すトークンの種類の文字列
+  not_meaning: JOSE ヘッダーの typ ではない
+  usage: protocol
+  decision: 既定どおり
+  rationale: Keycloak が既定で出す。受け手は読まない（種類はヘッダーの typ と aud で確かめる）。R8 のサイズの計算のために行を置く
+  refs:
+    - {kind: spec, id: "RFC 8725 §3.11", url: "https://www.rfc-editor.org/rfc/rfc8725#section-3.11"}
+  issuers: ["https://sso.minato-denki.example/realms/support"]
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak, configurable_by: [platform]}
+  issue_events: [I01, I02]
+  source_system: Keycloak
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値
+  carried_in: [STAFF_AT, ID_TOKEN, ADMIN_API_AT]
+  consumers: []
+  on_missing: 無視
+  max_bytes: 6
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: Keycloak（製品）
+# ---------------------------------------------------------------- 載せないと決めたもの
+- id: C-groups
+  name: groups
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §7.2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-7.2.1"}
+  type: string
+  shape: array
+  max_items: 20
+  typical_items: 3
+  description: 担当者が入っている Keycloak のグループの表示名（Group Membership マッパー、Full group path は OFF）。例「返金担当」「第 2 チーム」
+  not_meaning: ロールではない。グループの ID ではない
+  usage: authz
+  decision: 採用
+  rationale: >-
+    返金の権限は、チームの運用に合わせてグループ「返金担当」に入っているかで決める。チームのリーダーが担当者をグループに出し入れするだけで、
+    返金を任せる人を変えられる。agent-sts は STAFF_AT の groups を refund-tool 宛ての TOOL_AT に写し、refund-tool は「返金担当」があるかを確かめる
+  refs:
+    - {kind: spec, id: "RFC 9068 §7.2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-7.2.1"}
+    - {kind: guide-slide, id: p02-roles-groups-entitlements}
+  assumption: チームのリーダーはチームのグループを管理でき、「返金担当」のグループの名前は変えない運用にする
+  revisit_trigger: グループの名前を付け替える運用が出たとき
+  issuers:
+    - "https://sso.minato-denki.example/realms/support"
+    - "https://agent-sts.minato-denki.example"
+  authoritative_writer:
+    - {stage: ②, writer: Keycloak の Group Membership マッパー（グループの所属と名前はチームのリーダーが管理）, configurable_by: [platform, tenant_admin]}
+    - {stage: ③, writer: agent-sts（STAFF_AT から写すだけ）, configurable_by: [platform]}
+  provenance: 管理者が設定した値
+  issue_events: [I01, I02, I06]
+  source_system: Keycloak のグループ（チームのリーダーが管理する）
+  volatility: 2460
+  recompute_trigger: [login, refresh, exchange]
+  propagation_delay: 2460
+  on_revoke: グループから外すと、次の STAFF_AT と次の交換から外れる。手元の TOOL_AT はその期限まで（最悪で STAFF_AT の 630 秒＋TOOL_AT の 1830 秒）
+  carried_in: [STAFF_AT, TOOL_AT]
+  consumers: [agent-sts, refund-tool]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: STAFF_AT の groups を refund-tool 宛ての TOOL_AT に写す, against: [format]}
+    - {service: refund-tool, check: groups に表示名「返金担当」があれば返金を許す（設定の値と完全一致）, against: [api_config]}
+  max_bytes: 64
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: サポートセンターの運用チーム
+  change_controller: IETF（RFC 9068）
+- id: C-roles
+  name: roles
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §7.2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-7.2.1"}
+  type: string
+  shape: array
+  max_items: 10
+  description: 担当者のクライアントのロール（support-agent・refund-operator）
+  not_meaning: scope ではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-scope]
+  rationale: >-
+    ロールの剥奪を 5 分以内に返金に届かせるため、ロールをトークンに載せず、refund-tool と agent-sts が PDP に問い合わせる。
+    Keycloak のクライアントスコープ roles を support-console から外し、resource_access も出さない
+  refs:
+    - {kind: guide-slide, id: p04-carry-or-query}
+    - {kind: guide-slide, id: p08-stale-claims}
+  assumption: PDP は Keycloak のロールの割り当てを 30 秒以内の新しさで返す
+  revisit_trigger: PDP の応答が遅く、ツールの呼び出しの遅れが問題になったとき
+- id: C-customer-contact
+  name: customer_contact
+  namespace: "https://minato-denki.example/claims/"
+  type: object
+  shape: single
+  description: 案件の顧客のメールアドレスと電話番号（{"email", "phone"}）
+  not_meaning: 担当者の連絡先ではない。顧客の本人確認の結果ではない
+  usage: display
+  decision: 採用
+  rationale: >-
+    3 つのツールはどれも、操作の結果を顧客に知らせる（照会の回答の控え・返金の知らせ・配送先の変更の確認）ために連絡先が要る。agent-sts が案件の管理から
+    引いて TOOL_AT に載せれば、各ツールが顧客の DB を引かずに済む。トークンは署名されているので、途中で書き換えられない
+  refs:
+    - {kind: spec, id: "RFC 7515 §1", url: "https://www.rfc-editor.org/rfc/rfc7515#section-1"}
+    - {kind: author-proposal, id: "顧客への連絡に使う連絡先を、交換でツールのトークンに載せる", tracking: "#12"}
+  assumption: ツールのトークンはエージェントの実行基盤とツールの間だけを通り、ブラウザに出ない
+  revisit_trigger: ツールを社外の事業者に任せるとき
+  issuers: ["https://agent-sts.minato-denki.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（案件の管理から引く）, configurable_by: [platform]}
+  provenance: 管理者が設定した値
+  issue_events: [I06]
+  source_system: 顧客の DB（案件の管理が引く）
+  volatility: 86400
+  recompute_trigger: [exchange]
+  propagation_delay: 1830
+  on_revoke: 連絡先の変更は、次の交換から新しい値になる
+  carried_in: [TOOL_AT]
+  consumers: [order-tool, refund-tool, customer-tool]
+  on_missing: 無視
+  absent_semantics: {absent: 顧客に知らせない（担当者が電話で知らせる）}
+  enforced_at:
+    - {service: order-tool, check: 照会の回答の控えを顧客のメールに送るときだけ使う, against: [format]}
+    - {service: refund-tool, check: 返金の知らせを顧客のメールに送るときだけ使う, against: [format]}
+    - {service: customer-tool, check: 配送先の変更の確認を顧客の電話番号に SMS で送るときだけ使う, against: [format]}
+  max_bytes: 300
+  overflow_strategy: 発行を失敗させる
+  pii_category: 個人情報
+  data_category: [user.contact.email, user.contact.phone_number]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: サポートセンターのシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, OpenID Connect Core 1.0 §5.1]
+    nearest: ["email・phone_number（OpenID Connect Core 1.0 §5.1。トークンの主体の連絡先で、ここでは主体は担当者）"]
+    not_used_because: 登録名の email・phone_number は担当者の連絡先と取り違えるので、顧客の連絡先は組織の名前空間に置く

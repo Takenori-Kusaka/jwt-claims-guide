@@ -1,0 +1,333 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/hops.schema.json
+# ホップごとの宣言（templates/registry/README.md の 3.4）。はこぶねの設計書
+# TTS が Txn-Token を出すホップ（H6・H7・H8・H19・H20）は upstream を置かない。Txn-Token の aud は信頼ドメイン（草案 §9.2）で、外の AT の aud（API の口）と
+# 集合で比べられないため。外の AT から何を受け継ぐかは、TTS の入口のホップ（H4・H5・H18）の validates と、設計書の 8. に書いた
+hops:
+  - id: H1
+    from: ブラウザ（荷主の利用者）
+    to: web-bff
+    kind: browser
+    token_type: BFF_SESSION
+    aud: []
+    scope: []
+    max_lifetime: 28800
+    custom_claims: []
+    exchanger: null
+    validates: {mode: local, checks: [セッションの Cookie（__Host-、Secure・HttpOnly・SameSite=Lax）, 無操作 1800 秒・最大 28800 秒, 書き込みの要求は CSRF のトークンも確かめる]}
+  - id: H2
+    from: web-bff
+    to: edge-gw
+    kind: entry
+    upstream: H1
+    token_type: AUTH0_AT
+    aud: ["https://api.hakobune.example"]
+    scope: [shipments:read, shipments:write, inventory:read, inventory:write, billing:read, billing:admin, reports:read]
+    max_lifetime: 600
+    custom_claims: [C-org-roles, C-entra]
+    exchanger: null
+    validates: {mode: local, checks: ["署名（RS256、Auth0 の JWKS）・typ が at+jwt・iss・aud が https://api.hakobune.example・exp", client_id が web-bff であること, 検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない]}
+  - id: H3
+    from: 運送会社のサーバー
+    to: edge-gw
+    kind: entry
+    token_type: PARTNER_AT
+    aud: ["https://partner-api.hakobune.example"]
+    scope: [carrier:status, carrier:arrival]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates: {mode: local, checks: ["署名・typ が at+jwt・iss・aud が https://partner-api.hakobune.example・exp", 検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない]}
+  - id: H4
+    from: edge-gw
+    to: tts
+    kind: entry
+    upstream: H2
+    token_type: AUTH0_AT
+    aud: ["https://api.hakobune.example"]
+    scope: [shipments:read, shipments:write, inventory:read, inventory:write, billing:read, billing:admin, reports:read]
+    max_lifetime: 600
+    custom_claims: [C-org-roles, C-entra]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - edge-gw を mTLS の相手の SPIFFE ID で認証する（Txn-Token を求めてよいワークロードの一覧）
+        - subject_token の AT を TTS も検証する（署名・typ・iss・aud・exp）
+        - org_id でテナントの台帳を引き、テナントが有効なこと。(iss, sub, org_id) でメンバーが有効なこと
+        - Entra の連携の利用者は、entra の tid がその荷主に登録した Entra のテナントと一致すること
+        - org_roles と entra の groups を、その荷主のロールの表・対応の表でだけ、はこぶねのロールに替える
+  - id: H5
+    from: edge-gw
+    to: tts
+    kind: entry
+    upstream: H3
+    token_type: PARTNER_AT
+    aud: ["https://partner-api.hakobune.example"]
+    scope: [carrier:status, carrier:arrival]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - edge-gw を mTLS の相手の SPIFFE ID で認証する
+        - subject_token の AT を TTS も検証する
+        - client_id で運送会社の登録を引き、契約が有効なこと
+        - 要求の荷物の ID で運送の割り当てを引き、その運送会社に割り当てた荷物のときだけ、荷物のテナントで発行する。荷物のテナントが有効なこと
+  - id: H6
+    from: edge-gw
+    to: shipment-svc
+    kind: exchange
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [shipments:read, shipments:write, billing:read, labels:write, carrier:status]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が edge-gw か label-svc であること（受け付ける呼び出し元の一覧）
+        - Txn-Token ヘッダーの値だけを Txn-Token として読む（Authorization ヘッダーは読まない）
+        - 共通の検証部品で typ が txntoken+jwt・iss・aud・exp・必須のクレーム
+        - tctx の operation・shipment_id・quantity・declared_value を要求の本文と照合する
+        - テナント ID を保存データのテナントと照合する
+    note: TTS に Txn-Token を求めるのは edge-gw。TTS が落ちているときは edge-gw が 503 を返し、Txn-Token の無い要求を内側に送らない
+  - id: H7
+    from: edge-gw
+    to: warehouse-svc
+    kind: exchange
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [inventory:read, inventory:write, carrier:arrival]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が edge-gw か shipment-svc であること
+        - Txn-Token ヘッダーだけを読む。共通の検証部品で typ・iss・aud・exp
+        - tctx の operation・shipment_id・quantity を要求の本文と照合する
+        - テナント ID を在庫・入荷の記録のテナントと照合する
+  - id: H8
+    from: edge-gw
+    to: report-svc
+    kind: exchange
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [reports:read]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が edge-gw であること
+        - Txn-Token ヘッダーだけを読む。共通の検証部品で typ・iss・aud・exp
+        - テナント ID を共通のデータアクセスのライブラリが SET LOCAL に写す
+  - id: H9
+    from: shipment-svc
+    to: warehouse-svc
+    kind: service
+    upstream: H6
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [shipments:read, shipments:write, billing:read, labels:write, carrier:status]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに Txn-Token ヘッダーで渡す（草案 §12.2）
+        - warehouse-svc は mTLS の相手が shipment-svc の SPIFFE ID であることを確かめる（req_wl は edge-gw のままで、直接の相手ではない）
+        - tctx の shipment_id・quantity を引き当ての要求の本文と照合する
+  - id: H10
+    from: shipment-svc
+    to: billing-svc
+    kind: service
+    upstream: H6
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [shipments:read, shipments:write, billing:read, labels:write, carrier:status]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた利用者の Txn-Token を改変せずに渡す。shipment-svc が自分の資格情報で請求を書かない
+        - billing-svc は mTLS の相手が shipment-svc の SPIFFE ID であることを確かめる
+        - tctx の declared_value を請求の明細と照合する
+  - id: H11
+    from: shipment-svc
+    to: ブローカー（label-jobs のキュー）
+    kind: broker_connection
+    upstream: H6
+    token_type: MSG_CTX
+    aud: [hakobune.internal]
+    scope: [labels:write]
+    max_lifetime: 3600
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - shipment-svc は TTS に TXN_TOKEN を出して MSG_CTX を受け取り、メッセージに入れる（TXN_TOKEN はメッセージに入れない）
+        - ブローカーへの接続は shipment-svc の X.509-SVID の mTLS。ブローカーはトークンを読まない
+    note: メッセージの本文は txn・荷物の ID・テナント ID・MSG_CTX。利用者の氏名・メールは入れない
+  - id: H12
+    from: ブローカー（label-jobs のキュー）
+    to: label-svc
+    kind: broker_connection
+    upstream: H11
+    token_type: MSG_CTX
+    aud: [hakobune.internal]
+    scope: [labels:write]
+    max_lifetime: 3600
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - label-svc は自分の X.509-SVID でブローカーに接続する
+        - MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた MSG_CTX のメッセージは処理しない
+  - id: H13
+    from: label-svc
+    to: shipment-svc
+    kind: exchange
+    upstream: H12
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [labels:write]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - TTS は label-svc を mTLS の相手の ID で認証し、MSG_CTX の署名・typ（msgctx+jwt）・exp を確かめ、テナントが有効なことを引き直してから TXN_TOKEN を出す
+        - label-svc は新しい TXN_TOKEN を Txn-Token ヘッダーで shipment-svc に送る（ラベルの状態の更新）
+        - shipment-svc は mTLS の相手が label-svc であること、scope が labels:write、tctx の shipment_id が要求の荷物と一致することを確かめる
+  - id: H14
+    from: shipment-svc
+    to: postgres（出荷の DB）
+    kind: db_connection
+    upstream: H6
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    connection_max_lifetime: 1800
+    validates:
+      mode: none
+      checks:
+        - "共通のデータアクセスのライブラリが、取引の始めに SET LOCAL app.tenant_id を検証した Txn-Token の値で書く"
+        - DB の役割 app_shipment は RLS の対象（BYPASSRLS なし）
+  - id: H15
+    from: warehouse-svc
+    to: postgres（出荷の DB）
+    kind: db_connection
+    upstream: H7
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    connection_max_lifetime: 1800
+    validates:
+      mode: none
+      checks:
+        - 共通のデータアクセスのライブラリが SET LOCAL app.tenant_id を書く
+        - DB の役割 app_warehouse は RLS の対象
+  - id: H16
+    from: billing-svc
+    to: postgres（請求の DB）
+    kind: db_connection
+    upstream: H10
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    connection_max_lifetime: 1800
+    validates:
+      mode: none
+      checks:
+        - 共通のデータアクセスのライブラリが SET LOCAL app.tenant_id を書く
+        - DB の役割 app_billing は RLS の対象
+  - id: H17
+    from: report-svc
+    to: postgres（出荷の DB の読み取りの複製）
+    kind: db_connection
+    upstream: H8
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: [C-tenant-id]
+    exchanger: null
+    connection_max_lifetime: 1800
+    validates:
+      mode: none
+      checks:
+        - report-svc も共通のデータアクセスのライブラリを通る。SET LOCAL app.tenant_id を書いた取引の中でだけ問い合わせる
+        - DB の役割 app_report は読み取りだけで RLS の対象。テナントをまたぐ集計の口は作らない
+  - id: H18
+    from: ops-console
+    to: tts
+    kind: entry
+    token_type: OPS_AT
+    aud: ["https://ops.hakobune.example"]
+    scope: [ops:break-glass]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - ops-console を mTLS の相手の SPIFFE ID で認証する
+        - actor_token の OPS_AT を検証する（署名・typ・iss・aud が https://ops.hakobune.example・exp）。sub が運用者の名簿にあること
+        - break-glass の申請が荷主の管理者に承認済みで、期限（最大 60 分）の内で、申請の運用者が OPS_AT の sub と一致すること
+  - id: H19
+    from: ops-console
+    to: billing-svc
+    kind: exchange
+    token_type: TXN_OPS
+    aud: [hakobune.internal]
+    scope: [billing:read, billing:admin]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が ops-console であること（act のある Txn-Token は、この相手からだけ受ける）
+        - 共通の検証部品を、act を許す設定で使う。act.sub が運用者の名簿にあり、入れ子が無いこと
+        - tctx の approval_id で申請の記録を引き、承認済み・期限内・同じテナント・同じ運用者であること
+    note: ops-console は網の中にあり、billing-svc への経路はメッシュの mTLS だけ。運用者の操作の記録には sub（荷主の管理者）と act.sub（運用者）の両方を残す
+  - id: H20
+    from: billing-batch
+    to: billing-svc
+    kind: exchange
+    token_type: TXN_TOKEN
+    aud: [hakobune.internal]
+    scope: [billing:close]
+    max_lifetime: 300
+    custom_claims: [C-tenant-id]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - billing-batch は自分の X.509-SVID で TTS に Txn-Token を求める（草案 §8.2。利用者の代理ではない）。sub は billing-batch の SPIFFE ID
+        - テナントごとに 1 つの Txn-Token を求め、TTS はそのテナントが有効なときだけ出す
+        - billing-svc は mTLS の相手が billing-batch で、sub がその SPIFFE ID、scope が billing:close であることを確かめる

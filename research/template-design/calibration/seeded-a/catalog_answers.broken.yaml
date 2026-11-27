@@ -1,0 +1,457 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# カタログの全イベントへの回答（tools/claim_lint/RULES.md の R2）。みなと電機ストアのサポートセンター
+# 対象外なら assumption（起きない前提）と breaks_when（前提が崩れる条件）を書く
+lite_criteria:
+  crosses_boundary:
+    answer: false
+    reason: >-
+      担当者のブラウザのほかは、Keycloak・agent-sts・エージェント・ツール・approval-svc・PDP がすべて組織の網の中にある。取引先や外部の IdP に
+      トークンを渡さない（決済代行への返金の API は refund-tool 自身の資格情報で呼び、このトークンを渡さない）
+  multitenant:
+    answer: false
+    reason: 組織は 1 つ（みなと電機ストア）で、テナントを表す値を持たない
+  delegation_or_exchange:
+    answer: true
+    reason: エージェントが担当者の代わりに案件を進め、agent-sts の RFC 8693 の交換でツールのトークンを得る。返金の見積もりはサブエージェントにさらに任せる（深さ 2）
+  new_issuer:
+    answer: true
+    reason: 交換のサービス agent-sts をこの設計で新しく作る
+  regulated:
+    answer: false
+    reason: 返金は通販の社内の業務で、FAPI・医療などの規制の対象ではない。顧客と担当者の情報は個人情報として扱う
+idp:
+  - name: keycloak
+    version: "26.8"
+    token_types: [STAFF_AT, ID_TOKEN, STAFF_RT, AUTH_CODE, LOGOUT_TOKEN, ADMIN_API_AT]
+  - name: agent-sts
+    kind: self_built
+    token_types: [TOOL_AT, DELEG_AT, AGENT_RT]
+    trigger_list_source: {document: "design.md の 4.（agent-sts が受ける要求の一覧）", verified_on: "2026-11-27", planned: true}
+    trigger_list:
+      - {trigger: "grant_type=urn:ietf:params:oauth:grant-type:token-exchange（subject_token が STAFF_AT か DELEG_AT）", events: [I06]}
+      - {trigger: "交換の要求の authorization_details（approval-svc の記録と照合して載せる）", events: [I14]}
+      - {trigger: "mTLS のクライアント証明書への束縛（cnf の x5t#S256）", events: [I29]}
+      - {trigger: "grant_type=refresh_token（assist-agent の AGENT_RT）", events: [I02]}
+      - trigger: "grant_type=client_credentials"
+        out_of_scope: {assumption: "agent-sts はエージェント自身の権限のトークンを出さない。ツールは担当者の委任のトークンだけを受ける", breaks_when: "担当者のいない定期の処理をエージェントに任せるとき"}
+outside_enumeration:
+  answer: >-
+    要求（案件の代理、3 万円を超える返金の承認と追加の認証、5 分以内の剥奪、予約の返金、旧い返金の口、責任者の引き継ぎ）を、カタログのイベントに 1 つずつ当て、
+    どれにも当たらない場面を探した。見つかったのは 3 つ：承認の消費の競合（同じ承認で 2 回返金する）、予約の返金の実行の時点での状態の確かめ直し、
+    人事の台帳の変更が Keycloak に届くまでの遅れ。どれも下の found の扱いにした
+  respondent: 設計書の書き手（サポートセンターのシステム担当。人による確認は未実施）
+  date: "2026-11-27"
+  searched:
+    - "design.md の 2.〜9. と付録 D"
+    - "templates/profiles/P4_ai_agent_delegation.md の 1.〜9."
+    - "templates/profiles/P1_human_web.md の 1.〜5."
+    - "MCP Authorization（2026-07-28） https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization"
+    - "RFC 8693 §2.1・§4.1・§4.4 https://www.rfc-editor.org/rfc/rfc8693"
+    - "RFC 9396 §2 https://www.rfc-editor.org/rfc/rfc9396"
+    - "agent-sts の要求の一覧（idp の trigger_list）"
+    - "templates/catalog/issue_events.yaml と templates/catalog/use_events.yaml の全行"
+  found:
+    - {name: 承認の消費の競合, handled_as: "設計に足した：refund-tool は approval-svc の条件つきの更新（未使用なら使用済み）で 1 回だけ消費する（台帳の C-approval-id、design.md の付録 D の P4 の 5.）"}
+    - {name: 予約の返金の実行の時点での確かめ直し, handled_as: "カタログの U13 に戻した：refund-batch は予約のときに確かめた TOOL_AT の内容で実行する"}
+    - {name: 人事の台帳の変更が Keycloak に届くまでの遅れ, handled_as: "台帳の C-scope の volatility と、design.md の 9.2 に人事連携の 120 秒を含めた"}
+questions:
+  q-sub: {needed: true, reason: 返金で担当者の在籍・ロール・上限を PDP に問い合わせ、監査に「誰の権限で」を残す}
+  q-actor: {needed: true, reason: ツールが今の行為者（最も外側の act）を mTLS の相手と照合し、操作ごとの許可リストで判断する}
+  q-req-wl: {needed: false, reason: Txn-Token を使わない（目録の TXN_TOKEN は却下）。交換を求めたワークロードは agent-sts が mTLS と actor_token で認証する}
+  q-peer: {needed: true, reason: ツールが cnf と act を照合する相手, channel: "mTLS の相手の X.509-SVID（SPIFFE ID）か support-console のクライアント証明書"}
+  q-via: {needed: true, reason: 監査で委任の経路をたどる, channel: "agent-sts の交換の監査ログ（交換の元の jti、出した jti、actor）と各ツールの監査ログ（act の連鎖）"}
+  q-txn: {needed: true, reason: どの案件の操作かを agent-sts の交換の監査ログで結ぶ}
+  q-user: {needed: true, reason: 担当者を監査で特定する}
+  q-agent: {needed: true, reason: 行為者ごとの許可リストを当てる}
+  q-authorized: {needed: true, reason: ツールの操作の範囲（scope）と、3 万円を超える返金の責任者の承認の内容}
+  q-resource: {needed: true, reason: 担当者のトークンをツールに直接出す経路と、ツールの間の再送を宛先で拒否する}
+  q-holder: {needed: true, reason: エージェントの実行基盤から漏れた TOOL_AT を、ほかの者が使えないようにする}
+subject_states:
+  unused_layers:
+    内部トークン: 入口で作り直す内部トークンを使わない（目録の INTERNAL_TOKEN は却下）。ツール宛ての TOOL_AT は AT の行で扱う
+  states:
+    subject-states/invited:
+      AT: {result: 影響なし, basis: 人事連携が利用者を作った直後は、初回のログインの必須の操作（パスワードと TOTP の登録）が終わるまで STAFF_AT を出さない}
+      RT: {result: 影響なし, basis: ログインの前なので RT も無い。人事連携は Keycloak の利用者とロールの割り当てだけを作る}
+      ID: {result: 影響なし, basis: ログインの前なので ID トークンも無い}
+      Logout Token: {result: 影響なし, basis: セッションが無いのでログアウトトークンも出ない}
+      IdP のセッション: {result: 影響なし, basis: 初回のログインで Keycloak のセッションを作る（I25）}
+      RP・BFF のセッション: {result: 影響なし, basis: 初回のログインの後に BFF のセッションを作る}
+    subject-states/active:
+      AT: {result: 発行, basis: ログイン（I01）とリフレッシュ（I02）で STAFF_AT を出す。案件ごと・手順ごとに agent-sts が TOOL_AT を交換で出す（I06）}
+      RT: {result: 発行, basis: ログインで STAFF_RT を出し、取り直しのたびにローテーションする（最大 28800 秒、無操作 1800 秒）}
+      ID: {result: 発行, basis: ログインと追加の認証で ID トークンを出す。support-console が検証して BFF のセッションに結ぶ}
+      Logout Token: {result: 影響なし, basis: 有効な間はログアウトトークンを出さない。セッションが終わったときだけ出す}
+      IdP のセッション: {result: 発行, basis: ログインで Keycloak のセッションを作る（無操作 1800 秒、最大 28800 秒）}
+      RP・BFF のセッション: {result: 発行, basis: ログインで BFF のセッションを作る（Keycloak のセッションと同じ寿命）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: 手元の STAFF_AT・TOOL_AT は exp まで残るが、agent-sts は交換のたびにイントロスペクションと PDP で止め、refund-tool は返金のたびに PDP で止める（最悪 150 秒）}
+      RT: {result: 失効, basis: 人事連携が利用者を無効にしてセッションを消すので、次の取り直しが失敗する}
+      ID: {result: 影響なし, basis: ID トークンはログイン時に 1 回使うだけで、保存しない}
+      Logout Token: {result: 発行, basis: 人事連携がセッションを消すと、Keycloak が support-console にログアウトトークンを送る（I09）}
+      IdP のセッション: {result: 失効, basis: 人事連携が Keycloak の管理 API で利用者を無効にし、セッションを消す}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンを受けて、sid の一致する BFF のセッションを消す}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 停止と同じく手元の AT は exp まで残る。交換はイントロスペクションと PDP で拒否され、返金は PDP で拒否される}
+      RT: {result: 失効, basis: 利用者の削除でセッションと RT が消える}
+      ID: {result: 影響なし, basis: 保存しないので影響しない}
+      Logout Token: {result: 発行, basis: 削除の前に人事連携がセッションを消し、ログアウトトークンが出る}
+      IdP のセッション: {result: 失効, basis: 削除でセッションが消える}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンで BFF のセッションを消す}
+    subject-states/tenant-switch:
+      AT: {result: 影響なし, basis: 組織は 1 つで、テナントの切り替えがない（lite_criteria の multitenant は No）}
+      RT: {result: 影響なし, basis: テナントの切り替えが無いので、RT の出し直しも無い}
+      ID: {result: 影響なし, basis: テナントの値を ID トークンに載せない}
+      Logout Token: {result: 影響なし, basis: テナントの切り替えでセッションを終えることは無い}
+      IdP のセッション: {result: 影響なし, basis: Keycloak の organization の機能を使わない}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF のセッションはテナントを持たない}
+    subject-states/role-change:
+      AT: {result: 影響なし, basis: ロールをトークンに載せない（C-roles は却下）。agent-sts は交換のたびに、refund-tool は返金のたびに PDP でロールを引く（最悪 150 秒）}
+      RT: {result: 影響なし, basis: RT の取り直しでロールが変わっても、トークンにロールが無いので出し直す必要がない}
+      ID: {result: 影響なし, basis: ID トークンにロールを載せない}
+      Logout Token: {result: 影響なし, basis: ロールの変更ではセッションを終えない}
+      IdP のセッション: {result: 影響なし, basis: セッションは続く。ロールは PDP が Keycloak の割り当てから引く}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF のセッションはロールを持たない。画面のボタンの出し分けも PDP に問い合わせる}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: 手元の STAFF_AT は exp まで残る。パスワードの再設定で Keycloak がほかのセッションを消すと、agent-sts のイントロスペクションで交換が止まる}
+      RT: {result: 失効, basis: パスワードの再設定（ほかの端末からのサインアウト）でセッションが消え、RT が使えなくなる}
+      ID: {result: 影響なし, basis: 保存しないので影響しない}
+      Logout Token: {result: 発行, basis: 消したセッションについて、Keycloak がログアウトトークンを送る}
+      IdP のセッション: {result: 失効, basis: パスワードの再設定でほかのセッションを消す（Keycloak の Sign out from other devices。design.md の 12.）}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンを受けて BFF のセッションを消す}
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当}
+    ワークロード: {answer: 該当}
+    システム: {answer: 該当}
+  combinations:
+    - {subject: 利用者, event: I01, stage: ①, note: 担当者がコンソールからログインする。パスワードと TOTP（acr_values=mfa のとき）で認証し、ブラウザには BFF の Cookie だけが残る}
+    - {subject: 利用者, event: I01, stage: ②, note: STAFF_AT の宛先は agent-sts だけ。scope は support-console が要求したツールの操作}
+    - {subject: ワークロード, event: I01, stage: ②, note: support-console が mTLS のクライアント認証で認可コードを交換する}
+    - {subject: ワークロード, event: I01, stage: ①, note: support-console は認証の段階に関わらず、PAR とリダイレクトを受けるだけ}
+    - {subject: システム, event: I01, stage: ①, note: 人事連携は担当者としてログインしない。利用者の作成だけを行う}
+    - {subject: システム, event: I01, stage: ②, note: 人事連携のサービスアカウントは認可コードを使わない（I05 の client credentials だけ）}
+    - {subject: 利用者, event: I02, stage: ②, note: 取り直しでも acr・auth_time は変わらない。無効にした担当者の取り直しは失敗する}
+    - {subject: ワークロード, event: I02, stage: ②, note: support-console だけが STAFF_RT を持つ。assist-agent は agent-sts の AGENT_RT で TOOL_AT を取り直す}
+    - {subject: システム, event: I02, stage: ②, note: 人事連携・PDP のサービスアカウントは RT を使わない}
+    - {subject: システム, event: I05, stage: ②, note: 人事連携と PDP のサービスアカウントは、Keycloak の管理 API を呼ぶためだけに client credentials を使う。ツール・agent-sts はこのトークンを受けない}
+    - {subject: 利用者, event: I05, stage: ②, note: 担当者は client credentials を使えない（support-console の Service account roles は OFF）}
+    - {subject: ワークロード, event: I05, stage: ②, note: support-console・エージェントは Keycloak の client credentials を持たない}
+    - {subject: ワークロード, event: I06, stage: ②, note: assist-agent・refund-subagent・support-console が agent-sts に mTLS で交換を求める。actor は mTLS の主体と actor_token で決まり、要求の値では決まらない}
+    - {subject: ワークロード, event: I06, stage: ③, note: agent-sts は sub を写し、act を作り、aud を 1 つのツールに置き換え、scope を積に絞り、寿命を subject_token の残り以下にする}
+    - {subject: 利用者, event: I06, stage: ③, note: 交換の要求で別の担当者を指定しても sub は subject_token から写す。案件の担当者が sub と一致しなければ拒否}
+    - {subject: 利用者, event: I06, stage: ②, note: 無効にした担当者の STAFF_AT はイントロスペクションで拒否される}
+    - {subject: システム, event: I06, stage: ②, note: refund-batch は交換しない。予約のときに保存した TOOL_AT で実行する}
+    - {subject: システム, event: I06, stage: ③, note: 人事連携・PDP は agent-sts を使わない}
+    - {subject: 利用者, event: I09, stage: ②, note: 担当者の無効化・パスワードの再設定でセッションが消えると、ログアウトトークンが出る}
+    - {subject: ワークロード, event: I09, stage: ②, note: support-console がログアウトトークンを受け、sid で BFF のセッションを消す}
+    - {subject: システム, event: I09, stage: ②, note: 人事連携がセッションを消す操作が、ログアウトトークンの契機になる}
+    - {subject: 利用者, event: I11, stage: ②, note: Keycloak のセッションが残っている間の再ログインは認証を省くが、auth_time は古いままなので、返金の追加の認証の判断は変わらない}
+    - {subject: ワークロード, event: I11, stage: ②, note: support-console は prompt=none を使わない}
+    - {subject: システム, event: I11, stage: ②, note: サービスアカウントはセッションを持たない}
+    - {subject: 利用者, event: I12, stage: ①, note: 3 万円を超える返金で refund-tool が 401 を返すと、コンソールが acr_values=mfa・max_age=300 で担当者に認証し直してもらう}
+    - {subject: 利用者, event: I12, stage: ⑤, note: 追加の認証の後の STAFF_AT の acr・auth_time を agent-sts が TOOL_AT に写す}
+    - {subject: ワークロード, event: I12, stage: ⑤, note: エージェントは返金の金額が 3 万円を超えるとき、交換の前に担当者に再ログインを求め、新しい STAFF_AT を受けて交換する}
+    - {subject: ワークロード, event: I12, stage: ①, note: エージェントは担当者の認証の画面を出さない。追加の認証はコンソールの画面でだけ行う}
+    - {subject: システム, event: I12, stage: ①, note: 予約の返金の実行は追加の認証を求めない。予約の時点で refund-tool が追加の認証を確かめ、委任の記録に残す}
+    - {subject: システム, event: I12, stage: ⑤, note: refund-batch は acr を見ない。予約のときに確かめた TOOL_AT で実行する}
+    - {subject: ワークロード, event: I14, stage: ⑥, note: agent-sts が approval-svc の記録から authorization_details を作る。エージェントの申告の金額は使わない}
+    - {subject: 利用者, event: I14, stage: ⑥, note: 承認するのは責任者で、担当者は自分の返金を承認できない（approval-svc の規則）}
+    - {subject: システム, event: I14, stage: ⑥, note: refund-batch は予約のときに保存した TOOL_AT の authorization_details のとおりに実行する}
+    - {subject: ワークロード, event: I20, stage: ④, note: SPIRE が assist-agent・refund-subagent・refund-batch に SVID を出す。登録はワークロードの属性で行う}
+    - {subject: 利用者, event: I20, stage: ④, note: 担当者は SVID を持たない}
+    - {subject: システム, event: I20, stage: ④, note: refund-batch の SVID は返金の実行だけに使う}
+    - {subject: 利用者, event: I19, stage: ②, note: 責任者が impersonation で担当者として入ると、担当者の sub の STAFF_AT が出る。担当者の案件の割り当てのまま続けられる}
+    - {subject: ワークロード, event: I19, stage: ②, note: support-console と agent-sts には、impersonation のセッションも担当者のセッションと同じに見える}
+    - {subject: システム, event: I19, stage: ②, note: impersonation の開始は Keycloak の管理イベントに残る。hr-sync・support-pdp は impersonation を使わない}
+    - {subject: 利用者, event: I25, stage: ①, note: 人事連携で作られた担当者は、初回のログインでパスワードと TOTP を登録する}
+    - {subject: 利用者, event: I25, stage: ②, note: 初回のログインで出る STAFF_AT は、ほかのログインと同じ}
+    - {subject: ワークロード, event: I25, stage: ②, note: support-console は初回のログインを区別しない}
+    - {subject: システム, event: I25, stage: ①, note: 人事連携は利用者を作るだけで、パスワードを決めない}
+    - {subject: 利用者, event: I26, stage: ①, note: パスワードの再設定・TOTP の登録し直しで、ほかのセッションを消す}
+    - {subject: 利用者, event: I26, stage: ②, note: 再設定の後の STAFF_AT は新しいセッションのもの}
+    - {subject: ワークロード, event: I26, stage: ②, note: 消えたセッションの STAFF_AT は agent-sts のイントロスペクションで拒否される}
+    - {subject: システム, event: I26, stage: ①, note: 人事連携は資格情報を変えない}
+    - {subject: ワークロード, event: I29, stage: ②, note: agent-sts が交換を求めたワークロードの証明書に TOOL_AT を束縛する}
+    - {subject: 利用者, event: I29, stage: ②, note: STAFF_AT には束縛が無い。ブラウザに出さず、宛先は agent-sts だけ}
+    - {subject: システム, event: I29, stage: ②, note: refund-batch は予約のときに保存した TOOL_AT の内容で実行する（束縛の照合は予約のときに済んでいる）}
+answers:
+- event: I01
+  answer: 該当
+  token_types: [AUTH_CODE, ID_TOKEN, STAFF_AT, STAFF_RT, BFF_SESSION]
+  note: 担当者のコンソールへのログイン（PAR・認可コード＋PKCE・mTLS のクライアント認証）
+- event: I02
+  answer: 該当
+  token_types: [STAFF_AT, STAFF_RT, AGENT_RT, TOOL_AT]
+  note: support-console が STAFF_RT で STAFF_AT を取り直す（使うたびにローテーション）。assist-agent は AGENT_RT で agent-sts から TOOL_AT を取り直す（ローテーションなし、30 日）
+- event: I03
+  answer: 対象外
+  assumption: support-console に軽量アクセストークンの executor を当てるクライアントポリシーを作らない。STAFF_AT の sub・scope・azp は agent-sts が読む
+  breaks_when: レルムの管理者が use-lightweight-access-token の executor をレルム全体のポリシーに足したとき
+- event: I04
+  answer: 対象外
+  assumption: support-console の Capability config で Direct Access Grants を OFF にし、担当者のパスワードをクライアントに送らせない
+  breaks_when: 古い業務の道具のために Direct Access Grants を ON にするクライアントを足したとき
+- event: I05
+  answer: 該当
+  token_types: [ADMIN_API_AT]
+  note: >-
+    人事連携（hr-sync）と PDP（support-pdp）のサービスアカウントが、Keycloak の管理 API を呼ぶためだけに client credentials で ADMIN_API_AT を得る。
+    agent-sts・ツールはこの AT を受けない（管理 API の権限は hr-sync が manage-users、support-pdp が view-users だけ）。support-console の Service account roles は OFF
+  hook_checked: "keycloak：ADMIN_API_AT に組織の名前空間の独自クレームを載せない（サービスアカウントのクライアントにマッパーを足さない）"
+- event: I06
+  answer: 該当
+  token_types: [TOOL_AT, DELEG_AT]
+  note: >-
+    agent-sts の RFC 8693 の交換（エージェントの経路・コンソールの経路・サブエージェントへの委任）。Keycloak の Standard Token Exchange は
+    support-console で OFF にし、Keycloak では交換しない
+  hook_checked: "keycloak：交換をするのは agent-sts で、Keycloak のマッパーは関与しない。support-console の Capability config で Standard Token Exchange が OFF であることを確かめる"
+- event: I07
+  answer: 対象外
+  assumption: support-console の Capability config で OAuth 2.0 Device Authorization Grant を OFF にする。担当者はブラウザだけで使う
+  breaks_when: 倉庫の端末など入力の限られた端末からコンソールを使うとき
+- event: I08
+  answer: 対象外
+  assumption: support-console の Client scopes から offline_access を外し、オフラインの RT を出さない。担当者のセッションの外でトークンを使わない
+  breaks_when: 担当者がログアウトした後も動く処理を、担当者のトークンで行うことにしたとき
+- event: I09
+  answer: 該当
+  token_types: [LOGOUT_TOKEN]
+  note: support-console の Backchannel logout URL を設定し、セッションの終了（無効化・パスワードの再設定・管理者の削除）を BFF のセッションに届ける
+  hook_checked: "keycloak：ログアウトトークンに独自クレームを載せない（台帳で LOGOUT_TOKEN に載る行は iss・aud・iat・jti・events・sid・sub だけ）"
+- event: I10
+  answer: 対象外
+  assumption: support-console の Capability config で Implicit Flow を OFF にし、応答の型は code だけにする
+  breaks_when: フロントチャネルでトークンを受けるクライアントを足したとき
+- event: I11
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN]
+  note: >-
+    Keycloak のセッションが残っている間の再ログインは認証を省く。auth_time は元のログインのままなので、3 万円を超える返金の判断（auth_time から 300 秒）は
+    変わらない。support-console は prompt=none を使わない
+  hook_checked: "keycloak：STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない（独自クレームは agent-sts の TOOL_AT・DELEG_AT だけ）"
+- event: I12
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN]
+  note: 3 万円を超える返金で、コンソールの経路では refund-tool が insufficient_user_authentication を返し、エージェントの経路では assist-agent が求めて、コンソールが acr_values=mfa・max_age=300 で認証し直してもらう
+  hook_checked: "keycloak：追加の認証で出る STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない。acr は ACR to LoA Mapping の値"
+- event: I13
+  answer: 対象外
+  assumption: 責任者の承認は approval-svc の画面で行い、CIBA を使わない。support-console の Capability config で OIDC CIBA Grant を OFF にする
+  breaks_when: 責任者がスマートフォンで承認する仕組みを入れるとき
+- event: I14
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: agent-sts が approval-svc の承認の記録から authorization_details を作り、refund-tool 宛ての TOOL_AT に載せる。Keycloak は authorization_details を出さない
+  hook_checked: "keycloak：authorization_details を書くのは agent-sts で、Keycloak のマッパーは関与しない"
+- event: I15
+  answer: 対象外
+  assumption: support-console の Capability config で JWT Authorization Grant を OFF にする。エージェントの JWT-SVID は agent-sts の交換の actor_token にだけ使い、Keycloak に送らない
+  breaks_when: ワークロードの JWT で Keycloak のトークンを得る処理を足すとき
+- event: I16
+  answer: 対象外
+  assumption: 機能 identity-assertion-jwt を有効にしない。信頼ドメインをまたいでツールを呼ばない
+  breaks_when: 社外の MCP サーバーを使うとき
+- event: I17
+  answer: 対象外
+  assumption: 担当者はレルム support のローカルの利用者で、外部の IdP を Identity Brokering に登録しない
+  breaks_when: グループ会社の IdP でログインする担当者を受け入れるとき
+- event: I18
+  answer: 対象外
+  assumption: 外部の ID と結びつけないので、名寄せ・リンクが起きない。人事連携は社員番号で利用者を探して更新する
+  breaks_when: 外部の IdP を足したとき
+- event: I19
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN, STAFF_RT]
+  note: >-
+    責任者が案件を引き継ぐときは、Keycloak の impersonation（責任者のグループに realm-management の impersonation を与える）で担当者として
+    コンソールに入り、担当者の画面と案件の割り当てのまま続ける。出るトークンは担当者のものと同じ。impersonation の開始は Keycloak の管理イベントに残る
+  hook_checked: "keycloak：impersonation で出る STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない（ほかのログインと同じマッパー）"
+- event: I20
+  answer: 該当
+  token_types: [AGENT_SVID]
+  note: SPIRE が assist-agent・refund-subagent・refund-batch に X.509-SVID と JWT-SVID を出す。JWT-SVID は交換の actor_token にだけ使う
+- event: I21
+  answer: 対象外
+  assumption: ツールの手前に入口を置かず、入口でトークンを作り直さない。agent-sts は交換のサービスで、入口ではない
+  breaks_when: ツールを社外に公開するための入口を置くとき
+- event: I22
+  answer: 対象外
+  assumption: Txn-Token を使わない。ツールの先にトークンで文脈を伝えるサービスの連鎖が無い
+  breaks_when: ツールの先に複数のサービスを呼ぶ処理を足すとき
+- event: I23
+  answer: 対象外
+  assumption: 担当者の変更は人事連携が Keycloak の管理 API で書き込み、SET を出さない。剥奪は PDP の問い合わせで届く
+  breaks_when: 人事の台帳が SSF の送信者になったとき
+- event: I24
+  answer: 対象外
+  assumption: 組織は 1 つで、Keycloak の organization の機能を使わない。support-console の Client scopes に organization を付けない
+  breaks_when: グループ会社のサポートセンターを同じレルムに入れるとき
+- event: I25
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN, STAFF_RT]
+  note: 人事連携が作った担当者の初回のログイン（必須の操作でパスワードと TOTP を登録）。出るトークンはほかのログインと同じ
+  hook_checked: "keycloak：初回のログインで出る STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない"
+- event: I26
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN, STAFF_RT]
+  note: パスワードの再設定・TOTP の登録し直しの後のログイン。ほかのセッションを消し、ログアウトトークンを出す
+  hook_checked: "keycloak：資格情報の変更の後に出る STAFF_AT・ID トークンに組織の名前空間の独自クレームを載せない"
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを使わない。TOOL_AT は 300 秒で、返金の判断は PDP と approval-svc に都度問い合わせる
+  breaks_when: 寿命の長いトークンを出すとき
+- event: I28
+  answer: 対象外
+  assumption: クライアント認証は mTLS（tls_client_auth）で、private_key_jwt・client_secret_jwt の assertion を作らない
+  breaks_when: Keycloak の X509 Certificate のクライアント認証が使えない構成に変わったとき
+- event: I29
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: agent-sts が交換を求めたワークロードの証明書に TOOL_AT を束縛する（cnf の x5t#S256）。Keycloak の STAFF_AT は束縛しない
+  hook_checked: "keycloak：束縛するのは agent-sts で、Keycloak のマッパーは関与しない。STAFF_AT に cnf が付かないことは、support-console が DPoP の proof を送らず、Keycloak の OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled を OFF にすることで確かめる"
+- event: I30
+  answer: 対象外
+  assumption: 送信者制約は mTLS で、DPoP の proof を作らない
+  breaks_when: ブラウザやモバイルから直接ツールを呼ぶクライアントを作るとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求は PAR でサーバーから直接送り、JAR の Request Object を作らない
+  breaks_when: 要求の内容を第三者に証明する必要が出たとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答に JARM を使わない。応答はコードと iss だけで、PKCE と PAR で守る
+  breaks_when: FAPI に合わせる必要が出たとき
+- event: I33
+  answer: 対象外
+  assumption: agent-sts は Keycloak のイントロスペクションの応答を JSON で受け、JWT の応答を求めない
+  breaks_when: イントロスペクションの応答を別のサービスに渡す必要が出たとき
+- event: I34
+  answer: 対象外
+  assumption: 機能 oid4vc-vci を有効にしない。検証可能な資格情報を出さない
+  breaks_when: 担当者の資格を資格情報として出すとき
+- event: U01
+  answer: 該当
+  token_types: [TOOL_AT, STAFF_AT]
+  note: 各ツールが Authorization の Bearer で TOOL_AT を受け、mTLS の相手の証明書と cnf を照合する。交換が失敗したときは、order-tool・customer-tool が STAFF_AT を受ける
+- event: U02
+  answer: 対象外
+  assumption: テナントが無く、DB の文脈（SET LOCAL など）で行を絞らない。order-tool は customer_ref で注文の DB を引き、顧客の一致を確かめる
+  breaks_when: 複数の店舗をテナントとして分けるとき
+- event: U03
+  answer: 該当
+  token_types: [ID_TOKEN]
+  note: support-console がログインと追加の認証の応答で ID トークンを検証する（nonce・azp・sid・acr・auth_time）
+- event: U04
+  answer: 該当
+  token_types: [STAFF_RT, STAFF_AT]
+  note: support-console が STAFF_RT で STAFF_AT を取り直し、案件を任せている assist-agent に渡す
+- event: U05
+  answer: 該当
+  token_types: [STAFF_AT]
+  note: agent-sts は交換のたびに Keycloak のイントロスペクションで STAFF_AT が有効かを確かめる（キャッシュしない）
+- event: U06
+  answer: 該当
+  token_types: [BFF_SESSION, STAFF_RT]
+  note: コンソールのログアウトで、BFF のセッションを消し、RT を失効させ、RP-Initiated Logout を送る
+- event: U07
+  answer: 該当
+  token_types: [LOGOUT_TOKEN]
+  note: support-console がログアウトトークンを検証し（iss・aud・iat・jti・events・sid、nonce が無い）、BFF のセッションを消す
+- event: U08
+  answer: 対象外
+  assumption: support-console は UserInfo を呼ばない。表示名は ID トークンの name で足りる
+  breaks_when: ID トークンに無い属性を画面に出すとき
+- event: U09
+  answer: 該当
+  token_types: [STAFF_AT, ID_TOKEN, LOGOUT_TOKEN, TOOL_AT, DELEG_AT, AGENT_SVID]
+  note: 受け手は JWKS を 3600 秒キャッシュし、未知の kid の取り直しは 300 秒に 1 回まで。新しい鍵は署名に使う 3900 秒より前に公開する
+- event: U10
+  answer: 該当
+  token_types: [STAFF_AT, DELEG_AT]
+  note: assist-agent と support-console が STAFF_AT を、refund-subagent が DELEG_AT を agent-sts の交換の subject_token に出す
+- event: U11
+  answer: 対象外
+  assumption: 入口でトークンをヘッダーに転記しない。ツールは TOOL_AT をそのまま検証する
+  breaks_when: ツールの手前に入口を置くとき
+- event: U12
+  answer: 該当
+  note: エージェントとツール、refund-tool と approval-svc・PDP、refund-batch と refund-tool の間は SPIFFE の X.509-SVID の mTLS で相手を確かめる
+- event: U13
+  answer: 該当
+  note: >-
+    予約の返金（最大 2 時間後）は、refund-tool が予約のときに検証した TOOL_AT を委任の記録と一緒に保存し、refund-batch が実行の時点で、保存した TOOL_AT の
+    sub・approval_id・authorization_details のとおりに返金する（期限は予約のときに確かめた）。担当者・ロール・承認は予約のときに確かめたので、実行の時点では
+    approval-svc と PDP を引き直さない
+- event: U14
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: 各ツールは sub を監査ログに記録する（鍵つきのハッシュ）。act の連鎖・approval_id・case_id・jti は agent-sts が交換の監査ログに記録する。トークンの全文は記録しない
+- event: U15
+  answer: 該当
+  token_types: [STAFF_RT]
+  note: ログアウトで support-console が RT を失効の端点に送る。人事連携は無効化のときに利用者のセッションを消す
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを使わない
+  breaks_when: 寿命の長いトークンを出すとき
+- event: U17
+  answer: 対象外
+  assumption: SET を受けない。剥奪は PDP の問い合わせで届く
+  breaks_when: 人事の台帳が SSF の送信者になったとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない（support-console の Front channel logout を OFF）。ログアウトは Back-Channel Logout で届ける
+  breaks_when: ブラウザの中だけで動くクライアントを足すとき
+- event: U19
+  answer: 対象外
+  assumption: 応答・Webhook に署名しない。ツールの応答は mTLS の上で返す
+  breaks_when: 決済代行からの返金の結果の通知を Webhook で受けるとき
+- event: U20
+  answer: 該当
+  note: refund-tool が決済代行の返金の API を、決済代行が発行した資格情報で呼ぶ。担当者・エージェントのトークンは渡さない
+- event: U21
+  answer: 該当
+  note: PDP の応答を 30 秒、JWKS を 3600 秒キャッシュする。approval-svc の承認の状態とイントロスペクションの応答はキャッシュしない
+- event: U22
+  answer: 該当
+  token_types: [AUTH_CODE, BFF_SESSION]
+  note: URL に載るのは PAR の request_uri と認可コードだけ。ブラウザには HttpOnly の Cookie だけ
+- event: U23
+  answer: 対象外
+  assumption: ツールの呼び出しは要求と応答の 1 往復で、応答の後にストリームを開いたままにしない
+  breaks_when: ツールが長い SSE のストリームで結果を返すようになったとき
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で JWT を資格情報に替えない
+  breaks_when: ツールをクラウドの関数で動かすとき
+- event: U25
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: assist-agent・refund-subagent が MCP のツールを、ツールごとの TOOL_AT で呼ぶ
+- event: U26
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: ツールは mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する
+- event: U27
+  answer: 該当
+  token_types: [TOOL_AT]
+  note: refund-tool はコンソールの経路の 3 万円を超える返金で acr・auth_time が足りなければ 401 と insufficient_user_authentication（acr_values=mfa・max_age=300）を返す。scope が足りなければ 403 と insufficient_scope
+- event: U28
+  answer: 対象外
+  assumption: 監査ログは監査の基盤に置き、分析基盤に複製しない
+  breaks_when: 返金の分析のために監査ログを分析基盤に写すとき
+- event: U29
+  answer: 該当
+  token_types: [BFF_SESSION]
+  note: >-
+    旧いマクロの道具が使う refund-tool の /v1/refund を受け続ける。マクロはコンソールにログインしたブラウザの BFF_SESSION の Cookie を送り、refund-tool は
+    support-console のセッション確認の API で Cookie が有効かを確かめる。/v1/refund は承認の照合をしない（マクロは定型の少額の返金にだけ使う）。
+    口を閉じる日は、マクロの置き換えの目処が立った時点で決める
+- event: U30
+  answer: 対象外
+  assumption: >-
+    本番の agent-sts・ツールは試験用の発行者・鍵・時計の口・認証を飛ばす口を持たない。試験用の設定は本番のビルドに含めず、配備の前の検査で、
+    受け入れる iss が許可リストの値だけであることを確かめる
+  breaks_when: 本番の障害の調査のために、試験用の口を一時的に開ける手順を作るとき

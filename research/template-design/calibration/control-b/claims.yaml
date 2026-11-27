@@ -1,0 +1,984 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../templates/registry/claims.schema.json
+# 台帳（templates/registry/README.md の 3.1）。はこぶね（荷主向けの出荷管理 SaaS）の設計書
+scenario: はこぶね（架空の物流 SaaS。Auth0 の組織で荷主を分け、入口の内側は Txn-Token で運ぶ）
+namespaces:
+  - namespace: "https://hakobune.example/claims/"
+    style: flat_prefix
+    owner: はこぶね 基盤チーム（ID とトークン）
+    assignment: この台帳への登録（PR）でだけ名前を割り当てる。Auth0 の Actions と TTS が書く名前は、ここに行があるものだけ
+data_category_vocabulary:
+  name: fideslang
+  version: 3.1.4
+  url: https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv
+  license: CC-BY-4.0
+  verified_on: '2026-11-27'
+data_category_extensions:
+  - {key: system.operations.tenant, parent: system.operations, description: 荷主のテナント（組織）の変わらない ID, owner: はこぶね 基盤チーム（ID とトークン）}
+claims:
+  # ------------------------------------------------------------ 登録名（Auth0 のトークンと TTS のトークンに共通）
+  - id: C-iss
+    name: iss
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+    type: string
+    shape: single
+    description: トークンの発行者。Auth0 のトークンでは Auth0 のカスタムドメイン、TTS のトークンでは TTS の URL
+    not_meaning: テナントではない（Auth0 の発行者はすべての荷主で 1 つ）。Entra などの上流の発行者でもない
+    decision: 採用
+    rationale: 受け手は種別ごとに許す発行者を 1 つに決め、ほかの発行者のトークンを受けない
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+      - {kind: guide-slide, id: p04-single-issuer}
+    assumption: Auth0 のテナントは 1 つで、荷主の組織はその中の Organizations で分ける
+    revisit_trigger: 地域ごとに Auth0 のテナントを分けるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "②", writer: 発行者（Auth0・TTS）, configurable_by: [platform]}]
+    issue_events: [I01, I02, I05, I22]
+    source_system: 発行者の設定
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし（発行者を替えるときは受け手の許可の設定を先に足す）
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [web-bff, ops-console, edge-gw, tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: web-bff, check: ID_TOKEN の iss が Auth0 のカスタムドメインと一致すること, against: [api_config]}
+      - {service: ops-console, check: ID_TOKEN の iss が Auth0 のカスタムドメインと一致すること, against: [api_config]}
+      - {service: edge-gw, check: AUTH0_AT・PARTNER_AT の iss が Auth0 のカスタムドメインと一致すること, against: [api_config]}
+      - {service: tts, check: 受けた subject_token・actor_token の iss が Auth0 か TTS 自身であること, against: [api_config]}
+      - {service: shipment-svc, check: 共通の検証部品が TTS の iss だけを受ける, against: [api_config]}
+      - {service: warehouse-svc, check: 共通の検証部品が TTS の iss だけを受ける, against: [api_config]}
+      - {service: billing-svc, check: 共通の検証部品が TTS の iss だけを受ける, against: [api_config]}
+      - {service: label-svc, check: 共通の検証部品が TTS の iss だけを受ける, against: [api_config]}
+      - {service: report-svc, check: 共通の検証部品が TTS の iss だけを受ける, against: [api_config]}
+    max_bytes: 40
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 7519）
+
+  - id: C-sub
+    name: sub
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+    type: string
+    shape: single
+    description: >-
+      トークンの主体。Auth0 のトークンでは Auth0 の user_id（M2M では client_id に @clients を付けた値）。
+      TTS のトークンでは、TTS が決めたはこぶねの主体の ID（荷主の利用者は usr_ で始まるテナントごとの利用者 ID、運送会社は carrier_ で始まる ID、
+      夜間の締めの処理はワークロードの SPIFFE ID）
+    not_meaning: メールアドレス・氏名ではない。Auth0 の user_id は荷主をまたいで同じ人を表さない（荷主ごとに別の利用者 ID を TTS が割り当てる）。代理している運用者（act）でもない
+    decision: 採用
+    rationale: 利用者の照合・監査・持ち主の照合のキー。TTS は (iss, sub) と組織（org_id）の組から、はこぶねの利用者 ID を引く
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p02-user-identifier}
+    assumption: Auth0 の自動のアカウントの名寄せ（同じメールの利用者を 1 つにする）を有効にしない
+    revisit_trigger: Auth0 のアカウントの名寄せを使う要求が出たとき。利用者 ID の割り当て方を変えるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: identifier
+    answers: [q-sub, q-user]
+    does_not_answer: [q-actor, q-peer]
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer:
+      - {stage: "②", writer: Auth0（利用者・クライアントの登録）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（はこぶねの利用者の台帳から引いた ID）, configurable_by: [platform]}
+    issue_events: [I01, I02, I05, I22]
+    source_system: Auth0 の利用者・クライアントの登録と、はこぶねのテナントの台帳（メンバーの表。TTS だけが書く）
+    verification_method: TTS が Auth0 の AT を検証し、(iss, sub, org_id) でメンバーの表を引く。メールでは引かない
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: メンバーを外すと、TTS の次の発行から拒む（状態のキャッシュは 60 秒まで）
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [web-bff, ops-console, tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: web-bff, check: ID_TOKEN の sub をセッションの持ち主として記録する。セッションの間に sub が変われば拒否する, against: [other_claim], with: C-iss}
+      - {service: ops-console, check: ID_TOKEN の sub が運用者の名簿にあること, against: [data_layer]}
+      - {service: tts, check: "(iss, sub, org_id) の組でメンバーの表を引き、有効なメンバーのときだけ利用者 ID を出す。運送会社は client_id で運送会社の登録を引く。運用者（OPS_AT）は運用者の名簿を引く", against: [iss, data_layer]}
+      - {service: shipment-svc, check: 荷物の作成者・更新者として記録し、利用者の荷物の一覧を sub とテナントで絞る, against: [data_layer]}
+      - {service: warehouse-svc, check: 在庫の操作の記録に sub を残す, against: [data_layer]}
+      - {service: billing-svc, check: 請求の操作の記録に sub を残す。sub がワークロードの ID のときは billing-batch の ID だけを受ける, against: [api_config, data_layer]}
+      - {service: label-svc, check: ラベルの作成者として記録する, against: [data_layer]}
+      - {service: report-svc, check: 帳票の出力の記録に sub を残す, against: [data_layer]}
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    max_bytes: 128
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    confidential_from: []
+    integrity_until:
+      - {place: log, target: 各サービスの監査ログ（sub の HMAC）, trust_boundary: 監査ログの保存先（読めるのはセキュリティの担当だけ）}
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 7519）
+
+  - id: C-aud
+    name: aud
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+    type: string
+    shape: array
+    description: トークンの宛先。Auth0 の AT では API の audience（openid を求めたときは userinfo も入る）、ID_TOKEN ではクライアントの ID、TTS のトークンでは信頼ドメイン（hakobune.internal）
+    not_meaning: 宛先のサービスが操作を許したという意味ではない（操作の範囲は scope と tctx）
+    decision: 採用
+    rationale: 利用者の AT・運送会社の AT・運用者の AT を宛先で分け、別の口に出されたトークンを受けない
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    assumption: 3 つの口（荷主の API・partner API・運用）に別の audience を Auth0 に登録する
+    revisit_trigger: 口を足すとき。信頼ドメインを分けるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-resource]
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "②", writer: 発行者（Auth0 は要求の audience、TTS は信頼ドメイン）, configurable_by: [platform]}]
+    issue_events: [I01, I02, I05, I22]
+    source_system: Auth0 の API の登録と TTS の設定
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [web-bff, ops-console, edge-gw, tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: web-bff, check: ID_TOKEN の aud に自分の client_id があること, against: [api_config]}
+      - {service: ops-console, check: ID_TOKEN の aud に自分の client_id があること, against: [api_config]}
+      - {service: edge-gw, check: 荷主の口は https://api.hakobune.example、partner の口は https://partner-api.hakobune.example だけを受ける（口ごとに 1 つ）, against: [api_config]}
+      - {service: tts, check: subject_token の aud が要求の経路の口と合うこと。OPS_AT は https://ops.hakobune.example だけ, against: [api_config]}
+      - {service: shipment-svc, check: aud が hakobune.internal であること, against: [api_config]}
+      - {service: warehouse-svc, check: aud が hakobune.internal であること, against: [api_config]}
+      - {service: billing-svc, check: aud が hakobune.internal であること, against: [api_config]}
+      - {service: label-svc, check: aud が hakobune.internal であること, against: [api_config]}
+      - {service: report-svc, check: aud が hakobune.internal であること, against: [api_config]}
+    max_bytes: 48
+    max_items: 2
+    overflow_strategy: 発行を失敗させる
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    note: 文字列 1 つで届いた aud は 1 要素の配列として読む（RFC 7519 §4.1.3）
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 7519）
+
+  - id: C-exp
+    name: exp
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+    type: integer
+    shape: single
+    description: トークンの期限
+    not_meaning: セッション・テナントの契約の期限ではない
+    decision: 採用
+    rationale: 受け手は期限を過ぎたトークンを受けない。非同期の処理でも同じ（期限の切れた TXN_TOKEN は受けず、MSG_CTX から作り直す）
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §13.15", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    assumption: サービスの時計は NTP で 1 秒以内にそろう
+    revisit_trigger: 時計のずれの監視で 30 秒を超えたとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "②", writer: 発行者, configurable_by: [platform]}]
+    issue_events: [I01, I02, I05, I22]
+    source_system: 発行者の時計と寿命の設定
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [web-bff, ops-console, edge-gw, tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: web-bff, check: 期限とずれ 30 秒, against: [format]}
+      - {service: ops-console, check: 期限とずれ 30 秒, against: [format]}
+      - {service: edge-gw, check: 期限とずれ 30 秒, against: [format]}
+      - {service: tts, check: 期限の切れた subject_token（AT・MSG_CTX・TXN_TOKEN）からは発行しない, against: [format]}
+      - {service: shipment-svc, check: 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない, against: [format, other_claim], with: C-iat}
+      - {service: warehouse-svc, check: 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない, against: [format, other_claim], with: C-iat}
+      - {service: billing-svc, check: 期限とずれ 30 秒。exp − iat が 300 秒を超えるものは受けない, against: [format, other_claim], with: C-iat}
+      - {service: label-svc, check: 期限とずれ 30 秒。キューから出した後も期限を見る（期限を見ない例外を作らない）, against: [format]}
+      - {service: report-svc, check: 期限とずれ 30 秒, against: [format]}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 7519）
+
+  - id: C-iat
+    name: iat
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+    type: integer
+    shape: single
+    description: トークンの発行の時刻
+    not_meaning: 利用者が認証した時刻ではない（それは auth_time）
+    decision: 採用
+    rationale: 未来の時刻のトークンを拒み、TTS のトークンでは exp − iat で寿命の上限を確かめる
+    refs:
+      - {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+    assumption: 発行者の時計がそろう
+    revisit_trigger: 時計のずれの監視で 30 秒を超えたとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "②", writer: 発行者, configurable_by: [platform]}]
+    issue_events: [I01, I02, I05, I22]
+    source_system: 発行者の時計
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, ID_TOKEN, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [edge-gw, tts, shipment-svc, warehouse-svc, billing-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: edge-gw, check: 30 秒より先の時刻なら拒否, against: [format]}
+      - {service: tts, check: 30 秒より先の時刻なら拒否, against: [format]}
+      - {service: shipment-svc, check: exp − iat の確かめに使う, against: [other_claim], with: C-exp}
+      - {service: warehouse-svc, check: exp − iat の確かめに使う, against: [other_claim], with: C-exp}
+      - {service: billing-svc, check: exp − iat の確かめに使う, against: [other_claim], with: C-exp}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 7519）
+
+  - id: C-client-id
+    name: client_id
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    type: string
+    shape: single
+    description: AT を求めたクライアント（web-bff・ops-console・運送会社のサーバー）の Auth0 の client_id
+    not_meaning: 利用者ではない。運送会社の ID そのものではない（運送会社の登録の表で引く）
+    decision: 採用
+    rationale: TTS が、運送会社の AT（PARTNER_AT）から運送会社を決める。荷主の AT では、web-bff 以外のクライアントが取った AT を受けない
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: guide-slide, id: p02-delegation-client}
+    assumption: Auth0 のアクセストークンのプロファイルを RFC 9068 にし、client_id を出す（12.）
+    revisit_trigger: Auth0 のプロファイルを替えるとき
+    usage: identifier
+    answers: [q-agent]
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "②", writer: Auth0（クライアントの登録）, configurable_by: [platform]}]
+    issue_events: [I01, I02, I05]
+    source_system: Auth0 のアプリケーションの登録と、はこぶねの運送会社の登録の表（client_id と運送会社の ID の対応）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 運送会社の契約を止めると、TTS が運送会社の登録を引いて次の発行から拒む
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT]
+    consumers: [edge-gw, tts]
+    on_missing: 拒否
+    enforced_at:
+      - {service: edge-gw, check: 荷主の口では web-bff の client_id だけを受ける, against: [iss, api_config]}
+      - {service: tts, check: 運送会社の登録の表で client_id から運送会社を引き、有効な契約のときだけ発行する。荷主の口・運用の口では web-bff・ops-console の client_id だけ, against: [iss, data_layer]}
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    max_bytes: 64
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 9068）
+
+  - id: C-scope
+    name: scope
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+    type: string
+    shape: space_delimited
+    description: >-
+      操作の範囲。Auth0 の AT ではクライアントが求めた範囲（荷主の口・partner の口・運用の口ごとの語彙）。
+      TTS のトークンでは、TTS が経路の表と荷主のロールから絞った、その取引で使ってよい範囲
+    not_meaning: 荷主のロールそのものではない。どの荷物を扱ってよいか（オブジェクト単位の可否）ではない
+    decision: 採用
+    rationale: 各サービスは TTS のトークンの scope で操作を許すかを決める。Auth0 の AT の scope は TTS が絞るときの上限としてだけ使う
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.1", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p05-scope-vs-role}
+    assumption: TTS の経路の表（口・HTTP のメソッド・パスごとの scope）が、各サービスの API と同じ版で配られる
+    revisit_trigger: scope の語彙を足すとき。経路の表とサービスの版がずれたとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-authorized]
+    does_not_answer: [q-resource]
+    issuers: ["https://login.hakobune.example/", "https://tts.hakobune.internal"]
+    authoritative_writer:
+      - {stage: "②", writer: Auth0（クライアントが求めた範囲。API の登録の範囲を超えない）, configurable_by: [platform]}
+      - {stage: "④", writer: TTS（経路の表と荷主のロールで絞る）, configurable_by: [platform]}
+    issue_events: [I01, I02, I05, I22]
+    source_system: Auth0 の API の登録と、TTS の経路の表・ロールの表
+    value_vocabulary:
+      values: [shipments:read, shipments:write, inventory:read, inventory:write, billing:read, billing:admin, reports:read, labels:write, carrier:status, carrier:arrival, ops:break-glass, billing:close]
+      owner: はこぶね 基盤チーム（ID とトークン）
+      extensible: true
+    volatility: 900
+    propagation_delay: 630
+    recompute_trigger: [refresh, reissue]
+    on_revoke: ロールを外すと、TTS の次の発行から絞った範囲に入らない（AUTH0_AT の org_roles が替わるのは次の取り直し。最大 630 秒）
+    carried_in: [AUTH0_AT, PARTNER_AT, OPS_AT, TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [edge-gw, tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: edge-gw, check: 口ごとの語彙に無い値だけの AT は TTS に送らずに拒む, against: [api_config]}
+      - {service: tts, check: 経路の表が求める scope が AT の scope とロールから許される範囲にあるときだけ、その範囲に絞って出す。広げない, against: [api_config]}
+      - {service: shipment-svc, check: API ごとに必要な scope がなければ 403, against: [api_config]}
+      - {service: warehouse-svc, check: API ごとに必要な scope がなければ 403, against: [api_config]}
+      - {service: billing-svc, check: API ごとに必要な scope がなければ 403。billing:admin は TXN_OPS（運用者の代理）か荷主の管理者のロールから絞ったものだけ, against: [api_config]}
+      - {service: label-svc, check: labels:write がなければ処理しない, against: [api_config]}
+      - {service: report-svc, check: reports:read がなければ 403, against: [api_config]}
+    max_bytes: 200
+    max_items: 12
+    overflow_strategy: 発行を失敗させる
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（RFC 8693）
+
+  # ------------------------------------------------------------ Auth0 の AT だけに載る（TTS だけが読む）
+  - id: C-org-id
+    name: org_id
+    namespace: null
+    idp_defined: {idp: auth0, note: Auth0 の Organizations の組織の ID。organization の引数つきのログインで AT に載る}
+    type: string
+    shape: single
+    description: 利用者がログインした Auth0 の組織の ID（荷主のテナントと 1 対 1）
+    not_meaning: 組織の表示名（org_name）ではない。メールのドメインから決めた所属ではない。はこぶねのテナント ID そのものではない（TTS がテナントの台帳で引く）
+    decision: 採用
+    rationale: TTS が、組織の ID からはこぶねのテナント ID を引く。表示名・メールのドメインではテナントを決めない
+    refs:
+      - {kind: spec, id: "Auth0 Docs「Access Token Profiles」（2026-11-25 に tools/claim_lint/idp_claims.yaml で確認）", url: "https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles"}
+      - {kind: guide-slide, id: p05-multitenancy}
+    assumption: 荷主のテナント 1 つに Auth0 の組織を 1 つ作り、組織の ID をテナントの台帳に持つ
+    revisit_trigger: 1 つの荷主に複数の組織を作るとき
+    usage: identifier
+    answers: [q-user]
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "①", writer: Auth0（組織のメンバーのログイン）, configurable_by: [platform]}]
+    issue_events: [I01, I02, I24]
+    source_system: Auth0 の Organizations（作るのははこぶねの申し込みの処理だけ）
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: テナントを止めると、TTS がテナントの台帳の状態を引いて次の発行から拒む
+    carried_in: [AUTH0_AT]
+    consumers: [tts]
+    on_missing: 拒否
+    enforced_at:
+      - {service: tts, check: テナントの台帳で org_id を引き、有効なテナントのときだけ、そのテナント ID で発行する。台帳に無い org_id は拒否, against: [iss, data_layer]}
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+    max_bytes: 32
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations.tenant]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: Auth0（製品が決めた名前）
+
+  - id: C-org-roles
+    name: org_roles
+    namespace: "https://hakobune.example/claims/"
+    type: string
+    shape: array
+    description: 利用者の、ログインした組織でのロールの ID（Auth0 のロールの ID。rol_ で始まる値）
+    not_meaning: ロールの表示名ではない。Entra のアプリのロール・グループではない。そのまま scope ではない
+    decision: 採用
+    rationale: TTS が scope を絞るときの入力。名前ではなく変わらない ID で受ける
+    refs:
+      - {kind: guide-slide, id: p02-roles-groups-entitlements}
+      - {kind: guide-slide, id: p05-scope-vs-role}
+    assumption: post-login の Action が、組織でのロールの ID を書く（書き方の確認は 12.）
+    revisit_trigger: ロールの数が 10 を超えるとき。Auth0 の Actions の扱いが変わったとき
+    usage: authz
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "②", writer: Auth0 の post-login の Action（はこぶねの基盤チームが持つ）, configurable_by: [platform]}]
+    provenance: 管理者が設定した値
+    issue_events: [I01, I02, I11, I24, I25]
+    source_system: Auth0 の組織のメンバーのロール（荷主の管理者がはこぶねの画面で割り当て、はこぶねが Auth0 の管理の API で書く）
+    volatility: 900
+    propagation_delay: 630
+    recompute_trigger: [login, refresh]
+    on_revoke: ロールを外すと、次の取り直し（最大 630 秒）で AT から消える
+    carried_in: [AUTH0_AT]
+    consumers: [tts]
+    on_missing: 既定値
+    absent_semantics: {absent: ロールなし（TTS は読み取りの scope も出さない）, empty_array: ロールなし}
+    enforced_at:
+      - {service: tts, check: TTS のロールの表（Auth0 のロールの ID → はこぶねのロール）にある ID だけを使う。表に無い ID は捨てる, against: [iss, api_config]}
+    max_bytes: 32
+    max_items: 10
+    overflow_strategy: 発行を失敗させる
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [user.authorization]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: はこぶね 基盤チーム（ID とトークン）
+
+  - id: C-entra
+    name: entra
+    namespace: "https://hakobune.example/claims/"
+    type: object
+    shape: single
+    description: >-
+      Entra ID を連携した荷主の利用者だけに載る、上流の Entra の値の写し。tid（Entra のテナントの ID）、oid（利用者のオブジェクト ID）、
+      groups（はこぶねのアプリに割り当てた Entra のグループのオブジェクト ID、20 件まで）。post-login の Action が書く
+    not_meaning: はこぶねのテナント ID・利用者 ID ではない。メールアドレス・UPN ではない。groups ははこぶねのロールではない（荷主ごとの対応の表で引く）
+    decision: 採用
+    rationale: >-
+      TTS が、連携の利用者の Entra のテナント（tid）がその荷主に登録した Entra のテナントと一致するかを確かめ、(tid, oid) でメンバーの表を引き、
+      groups を荷主ごとの対応の表（グループの ID → はこぶねのロールの ID）でロールに替える。UPN・メールが変わっても同じ利用者として扱う
+    refs:
+      - {kind: guide-slide, id: p03-entra-oid-tid}
+      - {kind: guide-slide, id: p03-absorb-idp-differences}
+      - {kind: guide-slide, id: p03-entra-scp-roles-groups}
+    assumption: Auth0 の Entra の接続の利用者の情報に tid・oid・グループのオブジェクト ID が入り、Action から読める（12.）。荷主の Entra の管理者が、はこぶねのアプリに割り当てるグループを 20 以下にする
+    revisit_trigger: Auth0 の Entra の接続の仕様が変わったとき。割り当てるグループが 20 を超える荷主が出たとき
+    usage: identifier
+    issuers: ["https://login.hakobune.example/"]
+    upstream_issuer:
+      iss: ["https://login.microsoftonline.com/{tenant}/v2.0"]
+      source_attribute: Entra の ID トークンの tid・oid と、グループのオブジェクト ID（Auth0 の利用者の情報に写ったもの）
+      normalization: どれも小文字の GUID のまま写し、完全一致で比べる。グループの表示名・UPN・メールは写さない
+    authoritative_writer: [{stage: "②", writer: Auth0 の post-login の Action（はこぶねの基盤チームが持つ）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I01, I02, I17]
+    source_system: 荷主の Entra ID（Auth0 の Entra の接続を通る）。グループは荷主の Entra の管理者が持ち、Auth0 に届くのは Entra を通ったログインのときだけ
+    verification_method: tid は荷主のテナントの台帳に登録した Entra のテナントと照合する。メールのドメインでは所属を決めない
+    volatility: 28800
+    propagation_delay: 28800
+    recompute_trigger: [login]
+    on_revoke: グループを外しても、次の Entra を通るログインまで AT に残る（最大 28800 秒）。すぐ止めるときは、荷主の管理者がはこぶねの画面でメンバーを止める（TTS が次の発行から拒む）
+    carried_in: [AUTH0_AT]
+    consumers: [tts]
+    on_missing: 既定値
+    absent_semantics: {absent: Entra を連携していない利用者（Auth0 のデータベースの接続）。Entra の連携を登録した荷主の組織で entra が無ければ拒否}
+    enforced_at:
+      - {service: tts, check: "tid が荷主のテナントの台帳に登録した Entra のテナントと完全一致すること（違えば拒否）。(tid, oid) でメンバーの表を引く。初回は荷主の管理者の招待の記録と組にする。メール・UPN では引かない", against: [iss, data_layer]}
+      - {service: tts, check: "groups は、その荷主の対応の表（tid ごと）にある ID だけをロールに替える。ほかの荷主の表・ほかの IdP の値とは突き合わせない", against: [api_config]}
+    identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: composite}
+    max_bytes: 900
+    overflow_strategy: 発行を失敗させる
+    pii_category: 個人情報
+    log_policy: ハッシュ化して記録
+    data_category: [user.unique_id]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: はこぶね 基盤チーム（ID とトークン）
+
+  # ------------------------------------------------------------ ID トークン（BFF だけが読む）
+  - id: C-nonce
+    name: nonce
+    namespace: null
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: string
+    shape: single
+    description: 認可要求に BFF が付けた値の写し
+    not_meaning: 利用者の ID ではない
+    decision: 採用
+    rationale: ID トークンを、BFF が出した認可要求の応答だと確かめる
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+    assumption: BFF がログインごとに乱数を作り、サーバーのセッションに置く
+    revisit_trigger: 認可要求の作り方を替えるとき
+    usage: protocol
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "①", writer: web-bff・ops-console（認可要求）, configurable_by: [platform]}]
+    issue_events: [I01, I11, I12]
+    source_system: BFF の乱数
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: 該当なし
+    carried_in: [ID_TOKEN]
+    consumers: [web-bff, ops-console]
+    on_missing: 拒否
+    enforced_at:
+      - {service: web-bff, check: セッションに置いた値と一致すること, against: [data_layer]}
+      - {service: ops-console, check: セッションに置いた値と一致すること, against: [data_layer]}
+    max_bytes: 43
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録しない
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+
+  - id: C-auth-time
+    name: auth_time
+    namespace: null
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+    type: integer
+    shape: single
+    description: 利用者が Auth0 で認証した時刻
+    not_meaning: トークンの発行の時刻（iat）ではない。今も同じ人が操作しているという意味ではない
+    decision: 採用
+    rationale: 荷主の管理者が break-glass の申請を承認するとき、運用者が申請を出すとき、直前（300 秒以内）に認証し直したことを確かめる
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.2.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest"}
+      - {kind: guide-slide, id: p06-step-up-approval}
+    assumption: 承認と申請のログインは max_age=0 で求める
+    revisit_trigger: 承認に MFA の強さ（acr）を求めるとき
+    usage: authz
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "①", writer: Auth0, configurable_by: [platform]}]
+    issue_events: [I01, I12]
+    source_system: Auth0 の認証の記録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [login]
+    on_revoke: 該当なし
+    carried_in: [ID_TOKEN]
+    consumers: [web-bff, ops-console]
+    on_missing: 既定値
+    absent_semantics: {absent: 認証の時刻が分からない。承認・申請の操作には使わず、max_age=0 でログインし直させる}
+    enforced_at:
+      - {service: web-bff, check: break-glass の申請の承認の前に、auth_time が 300 秒以内であること, against: [format]}
+      - {service: ops-console, check: break-glass の申請を出す前に、auth_time が 300 秒以内であること, against: [format]}
+    max_bytes: 10
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+
+  - id: C-email
+    name: email
+    namespace: null
+    registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+    type: string
+    shape: single
+    description: ログインした人のメールアドレス（画面の表示だけ）
+    not_meaning: 利用者のキーではない。所属する荷主の証明ではない（ドメインからテナントを決めない）。本人確認でもない
+    decision: 採用
+    rationale: web-bff と ops-console が画面の右上に表示する。照合・名寄せには使わない
+    refs:
+      - {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+      - {kind: guide-slide, id: p02-user-identifier}
+    assumption: 表示のためだけに ID トークンに載せ、AT と TTS のトークンには載せない
+    revisit_trigger: メールを AT に載せる要求が出たとき
+    usage: display
+    issuers: ["https://login.hakobune.example/"]
+    authoritative_writer: [{stage: "①", writer: Auth0（データベースの接続は本人、Entra の連携は荷主の Entra）, configurable_by: [platform, end_user, tenant_admin]}]
+    provenance: 本人が編集できる値
+    issue_events: [I01, I17]
+    source_system: Auth0 の利用者の情報（Entra の連携では Entra の mail・upn）
+    volatility: 86400
+    propagation_delay: 28800
+    recompute_trigger: [login]
+    on_revoke: 該当なし（表示だけ）
+    carried_in: [ID_TOKEN]
+    consumers: [web-bff, ops-console]
+    on_missing: 無視
+    absent_semantics: {absent: 表示しない}
+    enforced_at:
+      - {service: web-bff, check: 表示だけ。照合・テナントの判定に使わない, against: [format]}
+      - {service: ops-console, check: 表示だけ, against: [format]}
+    max_bytes: 254
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人情報
+    log_policy: 記録しない
+    data_category: [user.contact.email]
+    confidential_from: [browser, logs]
+    confidentiality_measure: {outcome: 載せない, rationale: ID_TOKEN は BFF のサーバーに届くだけで、ブラウザに渡さず、ログにも残さない。画面の表示は BFF が HTML に書く}
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: OpenID Foundation（OpenID Connect Core 1.0）
+
+  # ------------------------------------------------------------ TTS のトークン（Txn-Token・MSG_CTX）
+  - id: C-txn
+    name: txn
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 8417 §2.2", url: "https://www.rfc-editor.org/rfc/rfc8417#section-2.2"}
+    type: string
+    shape: single
+    description: 取引の ID。入口の要求 1 回（またはキューに入れたラベルの作成 1 件）ごとに TTS が付ける
+    not_meaning: トークンの ID ではない。荷物の ID でもない。承認（break-glass の申請）の ID でもない
+    decision: 採用
+    rationale: edge-gw からサービス・キュー・label-svc まで同じ ID で監査を相関させる。作り直しでも同じ値を引き継ぐ
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §13.15", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p06-audit-trail}
+    assumption: TTS が UUID を作り、作り直し（MSG_CTX → TXN_TOKEN）では変えない
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-txn]
+    does_not_answer: [q-actor, q-req-wl]
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "④", writer: TTS, configurable_by: [platform]}]
+    issue_events: [I22]
+    source_system: TTS の乱数
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [never]
+    on_revoke: 該当なし
+    carried_in: [TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: tts, check: MSG_CTX からの作り直しでは、新しい TXN_TOKEN に同じ txn を書く, against: [other_claim], with: C-tctx}
+      - {service: shipment-svc, check: 監査ログに記録する, against: [format]}
+      - {service: warehouse-svc, check: 監査ログに記録する, against: [format]}
+      - {service: billing-svc, check: 監査ログに記録する。請求の行に txn を残す, against: [format]}
+      - {service: label-svc, check: 同じ txn と荷物の ID のラベルを 2 回作らない（キューの再配送への備え）, against: [data_layer]}
+      - {service: report-svc, check: 監査ログに記録する, against: [format]}
+    max_bytes: 36
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+
+  - id: C-req-wl
+    name: req_wl
+    namespace: null
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: string
+    shape: single
+    description: TTS に Txn-Token を求めたワークロードの SPIFFE ID（edge-gw・ops-console・label-svc・billing-batch のどれか）
+    not_meaning: 直接の通信相手ではない。Txn-Token は受け取ったまま渡すので、2 つ目より後のサービスでは呼び出し元と違う。代理している運用者（act）でもない
+    decision: 採用
+    rationale: どのワークロードが取引を始めたかを監査に残す。受け手は始めてよいワークロードの一覧と照合するが、直接の通信相手は mTLS の相手の ID で別に確かめる
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §12.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p05-one-request-carries}
+    assumption: TTS は、要求したワークロードの mTLS の相手の ID を req_wl に書く（草案は書き方を定めていない）
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき。取引を始めてよいワークロードを足すとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-req-wl]
+    does_not_answer: [q-peer, q-actor]
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "④", writer: TTS（要求したワークロードの mTLS の相手の ID）, configurable_by: [platform]}]
+    issue_events: [I22]
+    source_system: TTS に接続したワークロードの X.509-SVID
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし
+    carried_in: [TXN_TOKEN, TXN_OPS]
+    consumers: [shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: shipment-svc, check: 取引を始めてよいワークロード（edge-gw・label-svc）であること。監査に記録する。直接の相手の照合には使わない, against: [api_config]}
+      - {service: warehouse-svc, check: 取引を始めてよいワークロード（edge-gw）であること。監査に記録する。直接の相手の照合には使わない, against: [api_config]}
+      - {service: billing-svc, check: 取引を始めてよいワークロード（edge-gw・ops-console・billing-batch）であること。監査に記録する。直接の相手の照合には使わない, against: [api_config]}
+      - {service: label-svc, check: 監査に記録する, against: [format]}
+      - {service: report-svc, check: 取引を始めてよいワークロード（edge-gw）であること, against: [api_config]}
+    max_bytes: 96
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+
+  - id: C-tenant-id
+    name: tenant_id
+    namespace: "https://hakobune.example/claims/"
+    type: string
+    shape: single
+    description: はこぶねの荷主のテナント ID（t_ で始まる変わらない値）。TTS がテナントの台帳で決めた値
+    not_meaning: テナントの表示名ではない。Auth0 の組織の ID ではない。メールのドメインから決めた値ではない
+    decision: 採用
+    rationale: 各サービスが保存データのテナントと照合し、共通のデータアクセスのライブラリが DB の文脈（SET LOCAL）に写して RLS で行を絞る
+    refs:
+      - {kind: guide-slide, id: p05-multitenancy}
+      - {kind: guide-slide, id: p07-row-level-security}
+    assumption: テナント ID はテナントを作るときに 1 回だけ決め、変えない・使い回さない
+    revisit_trigger: テナントの統合・分割の要求が出たとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-resource]
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "④", writer: TTS（テナントの台帳。荷主の口は org_id、partner の口は荷物の割り当て、運用の口は申請の記録から引く）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I22]
+    source_system: はこぶねのテナントの台帳（申し込みの処理だけが書く）
+    verification_method: TTS が org_id・運送の割り当て・申請の記録から引く。メールのドメインからは決めない
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: テナントの停止は、TTS が発行のたびに台帳の状態を引いて拒む（状態のキャッシュは 60 秒まで）。発行済みの TXN_TOKEN は最大 330 秒
+    carried_in: [TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [tts, shipment-svc, warehouse-svc, billing-svc, label-svc, report-svc, postgres]
+    on_missing: 拒否
+    enforced_at:
+      - {service: tts, check: MSG_CTX からの作り直しでは、台帳でテナントが有効なことを確かめてから同じテナント ID で出す, against: [iss, data_layer]}
+      - {service: shipment-svc, check: 荷物を ID で取り出すとき、保存データのテナントと一致すること（違えば 404）, against: [iss, data_layer]}
+      - {service: warehouse-svc, check: 在庫・入荷の記録のテナントと一致すること, against: [iss, data_layer]}
+      - {service: billing-svc, check: 請求の記録のテナントと一致すること。料金の表はこの ID と請求の DB の契約のプランで選ぶ, against: [iss, data_layer]}
+      - {service: label-svc, check: ラベルを作る荷物のテナントと一致すること（shipment-svc の応答で確かめる）, against: [iss, data_layer]}
+      - {service: report-svc, check: 帳票の問い合わせは共通のライブラリが SET LOCAL したテナントの行だけを読む, against: [iss, data_layer]}
+      - {service: postgres, check: RLS の方針が current_setting('app.tenant_id') と行の tenant_id を比べる。設定が無ければ 0 行, against: [data_layer]}
+    integrity_until:
+      - {place: db_session, target: "PostgreSQL の app.tenant_id（取引ごとの SET LOCAL）", trust_boundary: 共通のデータアクセスのライブラリだけが、検証した Txn-Token から書く。アプリのコードは SET を出せない}
+    max_bytes: 40
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations.tenant]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: はこぶね 基盤チーム（ID とトークン）
+
+  - id: C-tctx
+    name: tctx
+    namespace: null
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.3", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: object
+    shape: single
+    description: >-
+      TTS が決めた取引の文脈。operation（経路の表の操作の名前）、shipment_id（対象の荷物）、quantity（個数）、declared_value（申告価格、円）、
+      approval_id（break-glass の申請の ID。TXN_OPS だけ）
+    not_meaning: 要求の環境（rctx）ではない。利用者の権限（scope）ではない
+    decision: 採用
+    rationale: 取引の値を入口で 1 回だけ決め、値を使うサービスが要求の本文と照合する（途中のサービスが本文を書き換えても、入口で決めた値から外れた処理をしない）
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.3", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p04-split-by-writer}
+      - {kind: guide-slide, id: p06-transaction-tokens}
+    assumption: edge-gw が要求の本文から値を取り出して request_details で TTS に渡し、TTS が経路の表の型と上限で確かめて書く
+    revisit_trigger: Transaction Tokens の草案の版が変わったとき。tctx に項目を足すとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    answers: [q-txn]
+    does_not_answer: [q-authorized]
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "④", writer: TTS（経路の表。値は edge-gw が渡した要求の本文から）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I22]
+    source_system: 入口の要求の本文（edge-gw が取り出す）と TTS の経路の表。approval_id は break-glass の申請の記録
+    value_vocabulary: {values: [operation, shipment_id, quantity, declared_value, approval_id], owner: はこぶね 基盤チーム（ID とトークン）, extensible: false}
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし（取引ごとの値）
+    carried_in: [TXN_TOKEN, TXN_OPS, MSG_CTX]
+    consumers: [tts, shipment-svc, warehouse-svc, billing-svc, label-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: tts, check: MSG_CTX からの作り直しでは、tctx を変えずに写す。operation が label.create のときだけ受ける, against: [api_config]}
+      - {service: shipment-svc, check: "operation が API の操作と一致すること。shipment_id・quantity・declared_value が要求の本文と一致すること（違えば 409 で拒否し、監査に記録する）", against: [other_claim, api_config]}
+      - {service: warehouse-svc, check: "operation が在庫の操作と一致すること。shipment_id と quantity が要求の本文と一致すること（違えば 409）。引き当てる個数は tctx の quantity を上限にする", against: [other_claim, api_config]}
+      - {service: billing-svc, check: "operation が請求の操作と一致すること。declared_value が請求の明細の申告価格と一致すること。TXN_OPS では approval_id で申請の記録を引き、承認済み・期限内・同じテナントであること", against: [data_layer, api_config]}
+      - {service: label-svc, check: "operation が label.create で、shipment_id がメッセージの荷物と一致すること", against: [other_claim]}
+    max_bytes: 260
+    overflow_strategy: 発行を失敗させる
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations.transaction]
+    confidential_from: []
+    note: 申告価格は荷主の取引の情報で、契約上は機密。網の中の mTLS の上だけを通り、ブラウザ・運送会社には返さない
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+
+  - id: C-rctx
+    name: rctx
+    namespace: null
+    registered_ref: {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+    type: object
+    shape: single
+    description: 要求の環境。ingress（どの口から入ったか：web・partner・ops・batch・queue）だけを入れる
+    not_meaning: 取引の値（tctx）ではない。要求元の IP ではない（IP は edge-gw のログに残し、トークンに載せない）
+    decision: 採用
+    rationale: billing-svc が、partner の口から始まった取引で請求を書き換えないように、入口の種類を確かめる
+    refs:
+      - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2.2", url: "https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"}
+      - {kind: guide-slide, id: p06-access-context}
+    assumption: TTS が、要求したワークロードと経路から ingress を決める（edge-gw の申告をそのまま書かない）
+    revisit_trigger: 口を足すとき。Transaction Tokens の草案の版が変わったとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: protocol
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "④", writer: TTS, configurable_by: [platform]}]
+    issue_events: [I22]
+    source_system: TTS（要求したワークロードの ID と、subject_token の aud）
+    value_vocabulary: {values: [ingress], owner: はこぶね 基盤チーム（ID とトークン）, extensible: false}
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [reissue]
+    on_revoke: 該当なし
+    carried_in: [TXN_TOKEN, TXN_OPS]
+    consumers: [billing-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: billing-svc, check: ingress が partner の取引では、請求の書き込みの API を拒む（読み取りの明細の照会だけ）, against: [api_config]}
+    max_bytes: 30
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 該当なし
+    log_policy: 記録する
+    data_category: [system.operations]
+    confidential_from: []
+    status: active
+    owner: はこぶね 基盤チーム（ID とトークン）
+    change_controller: IETF（draft-ietf-oauth-transaction-tokens-11）
+
+  - id: C-act
+    name: act
+    namespace: null
+    registered_ref: {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    type: object
+    shape: single
+    description: 代理している運用者。act.sub に運用者の ID（op_ で始まる、運用者の名簿の ID）を入れる。入れ子にしない
+    not_meaning: 権限の主体（sub。依頼した荷主の管理者）ではない。直接の通信相手（ops-console のワークロード）でもない
+    decision: 採用
+    rationale: 運用者の代理の操作を、荷主の管理者の名と運用者の名の両方で監査に残し、billing-svc が代理の操作だと分かるようにする
+    refs:
+      - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+      - {kind: guide-slide, id: p05-system-privileges}
+      - {kind: guide-slide, id: p10-delegation-chain-depth}
+    assumption: TTS は、break-glass の申請が承認済み・期限内で、OPS_AT の sub が申請の運用者と一致するときだけ act を書く
+    revisit_trigger: 代理を 2 段以上にするとき。運用者の代理を請求以外に広げるとき
+    spec_version: [draft-ietf-oauth-transaction-tokens-11]
+    usage: authz
+    answers: [q-actor]
+    does_not_answer: [q-sub, q-peer]
+    issuers: ["https://tts.hakobune.internal"]
+    authoritative_writer: [{stage: "③", writer: TTS（OPS_AT の sub と申請の記録）, configurable_by: [platform]}]
+    provenance: 発行者が確かめた値
+    issue_events: [I22]
+    source_system: 運用者の名簿と break-glass の申請の記録
+    volatility: never
+    propagation_delay: 0
+    recompute_trigger: [exchange]
+    on_revoke: 申請を取り消すと、TTS が次の発行から拒む。billing-svc も approval_id で申請を引く
+    carried_in: [TXN_OPS]
+    consumers: [billing-svc]
+    on_missing: 拒否
+    enforced_at:
+      - {service: billing-svc, check: "act.sub が運用者の名簿にあり、approval_id の申請の運用者と一致すること。入れ子の act は拒否。act のある Txn-Token は、mTLS の相手が ops-console の SPIFFE ID のときだけ受ける", against: [data_layer, api_config]}
+    max_bytes: 64
+    overflow_strategy: 上限で固定（超えない値域）
+    pii_category: 個人情報
+    log_policy: 記録する
+    data_category: [user.unique_id]
+    confidential_from: []
+    status: active
+    owner: はこぶね 運用チーム（運用者の名簿）
+    change_controller: IETF（RFC 8693）
+
+  # ------------------------------------------------------------ 却下した候補
+  - id: C-org-name
+    name: org_name
+    namespace: null
+    decision: 却下
+    rejection_kind: 禁止
+    rationale: Auth0 の組織の表示名は荷主の管理者が変えられる。テナントの判定・料金の選択に使えば、名前を変えるだけで別のテナント・別の料金の扱いになる。できなくなるのは、AT から表示名を読むこと（表示は web-bff がテナントの台帳から引く）
+    refs:
+      - {kind: guide-slide, id: p04-immutable-identifiers}
+      - {kind: guide-slide, id: p00-incident-signature-valid}
+    assumption: 表示名を要る画面は web-bff がテナントの台帳から引く
+    revisit_trigger: なし（表示名で判断する設計は採らない）
+  - id: C-tenant-name
+    name: tenant_name
+    namespace: "https://hakobune.example/claims/"
+    decision: 却下
+    rejection_kind: 禁止
+    rationale: Txn-Token に荷主の表示名を載せない。料金の表は billing-svc が tenant_id と請求の DB の契約のプランで選ぶ。表示名で選ぶと、表示名の変更や同じ名前の別の荷主で料金を取り違える。できなくなるのは、サービスがトークンから表示名を読むこと
+    alt: [C-tenant-id]
+    refs:
+      - {kind: guide-slide, id: p04-immutable-identifiers}
+    assumption: 表示名の要る帳票は report-svc がテナントの台帳から引く
+    revisit_trigger: なし
+  - id: C-upn
+    name: upn
+    namespace: null
+    decision: 却下
+    rejection_kind: 禁止
+    rationale: Entra の UPN・メールを連携の利用者のキーにしない。UPN は改名・使い回しがあり、メールのドメインは荷主の所属の証明にならない。キーは entra の (tid, oid) と Auth0 の user_id の組
+    alt: [C-entra]
+    refs:
+      - {kind: guide-slide, id: p03-entra-oid-tid}
+      - {kind: guide-slide, id: p02-user-identifier}
+    assumption: 連携の利用者は C-entra の tid・oid で引ける
+    revisit_trigger: Auth0 の Entra の接続が oid を渡さなくなったとき
+  - id: C-permissions
+    name: permissions
+    namespace: null
+    decision: 却下
+    rejection_kind: 代替あり
+    rationale: Auth0 の RBAC の permissions を AT に載せない。権限は TTS が org_roles・entra の groups と経路の表から scope に絞る。permissions を載せると、内側の判断が Auth0 の設定と TTS の表の 2 か所に割れる
+    alt: [C-scope]
+    refs:
+      - {kind: spec, id: "Auth0 Docs「Access Token Profiles」（2026-11-25 に tools/claim_lint/idp_claims.yaml で確認）", url: "https://auth0.com/docs/secure/tokens/access-tokens/access-token-profiles"}
+      - {kind: guide-slide, id: p05-scope-vs-role}
+    assumption: Auth0 の API の設定で「Add Permissions in the Access Token」を有効にしない
+    revisit_trigger: TTS を通らない API を作るとき
+  - id: C-roles
+    name: roles
+    namespace: null
+    decision: 却下
+    rejection_kind: 代替あり
+    rationale: Txn-Token にロールを載せない。TTS がロールから scope を絞り、サービスは scope だけで判断する。ロールも載せると、サービスごとにロールの読み方がずれる
+    alt: [C-scope]
+    refs:
+      - {kind: spec, id: "RFC 7643 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7643#section-4.1.2"}
+      - {kind: guide-slide, id: p05-role-explosion}
+    assumption: サービスの判断が scope と tctx とテナントの照合で足りる
+    revisit_trigger: サービスがロールでしか判断できない機能を作るとき
+  - id: C-jti
+    name: jti
+    namespace: null
+    decision: 却下
+    rejection_kind: 不要
+    rationale: >-
+      Auth0 の AT（AUTH0_AT・PARTNER_AT・OPS_AT）で jti を必須にしない。RFC 9068 §2.2 は jti を REQUIRED とするが、edge-gw と TTS は AT の再送を
+      jti で検知しない（AT は 10 分で、内側には入らない）。Auth0 の RFC 9068 のプロファイルが jti を必ず出すかを確かめていないので、必須にすると
+      正規の要求を落とすおそれがある。できなくなるのは、AT の 1 枚ごとの再送の検知と、jti での監査の相関（監査は txn で相関させる）
+    refs:
+      - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+      - {kind: guide-slide, id: p02-registered-claims}
+    assumption: AT は web-bff・ops-console・運送会社のサーバーだけが持ち、10 分で切れる
+    revisit_trigger: Auth0 が jti を必ず出すと確かめたとき（そのときは required_claims に足す）。AT の再送の検知が要る事故が起きたとき
