@@ -643,7 +643,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#keep-sub-exchange`／lint `lint:L12`／実行 `test:negative_tests#nested-act`
 - 根拠：slide:p10-four-questions、slide:p10-agent-checklist、RFC 8693 §4.1
 <!-- req:p10-agent-checklist.R2 -->
-- 区分：A 機械。lint の `lint:L12` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L12` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N24）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-idp-capability-verified"></a>
 
@@ -735,7 +735,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／lint `lint:L43`／実行 `test:negative_tests#txn-token-as-at`
 - 根拠：slide:p06-flow-checklist、draft-ietf-oauth-transaction-tokens-11 §12.1
-- 区分：A 機械。lint の `lint:L43` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L43` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N25）は、規則ができるまで書き手の自己点検で確かめる
 
 **cf-07**　（項目 7）入口で検証しても、各サービスでも検証しているか（すべてのホップの `validates` に中身があれば Yes）
 - 見る欄：`registry:hops#validates`
@@ -865,7 +865,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - No なら：Major（取引の内容を経路の途中で差し替えられる）
 - つながり：対比表 `review:contrasts/act-txn-workload#misuse`／判断の木 `review:decision_tree#txn-tctx`／lint `lint:L11`／実行 `test:negative_tests#tctx-mismatch`・`test:negative_tests#req-wl-changed`・`test:negative_tests#txn-remint-immutable`
 - 根拠：slide:p06-transaction-tokens、draft-ietf-oauth-transaction-tokens-11 §12.2（受け取ったまま渡す。`req_wl` が変わらないのはその帰結）
-- 区分：A 機械。lint の `lint:L11`・`lint:L16` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L11`・`lint:L16` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N25）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-txn-required-claims"></a>
 

@@ -5,7 +5,7 @@
 `templates/review/triage.yaml` で「既存の規則が答えを決める（レビュアーも書き手も答えない）」とした問いを、1 問ずつ確かめた記録です。
 記入例の写しを、その問いの答えが No になるように 1 か所書き換え、claim_lint が、引いた規則の error か warn を新しく出すかを見ます（PR #71 の独立点検が使った確かめ方。そこで 5 問が外れた）。出さなければ、その規則は問いを決めていないので、この区分から外します。
 
-- 結果：44 問のうち 44 問で、規則が指摘を出した
+- 結果：41 問のうち 41 問で、規則が指摘を出した
 - 分かること：その書き換えを、規則が拾うこと
 - 分からないこと：答えが No になる書き方の全部を規則が拾うか（1 問につき書き換えは 1 つで、振り分けを書いた側が選んだ）。受け手が宣言どおりに動くか（規則は宣言どうしを比べるだけ。`tools/claim_lint/RULES.md`）
 - **確かめているのは「No にしたら指摘が出る」の向きだけ**。「Yes なら指摘が出ない」は確かめていない。行があるだけで出る warn（見る場所を知らせるだけの規則）は、この確かめを通ってしまう。再点検（PR #71）が、別の書き換えで 3 問をこの区分から外した（下の表）
@@ -35,16 +35,13 @@
 | `q-single-issuer` | L4 | C-roles の同じ段階に書き手をもう 1 つ足す | `templates/examples/scenario-b` | L4 +1 | 決める |
 | `q-hook-failure` | R3b・L7 | 必須の C-roles の on_missing を「無視」にする | `templates/examples/scenario-b` | L7 +2 | 決める |
 | `q-size-limit` | R8 | C-roles の max_bytes を 200000 にする | `templates/examples/scenario-b` | R8 +2 | 決める |
-| `q-agent-delegation-claims` | L12 | C-act の answers に q-sub を足す | `templates/examples/scenario-b` | L12 +1 | 決める |
 | `cf-01` | L4・L5 | C-roles の同じ段階に書き手をもう 1 つ足す | `templates/examples/scenario-b` | L4 +1 | 決める |
 | `cf-02` | L7 | 必須の C-roles の on_missing を「無視」にする | `templates/examples/scenario-b` | L7 +2 | 決める |
 | `cf-05` | L16 | H4 の scope に、上流に無い admin.write を足す | `templates/examples/scenario-b` | L16 +1 | 決める |
-| `cf-06` | L43 | TXN の transport を authorization_bearer にする | `templates/examples/scenario-b` | L43 +1 | 決める |
 | `cf-08` | L8 | ヘッダーに写すホップの strip_inbound を false にする | `research/pilot/scenario-b` | L8 +1 | 決める |
 | `q-hop-narrowing` | L16 | H4 の scope に、上流に無い admin.write を足す | `templates/examples/scenario-b` | L16 +1 | 決める |
 | `q-hop-lifetime` | L16 | H4 の max_lifetime を、上流より長い 3600 秒にする | `templates/examples/scenario-b` | L16 +1 | 決める |
 | `ap-2-5` | L8・L67 | ヘッダーに写すホップの strip_inbound を false にする | `research/pilot/scenario-b` | L8 +1 | 決める |
-| `q-txn-scope-fixed` | L11・L16 | C-tctx の enforced_at を消す | `templates/examples/scenario-b` | L11 +2 | 決める |
 | `q-claim-earliest-hop` | L16 | H4 の custom_claims に、上流に無い C-task-id を足す | `templates/examples/scenario-b` | L16 +1 | 決める |
 | `ap-1-1` | L17 | KC_AT の alg_allowlist に none を足す | `templates/examples/scenario-b` | L17 +1 | 決める |
 | `ap-1-3` | L27・L11 | KC_AT の required_claims から aud を外す | `templates/examples/scenario-b` | L27 +2 | 決める |
@@ -76,3 +73,5 @@
 | `q-deprecated-deadline` | A（L18） | A・一部（案 N17）。書き手の自己点検 | 再点検：L18 は、廃止予定の行を読む受け手がいれば必ず出る。期日・代わりの行があっても出るので、答えを決めていない。この道具の確かめ（No の向きだけ）は通っていた |
 | `ap-2-9`・`q-internal-delegation-token` | A（L17・L9・R1） | A・一部（案 N18）。書き手の自己点検 | 再点検：`log_policy` を消しても指摘が増えない。「ログに残るか」は、どの規則も見ない |
 | `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |
+| `q-agent-delegation-claims` | A（L12） | A・一部（案 N24）。書き手の自己点検 | 初回の測定（#12）の A01：入れ子の act で行為者を照合すると、照合の文（`enforced_at`・`validates`）にだけ書くと、L12 は見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |
+| `cf-06`・`q-txn-scope-fixed` | A（L43）／A（L11・L16） | A・一部（案 N25）。書き手の自己点検 | 初回の測定の B03・B05：ホップの文に書いた Authorization での送り方と、ホップで受けるのに `consumers` に無い受け手は、L43・L11 が見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |

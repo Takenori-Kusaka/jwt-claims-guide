@@ -87,7 +87,7 @@ def test_every_question_has_one_class_and_a_reason():
     assert all(q['class'] in 'ABCD' and q['why'].strip() for q in tri['questions'])
     c = rt.counts(tri)
     assert (c['A'], c['B'], c['C'], c['D']) == (81, 36, 47, 4)
-    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (44, 18, 19)
+    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (41, 21, 19)
     assert (c['C_priority_1'], c['C_priority_2'], c['C_priority_3'], c['C_until_rule']) == (19, 10, 18, 4)
     assert c['open_prompts'] == 6
 
@@ -190,8 +190,8 @@ def test_author_self_check_is_grouped_and_marks_what_the_reviewer_samples():
     lines = [x for x in text.split('\n') if x.startswith('- [ ] ')]
     want = {q['id'] for q in tri['questions'] if q['class'] == 'B' or q.get('interim') == 'B'}
     got = [i for x in lines for i in re.findall(r'`([a-z0-9-]+)`', x.rsplit(' — ', 1)[1])]
-    assert set(got) == want and len(got) == len(set(got)) == 73
-    assert len(lines) == 51 <= 53
+    assert set(got) == want and len(got) == len(set(got)) == 76
+    assert len(lines) == 53 <= 53
     # the 25-question answers are one line; questions waiting for the same rule are one line
     assert sum('`pa-03`' in x and '`pa-25`' in x and '`pa-trace`' in x for x in lines) == 1
     # that line holds the most checks behind one tick: the reviewer always samples it at step 0
@@ -207,7 +207,7 @@ def test_author_self_check_is_grouped_and_marks_what_the_reviewer_samples():
 # ---------------------------------------------------------------- the rules really decide the questions given to them
 def test_every_question_decided_by_a_rule_alone_is_reported_when_its_answer_becomes_no():
     rows = audit.run()
-    assert len(rows) == 44
+    assert len(rows) == 41
     assert [r['question'] for r in rows if not r['ok']] == []
     record = open(os.path.join(ROOT, audit.RECORD), encoding='utf-8').read()
     assert record == audit.record(rows)
@@ -244,7 +244,7 @@ def test_traits_are_read_from_the_registry_and_from_what_the_author_declared():
     assert a == {'always', 'org_claims', 'pii', 'multitenant', 'data_layer', 'auth_context', 'sender_declined', 'long_running'}
     assert {'delegation', 'exchange', 'approval', 'sender_constrained', 'multi_idp'} <= b and 'multitenant' not in b
     assert {'multi_idp', 'exchange', 'data_layer', 'sender_declined'} <= pb
-    assert pc == {'always', 'pii', 'exchange', 'delegation', 'approval', 'sender_constrained'}
+    assert pc == {'always', 'pii', 'exchange', 'delegation', 'approval', 'sender_constrained', 'long_running'}
     tr = rt.read_traits(design('pilot-C'))
     assert set(tr) == set(rt.load(ROOT)['conditions']) and all(v['state'] in ('on', 'off', 'unknown') and v['evidence'] for v in tr.values())
     assert tr['multitenant']['state'] == 'off' and '書き手の宣言' in tr['multitenant']['evidence']
@@ -301,6 +301,40 @@ def test_a_design_that_declares_delegation_but_writes_no_act_still_gets_the_dele
     # no answer at all: cannot be read, the questions stay
     del reg['catalog_answers']['questions']['q-actor']
     assert rt.read_traits(reg)['delegation']['state'] == 'unknown' and 'ap-2-7' in ids(rt.selected(tri, rt.traits(reg)))
+
+
+def test_misread_traits_of_the_first_measurement():
+    # #80: three reviews of the first measurement of #12 read "per-operation approval: does not hold" as a misreading
+    # (a break-glass approval ID in tctx), and a deferred batch (reservation refunds) was in neither the types nor the hops
+    tri = rt.load(ROOT)
+    cal = os.path.join(ROOT, 'research', 'template-design', 'calibration')
+    b = rt.read_traits(rt.load_design(os.path.join(cal, 'control-b')))
+    # a time-window approval is not a per-operation approval: the trait stays off (the list does not grow), but the
+    # sheet names the row with the approval ID and the questions to add when it is per operation
+    assert b['approval']['state'] == 'off'
+    assert 'C-tctx に承認の ID がある' in b['approval']['evidence'] and 'dc-05・q-approval-from-as' in b['approval']['evidence']
+    assert '承認の ID' not in rt.read_traits(design('A'))['approval']['evidence']
+    reg = design('A')
+    reg['claims']['claims'].append({'id': 'C-x', 'name': 'approval_id', 'usage': 'authz'})
+    assert rt.read_traits(reg)['approval']['state'] == 'off' and 'C-x に承認の ID' in rt.read_traits(reg)['approval']['evidence']
+    # the author's answer to U13 (asynchronous processing that carries the principal) turns long_running on
+    a = rt.load_design(os.path.join(cal, 'control-a'))
+    assert not any(t.get('long_running') for t in a['token_types']['token_types'])
+    tr = rt.read_traits(a)
+    assert tr['long_running']['state'] == 'on' and 'U13' in tr['long_running']['evidence']
+    assert 'q-long-running' in ids(rt.optional(tri, rt.traits(a)))
+    for x in a['catalog_answers']['answers']:
+        if x.get('event') == 'U13':
+            x['answer'] = '対象外'
+    assert rt.read_traits(a)['long_running']['state'] == 'off'
+    # neither change moves a priority 1 question: the default lists keep their size
+    assert len(rt.selected(tri, rt.traits(rt.load_design(os.path.join(cal, 'control-b'))))) == 18
+    by = rt.by_id(tri)
+    assert '業務の ID' not in by['q-audit-correlation']['hint'] and by['q-audit-correlation']['priority'] == 2   # A12: set 2 (#82) first
+    assert '止める単位' in by['q-revocation-delivery']['hint'] and '既知の限界' in by['q-db-context-writers']['hint']
+    assert '作り直されずに内側の受け手に届く' in by['q-idp-diff-absorbed']['hint'] and by['q-idp-diff-absorbed']['priority'] == 2
+    for qid, n in (('q-agent-delegation-claims', 'N24'), ('cf-06', 'N25'), ('q-txn-scope-fixed', 'N25')):
+        assert n in by[qid]['proposed'] and by[qid]['interim'] == 'B'
 
 
 def test_a_trait_that_cannot_be_read_shows_its_questions(tmp_path):
@@ -367,7 +401,7 @@ def test_short_list_differs_by_design_and_stays_short():
     n = {k: rt.load_of(tri, traits_of(k), rt.on_traits(design(k))) for k in DESIGNS}
     # by default: the priority 1 questions of the design (10-17) and three open prompts
     assert {k: (v['questions'], v['prompts']) for k, v in n.items()} == {'A': (11, 3), 'B': (18, 3), 'pilot-B': (16, 3), 'pilot-C': (15, 3)}
-    assert {k: (v['optional_questions'], v['more_prompts']) for k, v in n.items()} == {'A': (7, 2), 'B': (9, 3), 'pilot-B': (8, 2), 'pilot-C': (4, 3)}
+    assert {k: (v['optional_questions'], v['more_prompts']) for k, v in n.items()} == {'A': (7, 2), 'B': (9, 3), 'pilot-B': (8, 2), 'pilot-C': (5, 3)}
     lo, hi = tri['budget']['questions']
     for k, v in n.items():
         assert lo <= v['questions'] <= hi, k

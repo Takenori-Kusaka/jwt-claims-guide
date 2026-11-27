@@ -136,8 +136,18 @@ def read_traits(reg):
         (d is None and 'catalog_answers.yaml の questions.q-actor の回答が無い')
         or (declared(lite, 'delegation_or_exchange', 'answer') and '要確認：lite_criteria.delegation_or_exchange は Yes だが、act の行が無く、q-actor は「要らない」（委任か交換かを、図と要求で確かめる）'))
     h = first(hops, lambda h: h.get('authorization_details'))
+    # #80: an approval ID without authorization_details (a break-glass request, a time window) is not a per-operation
+    # approval and does not turn the trait on; the sheet names the row so that the reviewer checks it at step 1 (three
+    # reviews of the first measurement of #12 took "does not hold" for a misreading)
+    ap = first(claims, lambda c: 'approval' in str(c.get('name') or '').lower()
+               or (isinstance(c.get('value_vocabulary'), dict)
+                   and any('approval' in str(v).lower() for v in (c['value_vocabulary'].get('values') or []))))
     put('approval', (names.get('authorization_details') and f'claims.yaml の {names["authorization_details"]}（authorization_details）')
-        or (h and f'hops.yaml の {h} の authorization_details'), 'authorization_details が、claims.yaml の行にも hops.yaml にも無い', no_hops and 'hops.yaml が無い')
+        or (h and f'hops.yaml の {h} の authorization_details'),
+        'authorization_details が、claims.yaml の行にも hops.yaml にも無い'
+        + (f'。claims.yaml の {ap} に承認の ID があるが、1 つの操作に結びつく承認か（時間枠の承認なら数えない）は台帳から読めない。'
+           '操作ごとの承認なら、当たるとして dc-05・q-approval-from-as も答える' if ap else ''),
+        no_hops and 'hops.yaml が無い')
     # the author's answer decides multitenant; tenant_binding is read only when there is no answer (a
     # single-organisation design may still bind its tokens to the issuer: the dry run of #56 on the pilot scenario C)
     d = declared(lite, 'multitenant', 'answer')
@@ -156,8 +166,12 @@ def read_traits(reg):
     t = first(types, lambda t: t.get('kind') in ('access_token', 'internal_token') and t.get('sender_constraint') in (None, 'none'))
     put('sender_declined', t and f'token_types.yaml の {t} の sender_constraint が none か未記入', 'アクセストークン・内部トークンは、どれも送信者制約つき')
     t = first(types, lambda t: t.get('long_running'))
-    put('long_running', (t and f'token_types.yaml の {t} の long_running') or (kinds.get('broker_connection') and f'hops.yaml の {kinds["broker_connection"]}（kind が broker_connection）'),
-        'long_running のある種別も、kind が broker_connection のホップも無い', no_hops and 'hops.yaml が無い')
+    # #80: a deferred run (a reservation, a batch that acts later) is often in neither the types nor the hops; the
+    # author's answer to the catalogue event U13 (asynchronous processing that carries the principal) declares it
+    u13 = any(isinstance(x, dict) and x.get('event') == 'U13' and x.get('answer') == '該当' for x in (cat.get('answers') or []))
+    put('long_running', (t and f'token_types.yaml の {t} の long_running') or (kinds.get('broker_connection') and f'hops.yaml の {kinds["broker_connection"]}（kind が broker_connection）')
+        or (u13 and 'catalog_answers.yaml の U13（非同期の処理で主体を引き継ぐ）が「該当」（書き手の宣言）'),
+        'long_running のある種別も、kind が broker_connection のホップも、U13 への「該当」の回答も無い', no_hops and 'hops.yaml が無い')
     return out
 
 
@@ -439,6 +453,7 @@ def short_list_text(tri, root=ROOT):
           '',
           'lint の warn は、機械が「人が見てほしい」と言っている箇所です。次の規則の warn が出ていたら、その行について右の問いに答えます。',
           'warn に行ごとの理由が書いてあるか（[../CONTRIBUTING.md](../CONTRIBUTING.md) の 2.）も、あわせて見ます。',
+          '**どの規則の warn でも**、理由が通らず指摘にするときは、warn の数値（下流と上流の寿命・件数など）を指摘の内容に写し、warn の規則が答えを決める問い（6. の表。`lint:L16` の寿命なら `q-hop-lifetime`）の ID を、場所か取り違えた問いの列に書きます（初回の測定で、warn を読んでも数値が指摘に写らなかった。#80）。',
           '',
           '| lint の規則 | 問い ID | 問い |',
           '| --- | --- | --- |']
@@ -717,7 +732,7 @@ def design_sheet(tri, design_dir, root=ROOT, seed=None):
             '- 性質の表で「当たらない」とされた性質が実際にはあるなら、それ自体を指摘にし、その性質の問いも足して答える（全部の問いは templates/review/short_list.md）',
             f'- 目安は、問いに答える時間が {b["minutes"][0]}〜{b["minutes"][1]} 分、レビューの全体（手順の段 0〜6）が {b["whole_procedure_minutes"][0]}〜{b["whole_procedure_minutes"][1]} 分（LLM の見積もり。人では測っていない）',
             f'- この 1 枚の問いは、全 {len(tri["questions"])} 問のうち、人が判断する {counts(tri, root)["C"]} 問から選んだもの',
-            '- 機械（lint）が確かめること：設計書の 1. の結果で、error が 0 かと、warn に理由があるかだけを見る',
+            '- 機械（lint）が確かめること：設計書の 1. の結果で、error が 0 かと、warn に理由があるかだけを見る。理由が通らない warn は、数値（下流と上流の寿命など）と、その規則が答えを決める問いの ID を付けて指摘にする（short_list.md の 3.）',
             '- 書き手の自己点検（PR の本文）：印の無い行を読み、25 問の回答の行と、【No なら Blocker】の行から 2 件を抜き取って欄を開く',
             f'- 受け付け（手順の段 0）で、あわせて確かめること：{by_id(tri)["q-lint-workaround"]["ask"]}（{by_id(tri)["q-lint-workaround"]["hint"]}）',
             '- 暗号の方式・IdP や製品の実際の挙動・委任が 2 段以上になる場合：答えずに、専門家に回す（templates/review/escalation.md）']
