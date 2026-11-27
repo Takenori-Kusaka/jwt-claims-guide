@@ -49,7 +49,7 @@ idp:
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=AGENCY_AT と証明書の拇印のヘッダー（front-gw の代理店の口）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT（front-gw の社員の口。社員本人の操作）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=EMPLOYEE_AT と request_details の call_id（電話の代理受付）", events: [I22]}
-      - {trigger: "PAY_MSG_CTX の発行（mTLS の相手が assessment-svc のときだけ。operation が assessment.confirm の TXN_STAFF を subject_token にして求める）", events: [I22]}
+      - {trigger: "PAY_MSG_CTX の発行（mTLS の相手が assessment-svc のときだけ。operation が assessment.confirm か assessment.resend の TXN_STAFF を subject_token にして求める。同じ assessment_ref で何度出してもよい）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、subject_token=PAY_MSG_CTX（payment-worker の作り直し）", events: [I22]}
       - {trigger: "grant_type=token-exchange、requested_token_type=txn_token、要求したワークロード自身を主体にする（payment-batch。草案 §8.2）", events: [I22]}
       - trigger: subject_token に Txn-Token（TXN_TOKEN・TXN_STAFF・TXN_PROXY）を出して、別の Txn-Token に作り直す要求
@@ -285,7 +285,7 @@ answers:
 - event: I26
   answer: 該当
   token_types: [PH_AT, PH_ID_TOKEN, PH_RT, AS_SESSION, EMPLOYEE_AT, STAFF_ID_TOKEN, SSO_SESSION]
-  note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso のセキュリティキーの登録は、as-admin-api で 2 人の操作で発行した 1 回だけの登録の番号があるときだけ受け、登録した鍵での認証から acr が phr になる
+  note: 資格情報の変更の後の発行。shirogane-as は契約者の古い RT の系列とほかのセッションを止める。shirogane-sso のセキュリティキーの登録は、as-admin-api で 2 人の操作で発行した 1 回だけの登録の番号（shirogane-sso が鍵の登録と同じ取引で使用済みにする）があるときだけ受け、登録した鍵での認証から acr が phr になる
 - event: I27
   answer: 対象外
   assumption: 状態リストを出さない（STATUS_LIST_TOKEN は却下）。寿命の短いトークンだけを受け手に渡す

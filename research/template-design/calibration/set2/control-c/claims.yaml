@@ -109,7 +109,7 @@ claims:
     - {service: repair-console, check: ID トークンの sub を BFF のセッションに結ぶ。ログアウトトークンの sub と sid でセッションを探す, against: [format]}
     - {service: agent-sts, check: 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で承認者になりうる上長であること（承認者の条件そのものは approval-svc が確かめる）, against: [data_layer]}
     - {service: order-tool, check: 確定（orders:place）のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる。下書きは監査ログに残すだけ, against: [data_layer]}
-    - {service: contact-tool, check: 監査ログに残す。連絡の相手は repair_id の修繕依頼の入居者に限る（C-repair-id）, against: [format]}
+    - {service: contact-tool, check: 監査ログに残す。連絡の相手の範囲（入居者と協力会社の窓口。visit-subagent なら入居者だけ）は C-repair-id の照合で決める, against: [format]}
     - {service: payment-tool, check: 支払いの依頼のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
     - {service: lock-tool, check: 解錠コードの発行のたびに aoba-pdp に sub を渡し、在籍・鍵の取り扱いのロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
     - {service: approval-svc, check: aoba-pdp で承認者の在籍とロールを引き、承認の種類ごとの承認者の条件と照合する。発注の承認は、承認者の sub が承認の記録の担当者（依頼したときの sub）と違い、修繕依頼の台帳の担当の履歴（今と過去の担当）にも無いこと。解錠の承認は、承認者の sub が承認の記録の担当者で、今も修繕依頼の担当であること, against: [data_layer, other_claim], with: C-approval-ref}
@@ -369,10 +369,10 @@ claims:
   on_missing: 拒否
   enforced_at:
     - {service: agent-sts, check: CONSOLE_AT の client_id が repair-console で、交換を求めた mTLS の相手が repair-console。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体, against: [api_config]}
-    - {service: order-tool, check: client_id が repair-agent で、act の最も外側と同じ, against: [api_config, other_claim], with: C-act}
-    - {service: contact-tool, check: client_id が repair-agent か visit-subagent で、act の最も外側と同じ, against: [api_config, other_claim], with: C-act}
-    - {service: payment-tool, check: client_id が repair-agent で、act の最も外側と同じ, against: [api_config, other_claim], with: C-act}
-    - {service: lock-tool, check: client_id が repair-agent で、act の最も外側と同じ, against: [api_config, other_claim], with: C-act}
+    - {service: order-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（agent-sts と同じクライアントの登録の表（client_id とワークロードの URI の対応。設定の配布で受け手に渡し、5 分ごとに読み直す）で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: contact-tool, check: client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: payment-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: lock-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
     - {service: approval-svc, check: client_id が repair-console。APPROVAL_AT に act が無いことも確かめる（エージェントが承認の操作をする経路を作らない）, against: [api_config]}
   max_bytes: 16
   overflow_strategy: 上限で固定（超えない値域）
@@ -389,7 +389,7 @@ claims:
   registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
   type: string
   shape: space_delimited
-  max_items: 7
+  max_items: 8
   allowed_values: {enum: ["openid", "orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue", "approvals:decide"]}
   value_vocabulary:
     values: ["openid", "orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue", "approvals:decide"]
@@ -433,7 +433,7 @@ claims:
     - {service: payment-tool, check: payments:request が要る, against: [api_config]}
     - {service: lock-tool, check: lock.code:issue が要る, against: [api_config]}
     - {service: approval-svc, check: approvals:decide が要る, against: [api_config]}
-  max_bytes: 120
+  max_bytes: 128
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 該当なし
   data_category: [system.operations]
@@ -482,7 +482,7 @@ claims:
   enforced_at:
     - {service: agent-sts, check: 2 段目の REPAIR_DELEG_AT の最も外側の act.sub が repair-agent で、mTLS の相手が may_act の主体。深さ 3 になる交換は拒否, against: [other_claim], with: C-may-act}
     - {service: order-tool, check: 最も外側の act.sub が mTLS の相手の証明書の URI で、発注の行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
-    - {service: contact-tool, check: 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: contact-tool, check: 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。最も外側が visit-subagent なら、連絡の相手は入居者だけ（協力会社の窓口は拒否。REQ-04）。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
     - {service: payment-tool, check: 最も外側の act.sub が mTLS の相手で、支払いの行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
     - {service: lock-tool, check: 最も外側の act.sub が mTLS の相手で、解錠の行為者の許可リスト（repair-agent）にある。visit-subagent は拒否。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
   max_bytes: 160
@@ -733,7 +733,7 @@ claims:
   max_bytes: 320
   overflow_strategy: 発行を失敗させる
   pii_category: 個人情報
-  data_category: [system.operations]
+  data_category: [user.location.imprecise]
   confidential_from: []
   log_policy: 記録しない
   status: active
@@ -778,17 +778,17 @@ claims:
   consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc, aoba-pdp]
   on_missing: 拒否
   enforced_at:
-    - {service: agent-sts, check: 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で承認者になりうる上長か, against: [data_layer]}
+    - {service: agent-sts, check: 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。REPAIR_DELEG_AT の iat が今の委任の欄の世代（有効にするたびに 1 つ上がる番号と、その開始の時刻。担当の付け替えでは委任の欄が自動で停止になる）の開始の時刻より前なら拒否する（止めて有効にし直す前の委任を使わせない）。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で承認者になりうる上長か, against: [data_layer]}
     - {service: order-tool, check: 下書き・確定の対象の発注の修繕依頼が repair_id と一致。違えば 404, against: [data_layer]}
-    - {service: contact-tool, check: 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（電話番号・宛先を要求で受けない）, against: [data_layer]}
+    - {service: contact-tool, check: 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（最も外側の act.sub が visit-subagent なら入居者だけ）。要求は相手の種類だけを受け、電話番号・宛先を受けない。宛先は通知の基盤が repair_id と相手の種類から台帳で引く, against: [data_layer, other_claim], with: C-act}
     - {service: payment-tool, check: 支払いの対象の発注の修繕依頼が repair_id と一致, against: [data_layer]}
     - {service: lock-tool, check: 修繕依頼の部屋が authorization_details の unit_id と一致, against: [data_layer, other_claim], with: C-authorization-details}
-    - {service: approval-svc, check: APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
+    - {service: approval-svc, check: 一覧の参照（approval_ref の無い APPROVAL_AT）では、トークンの repair_id の修繕依頼の承認の記録だけを返し、sub がその修繕依頼の担当者か、aoba-pdp で同じ課の課長でなければ返さない（担当の履歴にある課長も、解錠の取り消しのために参照できる。承認・事後の確認の操作は担当の履歴に無い課長だけ）。APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
     - {service: aoba-pdp, check: 予約の実行の問い合わせ（H13）で、修繕依頼の台帳の修繕依頼の担当が、渡された担当者（sub）であることを確かめる。呼び出し元は証明書の許可リストの order-scheduler だけ, against: [data_layer]}
   max_bytes: 11
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 個人情報
-  data_category: [system.operations]
+  data_category: [user.unique_id.pseudonymous]
   confidential_from: []
   integrity_until:
     - {place: log, target: agent-sts・ツール 4 つ・approval-svc・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ。C-sub と同じ鍵）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ）}
@@ -843,8 +843,8 @@ claims:
   absent_semantics: {absent: "ORDER_TOOL_AT：承認の要らない発注（下書きと、累計 10 万円以下の確定）。承認が要る確定では拒否。LOCK_TOOL_AT：承認の依頼の登録だけを許し、発行は拒否。APPROVAL_AT：承認の一覧の参照だけを許し、承認・却下・取り下げは拒否"}
   enforced_at:
     - {service: order-tool, check: approval-svc で、承認の記録の発注 ID・修繕依頼・担当者（sub）が要求と一致し、承認済み・未使用・期限内なら使用済み（発注 ID に結ぶ）にする条件つきの更新が成功するときだけ確定。approval-svc が応答しなければ拒否, against: [data_layer]}
-    - {service: lock-tool, check: approval-svc で、承認の記録の修繕依頼・担当者が要求と一致し、承認済み・未使用・期限内なら使用済みにする条件つきの更新が成功するときだけ発行。応答しなければ拒否, against: [data_layer]}
-    - {service: approval-svc, check: APPROVAL_AT の approval_ref の記録だけに承認・却下・取り下げを許す。記録の repair_id がトークンの repair_id と一致。order-scheduler からの予約済みの使用（H14）では、承認の記録の発注 ID・修繕依頼・担当者が予約の記録と一致し、予約済みなら使用済みにする条件つきの更新, against: [data_layer, other_claim], with: C-repair-id}
+    - {service: lock-tool, check: 発行では、approval-svc で承認の記録の修繕依頼・担当者が要求と一致し、承認済み・未使用・期限内なら使用済みにする条件つきの更新が成功するときだけ発行。発行では、承認の後に修繕依頼の台帳の担当の履歴に付け替えが無いことも確かめる（今の担当だけを見ない）。送り直しでは、承認が lock-tool による使用済み・取り消していない・not_after の前で、作業員の番号のハッシュが承認の記録と一致するときだけ同じコードを送り直す（3 回まで）。応答しなければ拒否, against: [data_layer]}
+    - {service: approval-svc, check: APPROVAL_AT の approval_ref の記録だけに承認・却下・取り下げを許す。記録の repair_id がトークンの repair_id と一致。order-scheduler からの予約済みの使用（H14）では、承認の記録の発注 ID・修繕依頼・担当者が予約の記録と一致し、予約済みなら使用済みにする条件つきの更新。発行済みの解錠の取り消し（その修繕依頼の担当者か、同じ課の課長の APPROVAL_AT。承認者の条件の「担当の履歴に無い」は求めない）では、承認を「取り消し」にして lock-svc に失効を求める。手作業の発注の事後の確認（approval_ref の記録の種類が「手作業の事後の確認」）では、承認と同じ条件（acr が mfa・auth_time から 300 秒、確かめる課長は登録した課長でなく担当の履歴にも無い）を求める, against: [data_layer, other_claim], with: C-repair-id}
   max_bytes: 36
   overflow_strategy: 上限で固定（超えない値域）
   pii_category: 該当なし
@@ -1098,12 +1098,12 @@ claims:
   rejection_kind: 代替あり
   alt: [C-repair-id]
   rationale: >-
-    入居者に連絡するのは contact-tool だけで、contact-tool は repair_id で修繕依頼の台帳から入居者を引き、通知の基盤に送る（REQ-12）。トークンに載せると、
+    入居者への連絡は、contact-tool が repair_id と相手の種類（入居者）を通知の基盤に渡し、通知の基盤が修繕依頼の台帳から宛先を引いて送る（REQ-12。contact-tool も宛先を持たない）。トークンに載せると、
     エージェントの実行基盤・全ツールの手元に入居者の電話番号が残り、エージェントが任意の番号に送る経路にもなる
   refs:
     - {kind: guide-slide, id: p09-do-not-carry}
     - {kind: guide-slide, id: p09-jws-is-readable}
-  assumption: contact-tool は修繕依頼の台帳を引ける
+  assumption: 通知の基盤は repair_id と相手の種類から、修繕依頼の台帳で宛先を引ける
   revisit_trigger: 修繕依頼の台帳を引けないツールが入居者の連絡先を必要とするとき
 - id: C-unit-address
   name: unit_address

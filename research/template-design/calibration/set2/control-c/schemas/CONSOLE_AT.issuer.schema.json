@@ -58,7 +58,7 @@
    "description": "クライアントに委ねた操作の範囲。ツールごとの操作（orders:place など）と、承認の操作（approvals:decide）",
    "$comment": "C-scope",
    "type": "string",
-   "maxLength": 120
+   "maxLength": 128
   },
   "acr": {
    "description": "担当者のログインの認証の強さ。pwd はパスワードだけ、mfa はパスワードと TOTP",

@@ -58,7 +58,7 @@
    "description": "クライアントに委ねた操作の範囲。ツールごとの操作（orders:place など）と、承認の操作（approvals:decide）",
    "$comment": "C-scope",
    "type": "string",
-   "maxLength": 120
+   "maxLength": 128
   },
   "act": {
    "description": "担当者の代わりに今操作している行為者。最も外側の act.sub が今の行為者（repair-agent か visit-subagent のワークロードの URI。例 https://workloads.aoba-sumai.example/repair-agent）。visit-subagent のトークンでは、その内側の act に前の行為者の repair-agent が入る",

@@ -51,7 +51,7 @@ hops:
       mode: local
       checks:
         - front-gw を mTLS の相手の SPIFFE ID で認証する（Txn-Token を求めてよいワークロードの一覧）
-        - subject_token の AT を TTS も検証する（署名・typ・iss・aud・exp）
+        - subject_token の AT を TTS も検証する（署名・typ・iss・aud・exp）。client_id が claim-portal であること
         - sub で shirogane-as の契約者の台帳を引き、アカウントが有効なこと（状態のキャッシュ 60 秒）
         - 経路の表で、要求の口・メソッド・パスに要る scope を決め、AT の scope の中にあるときだけ、その scope に絞る
         - front-gw が request_details で渡した値を、経路の表の項目と型で確かめて tctx に書く（rctx は書かない。台帳の C-rctx は却下）
@@ -90,8 +90,8 @@ hops:
       mode: local
       checks:
         - 代理店のサーバーの証明書の mTLS（tls_client_auth。代理店向けの CA、CRL）で、代理店の登録の client_id と証明書のサブジェクトの組であること
-        - "assertion の署名（代理店の登録の JWKS）・iss が代理店の登録の iss・aud がトークンの端点・exp − iat が 60 秒以下・(iss, jti) が初めて"
-        - 代理店の登録が有効なこと。(iss, sub) を代理店の担当者の ID に替え、代理店の登録の代理店コードと証明書の拇印を書いた AGENCY_AT を出す
+        - "assertion の iss が、この mTLS で認証したクライアントの代理店の登録の iss と一致すること（ほかの代理店の IdP の assertion は受けない）。署名はその登録の JWKS・aud がトークンの端点・exp − iat が 60 秒以下・(iss, jti) が初めて"
+        - 代理店の登録が有効なこと。(iss, sub) を、その代理店の担当者の表（代理店ごとの表）で代理店の担当者の ID に替え、代理店の登録の代理店コードと証明書の拇印を書いた AGENCY_AT を出す
     note: >-
       shirogane-as は認可サーバーで、assertion は RFC 7523 の認可の grant（作り直しの上流のトークンではない）。AGENCY_AT の寿命（300 秒）・aud・agency_code は
       shirogane-as が代理店の登録の方針で決め、assertion の値から広げるのではないので、H5 の upstream にこのホップを置かず、L16 の比べ方の対象にしない。
@@ -266,8 +266,8 @@ hops:
       mode: local
       checks:
         - front-gw を mTLS の相手の SPIFFE ID で認証する
-        - subject_token の EMPLOYEE_AT を TTS も検証する（署名・typ・iss・aud・exp）
-        - sub で社員の台帳を引き、勤務の状態が「勤務中」であること（台帳の状態は勤務中・休職・退職の 3 つ。休職と退職では発行しない）。役割（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長）から、経路に許す scope を決める（台帳のキャッシュ 60 秒）
+        - subject_token の EMPLOYEE_AT を TTS も検証する（署名・typ・iss・aud・exp）。client_id が staff-console であること
+        - sub で社員の台帳を引き、勤務の状態が「勤務中」であること（台帳の状態は勤務中・休職・退職の 3 つ。休職と退職では発行しない）。役割（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長・社員の認証の管理者）から、経路に許す scope を決める（役割と scope の対応は設計書の付録 D の M_authz_pdp の 1. の表）（台帳のキャッシュ 60 秒）
         - 代理受付の経路では、要求の call_id で IVR の通話の記録を引き（キャッシュしない）、本人確認が成功し、確認から 1800 秒以内で、通話の記録に終話の時刻が無い（通話が続いている）こと、記録の担当の社員が EMPLOYEE_AT の sub と同じことを確かめる。TXN_PROXY の exp は発行から 60 秒と本人確認から 1800 秒の早い方。記録の契約者のアカウントが有効なこと（キャッシュ 60 秒）。sub には記録の契約者を書き、act.sub に社員を書く
         - acr・auth_time を EMPLOYEE_AT から値を変えずに写す（TXN_STAFF だけ）
   - id: H15
@@ -339,7 +339,7 @@ hops:
       checks:
         - 受けた Txn-Token を改変せずに渡す。assessment-svc が自分の資格情報で請求を書かない
         - claim-svc は mTLS の相手が assessment-svc であることを確かめる
-        - 請求の読み取りは claims:read、割り当て・保留の書き込みは assessments:write。operation が査定の操作の一覧（assessment.read・assessment.confirm・assessment.assign・assessment.hold）にあること
+        - 請求の読み取りは claims:read、割り当て・保留の書き込みは assessments:write。operation が査定の操作の一覧（assessment.read・assessment.confirm・assessment.resend・assessment.assign・assessment.hold・assessment.unhold）にあること
         - tctx の claim_id が要求のパスの請求と一致すること（違えば 409）。保留と割り当ての変更は、記録に sub と txn を残す
   - id: H19
     from: assessment-svc
@@ -374,8 +374,9 @@ hops:
       mode: local
       checks:
         - TTS は mTLS の相手の SPIFFE ID が assessment-svc であるときだけ PAY_MSG_CTX の要求を受ける（PAY_MSG_CTX を頼める相手の許可リスト。claim-svc など同じ TXN_STAFF を受け取るほかのサービスからは受けない）
-        - subject_token の TXN_STAFF を検証し（期限内）、operation が assessment.confirm であること
-        - assessment-svc が request_details で渡す assessment_ref（査定の確定の ID と版）を tctx に書く。同じ assessment_ref の PAY_MSG_CTX を 2 回出さない
+        - subject_token の TXN_STAFF を検証し（期限内）、operation が assessment.confirm か assessment.resend であること
+        - assessment-svc が request_details で渡す assessment_ref（査定の確定の ID と版）を tctx に書く。同じ assessment_ref の PAY_MSG_CTX は何度出してもよい（送り直しと、応答が assessment-svc に届かなかったときの頼み直しのため）。1 件の指示にするのは payment-svc の (claim_id, assessment_ref) の一意の制約（H22）
+        - 送り直しは、査定担当者が staff-console から送り直しの操作（operation が assessment.resend。H17）をしたときだけで、assessment-svc はその査定の確定の記録の assessment_ref・claim_id・amount・payee_ref が TXN_STAFF の tctx と一致することを確かめてから頼む
   - id: H30
     from: tts
     to: assessment-svc（PAY_MSG_CTX）
@@ -428,7 +429,7 @@ hops:
       checks:
         - payment-worker は自分の X.509-SVID でブローカーに接続する
         - PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す
-        - txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。2 回届いても payment-svc の (txn, claim_id) の一意の制約で 1 件になる）
+        - txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。2 回届いても payment-svc の (claim_id, assessment_ref) の一意の制約で 1 件になる）
   - id: H22
     from: payment-worker
     to: payment-svc（支払いの指示）
@@ -466,7 +467,7 @@ hops:
         - mTLS の相手の SPIFFE ID が front-gw で、req_wl が front-gw であること
         - acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401（insufficient_user_authentication）
         - tctx の payment_id がパスの支払いと一致し、amount が支払いの記録の金額と一致すること
-        - sub が、支払いの指示の sub（査定担当者）と違うこと。承認の上限額を社員の台帳に問い合わせ、金額がその内であること
+        - sub が、支払いの指示の sub（査定担当者）と違うこと。承認の上限額と、承認者（sub）と指示した査定担当者の課を社員の台帳に問い合わせ（キャッシュしない）、金額が上限額の内で、承認者が査定担当者と同じ課の上長であること（REQ-05 の「上長」）
         - tctx の payee_ref が支払いの記録の振込先と一致すること（上長は振込先を見て承認する）
         - 承認の記録（承認者の sub・txn・時刻・金額・振込先の payee_ref）を書くのは payment-svc だけ。承認の取り消しも同じ API と同じ確かめで受け、支払いの行をロックした取引で書く
   # ------------------------------------------------------------ 夜間の支払いの実行
@@ -504,7 +505,7 @@ hops:
       mode: local
       checks:
         - 査定担当者・上長が請求を保留にすると（H18。operation が assessment.hold）、claim-svc は受けた Txn-Token を改変せずに payment-svc に渡し、payment-svc がその請求の未実行の支払いの行をロックして保留の印を書く。payment-svc が書けたときだけ claim-svc は保留を記録して成功を返す（書けなければ保留を失敗にする）
-        - payment-svc は mTLS の相手が claim-svc、scope に assessments:write、tctx の operation が assessment.hold、claim_id がパスの請求と一致することを確かめる。保留を外すのも同じ経路（上長の役割で TTS が出したときだけ）
+        - payment-svc は mTLS の相手が claim-svc、scope に assessments:write、tctx の operation が assessment.hold か assessment.unhold、claim_id がパスの請求と一致することを確かめる。保留を外す（assessment.unhold）のも同じ経路で、TTS は assessment.unhold の Txn-Token を上長の役割の社員にだけ出す（付録 D の M_authz_pdp の役割と scope の表。payment-svc は役割を見ず、operation で見分ける）
   # ------------------------------------------------------------ 管理の操作（代理店の登録・契約者のアカウントの停止）
   - id: H26
     from: front-gw
@@ -523,8 +524,8 @@ hops:
         - mTLS の相手の SPIFFE ID が front-gw であること
         - acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401
         - tctx の operation・target_ref を要求の本文と照合する
-        - 代理店の登録の変更（代理店コード・証明書のサブジェクト・代理店の IdP の iss と JWKS の URL）は、別の代理店管理部の社員の承認が済むまで有効にしない（2 人の操作）。停止はすぐに有効にする
-        - 社員のセキュリティキーの登録の番号の発行は 2 人の操作（発行と承認を別の社員が行い、どちらの sub も target_ref の社員と違うこと）。鍵の抹消とセッションの削除は 1 人の操作で、すぐ有効
+        - 代理店の登録の新規作成・クライアント（client_id と証明書のサブジェクト）の追加・変更（代理店コード・証明書のサブジェクト・代理店の IdP の iss と JWKS の URL）は、別の代理店管理部の社員の承認が済むまで有効にしない（2 人の操作）。停止はすぐに有効にする
+        - 社員のセキュリティキーの登録の番号の発行は 2 人の操作（発行と承認を別の社員が行い、どちらの sub も target_ref の社員と違うこと）。番号を 1 回だけ使わせるのは shirogane-sso（鍵の登録と同じ取引の条件つきの書き込み。設計書の 2.2）。鍵の抹消とセッションの削除は 1 人の操作で、すぐ有効
         - 操作の記録に sub と txn を残す
   # ------------------------------------------------------------ 通知（トークンを運ばない）
   - id: H27

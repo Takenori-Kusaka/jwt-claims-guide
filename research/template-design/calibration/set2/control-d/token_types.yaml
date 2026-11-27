@@ -688,7 +688,7 @@ token_types:
   max_clock_skew: 30
   max_lifetime: 3600
   lifetime_refs:
-    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が同じ assessment_ref で送り直す（payment-svc が (claim_id, assessment_ref) で重複を拒む）", tracking: "#82"}
+    - {kind: author-proposal, id: "ブローカーのメッセージの保持の上限（3600 秒。REQ-06）と同じにする。過ぎたメッセージは滞留のキューに移し、査定担当者が送り直しの操作をし、TTS が同じ assessment_ref の新しい PAY_MSG_CTX を出す（payment-svc が (claim_id, assessment_ref) で重複を拒む）", tracking: "#82"}
     - {kind: guide-slide, id: p08-async-processing}
   lifetime_set_by: [platform]
   refresh: 無い

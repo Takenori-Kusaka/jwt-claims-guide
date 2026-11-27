@@ -65,7 +65,7 @@ hops:
   exchanger: null
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（repair-agent）, 修繕依頼の台帳で担当が sub で委任の欄が有効, aoba-pdp で担当者の在籍とロール, resource が 1 つで、リソースの表にある]
+    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（repair-agent）, 修繕依頼の台帳で担当が sub で委任の欄が有効, REPAIR_DELEG_AT の iat が今の委任の世代の開始の時刻より後, aoba-pdp で担当者の在籍とロール, resource が 1 つで、リソースの表にある]
 - id: H5
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: "https://order-tool.aoba-sumai.example/mcp"
@@ -85,7 +85,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が order-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent、client_id も repair-agent, scope に操作がある（下書きは orders:draft、確定・予約は orders:place）, 下書きの修繕依頼が repair_id と一致, 確定・予約では aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 確定・予約では、発注の台帳の部屋の行を排他の錠で押さえた 1 つのトランザクションの中で、部屋の直近 30 日の累計（予約を含む）を数えて確定・予約まで行う（同じ部屋の並行の確定は直列になる）。累計が 10 万円を超えれば authorization_details と下書きの一致と approval-svc の条件つきの使用済み（予約なら予約済み）]
+    checks: ["署名（agent-sts の JWKS）", aud が order-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent、client_id も repair-agent, scope に操作がある（下書きは orders:draft、確定・予約は orders:place）, 下書きの修繕依頼が repair_id と一致, 確定・予約では aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 確定・予約では協力会社の台帳で協力会社の取引が今も有効, 確定・予約では、発注の台帳の部屋の行を排他の錠で押さえた 1 つのトランザクションの中で、部屋の直近 30 日の累計（予約を含む）を数えて確定・予約まで行う（同じ部屋の並行の確定は直列になる）。累計が 10 万円を超えれば authorization_details と下書きの一致と approval-svc の条件つきの使用済み（予約なら予約済み）]
 - id: H6
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: "https://contact-tool.aoba-sumai.example/mcp"
@@ -102,7 +102,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者と協力会社の窓口に限る]
+    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者と協力会社の窓口に限る（repair-agent だけ。宛先は通知の基盤が引く）]
 - id: H7
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: "https://payment-tool.aoba-sumai.example/mcp"
@@ -139,7 +139,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では approval-svc の条件つきの使用済み]
+    checks: ["署名（agent-sts の JWKS）", aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では承認の後に担当の付け替えが無い（担当の履歴）, 発行では approval-svc の条件つきの使用済み]
 - id: H9
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: visit-subagent
@@ -168,7 +168,7 @@ hops:
   exchanger: null
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（visit-subagent）, 委任の表に repair-agent → visit-subagent がある, 深さが 2 を超えない, 修繕依頼の台帳で担当が sub で委任の欄が有効, aoba-pdp で担当者の在籍とロール, resource が contact-tool だけ]
+    checks: ["署名（agent-sts の JWKS）", aud が agent-sts, may_act.sub が mTLS の相手の証明書の URI（visit-subagent）, 委任の表に repair-agent → visit-subagent がある, 深さが 2 を超えない, 修繕依頼の台帳で担当が sub で委任の欄が有効, REPAIR_DELEG_AT の iat が今の委任の世代の開始の時刻より後, aoba-pdp で担当者の在籍とロール, resource が contact-tool だけ]
 - id: H11
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは visit-subagent）"
   to: "https://contact-tool.aoba-sumai.example/mcp"
@@ -185,7 +185,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある（visit-subagent）。内側の act は記録だけ, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者に限る]
+    checks: ["署名（agent-sts の JWKS）", aud が contact-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リストにある（visit-subagent）。内側の act は記録だけ, scope に操作がある, 連絡の相手を repair_id の修繕依頼の入居者に限る（最も外側が visit-subagent なので協力会社の窓口は拒否。宛先は通知の基盤が引く）]
 - id: H12
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console）"
   to: "https://approval.aoba-sumai.example（approval-svc）"
@@ -218,10 +218,10 @@ hops:
   exchanger: null
   validates:
     mode: none
-    checks: [mTLS の相手が order-scheduler の証明書で、aoba-pdp の呼び出し元の許可リストにある, 予約の記録の担当者（sub）が在籍し、修繕担当のロールを持ち、修繕依頼の担当である, （order-scheduler が問い合わせの前に確かめる）予約の記録の act の連鎖の行為者が、agent-sts と同じクライアントの登録の表に今も登録されている, （同じく）予約の記録を作ったのが変更の記録の表で order-tool の DB アカウントで、作った後に書き換えられていない]
+    checks: [mTLS の相手が order-scheduler の証明書で、aoba-pdp の呼び出し元の許可リストにある, 予約の記録の担当者（sub）が在籍し、修繕担当のロールを持ち、修繕依頼の担当である, （order-scheduler が問い合わせの前に確かめる）予約の記録の act の連鎖の行為者が、agent-sts と同じクライアントの登録の表に今も登録されている, （同じく）予約の記録を作ったのが変更の記録の表で order-tool の DB アカウントで、作った後に書き換えられていない, （同じく）修繕依頼の台帳の委任の欄が有効で、世代が予約の記録の世代と同じ（予約の後に委任を止めていない）, （同じく）予約の後に担当の履歴に付け替えが無い]
   note: >-
     予約の実行の時刻に、order-scheduler が発注の台帳の予約の記録から担当者の sub と修繕依頼 ID を渡して問い合わせる。担当者のトークンは使わない。
-    あわせて修繕依頼の台帳で委任の欄が止められていないかを確かめる（止められていれば実行せず、予約を取り消して担当者に知らせる）
+    あわせて修繕依頼の台帳で、委任の欄が有効で世代が予約のときと同じか（予約の後に止めていれば、有効にし直していても実行しない）、予約の後に担当の付け替えが無いかを確かめる（通らなければ実行せず、予約を取り消して担当者に知らせる）
 - id: H14
   from: order-scheduler（予約の発注の実行）
   to: "https://approval.aoba-sumai.example（approval-svc）"
