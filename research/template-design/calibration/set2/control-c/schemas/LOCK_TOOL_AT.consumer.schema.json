@@ -67,7 +67,7 @@
    "type": "object"
   },
   "authorization_details": {
-   "description": "承認した 1 つの操作の内容。メンバーはどれも文字列。type が https://aoba-sumai.example/rar/vendor-order のとき：locations（[\"https://order-tool.aoba-sumai.example/mcp\"]）、 order_id（発注 ID。^ORD-[0-9]{10}$）、repair_id（修繕依頼 ID）、vendor_id（協力会社の ID。^VD-[0-9]{6}$）、amount（税込の円の 10 進の文字列。^[1-9][0-9]{0,8}$。例 \"128000\"）、 currency（\"JPY\"）。type が https://aoba-sumai.example/rar/lock-code のとき：locations（[\"https://lock-tool.aoba-sumai.example/mcp\"]）、repair_id、 unit_id（部屋の ID。^RM-[0-9]{8}$）、vendor_id、not_before と not_after（RFC 3339 の UTC の時刻を YYYY-MM-DDTHH:MM:SSZ の 1 つの書式に固定した文字列（秒まで・小数なし・T と Z は大文字・+00:00 は使わない。^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$。agent-sts が承認の記録から作るときにこの書式で書き、受け手はこの書式でない値を拒否してから完全一致で比べる）。差は 4 時間以内）",
+   "description": "承認した 1 つの操作の内容。メンバーはどれも文字列。type が https://aoba-sumai.example/rar/vendor-order のとき：locations（[\"https://order-tool.aoba-sumai.example/mcp\"]）、 order_id（発注 ID。^ORD-[0-9]{10}$）、repair_id（修繕依頼 ID）、vendor_id（協力会社の ID。^VD-[0-9]{6}$）、amount（税込の円の 10 進の文字列。^[1-9][0-9]{0,8}$。例 \"128000\"）、 currency（\"JPY\"）。type が https://aoba-sumai.example/rar/lock-code のとき：locations（[\"https://lock-tool.aoba-sumai.example/mcp\"]）、repair_id、 unit_id（部屋の ID。^RM-[0-9]{8}$）、vendor_id、worker_id（作業員の ID。^WK-[0-9]{6}$。lock-tool が協力会社の台帳でその協力会社の作業員であることを確かめて承認の依頼に入れる）、not_before と not_after（RFC 3339 の UTC の時刻を YYYY-MM-DDTHH:MM:SSZ の 1 つの書式に固定した文字列（秒まで・小数なし・T と Z は大文字・+00:00 は使わない。^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$。agent-sts が承認の記録から作るときにこの書式で書き、受け手はこの書式でない値を拒否してから完全一致で比べる）。差は 4 時間以内）",
    "$comment": "C-authorization-details",
    "type": "array",
    "items": {

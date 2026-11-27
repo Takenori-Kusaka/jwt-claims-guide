@@ -119,7 +119,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が payment-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent, "scope に payments:request", aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 発注の修繕依頼が repair_id と一致し、確定済みで完了の報告がある, 支払いの額は発注の台帳の確定額（要求の額を使わない）]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が payment-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent, "scope に payments:request", aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 発注の修繕依頼が repair_id と一致し、確定済みで完了の報告がある, 10 万円を超える手作業の発注は事後の確認が確認済み, 支払いの額は発注の台帳の確定額（要求の額を使わない）]
 - id: H8
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: "https://lock-tool.aoba-sumai.example/mcp"
@@ -139,7 +139,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では承認の後に担当の付け替えが無い（担当の履歴）, 発行では approval-svc の条件つきの使用済み, 発行と送り直しでは協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致, 送り直しは lock-tool が使用済みにした取り消していない not_after の前の承認だけで、承認の記録の回を条件つきの更新で上げてから（3 回まで）, not_after − not_before が 4 時間以内]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では承認の後に担当の付け替えが無い（担当の履歴）, 発行では approval-svc の条件つきの使用済み, 発行では authorization_details の worker_id の作業員にだけ送る, 発行では承認した人（担当者本人）が今も在籍・担当・鍵の取り扱い（approval-svc が確かめ直す）, 発行と送り直しでは協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致, 送り直しは lock-tool が使用済みにした取り消していない not_after の前の承認だけで、承認の記録の回を条件つきの更新で上げてから（3 回まで）, not_after − not_before が 4 時間以内]
 - id: H9
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: visit-subagent
