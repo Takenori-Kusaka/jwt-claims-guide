@@ -573,7 +573,7 @@ token_types:
     path:
       - {id: approval-http-header-field, applies_to: header_field, bytes: 8192, basis: "approval-svc の HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
     other_headers_bytes: 2048
-  note: repair_id は、承認の一覧の参照（approval_ref 無し）のときは、画面で開いた修繕依頼の値。agent-sts は、その修繕依頼の担当者か、担当者の上長であることを aoba-pdp で確かめてから載せる
+  note: repair_id は、承認の一覧の参照（approval_ref 無し）のときは、画面で開いた修繕依頼の値。agent-sts は、その修繕依頼の担当者か、同じ課の上長であることを aoba-pdp で確かめてから載せる
 # ---------------------------------------------------------------- 使わない種類
 - id: TXN_TOKEN
   kind: txn_token

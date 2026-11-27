@@ -31,7 +31,7 @@ hops:
   exchanger: null
   validates:
     mode: introspection
-    checks: ["署名（aoba-as の JWKS）", iss が aoba-as, aud が agent-sts, client_id が repair-console, aoba-as のイントロスペクションで有効, mTLS の相手が repair-console の証明書, actor_token を受けない（コンソールの交換は担当者自身の操作）, aoba-pdp で担当者の在籍とロール, 委任の交換では修繕依頼の台帳で担当が sub で委任の欄が有効, APPROVAL_AT の交換では sub が要求の修繕依頼の担当か同じ課の課長]
+    checks: ["署名（aoba-as の JWKS）", iss が aoba-as, aud が agent-sts, client_id が repair-console, aoba-as のイントロスペクションで有効, mTLS の相手が repair-console の証明書, actor_token を受けない（コンソールの交換は担当者自身の操作）, aoba-pdp で担当者の在籍とロール, 委任の交換では修繕依頼の台帳で担当が sub で委任の欄が有効, APPROVAL_AT の交換では sub が要求の修繕依頼の担当か同じ課の上長]
   note: 担当者が修繕依頼をエージェントに任せるとき（H3）と、上長・担当者が承認の画面で操作するとき（H12）
 - id: H3
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-console）"
@@ -85,7 +85,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が order-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent、client_id も repair-agent, scope に操作がある（下書きは orders:draft、確定・予約は orders:place）, 下書きの修繕依頼が repair_id と一致, 確定・予約では aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 確定・予約では協力会社の台帳で協力会社の取引が今も有効, 確定・予約では、発注の台帳の部屋の行を排他の錠で押さえた 1 つのトランザクションの中で、部屋の直近 30 日の累計（予約を含む）を数えて確定・予約まで行う（同じ部屋の並行の確定は直列になる）。累計が 10 万円を超えれば authorization_details と下書きの一致と approval-svc の条件つきの使用済み（予約なら予約済み）]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が order-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, 最も外側の act.sub が mTLS の相手で repair-agent、client_id も repair-agent, scope に操作がある（下書きは orders:draft、確定・予約は orders:place）, 下書きの修繕依頼が repair_id と一致, 確定・予約では aoba-pdp で担当者の在籍・修繕担当・修繕依頼の担当, 確定・予約では協力会社の台帳で協力会社の取引が今も有効, 確定・予約では、発注の台帳の部屋の行を排他の錠で押さえた 1 つのトランザクションの中で、部屋の直近 30 日の累計（予約を含む）を数えて確定・予約まで行う（同じ部屋の並行の確定は直列になる）。累計が 10 万円を超えれば authorization_details と下書きの一致と approval-svc の条件つきの使用済み（予約なら予約済み。approval-svc は承認した人が今も同じ課の上長かも確かめる）]
 - id: H6
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: "https://contact-tool.aoba-sumai.example/mcp"
@@ -139,7 +139,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では承認の後に担当の付け替えが無い（担当の履歴）, 発行では approval-svc の条件つきの使用済み, 発行と送り直しでは協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致, 送り直しは lock-tool が使用済みにした取り消していない not_after の前の承認だけ（3 回まで）]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 300 秒以下, aud が lock-tool だけ, "mTLS の相手の証明書と cnf の x5t#S256", act の入れ子の深さが 2 以下, client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表）, 最も外側の act.sub が mTLS の相手で repair-agent（visit-subagent は拒否）, "scope に lock.code:issue", aoba-pdp で担当者の在籍・鍵の取り扱い・修繕依頼の担当, 発行では authorization_details の unit_id が修繕依頼の部屋で、今が not_before と not_after の間, 発行では承認の後に担当の付け替えが無い（担当の履歴）, 発行では approval-svc の条件つきの使用済み, 発行と送り直しでは協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致, 送り直しは lock-tool が使用済みにした取り消していない not_after の前の承認だけで、承認の記録の回を条件つきの更新で上げてから（3 回まで）, not_after − not_before が 4 時間以内]
 - id: H9
   from: "https://sts.aoba-sumai.example（agent-sts が発行。運ぶのは repair-agent）"
   to: visit-subagent
@@ -200,12 +200,12 @@ hops:
   max_lifetime: 120
   custom_claims: [C-repair-id, C-approval-ref]
   added_claims:
-    - {claim: C-repair-id, source: external_source, system: repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳, reason: 承認の画面で開いた修繕依頼を、sub がその担当か、承認者になりうる上長であることを確かめてから載せる。承認の記録の値は写さない（approval-svc が承認の記録と比べるため）}
+    - {claim: C-repair-id, source: external_source, system: repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳, reason: 承認の画面で開いた修繕依頼を、sub がその担当か、同じ課の上長であることを確かめてから載せる。承認の記録の値は写さない（approval-svc が承認の記録と比べるため）}
     - {claim: C-approval-ref, source: external_source, system: approval-svc, reason: 承認の画面で選んだ 1 つの承認の記録を、approval-svc にあることを確かめてから載せる（参照だけのときは載せない）}
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 120 秒以下, aud が approval-svc だけ, "mTLS の相手の証明書と cnf の x5t#S256（repair-console）", client_id が repair-console で act が無い, "scope に approvals:decide", 承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）, 承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致, aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）, 一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の課長にだけ返す, 取り下げ・却下は、承認した人・依頼の担当者・同じ課の課長だけ, 承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態）]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 120 秒以下, aud が approval-svc だけ, "mTLS の相手の証明書と cnf の x5t#S256（repair-console）", client_id が repair-console で act が無い, "scope に approvals:decide", 解錠の承認では not_after − not_before が 4 時間以内, 承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）, 承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致, aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）, 一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の上長にだけ返す, 取り下げ・却下は、承認した人・依頼の担当者・同じ課の上長だけ, 承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態）]
 - id: H13
   from: order-scheduler（予約の発注の実行）
   to: aoba-pdp
@@ -234,5 +234,5 @@ hops:
   exchanger: null
   validates:
     mode: none
-    checks: [mTLS の相手が order-scheduler の証明書で、approval-svc の呼び出し元の許可リストにある, 承認の記録が予約済みで、結んだ発注 ID・修繕依頼・担当者が予約の記録と一致, 予約済みを使用済みにする条件つきの更新（取り下げてあれば失敗）]
+    checks: [mTLS の相手が order-scheduler の証明書で、approval-svc の呼び出し元の許可リストにある, 承認の記録が予約済みで、結んだ発注 ID・修繕依頼・担当者が予約の記録と一致, 予約済みを使用済みにする条件つきの更新（取り下げてあれば失敗）, 承認した人が今も在籍し同じ課の上長のロールを持つ（aoba-pdp。REQ-08）]
   note: 承認の要る予約だけ。承認の要らない予約（累計 10 万円以下）は H13 だけを通す
