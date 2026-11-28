@@ -1,0 +1,11 @@
+# Findings to judge, twin pair C (seeded-c = D5, control-c = D7). Reviewer IDs as written in findings/<label>.md.
+# Seeded sessions: only findings not matched to a seeded error. Control sessions: every finding of table (1).
+seeded:
+  D5-1: []
+  D5-2: []
+  D5-3:
+    - "(4)op-source-change: the note that the repair-request assignment stays until the section chief reassigns it by hand, with no promised time"
+control:
+  D7-1: [F1, F2, F3, F4]
+  D7-2: [F1, F2]
+  D7-3: [F-1, F-2, F-3]
