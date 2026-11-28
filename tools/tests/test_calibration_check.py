@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """tools/calibration_check.py (#12): the markers of the calibration set come off byte for byte."""
+import hashlib
 import os
+import re
 import sys
 
 import pytest
@@ -145,9 +147,49 @@ def test_packet_without_still_refuses_changed_pinned_materials(tmp_path, monkeyp
     assert not out.exists()
 
 
-def test_packet_without_builds_a_packet_that_passes_p1_to_p3(tmp_path):
+def test_packet_without_builds_a_packet_that_passes_p1_to_p3(tmp_path, monkeypatch):
+    # the materials changed after set 2 was fixed (#88), so the real pin refuses (the next test); this one checks --without
+    monkeypatch.setattr(cc, 'pinned_materials', lambda design, cpath=None: [])
     out = tmp_path / 'packet'
     cc.packet('seeded-c', str(out), '12', ('kind_tell.md',))  # raises SystemExit on any P1-P3 error
     assert not (out / 'kind_tell.md').exists()
     assert (out / 'short_list.md').exists() and (out / 'designs' / 'target' / 'design.md').exists()
     assert cc.packet_errors(str(out), 'seeded-c', ('kind_tell.md',)) == []
+
+
+def test_set2_packets_are_refused_after_the_materials_changed(tmp_path):
+    """#88 changed templates/review after set 2 was fixed: a set-2 packet built now would not be the measured packet, so
+    the S12 pin refuses it before writing (build it from the commit recorded in set2/README.md instead)."""
+    out = tmp_path / 'packet'
+    with pytest.raises(SystemExit, match='differs from the pinned sha256'):
+        cc.packet('seeded-c', str(out), '12')
+    assert not out.exists()
+
+
+def test_a_released_set_skips_its_material_pins_in_check_only(tmp_path, monkeypatch):
+    """#88: set 2 is measured and released; check no longer compares its `@` pins (C6) and builds its packets without
+    the pin (C7), while packet still refuses (the test above)."""
+    assert cc.SETS['set2']['released']['commit'] == '5be7cea'
+    errors = []
+    cc.check_commitments('set2', errors)
+    assert errors == []
+    monkeypatch.setitem(cc.SETS, 'set2', {k: v for k, v in cc.SETS['set2'].items() if k != 'released'})
+    errors = []
+    cc.check_commitments('set2', errors)
+    assert errors and all(e.startswith('C6 set2 @templates/review/') for e in errors)
+
+
+
+def test_the_released_commit_holds_the_pinned_materials():
+    """The commit set 2 is rebuilt from (SETS['set2']['released'], set2/README.md) has the pinned sha256 of every `@`
+    line. Skipped in a shallow clone that lacks the commit."""
+    import subprocess
+    commit = cc.SETS['set2']['released']['commit']
+    if subprocess.run(['git', 'cat-file', '-e', commit + '^{commit}'], cwd=cc.ROOT, capture_output=True).returncode:
+        pytest.skip(f'{commit} is not in this clone')
+    cpath = os.path.join(cc.SETS['set2']['dir'], 'commitments.sha256')
+    pins = [m.groups() for m in (re.match(r'([0-9a-f]{64}) \*@(\S+)$', x.strip()) for x in open(cpath, encoding='utf-8')) if m]
+    assert len(pins) == 11
+    for want, rel in pins:
+        blob = subprocess.run(['git', 'show', f'{commit}:{rel}'], cwd=cc.ROOT, capture_output=True, check=True).stdout
+        assert hashlib.sha256(blob.replace(b'\r\n', b'\n')).hexdigest() == want, rel

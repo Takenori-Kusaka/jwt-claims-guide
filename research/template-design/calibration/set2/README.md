@@ -61,6 +61,7 @@ python tools/calibration_check.py packet seeded-c OUT         # 1 回のレビ�
 
 - 時刻は、そのコミットの check suite の作成時刻（`gh api repos/Takenori-Kusaka/jwt-claims-guide/commits/<コミット>/check-suites`）。括弧は push の記録（`gh api "repos/Takenori-Kusaka/jwt-claims-guide/activity?ref=refs/heads/issue-82-calibration-set-2"` の timestamp）。コミットの時刻（作る側の時計）は 97f5752 が 2026-11-28T08:21:54+09:00、3e06751 が 2026-11-28T09:37:08+09:00
 - **資料一式を作るコミット**（改訂 S12）：2 組目の資料一式は、fbc3371 か、それを祖先に持ち `templates/review/`・`tools/review_triage.py`・`tools/claim_lint/` が fbc3371 と同じコミットから作る。教材が変わったり、足されたり消されたりしていれば `packet` が止まる（`commitments.sha256` の `@` の行）。道具（`review_triage.py`・`claim_lint`）は sha256 で止めていないので、測定の記録に、資料一式を作ったコミットと `git diff fbc3371 -- tools/review_triage.py tools/claim_lint` が空であることを書く
+- **測定の後に教材が変わった（#88）**：2 組目の測定（PR #87）と kind_tell の切り分け（PR #89）の後、#88 が `templates/review/` の手がかりを変えた。2 組目の資料一式を作り直すとき（同じ組を測り直すなど）は、5be7cea（PR #89 のマージ。`git diff fbc3371 5be7cea -- templates/review tools/review_triage.py tools/claim_lint` は空）から作る。今の教材からは `packet` が止まる（S12 のまま）。`calibration_check.py check` は、2 組目を `released` として `@` の行を比べず、C7 は今の教材で資料一式の形（P1〜P3）だけを確かめる（`tools/calibration_check.py` の `SETS`）
 - 2 組目の測定の出力を入れるコミットは、97f5752 を祖先に持つ（初回の手順の 8. と同じ順序）。2 組目の手順と正解を測定の前に変えたら、`protocol.md` の改訂の記録に書き、`commitments.sha256` を作り直し、ここに行を足す
 
 ## 作成方法と点検状況
