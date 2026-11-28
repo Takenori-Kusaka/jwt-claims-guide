@@ -23,6 +23,7 @@
 | [`cleaning-log.md`](cleaning-log.md)・`cleaning/` | 対照の清掃の記録と、清掃のレビューの出力（回り × 対照 × 2 セッション） |
 | `side-effects/` | 埋め込みの副作用の確かめ（作成に関わらないセッションの出力。8.2） |
 | [`results.md`](results.md)・`results/` | 2 組目の測定の結果（#12）：再現率・誤検出・見逃しの分析と、レビュー・採点・判定の出力。LLM による測定 |
+| [`ablation-kind-tell/`](ablation-kind-tell/results.md) | kind_tell の切り分け（#88）：2 組目から `kind_tell.md` と指示の 1 行だけを外した回の手順・出力・結果。LLM による測定 |
 
 - 題材・名前・組織独自の行の ID は、初回の組・記入例・パイロットと重ねていない（登録名のクレームの行と、カタログの種別・イベントの ID は共通の語彙なので重なる）。control-d の `STAFF_AT` は初回と重なったので `EMPLOYEE_AT` に替えた
 - 4 つとも claim_lint（Full）で error 0。双子の性質（`review_triage.py --design` の 12 の性質）は同じ（C5）

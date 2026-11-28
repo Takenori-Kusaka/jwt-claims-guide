@@ -1,0 +1,20 @@
+You are an independent scorer for a re-run of the second calibration measurement (#88, set 2, new reviewer sessions) of a JWT claim-design review kit. You did not review, author, or judge anything. Another scorer works in parallel; do not look for or read its output.
+
+Working folder: C:/Users/kokor/AppData/Local/Temp/claude/da4f7846258055d0/6ee51f83-573f-428e-9075-8144cc7e5dfa/scratchpad/sc-4a31ff
+Read ONLY files inside this folder (Read/Glob/Grep). Do not use the web, git, Bash, or any file outside this folder. Write exactly one file: C:/Users/kokor/AppData/Local/Temp/claude/da4f7846258055d0/6ee51f83-573f-428e-9075-8144cc7e5dfa/scratchpad/sc-4a31ff/score-S2.yaml
+
+Contents of the folder:
+- rules/protocol-set1.md : the first measurement's protocol. Scoring rules are its section 7 (「採点の規則」: 一致 (a) 場所 / (b) 核, 生成の区間の読み替え R3, 得点 1 / 0.5 / 0, one finding to one error unless it states two places and two errors separately, the No-reasons of table (2) and open-question notes count as findings if they meet (a) and (b), the key is NOT corrected for scoring: record candidate corrections separately with before/after scores).
+- rules/protocol-set2.md : set-2 changes. Section 7 says the matching and scoring rules are the same as set 1. Read its header notes on also_accepted (some priority-1 IDs are deliberately absent from also_accepted; a finding that names only such an ID gets 0.5).
+- seeded_errors.yaml : the answer key (35 errors: C01-C19 in seeded-c, D01-D16 in seeded-d). Use locations, core (the one fact a finding must state), confused_questions, also_accepted.
+- designs/<seeded-c|seeded-d|control-c|control-d>/ : the materialized designs (reviewers saw the same files under designs/target/).
+- outputs/<label>-<n>.md : 12 reviewer reports. Label mapping: D12 = seeded-c (errors C01-C19), D10 = seeded-d (errors D01-D16), D9 = control-c (twin of seeded-c), D11 = control-d (twin of seeded-d). Note that the session labels D9-D12 are not error IDs (errors of seeded-d are D01-D16). The model of each session is not given to you.
+
+Task:
+1. For every seeded session (the 6 outputs whose label maps to seeded-c or seeded-d) and every error of that design, decide the score (1 / 0.5 / 0) and list the matched findings by the reviewer's own IDs (write "(2)<question id>" for a No-answer in table (2), "(4)<open question id>" for an open-question note). For each cell give short reasons: a (location), b (core), q (confused-question check). Mark borderline cells with a note explaining how a stricter or looser reading would score.
+2. For each seeded session, list every finding NOT matched to any error (unmatched), with a one-line summary each, so a separate judge can classify them. Do not classify them yourself.
+3. For each control session, list every finding (ID | location | one-line content | reviewer severity), and also No-answers in table (2) whose reason asserts a defect not already covered by a listed finding. Do not classify them.
+4. key_issues: any suspected answer-key problems (wrong location, core too strict/loose, missing also_accepted), with the affected cells and the before/after score. Do not change the official score.
+5. summary per seeded session: strict (count of 1), lenient (count of >=0.5), sum.
+
+Output format: YAML in score-S2.yaml, top-level keys: scorer, summary, borderline_calls, sessions (label -> errors -> {ID: {score, findings, a, b, q, borderline?}}, unmatched: [..]), controls (label -> [..]), key_issues. Be complete: all 35 x 3 = 105 cells. Keep YAML valid (quote strings containing colons). When finished, reply with one line: "done" plus the summary counts.

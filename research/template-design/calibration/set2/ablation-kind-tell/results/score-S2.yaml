@@ -1,0 +1,269 @@
+scorer: S2-independent-scorer-2
+summary:
+  D12-1: {design: seeded-c, strict: 16, lenient: 18, sum: 17.0}
+  D12-2: {design: seeded-c, strict: 12, lenient: 12, sum: 12.0}
+  D12-3: {design: seeded-c, strict: 13, lenient: 13, sum: 13.0}
+  D10-1: {design: seeded-d, strict: 13, lenient: 13, sum: 13.0}
+  D10-2: {design: seeded-d, strict: 12, lenient: 12, sum: 12.0}
+  D10-3: {design: seeded-d, strict: 11, lenient: 12, sum: 11.5}
+  note: "Counts use my primary reading of borderline cells (see borderline_calls). Stricter and looser alternatives are listed there."
+
+borderline_calls:
+  - {cell: "D12-1/C13", primary: 0.5, stricter: 0, looser: 0.5, why: "Only the open-question note (4)op-source-change states that the two contact scopes are not narrowed by role (cross-referenced to A10 whose location includes CONTACT_TOOL_AT revocation). The note has no own location, and the fact is stated as a revocation consequence. q-revocation-delivery/op-source-change are not in also_accepted (deliberately absent), so 1 is impossible."}
+  - {cell: "D12-3/C13", primary: 0, stricter: 0, looser: 0.5, why: "Only says 連絡は、ロールでは止まりません in the op-source-change note, as a consequence. It does not say agent-sts attaches the contact scope by delegation table instead of by role. Counted as not stating the core."}
+  - {cell: "D10-1/D12", primary: 1, stricter: 0.5, looser: 1, why: "F15 says the sensitive document is read under assessment-svc's own authority and document-svc records only caller and claim_id (no sub). It does not literally say TXN_STAFF is not passed. q-original-principal is in confused_questions."}
+  - {cell: "D10-3/D12", primary: 0.5, stricter: 0, looser: 0.5, why: "F-17 says document-svc checks only the caller and no sub is recorded; (a) H19 ok, (b) core mostly stated (no user identity at document-svc). Questions given (q-object-level-authz, q-audit-correlation) are not in confused/also_accepted, so cap 0.5."}
+  - {cell: "D10-3/D13", primary: 0, stricter: 0, looser: 1, why: "Only a Yes answer in table (2) q-copies-outlive with reason 'ただし期限を決めずに残る'. Reviewer concluded no defect, no location and no finding. If counted as a finding, it states the core and the question id matches, giving 1."}
+  - {cell: "D12-1/C19", primary: 0.5, stricter: 0.5, looser: 1, why: "A15 meets (a)(b) but names q-typ-distinguishes, which is not in confused_questions (q-shared-validator) or also_accepted. See key_issues K1."}
+  - {cell: "D10-2/D10, D10-1/D11, D10-3/D11", primary: "as scored", stricter: "D11 would be 0 if the core required both 'ledger row missing' and 'IdP admin enters the attribute'", looser: "as scored", why: "D11 core contains two facts. All three reviewers state only that emp_no has no ledger row (identifier_properties/on_missing missing). See key_issues K3."}
+
+sessions:
+  D12-1:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: [A7, "(2)q-step-up-path-coverage"], a: "token_types APPROVAL_AT rationale and H12 named", b: "auth_time rewritten to exchange time so 300 s check always passes", q: "q-step-up-path-coverage and q-auth-strength both in also_accepted"}
+      C02: {score: 1, findings: [A6, "(2)q-no-passthrough"], a: "H4 validates resource and P4 4. named", b: "wildcard /mcp URI issued although not in resource table", q: "q-no-passthrough is confused_question"}
+      C03: {score: 1, findings: [A1, "(2)q-authorize-service-and-user"], a: "H2 validates and 3.1 named", b: "peer checked by client_id claim, any wl-ca workload accepted", q: "q-authorize-service-and-user, peer-mtls, q-peer all accepted"}
+      C04: {score: 1, findings: [A11, "(2)q-object-level-authz"], a: "H7 and C-repair-id enforced_at(payment-tool)", b: "payment-tool does not match order's repair request to repair_id", q: "q-object-level-authz confused; q-txn also accepted"}
+      C05: {score: 1, findings: [A3, "(2)q-dependency-outage"], a: "9.2 row and M_authz_pdp 5.", b: "24 h stale result when HR API down", q: "q-dependency-outage"}
+      C06: {score: 1, findings: [A8, "(4)op-clock"], a: "catalog_answers U30", b: "X-Test-Now time-shift hole left in production approval-svc", q: "q-outside-catalog and op-clock accepted"}
+      C07: {score: 1, findings: [A9, "(2)q-approval-from-as"], a: "Appendix D P4 5.", b: "approval screen shows agent-written explanation, not ledger draft values", q: "q-approval-from-as"}
+      C08: {score: 1, findings: [A5, "(2)q-identifier-choice"], a: "H2 validates preferred_username", b: "pdp looked up by preferred_username, no ledger row", q: "q-identifier-choice"}
+      C09: {score: 1, findings: [A4, "(2)q-freshness-mitigation"], a: "9.2 row, REPAIR_DELEG_AT revocation, C-repair-id on_revoke", b: "3600 s cache, worst 3930 s over 600 s", q: "q-freshness-mitigation"}
+      C10: {score: 1, findings: [A14, "(2)q-operator-act"], a: "2.2 lock-svc admin row", b: "on-call revocation logged as the requesting staff member's operation", q: "q-operator-act"}
+      C11: {score: 0, findings: [], a: "no finding on H14 / C-approval-ref enforced_at", b: "approver re-check on scheduled use not mentioned (A3 is about HR API outage only)", q: "-"}
+      C12: {score: 1, findings: [A13, "(2)q-revocation-delivery"], a: "3.1 revocation rows and 2.2", b: "revocation reaches lock only at daily 3 am sync, REQ-06 15 min exceeded", q: "q-revocation-delivery"}
+      C13: {score: 0.5, findings: ["(4)op-source-change", A10], a: "A10 location includes CONTACT_TOOL_AT revocation (in C13 locations)", b: "note states 連絡の 2 つの scope はロールで絞らない", q: "op-source-change and q-revocation-delivery not in also_accepted", borderline: "stricter 0 (note has no own location, stated as consequence); cap is 0.5 by design"}
+      C14: {score: 1, findings: [A16, "(2)q-derived-value"], a: "C-authorization-details description worker_name", b: "worker name carried in token, worker_id enough", q: "q-derived-value"}
+      C15: {score: 1, findings: [A10, "(2)q-long-running"], a: "token_types CONTACT_TOOL_AT long_running and revocation", b: "WebSocket open up to 2 days, no re-check", q: "q-long-running"}
+      C16: {score: 1, findings: [A2, "(2)q-no-passthrough"], a: "H8 scope and note, 1. L16 warn, P4 6.", b: "approvals:decide added at H8, agent can extend not_after", q: "q-approval-from-as and q-hop-narrowing accepted"}
+      C17: {score: 1, findings: [A17, "(2)q-audit-correlation"], a: "P4 8., C-approval-ref integrity_until, U14", b: "lock-tool not among services that keep approval_ref", q: "q-audit-correlation"}
+      C18: {score: 1, findings: [A12, "(4)op-one-time"], a: "H7 validates and M_token_validation 6.", b: "check then send then mark; parallel/resend pays twice", q: "op-one-time"}
+      C19: {score: 0.5, findings: [A15], a: "M_token_validation 10. approval-svc row and 11.", b: "only approval-svc leaves alg/typ/required claims to framework defaults", q: "q-typ-distinguishes only; not accepted", borderline: "looser (key K1) 1"}
+    unmatched:
+      - "A18 | hops H8 note, P4 6. | after extending the time window, what happens to already issued codes is not written (extension purpose/mechanism unexplained) | Minor"
+  D12-2:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: [F1], a: "C-auth-time, APPROVAL_AT rationale, H12", b: "exchange time written as auth_time, 300 s check always passes", q: "q-auth-strength, q-step-up-path-coverage, q-step-up-by-rs accepted"}
+      C02: {score: 1, findings: [F4], a: "H4 validates resource, 4., P4 4.", b: "wildcard MCP URI issued outside table", q: "q-no-passthrough"}
+      C03: {score: 1, findings: [F10], a: "H2 validates, 3.1, 4.", b: "any wl-ca workload accepted, client_id used in place of peer check", q: "q-authorize-service-and-user, peer-mtls, q-peer"}
+      C04: {score: 1, findings: [F8], a: "C-repair-id enforced_at(payment-tool), H7", b: "no match between order's repair request and repair_id", q: "q-object-level-authz, q-txn"}
+      C05: {score: 1, findings: [F7, "(2)q-dependency-outage"], a: "9.2 row, 9.1 sub row", b: "24 h stale result on HR outage", q: "q-dependency-outage"}
+      C06: {score: 0, findings: [], a: "no finding", b: "U30 / X-Test-Now not reported; (2)q-outside-catalog answered Yes", q: "-"}
+      C07: {score: 1, findings: [F2], a: "Appendix D P4 5.", b: "approval screen shows agent explanation not ledger values", q: "q-approval-from-as, rar-vs-custom, q-authorized"}
+      C08: {score: 1, findings: [F9, "(2)q-identifier-choice"], a: "H2 validates, 9.2", b: "preferred_username used as pdp key, no ledger row", q: "q-identifier-choice"}
+      C09: {score: 1, findings: [F5, "(2)q-freshness-mitigation"], a: "REPAIR_DELEG_AT revocation, C-repair-id on_revoke, 9.2", b: "3600 s cache, 3930 s over REQ-08 600 s", q: "q-freshness-mitigation"}
+      C10: {score: 1, findings: [F11, "(2)q-operator-act"], a: "2.2 lock-svc admin row", b: "failure logged as requesting staff's cancellation", q: "q-operator-act"}
+      C11: {score: 0, findings: [], a: "no finding", b: "H14 approver re-check not mentioned", q: "-"}
+      C12: {score: 0, findings: [], a: "no finding", b: "3 am sync not mentioned", q: "-"}
+      C13: {score: 0, findings: [], a: "no finding", b: "contact scope not narrowed by role not mentioned", q: "-"}
+      C14: {score: 1, findings: [F12, "(2)q-derived-value"], a: "C-authorization-details description worker_name", b: "worker name carried, worker_id enough", q: "q-derived-value"}
+      C15: {score: 1, findings: [F6, "(2)q-long-running", "(2)q-copies-outlive"], a: "CONTACT_TOOL_AT long_running/revocation, 9.1", b: "WebSocket up to 2 days, no re-check", q: "q-long-running"}
+      C16: {score: 1, findings: [F3, "(2)q-no-passthrough"], a: "H8 scope and note, 1. L16 warn reason, P4 6.", b: "approvals:decide added at H8, agent can change not_after without human confirmation", q: "q-approval-from-as, q-no-passthrough accepted; also q-hop-narrowing"}
+      C17: {score: 0, findings: [], a: "no finding", b: "lock-tool approval_ref gap not found; (2)q-audit-correlation answered Yes", q: "-"}
+      C18: {score: 0, findings: [], a: "(4)op-one-time looked but concluded no issue", b: "payment-tool check-then-send order not reported", q: "-"}
+      C19: {score: 0, findings: [], a: "no finding", b: "approval-svc validator gap not mentioned", q: "-"}
+    unmatched: []
+  D12-3:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: ["F-02", "(2)q-step-up-path-coverage"], a: "C-auth-time, APPROVAL_AT, H12, Appendix B", b: "auth_time written as exchange time", q: "q-step-up-path-coverage, q-step-up-by-rs, q-auth-context-semantics accepted"}
+      C02: {score: 1, findings: ["F-09"], a: "H4 validates, P4 4., 3.1", b: "wildcard URI outside table issued", q: "q-no-passthrough"}
+      C03: {score: 1, findings: ["F-11", "(2)q-authorize-service-and-user"], a: "H2 (どのワークロードでもよい), C-client-id, 3.1", b: "client_id used in place of peer check, cnf bound to any caller", q: "q-authorize-service-and-user, peer-mtls (判断の木), op-proof-holder noted"}
+      C04: {score: 1, findings: ["F-07"], a: "C-repair-id enforced_at(payment-tool), H7, claim_request_repair_id", b: "no repair_id match for payment order", q: "q-object-level-authz"}
+      C05: {score: 1, findings: ["F-04"], a: "C-sub on_revoke, 9.2", b: "24 h stale result on HR outage", q: "q-dependency-outage"}
+      C06: {score: 1, findings: ["F-03"], a: "catalog_answers U30, 11.", b: "X-Test-Now port left in production approval-svc", q: "q-outside-catalog, op-clock accepted"}
+      C07: {score: 1, findings: ["F-01"], a: "Appendix D P4 5.", b: "screen shows agent explanation, not draft values", q: "q-approval-from-as, rar-vs-custom, q-authorized"}
+      C08: {score: 1, findings: ["F-08", "(2)q-identifier-choice"], a: "H2 validates, C-sub verification_method, C-staff-number", b: "preferred_username used, no ledger row", q: "q-identifier-choice"}
+      C09: {score: 1, findings: ["F-05", "(2)q-freshness-mitigation"], a: "C-repair-id, 9.2, REQ-08", b: "3600 s cache, worst 3930 s", q: "q-freshness-mitigation"}
+      C10: {score: 1, findings: ["F-12", "(2)q-operator-act"], a: "2.2 lock-svc admin row, 3.1", b: "on-call revocation recorded as staff's cancellation", q: "q-operator-act"}
+      C11: {score: 0, findings: [], a: "no finding", b: "H14 approver re-check not found", q: "-"}
+      C12: {score: 0, findings: [], a: "no finding", b: "3 am sync not found", q: "-"}
+      C13: {score: 0, findings: ["(4)op-source-change"], a: "no location", b: "only 連絡は、ロールでは止まりません as a revocation remark, not the scope-source defect", q: "-", borderline: "looser reading 0.5 (cap 0.5, op-source-change not accepted)"}
+      C14: {score: 1, findings: ["F-14", "(2)q-derived-value"], a: "C-authorization-details description, LOCK_TOOL_AT", b: "worker_name carried to agent runtime", q: "q-derived-value"}
+      C15: {score: 1, findings: ["F-06"], a: "CONTACT_TOOL_AT long_running, 9.1", b: "subscription open up to 2 days with no re-check", q: "q-long-running"}
+      C16: {score: 1, findings: ["F-10"], a: "H8 scope/note, 1. warn, P4 6. lock-tool row", b: "approvals:decide added so agent can extend not_after", q: "q-approval-from-as and q-hop-narrowing (via lint:L16) accepted; q-no-passthrough not named"}
+      C17: {score: 0, findings: [], a: "no finding", b: "(2)q-audit-correlation answered Yes", q: "-"}
+      C18: {score: 0, findings: [], a: "op-one-time note does not cover payment-tool", b: "not reported", q: "-"}
+      C19: {score: 0, findings: [], a: "no finding", b: "not reported", q: "-"}
+    unmatched:
+      - "F-13 | claims C-authorization-details description, ORDER/LOCK_TOOL_AT consumer schema | members said to be all strings but locations is an array; generated schema shows items object only | Minor"
+      - "F-15 | 3.1 and 2.2 manager self-assignment | a section chief can assign himself and approve unlock alone, only weekly after-the-fact check | Minor"
+      - "F-16 | design.md 6. | q-still-valid and q-auth-strength rows missing in the 6. table (render part pending) | Minor"
+  D10-1:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: [F6, "(2)q-no-passthrough"], a: "H29 validates, C-tctx enforced_at, catalog trigger_list", b: "PAY_MSG_CTX issued to any in-network service holding TXN_STAFF (claim-svc too)", q: "q-no-passthrough"}
+      D02: {score: 1, findings: [F2, "(2)q-object-level-authz"], a: "C-agency-code/C-sub enforced_at(claim-svc), H7", b: "inquiry returns claim by claim_id without matching agency", q: "q-object-level-authz"}
+      D03: {score: 1, findings: [F10, "(2)q-dependency-outage"], a: "H5, C-cnf on_revoke, 3.1", b: "previous CRL kept without limit", q: "q-dependency-outage"}
+      D04: {score: 1, findings: [F3, "(2)ap-1-7"], a: "C-acr authoritative_writer, 2.2, I26", b: "2nd+ key added from password login without registration number", q: "ap-1-7"}
+      D05: {score: 1, findings: [F9, "(2)q-operator-act"], a: "2.2 DB direct fix row, 9.2", b: "fixed row overwritten with original sub and txn", q: "q-operator-act"}
+      D06: {score: 1, findings: [F1, "(2)q-authorize-service-and-user"], a: "2. as-admin-api row, C-agency-code note, 9.2", b: "admin write API accepts any in-network SVID", q: "q-authorize-service-and-user"}
+      D07: {score: 1, findings: [F8, "(2)q-outside-catalog"], a: "2. しろがねの網 row", b: "maintenance bastion to payment-svc/claim-svc without Txn-Token", q: "q-outside-catalog"}
+      D08: {score: 1, findings: [F7, "(2)q-approval-from-as"], a: "H23/H24, C-tctx, 3.1", b: "approval per claim, reused for later payments", q: "q-approval-from-as"}
+      D09: {score: 0, findings: [], a: "no finding about H24 hold", b: "hold only at acceptance not found; (2)q-long-running answered Yes", q: "-"}
+      D10: {score: 1, findings: [F5, "(2)q-revocation-delivery"], a: "H14, TXN_PROXY revocation, 9.1, 3.1", b: "TTS does not check contractor account at TXN_PROXY issue", q: "q-revocation-delivery"}
+      D11: {score: 1, findings: [F12, "(2)q-identifier-choice"], a: "C-sub upstream_issuer, H31", b: "emp_no not a ledger row, no on_missing", q: "q-identifier-choice", borderline: "core also says IdP admin enters the attribute; see K3"}
+      D12: {score: 1, findings: [F15, "(2)q-original-principal"], a: "H19, 3.1", b: "document read under assessment-svc's own authority, no reader sub in document-svc record", q: "q-original-principal", borderline: "stricter 0.5 (TXN_STAFF not passed is implicit)"}
+      D13: {score: 1, findings: [F14, "(2)q-copies-outlive"], a: "H21, 9.1 DB/broker layer", b: "dead-letter queue keeps PAY_MSG_CTX without expiry", q: "q-copies-outlive"}
+      D14: {score: 1, findings: [F4, "(2)q-step-up-by-rs"], a: "Appendix B unhold row, H17, C-acr/C-auth-time", b: "only staff-console checks, assessment-svc does not", q: "q-step-up-by-rs, q-auth-strength"}
+      D15: {score: 0, findings: [], a: "no finding", b: "reviewer said no lint-evading sign found; H30 not flagged", q: "-"}
+      D16: {score: 0, findings: [], a: "no finding", b: "key rotation not reported", q: "-"}
+    unmatched:
+      - "F11 | design.md 2. as-admin-api stop column, 9.1 | if as-admin-api stops there is no path or time promise to suspend contractor/agency (REQ-01/02 900 s) | Major"
+      - "F13 | sheet.md 1. operation-approval row, 3.1, H23 | property table says approval does not apply but payment approval exists; added dc-05 | Minor (tool/material)"
+      - "(4)op-proof-holder note 1 | AGENCY_AT registration | registration matches by certificate subject; no procedure to revoke old certificate after renewal | note"
+  D10-2:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: [F4, "(2)q-no-passthrough"], a: "H29 validates, C-tctx enforced_at", b: "any SPIFFE ID in net holding TXN_STAFF can request PAY_MSG_CTX", q: "q-no-passthrough"}
+      D02: {score: 1, findings: [F2, "(2)q-object-level-authz"], a: "C-agency-code/C-sub enforced_at, H7", b: "inquiry not matched to agency", q: "q-object-level-authz"}
+      D03: {score: 1, findings: [F11, "(2)q-dependency-outage"], a: "C-cnf on_revoke, H5, 3.1", b: "old CRL kept with no limit", q: "q-dependency-outage"}
+      D04: {score: 1, findings: [F7, "(2)ap-1-7"], a: "2.2 row, C-acr writer", b: "2nd key addable with password only", q: "ap-1-7"}
+      D05: {score: 1, findings: [F9, "(2)q-operator-act"], a: "2.2 DB fix row, 9.2 last row", b: "overwritten with original sub/txn", q: "q-operator-act"}
+      D06: {score: 1, findings: [F3, "(2)q-authorize-service-and-user"], a: "2. table, 9.2, C-agency-code", b: "admin write API takes any in-net SVID", q: "q-authorize-service-and-user"}
+      D07: {score: 1, findings: [F8, "(2)q-outside-catalog"], a: "2. しろがねの網 row", b: "maintenance bastion bypassing Txn-Token", q: "q-outside-catalog"}
+      D08: {score: 1, findings: [F1, "(2)q-approval-from-as"], a: "H23, H22, H24, 3.1, 9.1", b: "approval per claim reused for later payments", q: "q-approval-from-as"}
+      D09: {score: 1, findings: [F5, "(2)q-revocation-delivery"], a: "H24 validates, 9.1, 3.1", b: "hold checked only at acceptance, not at execution", q: "q-revocation-delivery"}
+      D10: {score: 0, findings: [], a: "no finding", b: "TXN_PROXY contractor state not reported", q: "-"}
+      D11: {score: 1, findings: [F10, "(2)q-identifier-choice"], a: "claims.yaml (no emp_no row), C-sub upstream_issuer, H31", b: "emp_no key not a ledger row", q: "q-identifier-choice", borderline: "see K3"}
+      D12: {score: 0, findings: [], a: "no finding", b: "H19 not flagged; (2)q-original-principal Yes", q: "-"}
+      D13: {score: 1, findings: [F12, "(2)q-copies-outlive"], a: "H21, 9.1", b: "dead-letter copies kept without expiry", q: "q-copies-outlive"}
+      D14: {score: 1, findings: [F6, "(2)q-step-up-by-rs"], a: "C-acr/C-auth-time enforced_at, H17, H25", b: "only staff-console checks for unhold", q: "q-step-up-by-rs"}
+      D15: {score: 0, findings: [], a: "no finding", b: "not reported", q: "-"}
+      D16: {score: 0, findings: [], a: "no finding", b: "not reported", q: "-"}
+    unmatched:
+      - "F13 | sheet.md 1. operation-approval row, REQ-05, H23 | property table says approval does not apply but actual approval exists; dc-05 added | Minor (tool/material)"
+  D10-3:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: ["F-04", "(2)q-no-passthrough"], a: "4. TTS table, H29, catalog trigger_list", b: "no list of who may request PAY_MSG_CTX, claim-svc can too", q: "q-no-passthrough"}
+      D02: {score: 1, findings: ["F-01", "(2)q-object-level-authz"], a: "C-sub/C-agency-code enforced_at(claim-svc), H7, 3.1", b: "inquiry not matched to handling agency, only intake is", q: "q-object-level-authz"}
+      D03: {score: 1, findings: ["F-14", "(2)q-dependency-outage"], a: "C-cnf on_revoke, 3.1, H5, 9.2", b: "previous CRL used without limit", q: "q-dependency-outage"}
+      D04: {score: 0, findings: [], a: "no finding", b: "2nd security key registration route not reported", q: "-"}
+      D05: {score: 1, findings: ["F-08", "(2)q-operator-act"], a: "2.2 DB direct-fix row, 9.2", b: "overwritten with original sub/txn", q: "q-operator-act"}
+      D06: {score: 1, findings: ["F-02", "(2)q-authorize-service-and-user"], a: "2. table as-admin-api row, 2.2, 9.2", b: "admin write API takes any SVID", q: "q-authorize-service-and-user"}
+      D07: {score: 1, findings: ["F-07", "(2)q-outside-catalog"], a: "2. しろがねの網 row, outside_enumeration", b: "maintenance bastion to payment-svc/claim-svc without Txn-Token", q: "q-outside-catalog"}
+      D08: {score: 1, findings: ["F-03", "(2)q-approval-from-as"], a: "H23, H22, H24, 3.1, M_authz_pdp 3.", b: "approval per claim reused for later payments", q: "q-approval-from-as"}
+      D09: {score: 0, findings: [], a: "no finding", b: "hold at execution not reported; (2)q-long-running Yes", q: "-"}
+      D10: {score: 1, findings: ["F-05", "(2)q-revocation-delivery"], a: "H14, TXN_PROXY revocation, 3.1, 9.1", b: "TXN_PROXY issue does not look at contractor state", q: "q-revocation-delivery"}
+      D11: {score: 1, findings: ["F-12", "(2)q-identifier-choice"], a: "H31, C-sub upstream_issuer", b: "emp_no not in ledger, on_missing absent", q: "q-identifier-choice", borderline: "see K3"}
+      D12: {score: 0.5, findings: ["F-17"], a: "H19, P5 3., 3.1, M_authz_pdp 3. ok", b: "document-svc checks only caller, no reader sub", q: "q-object-level-authz and q-audit-correlation not accepted for D12", borderline: "stricter 0 (TXN_STAFF not passed is implicit); see K2"}
+      D13: {score: 0, findings: ["(2)q-copies-outlive Yes-with-caveat"], a: "no location", b: "Yes answer with caveat 期限を決めずに残る; not raised as a defect", q: "q-copies-outlive", borderline: "looser reading 1 if the caveat is counted as a finding"}
+      D14: {score: 1, findings: ["F-06", "(2)q-step-up-by-rs"], a: "Appendix B, C-acr/C-auth-time, H17", b: "only staff-console checks unhold", q: "q-step-up-by-rs"}
+      D15: {score: 1, findings: ["F-09"], a: "H30 max_lifetime and note, 5.1, 7., ci-result", b: "H30 declared 300 s while PAY_MSG_CTX is 3600 s, L16 warn disappears", q: "q-lint-workaround"}
+      D16: {score: 0, findings: [], a: "no finding", b: "key rotation not reported", q: "-"}
+    unmatched:
+      - "F-10 | H5 upstream absent, H31 note, 3.1, 9.1 | AGENCY_AT 300 s vs assertion 60 s: removing upstream takes H5 out of L16 comparison | Minor"
+      - "F-11 | design.md 1. L16 aud warn reasons, ci-result | warn reason (aud as trust domain) is not a narrowing; real narrowing is scope and mTLS list | Minor"
+      - "F-13 | C-jti/C-exp enforced_at(shirogane-as), 9.1 | jti remembered 90 s but assertion accepted until exp+skew; replay window about 30 s | Minor"
+      - "F-15 | sheet.md property table, lite_criteria.multitenant | multitenant No and operation-approval No claimed wrong in the property table | Minor (tool/material)"
+      - "F-16 | C-agency-code consumers, H9/H11, claim_request 問 14 | agency_code carried in TXN_TOKEN to fraud-svc and document-svc which do not read it | Minor"
+
+controls:
+  D9-1:
+    design: control-c
+    findings:
+      - "F1 | design.md 3.1, 2.2, 9.2, M_authz_pdp 5.; claims C-scope/C-roles/C-sub source_system | HR ledger direct DB-admin write path not counted (other 5 DBs have change log), could rewrite role to become approver | Minor (reviewer note: Major if HR ledger has no change log)"
+    no_answers_not_covered: []
+    open_question_extras: []
+  D9-2:
+    design: control-c
+    findings:
+      - "F1 | 3.1 lock-code revocation rows, 4., 12., LOCK_TOOL_AT, C-authorization-details | if lock-svc or lock network is down, on-call admin screen also fails and revocation cannot reach the lock (up to not_after 4 h); no fallback written | Major"
+      - "F2 | 3.1 scheduled execution without re-exchange, 2.2, H13, ORDER_TOOL_AT long_running, U13 | order-scheduler re-checks pdp, ledger, approval-svc but not aoba-as user state; disabling user only at aoba-as does not stop scheduled order (up to 24 h) | Major"
+      - "F3 | 2.2 lock-svc admin screen and aoba-as admin screen rows, catalog aoba-as trigger_list, I01 | login route and the 2-person narrowing for admin screens not in inventory | Minor"
+      - "F4 | claims C-cnf enforced_at (5 rows) column with | with: C-cnf points to itself; actual comparison is mTLS peer certificate thumbprint | Minor"
+      - "F5 | design.md 2. scope-boundary table, organization network row | sentence runs on unbroken (3.1 の見送りの行コンソールが…) | Minor"
+    no_answers_not_covered: []
+    open_question_extras:
+      - "(4)op-key-custody | key for lock-svc code encryption has no named owner; reviewer did not raise it as a finding"
+      - "(4)op-requirement-words | REQ-06 reassigned original assignee cannot cancel after reassignment; wording ambiguity, offered as confirmation item"
+  D9-3:
+    design: control-c
+    findings:
+      - "F-1 | 3.1 self-assignment row, 2.2, Appendix B, C-approval-ref/C-sub enforced_at(approval-svc) | a section chief can assign himself and approve unlock alone; only weekly after-the-fact check | Major (reviewer: could be lowered to Minor)"
+      - "F-2 | 2. scope table, 3.1, 9.2, C-sub source_system | HR ledger direct-write route (DB admin, linkage, bulk import) not covered while repair ledger has one | Major"
+      - "F-3 | claims C-authorization-details note, ORDER/LOCK_TOOL_AT consumer schema, 3.1 | consumer schema shows items as object only, no pattern for repair_id/approval_ref; shared validator tests said not to exist yet | Minor"
+      - "F-4 | 9.1 CONSOLE_SESSION/CONSOLE_RT rows, P1 4., token_types CONSOLE_RT idle_timeout | background RT refresh might extend the aoba-as session beyond BFF idle; REQ-02 30 min may be missed (unverified) | Minor (unverified)"
+      - "F-5 | 4. exchange authorization_details row, P4 5. retry, Appendix A | after approval is consumed and result unknown, retry after 300 s token expiry has no new token path; approval stuck, re-approval needed | Minor"
+    no_answers_not_covered: []
+    open_question_extras:
+      - "(4)op-proof-holder | when several instances share the same workload URI, whether to split certificates is not written; confirmation recommended"
+  D11-1:
+    design: control-d
+    findings:
+      - "R-01 | H29 validates (assessment_ref), H22, H21, C-tctx, C-txn, 3.1 (2), Appendix A, P5 2. | assessment_ref is declared by assessment-svc; a new version arriving after the previous was executed is accepted, so the same confirmation can pay twice (also via dead-letter re-sending) | Major"
+      - "R-02 | C-jti/C-exp enforced_at(shirogane-as), AGENCY_ASSERTION jti_policy 90, M_token_validation 6. | jti remembered 90 s, shorter than acceptance window with skew; replay possible for up to about 30 s | Minor"
+      - "R-03 | 3.1 phone proxy residual limit, TXN_PROXY revocation, C-exp rows | TXN_PROXY can be used up to 1830 s against REQ-11 30 min because of 30 s skew; only 90 s after hang-up documented | Minor"
+      - "R-04 | sheet.md 1., 3.1 approval deferral, H23 | property table says operation approval does not apply; actual approval exists; dc-05 added | Minor (tool/material)"
+      - "R-05 | C-sub identifier_properties (reassignable false), upstream_issuer, 3.1 | declared reassignable false but agst_ ID depends on IdP sub which can be reassigned | Minor"
+    no_answers_not_covered: []
+    open_question_extras:
+      - "(4)op-source-change | HR system admin and DB write routes not described in figure or 2.2; suggested to write as precondition"
+  D11-2:
+    design: control-d
+    findings:
+      - "F1 | sheet.md 1., 3.1 approval deferral, H23, catalog I14 | property table says operation approval does not apply but payment approval is tied to payment_id/amount/payee_ref; dc-05 added | Minor (tool/material)"
+      - "F2 | C-jti/C-exp enforced_at(shirogane-as), jti_policy 90, M_token_validation 6. | jti remembered shorter than acceptance (exp+30 s skew), up to 30 s replay | Minor"
+      - "F3 | H14 validates, TXN_PROXY lifetime_refs/revocation, 3.1, 9.1, 12. | TXN_PROXY usable up to 1830 s against REQ-11 1800 s due to clock skew; only 90 s after hang-up documented | Minor"
+      - "F4 | H29, H21, H22, C-txn, C-tctx assumption, 3.1 (2), Appendix A | new version after the previous one executed is accepted as an additional instruction; 3 double-payment paths (409 handling, dead-letter re-issue, double submit) | Major"
+      - "F5 | H20/H21 broker_connection, 9.1 broker layer | write/read SVID list for payment queue not declared (only dead-letter reader limited); another workload may consume instruction silently | Minor"
+      - "F6 | Appendix B hold release, 3.1, H18/H25, C-acr/C-auth-time enforced_at | acr/auth_time checked only by assessment-svc, claim-svc/payment-svc do not check; future path could bypass | Minor"
+      - "F7 | 2.2 admin ops, M_authz_pdp 1., H26 | operation to restore a suspended contractor account (who, how many, which strength) not written | Minor"
+      - "F8 | 9.2 provenance table | two source data sets missing from table: agency staff table (IdP admin can add new iss/sub) and TTS route table (role/scope mapping) | Minor"
+    no_answers_not_covered: []
+    open_question_extras: []
+  D11-3:
+    design: control-d
+    findings:
+      - "F-01 | 6. UC4 q-actor, catalog q-actor, H22, C-act | TXN_TOKEN rebuilt by payment-worker up to 60 min later has sub of the confirming staff and no act; reviewer: reason written and compensated by req_wl, severity could be lowered | Major"
+      - "F-02 | C-act authoritative_writer/verification_method, TXN_PROXY assumption, 2.2, 9.2, 12. | IVR call record writers (IVR operators, DB admin, vendor) and IVR identification method not counted | Major"
+      - "F-03 | H5 (no upstream), H31 note, 3.1, 9.1 | H5 has no upstream so L16 does not compare AGENCY_AT 300 s to assertion 60 s though 9.1 chains 750 s; looks like lint-evading declaration | Minor"
+      - "F-04 | design.md 1. warn reason table (L16 aud), H25, H18, H19 | L16 aud warn reason is not a narrowing mechanism; H25 passes TXN_STAFF unreduced to payment-svc | Minor"
+      - "F-05 | C-sub identifier_properties reassignable false, note, 3.1, 12. | agst_ depends on IdP sub which may be reassigned; declaration mismatches reality | Minor"
+      - "F-06 | C-acr/C-auth-time enforced_at, H25, Appendix B unhold | the real state change (clearing hold at payment-svc, H25) is not checked for acr/auth_time; only assessment-svc (H17) checks | Minor"
+      - "F-07 | H24 4th check, 3.1 | DB write and transfer-file append in one transaction: method (outbox etc.) not written; crash between could lose or duplicate payment | Major (reviewer: could drop after confirmation)"
+      - "F-08 | 9.2 payee/agency row, 2.2 DB fix row, H17/H18 | who may add a payee_ref in contract system is not written; DB direct fix of sub-1M-yen unexecuted payments needs only 2-person approval | Minor"
+      - "F-09 | 3.1 document-svc deferral, H10/H11/H19 | document-svc does not check owner/agency/assignment itself, relies on upstream and daily after-the-fact matching | Minor"
+      - "F-10 | C-tctx carried_in/consumers, H10/H11/H18/H19 | tctx policy_number/amount/payee_ref reach all receivers incl. document-svc, no per-receiver narrowing | Minor"
+      - "F-11 | 9.1 final paragraph, REQ-03 | existing approvals/instructions of a disciplined approver are not auto-revoked, stay valid until nightly run | Minor"
+    no_answers_not_covered: []
+    open_question_extras:
+      - "(4)op-source-change | no way to stop a single agency staff (agst_) only whole agency registration; reviewer noted without a finding ID"
+      - "(4)op-proof-holder | reason for rejecting mTLS for PH_AT/EMPLOYEE_AT (SVID changes hourly) is weak; reviewer chose not to raise"
+
+key_issues:
+  - id: K1
+    cells: ["D12-1/C19"]
+    issue: "C19 also_accepted contains ap-1-1 and signed-vs-enforced m-10/m-2 but not q-typ-distinguishes, the closest sibling question (alg/typ/required claims fixed by validator). A15 names exactly q-typ-distinguishes and q-shared-validator is absent from the sheet (design note says the sheet does not show it)."
+    before: 0.5
+    after: 1
+    note: "Key is not changed for the official score. If q-typ-distinguishes were accepted, C19 would be 1 in D12-1."
+  - id: K2
+    cells: ["D10-3/D12"]
+    issue: "D12 also_accepted lacks q-audit-correlation (and q-object-level-authz) although F-17 states the failure as 'reader sub not recorded at document-svc'. channel_note says q-authorize-service-and-user was deliberately excluded; the audit question is a different angle but arguably the same defect."
+    before: 0.5
+    after: 1
+    note: "Reviewer-chosen questions q-object-level-authz, q-audit-correlation. Only D10-3 affected."
+  - id: K3
+    cells: ["D10-1/D11", "D10-2/D11", "D10-3/D11"]
+    issue: "D11 core is a compound of two facts (no ledger row for emp_no; attribute entered by the IdP administrator), plus a parenthetical remedy (sub). All three reviewers state only the first. Scored 1 under the 'one fact' reading, but a strict reading makes the cell 0 in all three sessions. Suggest core be reduced to the ledger-row fact."
+    before: 1
+    after: "0 under the strict reading (all three cells)"
+  - id: K4
+    cells: ["D12-1/C13", "D12-3/C13"]
+    issue: "C13 can be found only through open-question notes or through a revocation finding, since channel q-original-principal (priority 2) was not reported by anyone and q-revocation-delivery is deliberately excluded. The key design works as intended, but the core fact is hard to state without naming the scope source; note-based credit is judgement-dependent."
+    before: "0.5 (D12-1) / 0 (D12-3)"
+    after: "0 (D12-1 strict) / 0.5 (D12-3 loose)"
+  - id: K5
+    cells: ["D10-3/D13"]
+    issue: "D13 is visible in a Yes row of table (2) (q-copies-outlive Yes, ただし期限を決めずに残る). Protocol counts only No-answers and findings, so scored 0; if answer text counted, the same session would be 1."
+    before: 0
+    after: 1
+  - id: K6
+    cells: ["C-series general (C16)"]
+    issue: "C16 channel is lint with q-no-passthrough as confused question; D12-3 F-10 named q-approval-from-as/lint:L16->q-hop-narrowing; scored 1 because both are in also_accepted. No problem found, noted for completeness."
+    before: 1
+    after: 1
