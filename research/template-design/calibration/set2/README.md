@@ -55,9 +55,10 @@ python tools/calibration_check.py packet seeded-c OUT         # 1 回のレビ�
 | 1 | 8ddebc0 | 目立ちやすさの規則（`protocol.md` の 3.1）と揃える分布（9.）。誤りを埋め込む前 | 2026-11-27T13:52:43Z |
 | 2 | 97f5752 | **正解の一覧・目標と分布（`protocol.md`）・`commitments.sha256` だけを入れたコミット**。2 組目の測定はまだ 1 回もしていない | 2026-11-27T23:21:58Z（push の記録は 23:21:57Z） |
 | 3 | 3e06751 | PR #86 の独立点検の後の改訂 S7〜S12 で、**正解の一覧・`protocol.md`・`commitments.sha256` だけを入れて固定し直したコミット**。資料一式の教材（`templates/review/`）の sha256 も入れた（S12）。2 組目の測定はまだ 1 回もしていない | 2026-11-28T00:37:11Z（push の記録は 00:37:10Z） |
+| 4 | fbc3371 | PR #86 の再点検の後の改訂 S13（回り 9 の直しの副作用を戻した設計書、C06 の `core_note`）で、**正解の一覧・`protocol.md`・`commitments.sha256` だけを入れて固定し直したコミット**。2 組目の測定はまだ 1 回もしていない | 2026-11-28T01:11:55Z（push の記録は 01:11:54Z） |
 
 - 時刻は、そのコミットの check suite の作成時刻（`gh api repos/Takenori-Kusaka/jwt-claims-guide/commits/<コミット>/check-suites`）。括弧は push の記録（`gh api "repos/Takenori-Kusaka/jwt-claims-guide/activity?ref=refs/heads/issue-82-calibration-set-2"` の timestamp）。コミットの時刻（作る側の時計）は 97f5752 が 2026-11-28T08:21:54+09:00、3e06751 が 2026-11-28T09:37:08+09:00
-- **資料一式を作るコミット**（改訂 S12）：2 組目の資料一式は、3e06751 か、それを祖先に持ち `templates/review/`・`tools/review_triage.py`・`tools/claim_lint/` が 3e06751 と同じコミットから作る。教材が変わっていれば `packet` が止まる（`commitments.sha256` の `@` の行）。道具（`review_triage.py`・`claim_lint`）は sha256 で止めていないので、測定の記録に、資料一式を作ったコミットと `git diff 3e06751 -- tools/review_triage.py tools/claim_lint` が空であることを書く
+- **資料一式を作るコミット**（改訂 S12）：2 組目の資料一式は、fbc3371 か、それを祖先に持ち `templates/review/`・`tools/review_triage.py`・`tools/claim_lint/` が fbc3371 と同じコミットから作る。教材が変わったり、足されたり消されたりしていれば `packet` が止まる（`commitments.sha256` の `@` の行）。道具（`review_triage.py`・`claim_lint`）は sha256 で止めていないので、測定の記録に、資料一式を作ったコミットと `git diff fbc3371 -- tools/review_triage.py tools/claim_lint` が空であることを書く
 - 2 組目の測定の出力を入れるコミットは、97f5752 を祖先に持つ（初回の手順の 8. と同じ順序）。2 組目の手順と正解を測定の前に変えたら、`protocol.md` の改訂の記録に書き、`commitments.sha256` を作り直し、ここに行を足す
 
 ## 作成方法と点検状況
