@@ -373,7 +373,7 @@ errors:
   - file: design.md
     heading: M_token_validation：6. 時刻（exp・nbf・iat）〔Full：記入／Lite：参照〕
     quote: 比べる時刻は 11. の U30
-  core: 本番の approval-svc に、承認の期限と auth_time の比べに使う時刻を X-Test-Now ヘッダーで変えられる試験の口が残り、閉じる日が決まっていない
+  core: 本番の approval-svc に、承認の期限と auth_time の比べに使う時刻を X-Test-Now ヘッダーで変えられる試験の口が残っている
   wrong: カタログの U30（試験用の発行者・鍵・時計・口）に「該当」と答え、本番の approval-svc が網の中の呼び出し元から X-Test-Now ヘッダーを受け、承認の期限（24 時間）と 追加の認証の新しさ（auth_time から 300 秒）の比べにその時刻を使う、とした。閉じる日も、使える者の限りも無い。網の中の呼び出し元なら、期限の切れた承認や古い認証のまま承認を通せる
   clean: U30 は対象外。本番の agent-sts・ツール・approval-svc は試験用の発行者・鍵・時計の口・認証を飛ばす口を持たず、配備の前の検査で確かめる
   kind: 目的と仕組みの不一致
@@ -405,6 +405,7 @@ errors:
   salience: high
   hint_derived: []
   side_effect_note: 副作用の点検で直した：M_token_validation 6. の「承認の期限は approval-svc の時計だけで書いて比べる」（X-Test-Now の語は足さない）
+  core_note: 改訂 S11（PR
 - id: C07
   design: seeded-c
   control: control-c
@@ -571,6 +572,7 @@ errors:
   salience: high
   hint_derived:
   - B14
+  hint_note: B14 の型（止める単位で、手元の値が要求の分数を超えて残る）。初回は「テナントを止めても、運送会社の AT（種別の寿命）が効く」だった。 2 組目は担当の付け替え（止める単位は担当）で、残るのは agent-sts の担当のキャッシュ（token_types の REPAIR_DELEG_AT の revocation の列）。 種別の寿命でなく、発行する側のキャッシュの秒数にした
   side_effect_note: 点検の J7（9.1 のツールのトークンの行に 3930 秒が無い）は書き落としで食い違いではないので直さない
 - id: C10
   design: seeded-c
@@ -672,6 +674,7 @@ errors:
   salience: low
   hint_derived:
   - A17
+  hint_note: A17 の型（後で動く処理の実行の時点で、権限を確かめ直さない）。初回は「予約の返金の非同期の経路が、長時間・非同期に読まれない」だった。 2 組目は予約の実行のうち、承認を使用済みにする所（H14）で承認した上長を確かめ直さない形で、あるべき確かめが無い（absent）。場所は claims の C-approval-ref の enforced_at
 - id: C12
   design: seeded-c
   control: control-c
@@ -719,6 +722,7 @@ errors:
   salience: high
   hint_derived:
   - B14
+  hint_note: B14 の型（止める操作が、要求の分数のうちに届かない）。初回は、目立つキャッシュに隠れた種別の寿命だった。2 組目は、発行済みの解錠コードの失効が 錠に届く同期の間隔（9.1 の手で書く表）で、トークンの寿命ではない
   side_effect_note: 点検の J6（3.1・outside_enumeration の wl-ca の行の「一括で失効させる」が毎日 3 時の同期で効かない）は、この誤りを REQ-06 と突き合わせる帰結（span 2+）なので直さず locations に足した
 - id: C13
   design: seeded-c
@@ -908,6 +912,7 @@ errors:
   salience: low
   hint_derived:
   - A17
+  hint_note: A17 の型（長く続く処理で、開いた後に権限を確かめ直さない）。初回は予約の返金の非同期の経路だった。2 組目は返信の購読（WebSocket）を開いた後で、 場所は token_types の CONTACT_TOOL_AT の long_running の列
   side_effect_note: 副作用の点検（B1）で直した：9.1（CONSOLE_SESSION・CONTACT_TOOL_AT の行）・9.2（委任の欄）・5.1・P4 9.・CONTACT_TOOL_AT の revocation の「330 秒」に「開いた返信の購読は long_running」を足した。q-revocation-delivery（優先 1）の見る欄（9.1・revocation）から
     long_running へ辿れるようになり、見込み（P2・low）より見つけやすい。slot は変えていない
 - id: C16
@@ -987,7 +992,9 @@ errors:
   copies: 3
   masked_by: []
   salience: high
-  hint_derived: []
+  hint_derived:
+  - A03
+  hint_note: A03 の型（lint の warn が出る行で、上流を超えて広げる）。初回は寿命（L16 の max_lifetime）だった。2 組目は scope（approvals:decide）の追加で、 寿命ではない。#80 で short_list.md の 3. に足した「warn の値を指摘に写し、規則が答えを決める問いを書く」手がかりが当たるので付けた（改訂 S10）
   lint_note: hops.schema.json の narrowing_exception は aud と max_lifetime だけで、scope の理由は書けない（scope は広げない規則）。そのため理由は H8 の note と 1. の warn の表に書いた。 期待する warn の行：L16 hop H8「scope の approvals:decide が上流（H4）に無い」（ほかの
     2 つの L16 の warn は対照にもある）
   side_effect_note: 副作用の点検（B2）で直した：H8 の note・1. の warn の説明・P4 6. に「承認の操作でなく、承認済みの記録の not_after の更新」を、M_authz_pdp 5. の口の列挙に lock-tool の not_after の更新の口を、8. の前書きに「H8 の approvals:decide は除く」を足した。「エージェントは承認の操作をできない」の
@@ -1650,7 +1657,9 @@ errors:
   masked_by:
   - D08
   salience: low
-  hint_derived: []
+  hint_derived:
+  - A17
+  hint_note: 'A17 の型（実行の時点で確かめ直さない）に近い：保留を受け付けのときだけ確かめ、実行のときに見ない。経路の問い q-revocation-delivery は #80 で 手がかりが変わった問いなので付けた（改訂 S10。PR #86 の独立点検）。初回の A17 は後で動く処理の読み方だった。場所は hops の H24 の validates'
   side_effect_note: side-d.md 1a の 3〜6：M_authz_pdp の 2. の理由（問い合わせと実行の間の保留）、P5 の 3. の理由、6. の UC6、9.1 の本文を受け付けの時点の保留に揃えた。9.1 と H24 の自分の行から答えを言う文（受け付けた後の保留は実行を止めない）を外し、仕組みだけを書いた
 - id: D10
   design: seeded-d
