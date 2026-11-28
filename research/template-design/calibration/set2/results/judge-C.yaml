@@ -1,0 +1,93 @@
+judge: judge for twin pair C (set 2, #12); did not review, author or score
+sessions:
+  D5-1: []
+  D5-2: []
+  D5-3:
+    - finding: "(4)op-source-change: 修繕依頼の担当は課長が手作業で付け替えるまで残り、期限を約束する者がいない"
+      severity: なし（開いた問いの気づき）
+      verdict: 真（埋め込みの副作用）
+      reason: >-
+        担当が残ることが効くのは、seeded の C13 で連絡の scope をロールで絞らなくなったため（ロールが外れても担当と委任だけで連絡が続く）。
+        control-c では 9.2 の C-scope の行で agent-sts が交換のたびに aoba-pdp のロールで絞り直し、重要な操作も aoba-pdp が在籍・ロール・担当を引くので、担当が残っても異動の後の操作は 390 秒以内に止まり、この区間は穴にならない。
+        正解の一覧の C13 の wrong は担当が手作業の付け替えまで残る点を書いていない。
+      location: "seeded-c design.md 9.2 の C-scope の行・claims.yaml C-scope（C13）／control-c design.md 9.2 の C-scope の行・9.2「元のデータからの経路」"
+      borderline: "C13 の帰結の言い換えと見れば C13 に含まれる、とも読める"
+  D7-1:
+    - finding: F1
+      severity: Major
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        control-c の 3.1「重複の実行を、業務の ID で防ぐ」の行は支払いを「発注 ID（1 つの発注に 1 回）」と書くだけで、発注・連絡・解錠にある条件つきの更新や重複を避ける鍵が支払いには無い。
+        hops.yaml H7 の checks、M_token_validation の 6.「1 回だけ受ける値」、3.1 の発注の台帳の書き手の行のどれにも、payment-tool が依頼を記録する手段も経理の側の重複の除き方も無い。
+        正解の一覧の C18 の clean（「完了の報告済み→依頼中」の条件つきの更新）は control の文面に実在しない。
+      location: "control-c design.md 3.1「重点：重複の実行を、業務の ID で防ぐ」の行・3.1「見送り：発注の台帳の書き込みの口」の行・M_token_validation 6.／hops.yaml H7 validates"
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        H7 の checks は payment-tool が発注の台帳（確定済み・完了の報告・修繕依頼・確定額）と手作業の発注の事後の確認（3.1 では approval-svc の記録）を読むとしているが、2. の mermaid 図の PT の矢印は PDP と ACC だけで、データ層の行も発注の台帳に接続するのは order-tool・order-scheduler だけと書く。
+        同じ部品の経路について 2 か所が食い違っている。
+      location: "control-c design.md 2.「範囲」の mermaid 図とデータ層の行／hops.yaml H7 validates／3.1 発注の台帳の書き込みの口の行"
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        2.1 は当番のロールを人事の台帳の「勤務の予定」から導くとするが、9.2「元のデータからの経路」が 2 人の承認で確定するとするのは在籍・職位・所属・研修の記録だけで、aoba-pdp のロールの導き方の列挙にも当番が無い。
+        停止の宣言を許す値の書き手と変更の手順が設計書に無く、3.1 の見送りにもない。
+      location: "control-c design.md 2.1「基盤チームの当番」の行、2.2「停止の宣言」の行、9.2「元のデータからの経路」"
+    - finding: F4
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        2.1 は勤務の予定で決まる当番が lock-svc の管理の画面で失効させるとし、2.2 の lock-svc の管理の画面の行と 3.1 の取り消しの見送りの行は入れるのを「基盤チームの 2 人」（だけ）とする。
+        当番が常にその 2 人に含まれるとはどこにも書かれておらず、REQ-06 の 15 分の手順の担い手が 2 か所で食い違う。3.1 の見送りの理由（新しい部品を作らず手順で受ける）そのものへの指摘ではないので R4 には当てない。
+      location: "control-c design.md 2.1「基盤チームの当番」の行、2.2「lock-svc の管理の画面」の行、3.1「頼る先が止まった間の解錠コードの取り消し」の行"
+      borderline: "「基盤チームの 2 人」が当番の輪番を指すと読めば言葉の不足にとどまる"
+  D7-2:
+    - finding: F1
+      severity: Major
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        H5（claims.yaml C-authorization-details の order-tool の enforced_at）は「確定・予約では協力会社の取引が今も有効」を条件にするが、予約から最大 24 時間後に確定する order-scheduler の H13・H14 の checks には協力会社の台帳の確かめが無く、図にも SCH→VD の矢印が無い。
+        3.1 の見送り「予約の実行で、トークンを交換し直すこと」の理由自体でなく、引き直す項目の抜けへの指摘なので通常の判定にした。REQ-10 は協力会社を名指さないが、設計自身の確定の条件と食い違う。
+      location: "control-c hops.yaml H13・H14 validates（H5 と比べて）／claims.yaml C-authorization-details の order-tool の enforced_at／design.md 2.2「予約の発注の実行」の行"
+      borderline: "REQ-10 の列挙に協力会社が無いので、要求違反でなく設計内の不整合（重大度は Minor 相当）"
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: >-
+        4. の頼る先の表は署名の鍵を「agent-sts の中の鍵管理の仕組み」とし、付録 D の M_token_validation 8. の agent-sts の行は aoba-as と「同じ鍵管理の仕組み（組織の HSM）の別の鍵、持ち主は認証基盤チーム」とする。
+        鍵の置き場の記述が 2 か所で食い違う小さな書き方の不整合で、安全性への影響は小さい。
+      location: "control-c design.md 4.「agent-sts が頼る先が止まったとき」の表の署名の鍵の行／付録 D M_token_validation 8. の agent-sts の行"
+      borderline: "「agent-sts から使う組織の鍵管理」と読めば言葉の違いにすぎない"
+  D7-3:
+    - finding: F-1
+      severity: Minor
+      verdict: 誤検出
+      reason: >-
+        2.1 は在籍を人事の台帳の在籍の状態で見分ける（休職も状態）と書き、9.2 で aoba-pdp は確定した在籍の値を読むので、退職日の前日まで在籍の状態が続き、退職で状態が変わり確定した時点が REQ-08 の起点になると一貫して読める。
+        また 3.1 の行は「登録を当日の業務時間内に確定する」であって「退職を当日に登録する」ではなく、指摘はこれを読み違えている。
+      location: "control-c design.md 2.1「管理担当者」の行、REQ-08、9.2 の起点の説明、3.1「人事の台帳の登録から確定までの時間」の行"
+      borderline: "どの欄（退職日か在籍の状態か）で判断するかを明記していない点は書き足してよい"
+    - finding: F-2
+      severity: Minor
+      verdict: 誤検出
+      reason: >-
+        6. の UC2 の q-holder の行が名指す C-may-act は、claims.yaml の enforced_at で agent-sts が「may_act.sub が mTLS の相手の証明書の URI と一致」を確かめる仕組みで、持つ者を交換を求めた鍵の持ち主に限っている（RFC 8693 §4.4 の may_act とクライアント認証の組み合わせ）。
+        3.1 の REPAIR_DELEG_AT の送信者制約の見送りの行とも合っており、指摘自身も設計は成り立つと認めている。answers に q-holder が無いのは表記の細部にとどまる。
+      location: "control-c design.md 6. UC2 q-holder の行／claims.yaml C-may-act の rationale・enforced_at／3.1 REPAIR_DELEG_AT の送信者制約の行"
+      spec: "RFC 8693 §4.4 https://www.rfc-editor.org/rfc/rfc8693#section-4.4"
+      borderline: "C-may-act の answers に q-holder を足すべきという表の整合の指摘と見れば軽微な真"
+    - finding: F-3
+      severity: Minor
+      verdict: 誤検出
+      reason: >-
+        C-staff-number はトークンに載せない却下行で、identifier_properties・on_missing は運ぶクレームの欄である。突き合わせの鍵としての性質（人事の台帳が採番し付け替え・再利用しない、無ければ在籍なしで拒否、書けるのは hr-sync だけ）は rationale と 9.2 に書かれており、欠けている事実は無い。
+      location: "control-c claims.yaml C-staff-number の rationale／design.md 9.2「元のデータからの経路」"
+recurring_base_defects: []
+recurring_side_effects: []
+recurring_false_positives: []
+tool_material_findings: []
+notes:
+  - "D7-1 F1（支払いの依頼に 1 回だけの仕組みが無い）は control-c の基の欠陥。seeded-c の C18 は control に無い仕組みを誤った形で足したもので、C18 の clean は control の文面に無い。再測定の組では control に条件つきの更新を書き足すこと"
+  - "2 つ以上のセッションが挙げた基の欠陥・副作用・誤検出は、渡された範囲（D5-3 の未一致 1 件と D7 の全件）には無い"

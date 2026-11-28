@@ -1,0 +1,181 @@
+judge: judge-D (twin pair D, set 2, #12)
+sessions:
+  D6-1:
+    - finding: F05
+      severity: Major
+      verdict: 真（埋め込みの副作用）
+      reason: "対照の H29 は PAY_MSG_CTX を頼める相手を assessment-svc（確定の記録の持ち主）だけに限るので、assessment_ref を呼び出し側が渡す形は確定の持ち主を信頼する形として成り立つ。seeded では D01 で TXN_STAFF を持つどのサービスも頼めるため、呼び出し側が決めた assessment_ref で 1 回の確定から版の違う指示を作れる穴になる。正解の一覧の D01 の wrong には無い帰結なので副作用とした。"
+      location: "seeded-d hops.yaml H29 validates 3 行目、claims.yaml C-tctx enforced_at（tts）、control-d hops.yaml H29 validates 1 行目（許可リスト）"
+      borderline: true
+    - finding: F14
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: "指摘の対象は sheet.md の性質の表の「操作ごとの承認」を authorization_details の有無で「当たらない」と読む読み方で、設計書ではない（S5 の例そのもの）。設計書は 3.1 の見送りで承認を payment-svc の承認の記録に置くと理由つきで書いている。"
+      location: "packet-extras/seeded-d/sheet.md の性質の表、design.md 3.1 の見送り（authorization_details）"
+    - finding: "(4)op-key-custody: no target minutes for a key leak of the agency CA or the SPIFFE CA"
+      severity: なし（開いた問いの気づき）
+      verdict: 真（基の設計の欠陥）
+      reason: "付録 D の M_token_validation の 8. は列に「漏えい時の手順と目標の分数」を求めるが、代理店向けの CA・SPIFFE の CA の行は「信頼の束を差し替え…（手順書）」だけで目標の時間が無い。対照の同じ行も同じ文で、SPIFFE の CA の漏えいは q-peer の土台を崩すので、時間の目標が無いのは欠落と読める。REQ-10 はトークンの署名の鍵だけなので Minor 相当。"
+      location: "design.md 付録 D M_token_validation：8. の「代理店向けの CA・SPIFFE の CA」の行（seeded・control 同文）"
+      borderline: true
+  D6-2:
+    - finding: F11
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: "主旨は sheet.md の性質の表が「操作ごとの承認」を「当たらない」と読み dc-05 が落ちたことで、S5 の例と同じ。設計書は承認を payment-svc の承認の記録で持つことを 3.1 の見送りに理由つきで書いており、台帳に承認の宣言の欄を求めるのは教材の読み方の問題。"
+      location: "packet-extras/seeded-d/sheet.md の性質の表、design.md 3.1 の見送り（authorization_details）、H23"
+    - finding: F14
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-jti の shirogane-as の行は (iss, jti) を「exp まで（最大 90 秒）」覚えるとし、C-exp・C-iat は exp のずれ 30 秒と iat の 30 秒先まで受けるので、exp から exp＋30 秒の間（iat が先なら受け取りから 90〜120 秒）は jti を忘れた assertion をまだ受ける。M_token_validation の 6. は「90 秒覚える」と書き、書き方も食い違う。control の C-jti・C-exp も同文。"
+      location: "claims.yaml C-jti enforced_at（shirogane-as）、C-exp・C-iat enforced_at（shirogane-as）、付録 D M_token_validation：6.（seeded・control 同文）"
+  D6-3:
+    - finding: "F1 (second half only): TTS does not record whether a confirmation was used and assessment_ref is caller-chosen, so one confirmation can yield several payment instructions"
+      severity: Blocker
+      verdict: 真（埋め込みの副作用）
+      reason: "対照の H29 は PAY_MSG_CTX の要求を assessment-svc だけから受け、assessment_ref は確定の記録の持ち主の assessment-svc が渡すので、TTS が使用済みを記録しなくても 1 回の確定から複数の指示は生じない。seeded では D01 で claim-svc なども頼めるため、呼び出し側が決めた assessment_ref と頼み直しの許可から多重の指示が作れる。D01 の wrong に書かれていない帰結なので副作用とした。"
+      location: "seeded-d hops.yaml H29 validates、claims.yaml C-tctx enforced_at（tts）、付録 D P5 の 2. の assessment_ref の行、control-d hops.yaml H29"
+      borderline: true
+    - finding: F10
+      severity: Minor
+      verdict: 誤検出
+      reason: "1. の L16（aud）の warn の理由は、Txn-Token の aud を草案どおり信頼ドメインにするので外の AT の aud と名前が違い aud_mapping に書けないことを説明し、絞り込みは TTS の AT の aud の確認と、scope・寿命が上流を超えないことで示している。呼び出し元の一覧・scope・tctx による絞りは各ホップに書かれており、理由として通る。"
+      location: "design.md 1. の warn の行ごとの理由の L16（H4・H7・H15・H17・H23・H26）の行"
+      spec: "draft-ietf-oauth-transaction-tokens-11 §9.2（aud は信頼ドメイン）。https://www.ietf.org/archive/id/draft-ietf-oauth-transaction-tokens-11.txt"
+      borderline: true
+    - finding: "F11 (second half only): when TTS or the employee ledger is down, stop operations through as-admin-api also fail; REQ-01/02 900 s not compared"
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "TTS が止まれば受付も止まる（3.1 の拒む側に倒す）ので、その場合は害が無い。しかし社員の台帳が止まると社員の口だけが止まり契約者・代理店の口は動き続ける一方、停止の操作は TXN_STAFF を要する as-admin-api でしか書けず、その間 REQ-01・REQ-02 の停止ができないことを 3.1・12. の可用性の検討で比べていない。control の 2. の as-admin-api の行と 12. の「可用性の目標」の行も同じ。"
+      location: "design.md 2. のトークンを運ばない内部の呼び出しの表（as-admin-api → shirogane-as の「止まったとき」）、3.1 の重点（縮退）、12. の可用性の目標の行"
+      borderline: true
+    - finding: F13
+      severity: Minor
+      verdict: 誤検出
+      reason: "課の異動は control と同じ 3.1 の見送り「課の規則」に、前提（発効前の付け替え）・持ち主・毎日の突き合わせの確かめ方つきで書かれている（R4）。指摘は約束の時間が無いと言い切るが、課の異動では役割が残るので REQ-03 の「役割の変更」に当たらないという書かれた読みは要求と矛盾しない。"
+      location: "design.md 3.1 の見送り「課の規則」の行（seeded・control 同文）、9.1 の社員の行"
+      borderline: true
+    - finding: "(2)q-derived-value: tctx policy_number and amount also reach document-svc, which uses only claim_id"
+      severity: Minor
+      verdict: 誤検出
+      reason: "C-tctx の description は「操作ごとにどの項目があるかは経路の表が決め、表に無い項目は入れない」とし、付録 D の P5 の 2. の表では policy_number は claim.submit だけに入る。document-svc に届くのは operation が document.upload の Txn-Token（H10・H11）で、claim_id で照らすだけなので、policy_number・amount が届くという前提が設計と合わない。"
+      location: "claims.yaml C-tctx description、hops.yaml H10・H11、付録 D P5_internal_propagation：2. の tctx の表"
+    - finding: "(4)op-proof-holder: certificate reissue changes the thumbprint; no overlap period or procedure written"
+      severity: Minor
+      verdict: 誤検出
+      reason: "付録 D の M_sender_constraint の 4. に、証明書は同じサブジェクトで出し直し、古い証明書に束縛した AGENCY_AT は更新後に使えなくなり（最大 300 秒）、代理店のサーバーが新しい証明書で取り直す、と切り替えの手順と時間が書かれている。束縛の切り替えを AT の寿命で決めると理由もある。"
+      location: "design.md 付録 D M_sender_constraint：4. の「証明書・鍵の更新」の行（seeded・control 同文）"
+  D8-1:
+    - finding: F1
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: "指摘は sheet.md の性質の表の「操作ごとの承認」が authorization_details の有無で「当たらない」と読まれ dc-05 が出なかったことを指し、S5 の例そのもの。設計書は承認を payment-svc の承認の記録に置くことを 3.1 の見送りに理由つきで書いている。"
+      location: "packet-extras/control-d/sheet.md の性質の表 12 行目、design.md 3.1 の見送り（authorization_details）"
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-client-id の front-gw の行は「代理店の口では、client_id が代理店の登録にあること」を against [iss, api_config] で確かめるとするが、H5 の validates にその確かめは無く、2. の図にも front-gw が代理店の登録を引く経路が無い。実際の確かめは H6 の TTS の行にあり、台帳の照合の場所の誤り（Minor）。"
+      location: "claims.yaml C-client-id enforced_at（front-gw）、hops.yaml H5 validates・H6 validates、design.md 2. の図"
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-jti は (iss, jti) を「exp まで（最大 90 秒）」覚えるが、C-exp・C-iat により shirogane-as は exp＋ずれ 30 秒まで、iat は 30 秒先まで受けるので、exp から exp＋30 秒の間に同じ assertion が再び通りうる。再送には代理店の証明書の mTLS も要るので影響は小さい。"
+      location: "claims.yaml C-jti enforced_at（shirogane-as）、C-exp・C-iat enforced_at（shirogane-as）、付録 D M_token_validation：6."
+    - finding: F4
+      severity: "Minor（持ち主が 90 秒を受け入れなければ Major）"
+      verdict: 真（基の設計の欠陥）
+      reason: "3.1 の見送り（電話の代理受付）は「exp は本人確認から 1800 秒を超えない」ことで REQ-11 の 30 分を守るとするが、受け手（C-exp の claim-svc・fraud-svc）は exp のずれ 30 秒まで受けるので最大 1830 秒通る。終話の後は 60＋30 秒とずれを数えているのに上限では数えておらず、書かれた理由が REQ-11 と 30 秒食い違う（R4 の 3 つ目）。"
+      location: "design.md 3.1 の見送り（電話の代理受付）、REQ-11、claims.yaml C-exp enforced_at（claim-svc・fraud-svc）、hops.yaml H14"
+      borderline: true
+    - finding: F5
+      severity: Minor
+      verdict: 確認の依頼
+      reason: "紛失の届けから止まるまでの要求の数値が無いことは、3.1 の見送り「社員の端末・セキュリティキーの紛失」に理由（600 秒を目標）・前提・確かめ方つきで書かれ、12. で持ち主の回答待ちとされている。指摘は sheet の決まりに従って数値の欠けと持ち主の確認待ちを挙げるもので、書かれた理由を要求の持ち主に確かめる求めと読める（R4）。"
+      location: "design.md 3.1 の見送り（端末・セキュリティキーの紛失）、9.1、12. の端末の紛失の目標の行"
+      borderline: true
+  D8-2:
+    - finding: F1
+      severity: "Minor（1800 秒を厳密に読むなら Major）"
+      verdict: 真（基の設計の欠陥）
+      reason: "D8-1 の F4 と同じ。3.1 の見送りの「exp は本人確認から 1800 秒を超えない」と、受け手が exp に時計のずれ 30 秒を足して受けることから、本人確認から最大 1830 秒まで通り、REQ-11 の 1800 秒と食い違う。3.1 の確かめ方（1799 秒目の TXN_PROXY の exp）もこの超過を拾わない（R4 の 3 つ目）。"
+      location: "design.md 3.1 の見送り（電話の代理受付）、9.1 の TXN_PROXY の行、付録 D M_token_validation：6. の通話の記録の行、claims.yaml C-exp enforced_at"
+      borderline: true
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-act・C-sub（TXN_PROXY）は通話の記録の担当の社員・本人確認の結果に頼るが、設計は 2. で「通話の記録を書くのは IVR だけで、社員は書けない」とするだけで、IVR の担当者の対応づけや記録を変えられる運用者（IVR の管理者・監督者）を書き手として挙げていない（ap-1-7）。act 自体は EMPLOYEE_AT の sub との一致で守られるので影響は小さい。"
+      location: "claims.yaml C-act source_system・verification_method・authoritative_writer、design.md 2. の社内の台帳と記録の行、9.2"
+      borderline: true
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-agency-code の assumption と claim_request_agency_code.md の問 11 は「代理店管理部だけが as-admin-api で書く」とするが、同じ行の note と design.md 2.2 の「データベースの直接の修正」は IT 基盤部の DB の管理者が代理店の登録を直せる経路を挙げており、書ける人の一覧が食い違う。"
+      location: "claims.yaml C-agency-code assumption・note、claim_request_agency_code.md 問 11、design.md 2.2"
+    - finding: F4
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "C-jti の「exp まで（最大 90 秒）」と M_token_validation の 6. の「90 秒覚える」が 2 通りに書かれ、exp まで覚える読みでは exp から exp＋30 秒の再送の窓が残る（C-exp のずれ 30 秒）。iat は代理店の IdP の時計なので窓が延びうる点も設計の記述どおり。"
+      location: "claims.yaml C-jti・C-exp enforced_at（shirogane-as）、token_types.yaml AGENCY_ASSERTION jti_policy、付録 D M_token_validation：6."
+  D8-3:
+    - finding: F-1
+      severity: Major
+      verdict: 誤検出
+      reason: "6. の UC4 の q-actor は「不要」とし、payment-worker は中身を変えられない運び手（TTS が tctx を PAY_MSG_CTX から変えずに写し、作り直せるのは決まったワークロードだけ）なので act を使わず、運んだワークロードは req_wl と q-peer で記録すると理由を書いている。payment-svc は指示を payment-worker からだけ受けるので監査で人の操作と見分けられ、設計の判断は筋が通る。"
+      location: "design.md 6. の UC4 の q-actor の行、hops.yaml H22、claims.yaml C-act assumption・C-req-wl"
+      borderline: true
+    - finding: F-2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "TXN_PROXY の sub（契約者）と act の確かめは IVR の通話の記録に頼るが、2. は「通話の記録を書くのは IVR だけ」とし、IVR の運用者・基盤の管理者、契約管理の仕組みの DB の管理者を書ける者として数えていない（2.2 の書ける表は 3 サービスだけ）。社員の台帳は C-scope の note で直接の修正の対象外と書かれているので、その部分は当たらない。"
+      location: "claims.yaml C-act・C-sub source_system、design.md 2. の社内の台帳と記録の行、2.2 のデータベースの直接の修正の行"
+      borderline: true
+    - finding: F-3
+      severity: Minor
+      verdict: 誤検出
+      reason: "代理店はしろがねのデータを扱う提携先で、データの持ち主はしろがね 1 社であり、代理店ごとの絞り込みは証券の取扱代理店（関係ベース）で claim-svc が照らす形として書かれている（2.1、C-agency-code）。lite_criteria.multitenant を No とした宣言は設計と矛盾せず、document-svc の照合は 3.1 の見送りに理由つきで書かれている。"
+      location: "catalog_answers.yaml lite_criteria.multitenant、design.md 冒頭の Lite／Full の行、2.1、3.1 の見送り（document-svc）"
+      borderline: true
+    - finding: F-4
+      severity: Minor
+      verdict: 誤検出
+      reason: "C-agency-code の on_missing は既定値だが、absent_semantics が既定の意味（無ければ代理店の請求ではない）と、AGENCY_AT と agst_ の sub の Txn-Token では拒否することを書いており、enforced_at も同じ。既定値が何かは書かれており、2 か所は食い違っていない。"
+      location: "claims.yaml C-agency-code on_missing・absent_semantics・enforced_at"
+    - finding: F-5
+      severity: Minor
+      verdict: 誤検出
+      reason: "C-act・C-sub・C-client-id は volatility が never で、propagation_delay は値の変化が受け手に届くまでの遅れなので 0 で正しい。主体の停止の遅れは on_revoke（キャッシュ 60 秒）と 9.1 の止める単位の表に書かれており、agency_code（volatility 900）の 390 と書き方が違うのは値が変わる行かどうかの違い。"
+      location: "claims.yaml C-act・C-sub・C-client-id の volatility・propagation_delay・on_revoke、design.md 9.1・9.2"
+      borderline: true
+    - finding: F-6
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: "12. の「時計」の行と付録 D の M_token_validation の 6. は、IVR の時計をしろがねが見ておらず監視は今後とするが、H14 の確かめには本人確認の時刻が TTS の時計より先なら拒む規則が無く、IVR の時計が進むとその分 1800 秒の窓が延びる。12. にだけある前提なので通常の判定とし、具体的な守りの欠けとして真とした。"
+      location: "hops.yaml H14 validates、design.md 12. の時計の行、付録 D M_token_validation：6. の通話の記録の行"
+      borderline: true
+    - finding: F-7
+      severity: Minor
+      verdict: 誤検出
+      reason: "REQ-02 は代理店の契約を止めたら代理店と担当者の請求を止めることを求め、担当者の個別の停止は代理店が自分の IdP で行い最悪 750 秒で届くことが 3.1 の見送り（Back-Channel Logout・SSF/CAEP）に理由と確かめ方つきで書かれている（R4）。書かれた理由は要求と矛盾せず、指摘自身も要求が個別の停止を想定していないと認めている。"
+      location: "design.md REQ-02、3.1 の見送り（Back-Channel Logout・SSF/CAEP）、6. の UC7、2.2"
+    - finding: F-8
+      severity: Minor
+      verdict: 誤検出
+      reason: "証明書の更新は同じサブジェクトで出し直し、古い証明書に束縛した AT は更新後に使えなくなる（M_sender_constraint の 4.）。古い証明書の鍵は代理店のサーバー自身が持つもので、漏えいしたときは C-cnf の on_revoke の失効（CRL）と 3.1 の REQ-10 の見送り（代理店の鍵は知らされた時点から）で止める経路が書かれており、通常の更新で失効の手順が要るとは言えない。"
+      location: "design.md 付録 D M_sender_constraint：4.、claims.yaml C-cnf on_revoke・C-client-id source_system、3.1 の見送り（REQ-10 の起点）"
+      borderline: true
+recurring_base_defects:
+  - defect: "代理店の assertion の jti を覚える時間（exp まで）が受け入れの上限（exp＋ずれ 30 秒）より短く、30 秒の再送の窓が残る（C-jti・C-exp・M_token_validation の 6.）"
+    sessions: [D6-2 F14, D8-1 F3, D8-2 F4]
+  - defect: "電話の代理受付の TXN_PROXY が、時計のずれ 30 秒のため本人確認から最大 1830 秒まで受けられ、3.1 の「1800 秒を超えない」と REQ-11 に食い違う"
+    sessions: [D8-1 F4, D8-2 F1]
+  - defect: "IVR の通話の記録（TXN_PROXY の sub・act の出どころ）を書き換えられる運用者・管理者が書き手として数えられていない（ap-1-7）"
+    sessions: [D8-2 F2, D8-3 F-2]
+recurring_side_effects:
+  - side_effect: "D01（PAY_MSG_CTX を頼める相手の一覧が無い）と、呼び出し側が決める assessment_ref・頼み直しの許可が重なり、1 回の確定から版の違う支払いの指示を複数作れる"
+    sessions: [D6-1 F05, D6-3 F1（後半）]
+recurring_false_positives:
+  - false_positive: "代理店の証明書の更新の扱い（切り替えの手順・古い証明書の失効）が書かれていないとする指摘。M_sender_constraint の 4. と C-cnf の on_revoke に書かれている"
+    sessions: [D6-3 (4)op-proof-holder, D8-3 F-8]
+tool_material_findings:
+  - finding: "sheet.md の性質の表が「操作ごとの承認」を authorization_details の有無で「当たらない」と読み、承認の記録をトークンの外に持つ設計で dc-05・q-approval-from-as の重みが落ちる（S5 の例）"
+    sessions: [D6-1 F14, D6-2 F11, D8-1 F1]
