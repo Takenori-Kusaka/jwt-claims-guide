@@ -206,7 +206,7 @@ hops:
   exchanger: agent-sts
   validates:
     mode: local
-    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 120 秒以下, aud が approval-svc だけ, "mTLS の相手の証明書と cnf の x5t#S256（APPROVAL_AT を交換で求めた者）", client_id が repair-console で act が無い, "scope に approvals:decide", 解錠の承認では not_after − not_before が 4 時間以内, 承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）, 承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致, aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）, 一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の上長にだけ返す, 取り下げ・却下は、承認した人・依頼の担当者・同じ課の上長だけ, 承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態）]
+    checks: ["署名（agent-sts の JWKS）", iss が agent-sts、exp − iat が 120 秒以下, aud が approval-svc だけ, "mTLS の相手の証明書と cnf の x5t#S256（APPROVAL_AT を交換で求めた者）", client_id が repair-console で act が無い, "scope に approvals:decide", 解錠の承認では not_after − not_before が 4 時間以内, 承認と手作業の発注の事後の確認では acr が mfa で、approval-svc の時計で auth_time から 300 秒以内（却下・取り下げ・解錠の取り消しでは求めない）, 承認・却下・取り下げでは approval_ref の記録だけを操作し、記録の repair_id がトークンの repair_id（画面で開いた修繕依頼）と一致, aoba-pdp で承認者の在籍・ロール・所属と、承認の種類ごとの承認者の条件（発注は、承認者が依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い。解錠は、承認者が依頼の担当者で今も担当）, 一覧の参照は repair_id の修繕依頼の記録だけを、その担当者か同じ課の上長にだけ返す, 取り下げ・却下は、承認した人・今の担当者・同じ課の上長だけ, 承認の操作は承認待ちの記録だけ（却下・取り下げ・失効・取り消しは終わりの状態）]
 - id: H13
   from: order-scheduler（予約の発注の実行）
   to: aoba-pdp

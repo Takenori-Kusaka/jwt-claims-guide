@@ -378,7 +378,7 @@ token_types:
   rationale: >-
     agent-sts が交換で出す、contact-tool（入居者・協力会社の窓口への連絡）だけ宛ての AT。repair-agent も visit-subagent も使う。連絡の相手は contact-tool が
     修繕依頼の台帳で種類（入居者・協力会社の窓口）を決め、宛先は通知の基盤が台帳から引く。トークンにも要求にも連絡先を載せない。visit-subagent の相手は入居者だけ
-  purpose: repair-agent・visit-subagent が入居者と協力会社の窓口に連絡し、返信を読む（送信は contact-tool が採番した下書きの ID で 1 回だけ）
+  purpose: repair-agent・visit-subagent が入居者と協力会社の窓口に連絡し、返信を読む（送信は contact-tool が採番した下書きの ID で 1 回だけ。通知の基盤も下書きの ID で重複を捨てる）
   issuer: agent-sts
   aud: ["https://contact-tool.aoba-sumai.example/mcp"]
   holder: repair-agent か visit-subagent のメモリ（交換を求めた者の証明書に束縛）

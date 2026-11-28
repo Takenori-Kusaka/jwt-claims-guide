@@ -73,7 +73,7 @@ outside_enumeration:
     - {name: 予約の発注の実行の時点での確かめ直し, handled_as: "カタログの U13 に戻した：order-scheduler は実行の時点で aoba-pdp・修繕依頼の台帳・approval-svc を引き直し、トークンを持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）"}
     - {name: 入居者の依頼の文に紛れた指示で、解錠の部屋・時間帯や連絡の相手を変えさせる, handled_as: "設計に足した：解錠は担当者本人が部屋・協力会社・時間帯を画面で確かめて承認し、lock-tool は承認の記録と修繕依頼の部屋で照合する。連絡の相手は contact-tool が修繕依頼の台帳から決める（P4 の 4.・5.）"}
     - {name: ワークロードの証明書の発行（wl-ca）, handled_as: "カタログの発行のイベント（JWT）に当たらない（I20 は対象外）。鍵の持ち主と漏えい時の手順を design.md の付録 D の M_token_validation の 8. に書いた"}
-    - {name: 管理用の口（agent-sts のクライアントの登録・委任の表・リソースの表、aoba-as の管理の画面、lock-svc の管理の画面（失効と一覧の表示だけ）、approval-svc・発注の台帳の DB、修繕依頼の台帳の担当の割り当て）, handled_as: "design.md の 2.2 と 3.1 に、変えられる者と記録を書いた"}
+    - {name: 管理用の口（agent-sts のクライアントの登録・委任の表・リソースの表、aoba-as の管理の画面、lock-svc の管理の画面（失効と一覧の表示だけ）、repair-console の当番の画面（停止の宣言。当番のロール・mfa・警報が条件）、approval-svc・発注の台帳の DB、修繕依頼の台帳の担当の割り当て）, handled_as: "design.md の 2.2 と 3.1 に、変えられる者と記録を書いた"}
     - {name: wl-ca の中間の CA の鍵の漏えいで、トークンを使わない口に偽の証明書で届く, handled_as: "design.md の 3.1 の見送りの行と付録 D の M_token_validation の 8. に、開く口・塞ぐまでの時間・検出を書いた。承認済みで未発行の解錠の承認からのコードの作成も開く（窓は 60 分。警報の後に当番が lock-svc の管理の画面で一括で失効させる）"}
 questions:
   q-sub: {needed: true, reason: 重要な操作で担当者の在籍・ロール・修繕依頼の担当を aoba-pdp に問い合わせ、監査に「誰の権限で」を残す}
