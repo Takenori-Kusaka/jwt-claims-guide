@@ -1,0 +1,880 @@
+# 2 組目の測定の得点と判定（#12）。LLM による測定。人による検証ではない
+note: 2 組目の測定の得点と判定（#12）。LLM による測定。人による検証ではない。採点は 2 つのセッション（S1＝Claude Opus 5.5、S2＝Claude Sonnet 5.5）が全件を行い、105 セルの得点がすべて一致した（3 つ目の採点は不要）。findings は両者の挙げた指摘の和（「(2)<問い ID>」は問いごとの回答の No、「(4)<問い ID>」は開いた問いの気づき）。番号つきの指摘は
+  105 セルとも 2 人で同じで、違いは (2) の No を足したかどうかだけ。どの誤りにも一致しない指摘の判定は、C の双子は判定 C、D の双子は判定 D（どちらも Claude Opus 5.5。レビュー・採点に関わらず、改訂 S2 のとおり採点者の出力を渡していない）。重大度はレビュアー自身が付けたもの。元の出力は score-S1.yaml・score-S2.yaml・judge-C.yaml・judge-D.yaml
+labels:
+  D5: seeded-c
+  D6: seeded-d
+  D7: control-c
+  D8: control-d
+models:
+  reviewers:
+    D*-1: Claude Opus 5.5
+    D*-2: Claude Opus 5.5
+    D*-3: Claude Sonnet 5.5
+  scorers:
+    S1: Claude Opus 5.5
+    S2: Claude Sonnet 5.5
+  judges:
+    C: Claude Opus 5.5
+    D: Claude Opus 5.5
+scorer_agreement:
+  cells: 105
+  agree: 105
+  third_scorer: 不要
+  matched_numbered_findings_identical: 105
+answer_key: seeded_errors.yaml は採点のために直していない。訂正の候補は results.md の 5.
+sessions:
+  D5-1:
+    design: seeded-c
+    model: Claude Opus 5.5
+    errors:
+      C01:
+        score: 1
+        findings:
+        - F2
+        - (2)q-step-up-by-rs
+        - (2)q-step-up-path-coverage
+      C02:
+        score: 1
+        findings:
+        - F1
+        - (2)q-no-passthrough
+      C03:
+        score: 1
+        findings:
+        - F16
+        - (4)op-proof-holder
+        borderline: see borderline_calls
+      C04:
+        score: 1
+        findings:
+        - F6
+        - (2)q-object-level-authz
+      C05:
+        score: 1
+        findings:
+        - F11
+        - (2)q-dependency-outage
+      C06:
+        score: 1
+        findings:
+        - F3
+        - (2)q-outside-catalog
+        - (4)op-clock via (2)q-outside-catalog
+      C07:
+        score: 1
+        findings:
+        - F4
+        - (2)q-approval-from-as
+      C08:
+        score: 1
+        findings:
+        - F13
+        - (2)q-identifier-choice
+      C09:
+        score: 1
+        findings:
+        - F9
+      C10:
+        score: 1
+        findings:
+        - F15
+        - (2)q-operator-act
+      C11:
+        score: 0
+        findings: []
+      C12:
+        score: 1
+        findings:
+        - F8
+      C13:
+        score: 0.5
+        findings:
+        - F10
+        - (2)q-freshness-mitigation
+        borderline: 'see borderline_calls / stricter: 0.5; looser (core partly stated, accept priority-1): 1'
+      C14:
+        score: 1
+        findings:
+        - F14
+        - (2)q-derived-value
+      C15:
+        score: 1
+        findings:
+        - F12
+        - (2)q-long-running
+        - (2)q-copies-outlive
+      C16:
+        score: 1
+        findings:
+        - F5
+      C17:
+        score: 0
+        findings: []
+      C18:
+        score: 1
+        findings:
+        - F7
+        - (4)op-one-time
+      C19:
+        score: 0
+        findings: []
+    unmatched: []
+    counts:
+      errors: 19
+      strict: 15
+      lenient: 16
+      sum: 15.5
+      unmatched_by_verdict: {}
+  D5-2:
+    design: seeded-c
+    model: Claude Opus 5.5
+    errors:
+      C01:
+        score: 1
+        findings:
+        - F1
+        - (2)q-step-up-by-rs
+      C02:
+        score: 1
+        findings:
+        - F5
+        - (2)q-no-passthrough
+      C03:
+        score: 1
+        findings:
+        - F2
+        - (2)q-authorize-service-and-user
+        - (2)q-variant-comparison
+        - (2)q-no-passthrough
+      C04:
+        score: 1
+        findings:
+        - F7
+        - (2)q-object-level-authz
+      C05:
+        score: 1
+        findings:
+        - F10
+        - (2)q-dependency-outage
+      C06:
+        score: 1
+        findings:
+        - F13
+        - (2)q-outside-catalog
+      C07:
+        score: 1
+        findings:
+        - F3
+        - (2)q-approval-from-as
+      C08:
+        score: 1
+        findings:
+        - F6
+        - (2)q-identifier-choice
+      C09:
+        score: 1
+        findings:
+        - F8
+      C10:
+        score: 1
+        findings:
+        - F15
+        - (2)q-operator-act
+      C11:
+        score: 0
+        findings: []
+      C12:
+        score: 1
+        findings:
+        - F12
+      C13:
+        score: 0.5
+        findings:
+        - F9
+        - (2)q-freshness-mitigation
+        borderline: see borderline_calls / stricter 0.5; looser 1
+      C14:
+        score: 1
+        findings:
+        - F18
+        - (2)q-derived-value
+      C15:
+        score: 1
+        findings:
+        - F11
+        - (2)q-long-running
+        - (2)q-copies-outlive
+      C16:
+        score: 1
+        findings:
+        - F4
+      C17:
+        score: 1
+        findings:
+        - F17
+        - (2)q-audit-correlation
+        borderline: reviewer severity Minor; a stricter reader could ask for the 'multiple approvals per repair request' consequence, which is in wrong not core
+      C18:
+        score: 1
+        findings:
+        - F16
+        - (4)op-one-time
+      C19:
+        score: 0.5
+        findings:
+        - F14
+        borderline: see borderline_calls / K1 / stricter 0.5; looser 1 if q-typ-distinguishes accepted
+    unmatched: []
+    counts:
+      errors: 19
+      strict: 16
+      lenient: 18
+      sum: 17.0
+      unmatched_by_verdict: {}
+  D5-3:
+    design: seeded-c
+    model: Claude Sonnet 5.5
+    errors:
+      C01:
+        score: 1
+        findings:
+        - F-01
+        - (2)q-step-up-by-rs
+      C02:
+        score: 1
+        findings:
+        - F-11
+      C03:
+        score: 1
+        findings:
+        - F-12
+        - (4)op-proof-holder
+      C04:
+        score: 1
+        findings:
+        - F-09
+        - (2)q-object-level-authz
+      C05:
+        score: 1
+        findings:
+        - F-05
+        - (2)q-dependency-outage
+      C06:
+        score: 1
+        findings:
+        - F-08
+        - (2)q-outside-catalog
+      C07:
+        score: 1
+        findings:
+        - F-02
+      C08:
+        score: 1
+        findings:
+        - F-10
+        - (2)q-identifier-choice
+      C09:
+        score: 1
+        findings:
+        - F-04
+      C10:
+        score: 1
+        findings:
+        - F-14
+        - (2)q-operator-act
+      C11:
+        score: 0
+        findings: []
+      C12:
+        score: 0
+        findings: []
+      C13:
+        score: 0.5
+        findings:
+        - F-07
+        borderline: see borderline_calls / stricter 0.5; looser 1
+      C14:
+        score: 1
+        findings:
+        - F-16
+        - (2)q-derived-value
+      C15:
+        score: 1
+        findings:
+        - F-06
+        - (2)q-long-running
+        - (2)q-copies-outlive
+      C16:
+        score: 1
+        findings:
+        - F-03
+      C17:
+        score: 0
+        findings: []
+      C18:
+        score: 1
+        findings:
+        - F-15
+        - (4)op-one-time
+      C19:
+        score: 0.5
+        findings:
+        - F-13
+        borderline: see borderline_calls / K1 / stricter 0.5; looser 1 if q-typ-distinguishes accepted
+    unmatched:
+    - finding: '(4)op-source-change: 修繕依頼の担当は課長が手作業で付け替えるまで残り、期限を約束する者がいない'
+      severity: なし（開いた問いの気づき）
+      verdict: 真（埋め込みの副作用）
+      reason: 担当が残ることが効くのは、seeded の C13 で連絡の scope をロールで絞らなくなったため（ロールが外れても担当と委任だけで連絡が続く）。 control-c では 9.2 の C-scope の行で agent-sts が交換のたびに aoba-pdp のロールで絞り直し、重要な操作も aoba-pdp が在籍・ロール・担当を引くので、担当が残っても異動の後の操作は
+        390 秒以内に止まり、この区間は穴にならない。 正解の一覧の C13 の wrong は担当が手作業の付け替えまで残る点を書いていない。
+    counts:
+      errors: 19
+      strict: 14
+      lenient: 16
+      sum: 15.0
+      unmatched_by_verdict:
+        真（埋め込みの副作用）: 1
+  D6-1:
+    design: seeded-d
+    model: Claude Opus 5.5
+    errors:
+      D01:
+        score: 1
+        findings:
+        - F04
+        - (2)q-no-passthrough
+      D02:
+        score: 1
+        findings:
+        - F01
+        - (2)q-object-level-authz
+      D03:
+        score: 1
+        findings:
+        - F13
+      D04:
+        score: 1
+        findings:
+        - F09
+        - (2)ap-1-7
+      D05:
+        score: 1
+        findings:
+        - F10
+        - (2)q-operator-act
+      D06:
+        score: 1
+        findings:
+        - F02
+        - (2)q-authorize-service-and-user
+        - (2)ap-1-7
+      D07:
+        score: 1
+        findings:
+        - F03
+        - (2)q-outside-catalog
+      D08:
+        score: 1
+        findings:
+        - F06
+        - (2)q-approval-from-as
+      D09:
+        score: 1
+        findings:
+        - F07
+        - (2)q-revocation-delivery
+      D10:
+        score: 0
+        findings: []
+      D11:
+        score: 1
+        findings:
+        - F12
+        - (2)q-identifier-choice
+        borderline: see borderline_calls
+      D12:
+        score: 0
+        findings: []
+      D13:
+        score: 1
+        findings:
+        - F15
+        - (2)q-copies-outlive
+      D14:
+        score: 1
+        findings:
+        - F08
+        - (2)q-step-up-by-rs
+      D15:
+        score: 0
+        findings: []
+      D16:
+        score: 1
+        findings:
+        - F11
+        - (4)op-key-custody
+    unmatched:
+    - finding: F05
+      severity: Major
+      verdict: 真（埋め込みの副作用）
+      reason: 対照の H29 は PAY_MSG_CTX を頼める相手を assessment-svc（確定の記録の持ち主）だけに限るので、assessment_ref を呼び出し側が渡す形は確定の持ち主を信頼する形として成り立つ。seeded では D01 で TXN_STAFF を持つどのサービスも頼めるため、呼び出し側が決めた assessment_ref で 1 回の確定から版の違う指示を作れる穴になる。正解の一覧の
+        D01 の wrong には無い帰結なので副作用とした。
+    - finding: F14
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: 指摘の対象は sheet.md の性質の表の「操作ごとの承認」を authorization_details の有無で「当たらない」と読む読み方で、設計書ではない（S5 の例そのもの）。設計書は 3.1 の見送りで承認を payment-svc の承認の記録に置くと理由つきで書いている。
+    - finding: '(4)op-key-custody: no target minutes for a key leak of the agency CA or the SPIFFE CA'
+      severity: なし（開いた問いの気づき）
+      verdict: 真（基の設計の欠陥）
+      reason: 付録 D の M_token_validation の 8. は列に「漏えい時の手順と目標の分数」を求めるが、代理店向けの CA・SPIFFE の CA の行は「信頼の束を差し替え…（手順書）」だけで目標の時間が無い。対照の同じ行も同じ文で、SPIFFE の CA の漏えいは q-peer の土台を崩すので、時間の目標が無いのは欠落と読める。REQ-10 はトークンの署名の鍵だけなので
+        Minor 相当。
+    counts:
+      errors: 16
+      strict: 13
+      lenient: 13
+      sum: 13
+      unmatched_by_verdict:
+        真（埋め込みの副作用）: 1
+        道具・教材への指摘: 1
+        真（基の設計の欠陥）: 1
+  D6-2:
+    design: seeded-d
+    model: Claude Opus 5.5
+    errors:
+      D01:
+        score: 1
+        findings:
+        - F6
+        - (2)q-no-passthrough
+      D02:
+        score: 1
+        findings:
+        - F3
+        - (2)q-object-level-authz
+      D03:
+        score: 1
+        findings:
+        - F13
+      D04:
+        score: 1
+        findings:
+        - F7
+        - (2)ap-1-7
+      D05:
+        score: 1
+        findings:
+        - F9
+        - (2)q-operator-act
+      D06:
+        score: 1
+        findings:
+        - F1
+        - (2)q-authorize-service-and-user
+        - (2)ap-1-7
+      D07:
+        score: 1
+        findings:
+        - F2
+        - (2)q-outside-catalog
+      D08:
+        score: 1
+        findings:
+        - F4
+        - (2)q-approval-from-as
+      D09:
+        score: 0
+        findings: []
+      D10:
+        score: 0
+        findings: []
+      D11:
+        score: 1
+        findings:
+        - F10
+        - (2)q-identifier-choice
+      D12:
+        score: 1
+        findings:
+        - F8
+        - (2)q-original-principal
+      D13:
+        score: 0
+        findings: []
+        borderline: see borderline_calls / stricter 0 (a Yes answer, no location); looser 0.5-1 counting Yes-with-caveat
+      D14:
+        score: 1
+        findings:
+        - F5
+        - (2)q-step-up-by-rs
+      D15:
+        score: 1
+        findings:
+        - F12
+        borderline: hedged ('looks like') and Minor; core stated; still 1
+      D16:
+        score: 0
+        findings: []
+    unmatched:
+    - finding: F11
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: 主旨は sheet.md の性質の表が「操作ごとの承認」を「当たらない」と読み dc-05 が落ちたことで、S5 の例と同じ。設計書は承認を payment-svc の承認の記録で持つことを 3.1 の見送りに理由つきで書いており、台帳に承認の宣言の欄を求めるのは教材の読み方の問題。
+    - finding: F14
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-jti の shirogane-as の行は (iss, jti) を「exp まで（最大 90 秒）」覚えるとし、C-exp・C-iat は exp のずれ 30 秒と iat の 30 秒先まで受けるので、exp から exp＋30 秒の間（iat が先なら受け取りから 90〜120 秒）は jti を忘れた assertion をまだ受ける。M_token_validation
+        の 6. は「90 秒覚える」と書き、書き方も食い違う。control の C-jti・C-exp も同文。
+    counts:
+      errors: 16
+      strict: 12
+      lenient: 12
+      sum: 12
+      unmatched_by_verdict:
+        道具・教材への指摘: 1
+        真（基の設計の欠陥）: 1
+  D6-3:
+    design: seeded-d
+    model: Claude Sonnet 5.5
+    errors:
+      D01:
+        score: 1
+        findings:
+        - F1
+        - (2)q-no-passthrough
+        borderline: F1 also carries an unkeyed assessment_ref claim / F1 also asserts a second claim (assessment_ref multiple versions); matched to D01 for the first claim only
+      D02:
+        score: 1
+        findings:
+        - F3
+        - (2)q-object-level-authz
+      D03:
+        score: 1
+        findings:
+        - F11
+        - (2)q-dependency-outage
+        borderline: F11 also carries an extra TTS-outage claim
+      D04:
+        score: 0
+        findings: []
+      D05:
+        score: 1
+        findings:
+        - F4
+        - (2)q-operator-act
+      D06:
+        score: 1
+        findings:
+        - F2
+        - (2)q-authorize-service-and-user
+        - (2)ap-1-7
+      D07:
+        score: 1
+        findings:
+        - F5
+        - (2)q-outside-catalog
+      D08:
+        score: 1
+        findings:
+        - F7
+        - (2)q-approval-from-as
+      D09:
+        score: 0
+        findings: []
+      D10:
+        score: 1
+        findings:
+        - F8
+        - (2)q-revocation-delivery
+      D11:
+        score: 0
+        findings: []
+      D12:
+        score: 1
+        findings:
+        - F12
+        - (2)q-audit-correlation
+        - (2)q-original-principal
+      D13:
+        score: 0
+        findings: []
+      D14:
+        score: 1
+        findings:
+        - F6
+        - (2)q-step-up-by-rs
+        - (2)q-step-up-path-coverage
+      D15:
+        score: 0.5
+        findings:
+        - F9
+        borderline: see borderline_calls / K2 / stricter 0.5; looser (substance is lint-workaround) 1
+      D16:
+        score: 0
+        findings: []
+    unmatched:
+    - finding: 'F1 (second half only): TTS does not record whether a confirmation was used and assessment_ref is caller-chosen, so one confirmation can yield several payment instructions'
+      severity: Blocker
+      verdict: 真（埋め込みの副作用）
+      reason: 対照の H29 は PAY_MSG_CTX の要求を assessment-svc だけから受け、assessment_ref は確定の記録の持ち主の assessment-svc が渡すので、TTS が使用済みを記録しなくても 1 回の確定から複数の指示は生じない。seeded では D01 で claim-svc なども頼めるため、呼び出し側が決めた assessment_ref
+        と頼み直しの許可から多重の指示が作れる。D01 の wrong に書かれていない帰結なので副作用とした。
+    - finding: F10
+      severity: Minor
+      verdict: 誤検出
+      reason: 1. の L16（aud）の warn の理由は、Txn-Token の aud を草案どおり信頼ドメインにするので外の AT の aud と名前が違い aud_mapping に書けないことを説明し、絞り込みは TTS の AT の aud の確認と、scope・寿命が上流を超えないことで示している。呼び出し元の一覧・scope・tctx による絞りは各ホップに書かれており、理由として通る。
+    - finding: 'F11 (second half only): when TTS or the employee ledger is down, stop operations through as-admin-api also fail; REQ-01/02 900 s not compared'
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: TTS が止まれば受付も止まる（3.1 の拒む側に倒す）ので、その場合は害が無い。しかし社員の台帳が止まると社員の口だけが止まり契約者・代理店の口は動き続ける一方、停止の操作は TXN_STAFF を要する as-admin-api でしか書けず、その間 REQ-01・REQ-02 の停止ができないことを 3.1・12. の可用性の検討で比べていない。control の 2.
+        の as-admin-api の行と 12. の「可用性の目標」の行も同じ。
+    - finding: F13
+      severity: Minor
+      verdict: 誤検出
+      reason: 課の異動は control と同じ 3.1 の見送り「課の規則」に、前提（発効前の付け替え）・持ち主・毎日の突き合わせの確かめ方つきで書かれている（R4）。指摘は約束の時間が無いと言い切るが、課の異動では役割が残るので REQ-03 の「役割の変更」に当たらないという書かれた読みは要求と矛盾しない。
+    - finding: '(2)q-derived-value: tctx policy_number and amount also reach document-svc, which uses only claim_id'
+      severity: Minor
+      verdict: 誤検出
+      reason: C-tctx の description は「操作ごとにどの項目があるかは経路の表が決め、表に無い項目は入れない」とし、付録 D の P5 の 2. の表では policy_number は claim.submit だけに入る。document-svc に届くのは operation が document.upload の Txn-Token（H10・H11）で、claim_id
+        で照らすだけなので、policy_number・amount が届くという前提が設計と合わない。
+    - finding: '(4)op-proof-holder: certificate reissue changes the thumbprint; no overlap period or procedure written'
+      severity: Minor
+      verdict: 誤検出
+      reason: 付録 D の M_sender_constraint の 4. に、証明書は同じサブジェクトで出し直し、古い証明書に束縛した AGENCY_AT は更新後に使えなくなり（最大 300 秒）、代理店のサーバーが新しい証明書で取り直す、と切り替えの手順と時間が書かれている。束縛の切り替えを AT の寿命で決めると理由もある。
+    counts:
+      errors: 16
+      strict: 10
+      lenient: 11
+      sum: 10.5
+      unmatched_by_verdict:
+        真（埋め込みの副作用）: 1
+        誤検出: 4
+        真（基の設計の欠陥）: 1
+  D7-1:
+    design: control-c
+    model: Claude Opus 5.5
+    findings:
+    - finding: F1
+      severity: Major
+      verdict: 真（基の設計の欠陥）
+      reason: control-c の 3.1「重複の実行を、業務の ID で防ぐ」の行は支払いを「発注 ID（1 つの発注に 1 回）」と書くだけで、発注・連絡・解錠にある条件つきの更新や重複を避ける鍵が支払いには無い。 hops.yaml H7 の checks、M_token_validation の 6.「1 回だけ受ける値」、3.1 の発注の台帳の書き手の行のどれにも、payment-tool
+        が依頼を記録する手段も経理の側の重複の除き方も無い。 正解の一覧の C18 の clean（「完了の報告済み→依頼中」の条件つきの更新）は control の文面に実在しない。
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: H7 の checks は payment-tool が発注の台帳（確定済み・完了の報告・修繕依頼・確定額）と手作業の発注の事後の確認（3.1 では approval-svc の記録）を読むとしているが、2. の mermaid 図の PT の矢印は PDP と ACC だけで、データ層の行も発注の台帳に接続するのは order-tool・order-scheduler だけと書く。
+        同じ部品の経路について 2 か所が食い違っている。
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: 2.1 は当番のロールを人事の台帳の「勤務の予定」から導くとするが、9.2「元のデータからの経路」が 2 人の承認で確定するとするのは在籍・職位・所属・研修の記録だけで、aoba-pdp のロールの導き方の列挙にも当番が無い。 停止の宣言を許す値の書き手と変更の手順が設計書に無く、3.1 の見送りにもない。
+    - finding: F4
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: 2.1 は勤務の予定で決まる当番が lock-svc の管理の画面で失効させるとし、2.2 の lock-svc の管理の画面の行と 3.1 の取り消しの見送りの行は入れるのを「基盤チームの 2 人」（だけ）とする。 当番が常にその 2 人に含まれるとはどこにも書かれておらず、REQ-06 の 15 分の手順の担い手が 2 か所で食い違う。3.1 の見送りの理由（新しい部品を作らず手順で受ける）そのものへの指摘ではないので
+        R4 には当てない。
+    counts:
+      findings: 4
+      false_positive: 0
+      false_positive_major_plus: 0
+      tool_material: 0
+      fp_rate: 0.0
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        真（基の設計の欠陥）: 4
+  D7-2:
+    design: control-c
+    model: Claude Opus 5.5
+    findings:
+    - finding: F1
+      severity: Major
+      verdict: 真（基の設計の欠陥）
+      reason: H5（claims.yaml C-authorization-details の order-tool の enforced_at）は「確定・予約では協力会社の取引が今も有効」を条件にするが、予約から最大 24 時間後に確定する order-scheduler の H13・H14 の checks には協力会社の台帳の確かめが無く、図にも SCH→VD の矢印が無い。 3.1
+        の見送り「予約の実行で、トークンを交換し直すこと」の理由自体でなく、引き直す項目の抜けへの指摘なので通常の判定にした。REQ-10 は協力会社を名指さないが、設計自身の確定の条件と食い違う。
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: 4. の頼る先の表は署名の鍵を「agent-sts の中の鍵管理の仕組み」とし、付録 D の M_token_validation 8. の agent-sts の行は aoba-as と「同じ鍵管理の仕組み（組織の HSM）の別の鍵、持ち主は認証基盤チーム」とする。 鍵の置き場の記述が 2 か所で食い違う小さな書き方の不整合で、安全性への影響は小さい。
+    counts:
+      findings: 2
+      false_positive: 0
+      false_positive_major_plus: 0
+      tool_material: 0
+      fp_rate: 0.0
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        真（基の設計の欠陥）: 2
+  D7-3:
+    design: control-c
+    model: Claude Sonnet 5.5
+    findings:
+    - finding: F-1
+      severity: Minor
+      verdict: 誤検出
+      reason: 2.1 は在籍を人事の台帳の在籍の状態で見分ける（休職も状態）と書き、9.2 で aoba-pdp は確定した在籍の値を読むので、退職日の前日まで在籍の状態が続き、退職で状態が変わり確定した時点が REQ-08 の起点になると一貫して読める。 また 3.1 の行は「登録を当日の業務時間内に確定する」であって「退職を当日に登録する」ではなく、指摘はこれを読み違えている。
+    - finding: F-2
+      severity: Minor
+      verdict: 誤検出
+      reason: 6. の UC2 の q-holder の行が名指す C-may-act は、claims.yaml の enforced_at で agent-sts が「may_act.sub が mTLS の相手の証明書の URI と一致」を確かめる仕組みで、持つ者を交換を求めた鍵の持ち主に限っている（RFC 8693 §4.4 の may_act とクライアント認証の組み合わせ）。
+        3.1 の REPAIR_DELEG_AT の送信者制約の見送りの行とも合っており、指摘自身も設計は成り立つと認めている。answers に q-holder が無いのは表記の細部にとどまる。
+    - finding: F-3
+      severity: Minor
+      verdict: 誤検出
+      reason: C-staff-number はトークンに載せない却下行で、identifier_properties・on_missing は運ぶクレームの欄である。突き合わせの鍵としての性質（人事の台帳が採番し付け替え・再利用しない、無ければ在籍なしで拒否、書けるのは hr-sync だけ）は rationale と 9.2 に書かれており、欠けている事実は無い。
+    counts:
+      findings: 3
+      false_positive: 3
+      false_positive_major_plus: 0
+      tool_material: 0
+      fp_rate: 1.0
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        誤検出: 3
+  D8-1:
+    design: control-d
+    model: Claude Opus 5.5
+    findings:
+    - finding: F1
+      severity: Minor
+      verdict: 道具・教材への指摘
+      reason: 指摘は sheet.md の性質の表の「操作ごとの承認」が authorization_details の有無で「当たらない」と読まれ dc-05 が出なかったことを指し、S5 の例そのもの。設計書は承認を payment-svc の承認の記録に置くことを 3.1 の見送りに理由つきで書いている。
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-client-id の front-gw の行は「代理店の口では、client_id が代理店の登録にあること」を against [iss, api_config] で確かめるとするが、H5 の validates にその確かめは無く、2. の図にも front-gw が代理店の登録を引く経路が無い。実際の確かめは H6 の TTS の行にあり、台帳の照合の場所の誤り（Minor）。
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-jti は (iss, jti) を「exp まで（最大 90 秒）」覚えるが、C-exp・C-iat により shirogane-as は exp＋ずれ 30 秒まで、iat は 30 秒先まで受けるので、exp から exp＋30 秒の間に同じ assertion が再び通りうる。再送には代理店の証明書の mTLS も要るので影響は小さい。
+    - finding: F4
+      severity: Minor（持ち主が 90 秒を受け入れなければ Major）
+      verdict: 真（基の設計の欠陥）
+      reason: 3.1 の見送り（電話の代理受付）は「exp は本人確認から 1800 秒を超えない」ことで REQ-11 の 30 分を守るとするが、受け手（C-exp の claim-svc・fraud-svc）は exp のずれ 30 秒まで受けるので最大 1830 秒通る。終話の後は 60＋30 秒とずれを数えているのに上限では数えておらず、書かれた理由が REQ-11 と 30
+        秒食い違う（R4 の 3 つ目）。
+    - finding: F5
+      severity: Minor
+      verdict: 確認の依頼
+      reason: 紛失の届けから止まるまでの要求の数値が無いことは、3.1 の見送り「社員の端末・セキュリティキーの紛失」に理由（600 秒を目標）・前提・確かめ方つきで書かれ、12. で持ち主の回答待ちとされている。指摘は sheet の決まりに従って数値の欠けと持ち主の確認待ちを挙げるもので、書かれた理由を要求の持ち主に確かめる求めと読める（R4）。
+    counts:
+      findings: 5
+      false_positive: 0
+      false_positive_major_plus: 0
+      tool_material: 1
+      fp_rate: 0.0
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        道具・教材への指摘: 1
+        真（基の設計の欠陥）: 3
+        確認の依頼: 1
+  D8-2:
+    design: control-d
+    model: Claude Opus 5.5
+    findings:
+    - finding: F1
+      severity: Minor（1800 秒を厳密に読むなら Major）
+      verdict: 真（基の設計の欠陥）
+      reason: D8-1 の F4 と同じ。3.1 の見送りの「exp は本人確認から 1800 秒を超えない」と、受け手が exp に時計のずれ 30 秒を足して受けることから、本人確認から最大 1830 秒まで通り、REQ-11 の 1800 秒と食い違う。3.1 の確かめ方（1799 秒目の TXN_PROXY の exp）もこの超過を拾わない（R4 の 3 つ目）。
+    - finding: F2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-act・C-sub（TXN_PROXY）は通話の記録の担当の社員・本人確認の結果に頼るが、設計は 2. で「通話の記録を書くのは IVR だけで、社員は書けない」とするだけで、IVR の担当者の対応づけや記録を変えられる運用者（IVR の管理者・監督者）を書き手として挙げていない（ap-1-7）。act 自体は EMPLOYEE_AT の sub との一致で守られるので影響は小さい。
+    - finding: F3
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-agency-code の assumption と claim_request_agency_code.md の問 11 は「代理店管理部だけが as-admin-api で書く」とするが、同じ行の note と design.md 2.2 の「データベースの直接の修正」は IT 基盤部の DB の管理者が代理店の登録を直せる経路を挙げており、書ける人の一覧が食い違う。
+    - finding: F4
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: C-jti の「exp まで（最大 90 秒）」と M_token_validation の 6. の「90 秒覚える」が 2 通りに書かれ、exp まで覚える読みでは exp から exp＋30 秒の再送の窓が残る（C-exp のずれ 30 秒）。iat は代理店の IdP の時計なので窓が延びうる点も設計の記述どおり。
+    counts:
+      findings: 4
+      false_positive: 0
+      false_positive_major_plus: 0
+      tool_material: 0
+      fp_rate: 0.0
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        真（基の設計の欠陥）: 4
+  D8-3:
+    design: control-d
+    model: Claude Sonnet 5.5
+    findings:
+    - finding: F-1
+      severity: Major
+      verdict: 誤検出
+      reason: 6. の UC4 の q-actor は「不要」とし、payment-worker は中身を変えられない運び手（TTS が tctx を PAY_MSG_CTX から変えずに写し、作り直せるのは決まったワークロードだけ）なので act を使わず、運んだワークロードは req_wl と q-peer で記録すると理由を書いている。payment-svc は指示を payment-worker
+        からだけ受けるので監査で人の操作と見分けられ、設計の判断は筋が通る。
+    - finding: F-2
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: TXN_PROXY の sub（契約者）と act の確かめは IVR の通話の記録に頼るが、2. は「通話の記録を書くのは IVR だけ」とし、IVR の運用者・基盤の管理者、契約管理の仕組みの DB の管理者を書ける者として数えていない（2.2 の書ける表は 3 サービスだけ）。社員の台帳は C-scope の note で直接の修正の対象外と書かれているので、その部分は当たらない。
+    - finding: F-3
+      severity: Minor
+      verdict: 誤検出
+      reason: 代理店はしろがねのデータを扱う提携先で、データの持ち主はしろがね 1 社であり、代理店ごとの絞り込みは証券の取扱代理店（関係ベース）で claim-svc が照らす形として書かれている（2.1、C-agency-code）。lite_criteria.multitenant を No とした宣言は設計と矛盾せず、document-svc の照合は 3.1 の見送りに理由つきで書かれている。
+    - finding: F-4
+      severity: Minor
+      verdict: 誤検出
+      reason: C-agency-code の on_missing は既定値だが、absent_semantics が既定の意味（無ければ代理店の請求ではない）と、AGENCY_AT と agst_ の sub の Txn-Token では拒否することを書いており、enforced_at も同じ。既定値が何かは書かれており、2 か所は食い違っていない。
+    - finding: F-5
+      severity: Minor
+      verdict: 誤検出
+      reason: C-act・C-sub・C-client-id は volatility が never で、propagation_delay は値の変化が受け手に届くまでの遅れなので 0 で正しい。主体の停止の遅れは on_revoke（キャッシュ 60 秒）と 9.1 の止める単位の表に書かれており、agency_code（volatility 900）の 390 と書き方が違うのは値が変わる行かどうかの違い。
+    - finding: F-6
+      severity: Minor
+      verdict: 真（基の設計の欠陥）
+      reason: 12. の「時計」の行と付録 D の M_token_validation の 6. は、IVR の時計をしろがねが見ておらず監視は今後とするが、H14 の確かめには本人確認の時刻が TTS の時計より先なら拒む規則が無く、IVR の時計が進むとその分 1800 秒の窓が延びる。12. にだけある前提なので通常の判定とし、具体的な守りの欠けとして真とした。
+    - finding: F-7
+      severity: Minor
+      verdict: 誤検出
+      reason: REQ-02 は代理店の契約を止めたら代理店と担当者の請求を止めることを求め、担当者の個別の停止は代理店が自分の IdP で行い最悪 750 秒で届くことが 3.1 の見送り（Back-Channel Logout・SSF/CAEP）に理由と確かめ方つきで書かれている（R4）。書かれた理由は要求と矛盾せず、指摘自身も要求が個別の停止を想定していないと認めている。
+    - finding: F-8
+      severity: Minor
+      verdict: 誤検出
+      reason: 証明書の更新は同じサブジェクトで出し直し、古い証明書に束縛した AT は更新後に使えなくなる（M_sender_constraint の 4.）。古い証明書の鍵は代理店のサーバー自身が持つもので、漏えいしたときは C-cnf の on_revoke の失効（CRL）と 3.1 の REQ-10 の見送り（代理店の鍵は知らされた時点から）で止める経路が書かれており、通常の更新で失効の手順が要るとは言えない。
+    counts:
+      findings: 8
+      false_positive: 6
+      false_positive_major_plus: 1
+      tool_material: 0
+      fp_rate: 0.75
+      fp_rate_note: 分母は指摘の数から道具・教材への指摘（改訂 S5）を除いたもの
+      by_verdict:
+        誤検出: 6
+        真（基の設計の欠陥）: 2
+recurring:
+  C:
+    recurring_base_defects: []
+    recurring_side_effects: []
+    recurring_false_positives: []
+    tool_material_findings: []
+  D:
+    recurring_base_defects:
+    - defect: 代理店の assertion の jti を覚える時間（exp まで）が受け入れの上限（exp＋ずれ 30 秒）より短く、30 秒の再送の窓が残る（C-jti・C-exp・M_token_validation の 6.）
+      sessions:
+      - D6-2 F14
+      - D8-1 F3
+      - D8-2 F4
+    - defect: 電話の代理受付の TXN_PROXY が、時計のずれ 30 秒のため本人確認から最大 1830 秒まで受けられ、3.1 の「1800 秒を超えない」と REQ-11 に食い違う
+      sessions:
+      - D8-1 F4
+      - D8-2 F1
+    - defect: IVR の通話の記録（TXN_PROXY の sub・act の出どころ）を書き換えられる運用者・管理者が書き手として数えられていない（ap-1-7）
+      sessions:
+      - D8-2 F2
+      - D8-3 F-2
+    recurring_side_effects:
+    - side_effect: D01（PAY_MSG_CTX を頼める相手の一覧が無い）と、呼び出し側が決める assessment_ref・頼み直しの許可が重なり、1 回の確定から版の違う支払いの指示を複数作れる
+      sessions:
+      - D6-1 F05
+      - D6-3 F1（後半）
+    recurring_false_positives:
+    - false_positive: 代理店の証明書の更新の扱い（切り替えの手順・古い証明書の失効）が書かれていないとする指摘。M_sender_constraint の 4. と C-cnf の on_revoke に書かれている
+      sessions:
+      - D6-3 (4)op-proof-holder
+      - D8-3 F-8
+    tool_material_findings:
+    - finding: sheet.md の性質の表が「操作ごとの承認」を authorization_details の有無で「当たらない」と読み、承認の記録をトークンの外に持つ設計で dc-05・q-approval-from-as の重みが落ちる（S5 の例）
+      sessions:
+      - D6-1 F14
+      - D6-2 F11
+      - D8-1 F1

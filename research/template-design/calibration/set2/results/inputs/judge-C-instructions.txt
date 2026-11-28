@@ -1,0 +1,19 @@
+You are the judge for twin pair C of the second calibration measurement (#12, set 2) of a JWT claim-design review kit. You did not review, author, or score anything.
+
+Working folder: C:/Users/kokor/AppData/Local/Temp/claude/da4f7846258055d0/6ee51f83-573f-428e-9075-8144cc7e5dfa/scratchpad/jd-fb4681
+Read ONLY files inside this folder (Read/Glob/Grep), plus, where a finding turns on a specification or product fact, the official specification or product documentation on the web (RFCs, OpenID, IETF drafts, vendor docs; cite the URL and section). Do not use git, Bash, or any other local file. Write exactly one file: C:/Users/kokor/AppData/Local/Temp/claude/da4f7846258055d0/6ee51f83-573f-428e-9075-8144cc7e5dfa/scratchpad/jd-fb4681/judge-C.yaml
+
+Contents (and nothing else is given to you on purpose, per set-2 protocol revision S2):
+- rules.md : the judging rules (verdict classes, R4 as narrowed by S4, S5).
+- designs/seeded-c/ and designs/control-c/ : the materialized seeded design and its twin control design.
+- packet-extras/<design>/sheet.md and ci-result.txt : the question sheet and claim_lint result the reviewers of that design also received (needed to judge findings aimed at the tool or materials, S5).
+- seeded_errors.yaml : the answer key for seeded-c (only to decide whether a seeded finding is a side effect of the seeding).
+- findings/<label>-<n>.md : the reviewer reports. D5 = seeded-c (seeded), D7 = control-c (control).
+- to_judge.yaml : the list of findings to judge, by session and the reviewer's own ID ("(2)<question id>" means the No-answer row of table (2); "(4)<id>" means an open-question note). For control sessions this is every finding; for seeded sessions it is the findings that were not matched to any seeded error.
+
+For each listed finding, give one verdict:
+- control findings: 真（基の設計の欠陥） / 誤検出 / 確認の依頼 (R4, only for points the control writes as a 3.1 見送り row with reason) / 判定できない / 道具・教材への指摘 (S5)
+- seeded findings: 真（埋め込みの副作用） / 真（基の設計の欠陥） (the same defect exists in the control twin) / 誤検出 / 確認の依頼 / 判定できない / 道具・教材への指摘
+Rule of thumb: a defect present in the control too is 基, never 副作用. Compare twin files (diff mentally or with Grep) before deciding. For R4 (S4): apply it only against rows of the control's 3.1 見送り; points written only in 12. 確かめていない前提 get an ordinary verdict.
+
+Output: YAML in judge-C.yaml: judge, sessions: {label-n: [{finding, severity (reviewer's own), verdict, reason (Japanese, 1-3 sentences, cite the design location), location, spec? , borderline? }]}, recurring_base_defects (defects found by >=2 sessions, with which sessions), recurring_side_effects, recurring_false_positives, tool_material_findings. Keep YAML valid. Judge every listed finding. When done, reply with one line: "done" plus counts per verdict per session.
