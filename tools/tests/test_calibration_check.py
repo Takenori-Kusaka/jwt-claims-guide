@@ -134,3 +134,20 @@ def test_packet_without_leaves_out_only_an_extra_file_of_the_set(tmp_path):
     with pytest.raises(SystemExit, match='kind_tell.md is not an extra file of set1'):
         cc.packet('seeded-a', str(tmp_path / 'packet'), '12', ('kind_tell.md',))
     assert not (tmp_path / 'packet').exists()
+
+
+def test_packet_without_still_refuses_changed_pinned_materials(tmp_path, monkeypatch):
+    """--without leaves S12 in force: changed pinned materials stop the packet before anything is written."""
+    monkeypatch.setattr(cc, 'pinned_materials', lambda design, cpath=None: ['rev/a.md differs from the pinned sha256'])
+    out = tmp_path / 'packet'
+    with pytest.raises(SystemExit, match='differs from the pinned sha256'):
+        cc.packet('seeded-c', str(out), '12', ('kind_tell.md',))
+    assert not out.exists()
+
+
+def test_packet_without_builds_a_packet_that_passes_p1_to_p3(tmp_path):
+    out = tmp_path / 'packet'
+    cc.packet('seeded-c', str(out), '12', ('kind_tell.md',))  # raises SystemExit on any P1-P3 error
+    assert not (out / 'kind_tell.md').exists()
+    assert (out / 'short_list.md').exists() and (out / 'designs' / 'target' / 'design.md').exists()
+    assert cc.packet_errors(str(out), 'seeded-c', ('kind_tell.md',)) == []

@@ -112,6 +112,7 @@
 
 - **リポジトリの最近のコミットの題名**（`gitStatus`。main のチェックアウトのもの）：`Merge pull request #87 from Takenori-Kusaka/issue-12-measurement-2`、`Apply the independent check of the set-2 results (#12)`、`Score and judge the set-2 measurement and write its results (#12)`、`Record the set-2 labels, models, packet hashes, instruction and audit (#12)`、`Fix the 12 set-2 reviewer outputs and their sha256 before scoring (#12)`。「2 組目の測定があった」ことを読み取れる。切り分けのブランチのコミット（d98c4a3）の題名、`kind_tell`、どの資料一式が seeded か、誤りの中身は書かれていない
 - **作業ディレクトリ**：リポジトリの clone のパス（読み取りはしていない。監査のとおり、資料一式のフォルダの外は 0 件）
+- **作業フォルダの親の名前**（PR #89 の独立点検で足した）：資料一式のフォルダの名前（`s<乱数 8 桁>`）は乱数だが、その親のフォルダの名前 `kt88`（kind_tell と #88 から取りまとめのセッションが付けた名前）は乱数でなく、指示の文の「作業フォルダ：…/scratchpad/kt88/s…」でレビュアーに届いた。上の「乱数の名前の新しい空のフォルダ」と手順の 2. の同じ書き方は、資料一式のフォルダについてだけ正しい。2 組目でも親は `calib2` で、同じ種類の漏れ。影響の見積もり：`kt88` は略語で、それだけから kind_tell を外した回だと読むには、リポジトリの `kind_tell.md` を知っている必要がある。レビュアーは git・ウェブ・フォルダの外を使っておらず（監査）、出力と読める範囲の考えの文に `kt88`・`kind_tell` を解釈した跡は無い（D12-1・D9-3・D10-3・D11-3 は返答の中でフォルダのパスを写しただけ）。影響は小さいと見るが、確かめる手段は無い。3 組目では親のフォルダの名前も中身を示さないものにする
 - **利用者の全体の設定**：CLAUDE.md と、自動の記憶の索引（2 組目と同じもの）
 
 12 回の出力と、記録の中の返答・考えの文（読める範囲）に、`kind_tell`・`ablation`・`切り分け`・`種別の見分け`・`seeded`・`埋め込`・`calibration`・`set-2` の語は 1 度も出ない。
