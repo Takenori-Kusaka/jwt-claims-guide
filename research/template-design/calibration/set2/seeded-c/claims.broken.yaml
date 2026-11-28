@@ -1,0 +1,1194 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# yaml-language-server: $schema=../../../../../templates/registry/claims.schema.json
+# 台帳（templates/registry/README.md の 3.1）。あおば住まいサービスの修繕の手配（管理担当者のコンソールと、修繕手配エージェント）
+# 発行者は 2 つ：aoba-as（組織の認可サーバー。担当者のログイン）と agent-sts（この設計で作る交換のサービス）。どちらも組織が自分で作る
+# 組織の名前空間の共有クレームは 2 つ（repair_id・approval_ref）。追加前の 25 問は claim_request_<名前>.md
+scenario: aoba-repair-agent
+namespaces:
+  - namespace: "https://aoba-sumai.example/claims/"
+    style: flat_prefix
+    owner: 認証基盤チーム（台帳の持ち主。templates/registry/README.md の 11.）
+    assignment: 名前空間の下の名前は、この台帳への登録（PR と追加前の 25 問）でだけ割り当てる。名前空間の名前を書くのは agent-sts だけで、aoba-as は書かない
+data_category_vocabulary:
+  name: fideslang
+  version: 3.1.4
+  url: https://github.com/ethyca/fideslang/blob/3.1.4/data_files/data_categories.csv
+  license: CC-BY-4.0
+  verified_on: '2026-11-27'
+claims:
+# ---------------------------------------------------------------- 登録名：受け入れの検証に使うもの
+- id: C-iss
+  name: iss
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.1", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1"}
+  type: string
+  shape: single
+  description: トークンの発行者。aoba-as（https://login.aoba-sumai.example）か agent-sts（https://sts.aoba-sumai.example）
+  not_meaning: 担当者がどこでログインしたかではない。許可リストにある値でも、その種別を出す発行者でなければ受け入れない
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    受け手ごとに受け入れる発行者を種別ごとに 1 つに固定する。ツール 4 つと approval-svc は agent-sts だけ、agent-sts は subject_token に aoba-as（CONSOLE_AT）か
+    自分（REPAIR_DELEG_AT）、repair-console は aoba-as だけを受ける。ツールが aoba-as のトークンを受けないので、担当者のトークンでツールを呼ぶ経路が無い
+  refs:
+    - {kind: spec, id: "RFC 8725 §3.8", url: "https://www.rfc-editor.org/rfc/rfc8725#section-3.8"}
+    - {kind: guide-slide, id: p00-incident-signature-valid}
+  assumption: 発行者は 2 つで、受け手ごとに受け入れる発行者を設定で固定する
+  revisit_trigger: 別の発行者（協力会社の認可サーバー、グループ会社の IdP）のトークンを受ける受け手が出たとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: 各発行者（aoba-as・agent-sts）の設定, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I12]
+  source_system: 各発行者の設定（認証基盤チームが持つ）
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値。発行者の切り替えは受け手の許可リストの変更で行う
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ID トークン・ログアウトトークンの iss が aoba-as と完全一致, against: [api_config]}
+    - {service: agent-sts, check: subject_token の iss が、CONSOLE_AT なら aoba-as、REPAIR_DELEG_AT なら自分と完全一致, against: [api_config]}
+    - {service: order-tool, check: iss が agent-sts と完全一致。aoba-as のトークンは拒否, against: [api_config]}
+    - {service: contact-tool, check: iss が agent-sts と完全一致。aoba-as のトークンは拒否, against: [api_config]}
+    - {service: payment-tool, check: iss が agent-sts と完全一致。aoba-as のトークンは拒否, against: [api_config]}
+    - {service: lock-tool, check: iss が agent-sts と完全一致。aoba-as のトークンは拒否, against: [api_config]}
+    - {service: approval-svc, check: iss が agent-sts と完全一致。aoba-as のトークンは拒否, against: [api_config]}
+  max_bytes: 40
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-sub
+  name: sub
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2"}
+  type: string
+  shape: single
+  description: >-
+    担当者（管理担当者・上長）の aoba-as の利用者 ID（UUID）。「誰の権限で」に答える。どの種別でも担当者を表し、ワークロード（エージェント・ツール）を sub に入れる種別は無い
+  not_meaning: 今その操作をしている行為者ではない（それは act の最も外側）。社員番号・ログイン名ではない（社員番号をトークンの照合に使わない。社員番号は aoba-pdp・hr-sync が aoba-as の利用者と人事の台帳を突き合わせる鍵だけに使う。C-staff-number）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: uuid}
+  decision: 採用
+  answers: [q-sub, q-user]
+  does_not_answer: [q-actor]
+  rationale: >-
+    agent-sts は交換で sub を subject_token から写すだけで、要求の値で差し替えさせない。発注の確定・解錠コードの発行・支払いの依頼のツールは、sub で aoba-pdp に
+    担当者の在籍・ロール・修繕依頼の担当を問い合わせる。退職した担当者を作り直しても別の sub になり、古い sub の権限は引き継がれない
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p02-user-identifier}
+  assumption: 担当者は aoba-as のローカルの利用者で、外部の IdP から取り込まない
+  revisit_trigger: 協力会社の作業員やグループ会社の社員をログインさせることになったとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as（ローカルの利用者の ID）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（subject_token から写すだけ）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09]
+  source_system: aoba-as の利用者（hr-sync が人事の台帳の在籍の記録から作る。ID は aoba-as が割り当てる。利用者を作り社員番号の属性を書けるのは hr-sync の証明書の API だけで、aoba-as の管理の画面では作れない）
+  verification_method: hr-sync が人事の台帳の在籍の記録から利用者を作る。メールのドメインや自己登録では作らない。aoba-pdp は sub（agent-sts からの問い合わせはログイン名）から社員番号の属性を引いて人事の台帳と突き合わせる
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 担当者の退職・異動は、agent-sts の交換ごとの aoba-pdp の問い合わせと、発注の確定・解錠コード・支払いのツールの呼び出しごとの問い合わせで止める（9.2）。aoba-pdp は人事の台帳の API が応答しないとき、最後に引いた結果を最大 24 時間返す（修繕の業務を止めない）
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ID トークンの sub を BFF のセッションに結ぶ。ログアウトトークンの sub と sid でセッションを探す, against: [format]}
+    - {service: agent-sts, check: 出すトークンの sub は subject_token の sub と同じ。aoba-pdp で在籍を確かめる。委任とツールの交換では修繕依頼の台帳で修繕依頼の担当が sub であること、APPROVAL_AT の交換では sub が修繕依頼の担当か、aoba-pdp で同じ課の上長であること（承認者の条件そのものは approval-svc が確かめる）, against: [data_layer]}
+    - {service: order-tool, check: 確定（orders:place）のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる。下書きは監査ログに残すだけ, against: [data_layer]}
+    - {service: contact-tool, check: 監査ログに残す。連絡の相手の範囲（入居者と協力会社の窓口。visit-subagent なら入居者だけ）は C-repair-id の照合で決める, against: [format]}
+    - {service: payment-tool, check: 支払いの依頼のたびに aoba-pdp に sub を渡し、在籍・修繕担当のロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
+    - {service: lock-tool, check: 解錠コードの発行のたびに aoba-pdp に sub を渡し、在籍・鍵の取り扱いのロール・修繕依頼の担当を問い合わせる, against: [data_layer]}
+    - {service: approval-svc, check: aoba-pdp で承認者の在籍とロールを引き、承認の種類ごとの承認者の条件と照合する。発注の承認は、承認者の sub が承認の記録の担当者（依頼したときの sub）と違い、修繕依頼の台帳の担当の履歴（今と過去の担当）にも無いこと。解錠の承認は、承認者の sub が承認の記録の担当者で、今も修繕依頼の担当であること, against: [data_layer, other_claim], with: C-approval-ref}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.unique_id]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: agent-sts・ツール 4 つ・approval-svc・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ。design.md の付録 D の M_privacy_minimization の 8.）}
+    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読む）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+  note: >-
+    監査ログには、監査の共通部品の HMAC-SHA256（鍵は監査の担当が鍵管理の仕組みで持ち、全サービスで同じ鍵）で残す。どのサービスのログでも同じ値になるので、
+    ログどうしを結べる。監査の担当は担当者の sub から同じ値を作って検索する
+- id: C-aud
+  name: aud
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.3", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3"}
+  type: string
+  shape: single
+  description: >-
+    トークンの宛先 1 つ。CONSOLE_AT・REPAIR_DELEG_AT は agent-sts、ツールのトークンはそれぞれのツールの MCP の URI、APPROVAL_AT は approval-svc、
+    ID トークン・ログアウトトークンは repair-console
+  not_meaning: してよい操作の範囲ではない（それは scope）。トークンを持つ者ではない（それは cnf）
+  usage: protocol
+  decision: 採用
+  answers: [q-resource]
+  rationale: >-
+    1 つのトークンの宛先は 1 つだけにする。agent-sts は交換の要求の resource（RFC 8707）を 1 つだけ受け、リソースの表に登録した宛先（repair-agent には https://*.aoba-sumai.example/mcp の形の URI も）に出す。
+    ツールは aud が自分の MCP の URI と完全一致し、ほかの値が並ばないことを確かめる。漏れたトークンを別のツールで使わせない
+  refs:
+    - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+    - {kind: spec, id: "RFC 9068 §4", url: "https://www.rfc-editor.org/rfc/rfc9068#section-4"}
+    - {kind: guide-slide, id: p06-narrow-downstream}
+  assumption: ツール・approval-svc はそれぞれ 1 つの正規の URI を持つ
+  revisit_trigger: 1 つのツールを複数の URI で公開するとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as（クライアントの登録の宛先。repair-console の CONSOLE_AT は agent-sts だけ）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（交換の要求の resource を、リソースの表と宛先の規則で確かめてから書く）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I12]
+  source_system: aoba-as のクライアントの登録、agent-sts のリソースの表（認証基盤チームが持つ）
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: 変わらない値
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ID トークン・ログアウトトークンの aud が repair-console だけ, against: [api_config]}
+    - {service: agent-sts, check: CONSOLE_AT・REPAIR_DELEG_AT の aud が https://sts.aoba-sumai.example だけ, against: [api_config]}
+    - {service: order-tool, check: aud が https://order-tool.aoba-sumai.example/mcp だけ。配列にほかの値があれば拒否, against: [api_config]}
+    - {service: contact-tool, check: aud が https://contact-tool.aoba-sumai.example/mcp だけ, against: [api_config]}
+    - {service: payment-tool, check: aud が https://payment-tool.aoba-sumai.example/mcp だけ, against: [api_config]}
+    - {service: lock-tool, check: aud が https://lock-tool.aoba-sumai.example/mcp だけ, against: [api_config]}
+    - {service: approval-svc, check: aud が https://approval.aoba-sumai.example だけ, against: [api_config]}
+  max_bytes: 48
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-exp
+  name: exp
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+  type: integer
+  shape: single
+  description: トークンの期限（UNIX 時刻）
+  not_meaning: 権限が続くことの保証ではない。期限の前でも、重要な操作は aoba-pdp と approval-svc で確かめ直す
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    受け手は exp を時計のずれ 30 秒まで許して確かめる。agent-sts は交換で出すトークンの exp を、自分の寿命の上限と subject_token の exp の早いほうにする
+    （下流の寿命が上流を超えない）。ツールは exp − iat が種別の寿命以下であることも確かめる
+  refs:
+    - {kind: spec, id: "RFC 7519 §4.1.4", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4"}
+    - {kind: guide-slide, id: p08-choosing-lifetime}
+  assumption: 発行者と受け手の時計は組織の NTP に合わせる
+  revisit_trigger: 組織の網の外の受け手を足すとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as（クライアントごとの寿命の設定）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（種別の寿命と subject_token の exp の早いほう）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I12]
+  source_system: 発行者の時計と寿命の設定
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: exp を時計のずれ 30 秒まで許して確かめる, against: [format]}
+    - {service: agent-sts, check: subject_token の exp を確かめ、出すトークンの exp を subject_token の exp より後にしない, against: [other_claim], with: C-iat}
+    - {service: order-tool, check: exp を確かめ、exp − iat が 300 秒以下, against: [other_claim], with: C-iat}
+    - {service: contact-tool, check: exp を確かめ、exp − iat が 300 秒以下, against: [other_claim], with: C-iat}
+    - {service: payment-tool, check: exp を確かめ、exp − iat が 300 秒以下, against: [other_claim], with: C-iat}
+    - {service: lock-tool, check: exp を確かめ、exp − iat が 300 秒以下, against: [other_claim], with: C-iat}
+    - {service: approval-svc, check: exp を確かめ、exp − iat が 120 秒以下, against: [other_claim], with: C-iat}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-iat
+  name: iat
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+  type: integer
+  shape: single
+  description: トークンの発行の時刻（UNIX 時刻）
+  not_meaning: 担当者が認証した時刻ではない（それは auth_time）
+  usage: protocol
+  decision: 採用
+  rationale: 受け手は exp − iat で寿命の上限を確かめ、未来の iat（時計のずれ 30 秒を超える）を拒否する。ログアウトトークンは iat から 120 秒で受け入れを打ち切る
+  refs:
+    - {kind: spec, id: "RFC 7519 §4.1.6", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6"}
+  assumption: 発行者と受け手の時計は組織の NTP に合わせる
+  revisit_trigger: 組織の網の外の受け手を足すとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I12]
+  source_system: 発行者の時計
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ログアウトトークンの iat から 120 秒を過ぎていれば拒否。未来の iat を拒否, against: [format]}
+    - {service: agent-sts, check: 未来の iat（ずれ 30 秒を超える）を拒否, against: [format]}
+    - {service: order-tool, check: exp − iat が 300 秒以下。未来の iat を拒否, against: [other_claim], with: C-exp}
+    - {service: contact-tool, check: exp − iat が 300 秒以下。未来の iat を拒否, against: [other_claim], with: C-exp}
+    - {service: payment-tool, check: exp − iat が 300 秒以下。未来の iat を拒否, against: [other_claim], with: C-exp}
+    - {service: lock-tool, check: exp − iat が 300 秒以下。未来の iat を拒否, against: [other_claim], with: C-exp}
+    - {service: approval-svc, check: exp − iat が 120 秒以下。未来の iat を拒否, against: [other_claim], with: C-exp}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-jti
+  name: jti
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
+  type: string
+  shape: single
+  description: トークンの一意の ID（UUID）
+  not_meaning: 業務の操作の ID ではない（発注 ID・承認 ID・修繕依頼 ID は別。冪等の鍵にも使わない）
+  usage: protocol
+  decision: 採用
+  rationale: >-
+    agent-sts は交換の記録に、元のトークンの jti と出したトークンの jti を結んで残す。ツールと approval-svc は jti を監査ログに残し、どのトークンで
+    操作したかをたどる。ログアウトトークンは jti で再送を拒否する。業務の操作の重複は、発注 ID・承認 ID などの業務の ID で防ぐ（jti に頼らない）
+  refs:
+    - {kind: spec, id: "RFC 7519 §4.1.7", url: "https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7"}
+    - {kind: guide-slide, id: p06-audit-trail}
+  assumption: 発行者は UUID の version 4 で jti を作る
+  revisit_trigger: jti で 1 回限りの使用を強制する種別を足すとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I09, I12]
+  source_system: 発行者の乱数
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ログアウトトークンの jti を 150 秒覚えて、同じ jti を拒否する, against: [format]}
+    - {service: agent-sts, check: 交換の記録に元の jti と出した jti を残す, against: [format]}
+    - {service: order-tool, check: 監査ログに残す, against: [format]}
+    - {service: contact-tool, check: 監査ログに残す, against: [format]}
+    - {service: payment-tool, check: 監査ログに残す, against: [format]}
+    - {service: lock-tool, check: 監査ログに残す, against: [format]}
+    - {service: approval-svc, check: 監査ログに残す, against: [format]}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 7519）
+- id: C-client-id
+  name: client_id
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+  type: string
+  shape: single
+  allowed_values: {enum: ["repair-console", "repair-agent", "visit-subagent"]}
+  description: >-
+    トークンを求めたクライアント。CONSOLE_AT・APPROVAL_AT・1 段目の REPAIR_DELEG_AT は repair-console、ツールのトークンと 2 段目の REPAIR_DELEG_AT は交換を求めたエージェント
+    （repair-agent か visit-subagent）
+  not_meaning: 誰の権限かではない（それは sub）。今の行為者そのものではない（行為者は act の最も外側。ツールは client_id と act の最も外側が同じエージェントかを確かめる）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: other}
+  decision: 採用
+  answers: [q-agent]
+  rationale: >-
+    agent-sts は client_id を、REPAIR_DELEG_AT の交換では交換を求めた mTLS の相手のクライアントの登録から書き、CONSOLE_AT の交換では CONSOLE_AT の client_id（repair-console）を写し、要求の値を使わない。ツールは client_id が act の最も外側の行為者と
+    同じエージェントであることを確かめる。approval-svc は client_id が repair-console で act が無い（エージェントの経路で承認させない）ことを確かめる
+  refs:
+    - {kind: spec, id: "RFC 9068 §2.2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2"}
+    - {kind: spec, id: "RFC 8693 §4.3", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.3"}
+  assumption: クライアントは 3 つ（repair-console・repair-agent・visit-subagent）で、それぞれ wl-ca の証明書 1 つに対応する
+  revisit_trigger: エージェントを足すとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as（mTLS で認証したクライアント）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（REPAIR_DELEG_AT の交換では mTLS で認証した交換を求めたクライアント。CONSOLE_AT の交換では CONSOLE_AT の client_id を写す）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I12]
+  source_system: aoba-as と agent-sts のクライアントの登録（認証基盤チームが持つ）
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: クライアントの登録を外すと、次の発行・交換から出なくなる
+  carried_in: [CONSOLE_AT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: CONSOLE_AT の client_id が repair-console（交換を求めた mTLS の相手は wl-ca の証明書であればよく、どのワークロードでもよい）。REPAIR_DELEG_AT の交換では、mTLS の相手のクライアントが may_act の主体, against: [api_config]}
+    - {service: order-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（agent-sts と同じクライアントの登録の表（client_id とワークロードの URI の対応。設定の配布で受け手に渡し、5 分ごとに読み直す）で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: contact-tool, check: client_id が repair-agent か visit-subagent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: payment-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: lock-tool, check: client_id が repair-agent で、act の最も外側の URI と同じエージェント（クライアントの登録の表で対応を引く）, against: [api_config, other_claim], with: C-act}
+    - {service: approval-svc, check: client_id が repair-console。APPROVAL_AT に act が無いことも確かめる（エージェントが承認の操作をする経路を作らない）, against: [api_config]}
+  max_bytes: 16
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 9068）
+- id: C-scope
+  name: scope
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+  type: string
+  shape: space_delimited
+  max_items: 8
+  allowed_values: {enum: ["openid", "orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue", "approvals:decide"]}
+  value_vocabulary:
+    values: ["openid", "orders:draft", "orders:place", "tenant.message:send", "tenant.message:read", "payments:request", "lock.code:issue", "approvals:decide"]
+    owner: 認証基盤チーム（ツールの持ち主の申請で足す）
+    extensible: false
+  description: クライアントに委ねた操作の範囲。ツールごとの操作（orders:place など）と、承認の操作（approvals:decide）
+  not_meaning: 担当者の全権限ではない。担当者がその操作をしてよいか（ロール）は aoba-pdp が決める
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    CONSOLE_AT の scope は repair-console が求めた範囲の上限で、agent-sts は交換のたびに、宛先のツールの操作だけ、かつ aoba-pdp が返す担当者のロールで
+    許す操作だけに絞る（上流の部分集合）。連絡の 2 つ（tenant.message:send・tenant.message:read）はロールで絞らず、委任の表でエージェントに許した範囲で付ける（修繕担当のロールが外れても、担当の修繕依頼の入居者への連絡を止めない）。
+    訪問の調整のサブエージェントには連絡の 2 つだけを渡す。ワイルドカードは作らない
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.2", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.2"}
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guide-slide, id: p05-scope-vs-role}
+  assumption: aoba-pdp は人事の台帳から導いたロールを 60 秒以内の新しさで返す
+  revisit_trigger: ツールを足すとき・ロールの区分を変えるとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as（repair-console に登録した scope の上限の中で要求の値）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（上流の scope と、宛先の操作と、aoba-pdp のロールの積。連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）, configurable_by: [platform]}
+  issue_events: [I01, I02, I06, I12]
+  source_system: aoba-as のクライアントの登録（上限）、aoba-pdp のロール（人事の台帳から導く）
+  volatility: 600
+  recompute_trigger: [exchange]
+  propagation_delay: 390
+  on_revoke: >-
+    ロールの剥奪は、agent-sts が次の交換で aoba-pdp の結果から scope を外す（aoba-pdp のキャッシュ 60 秒）。手元のツールのトークンは最悪 330 秒残るので、
+    下書きは最悪 390 秒（REQ-08 の 10 分の内側）。連絡の 2 つはロールで絞らないので、ロールの剥奪では止まらない（担当の付け替えか委任の停止で止まる）。発注の確定・解錠コード・支払いはツールが呼び出しのたびに aoba-pdp で確かめる（最悪 60 秒）
+  carried_in: [CONSOLE_AT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 出す scope が subject_token の scope と、宛先の操作の表と、aoba-pdp のロールの積（連絡の 2 つはロールで絞らず、委任の表でエージェントに許した範囲で付ける）。空になれば拒否, against: [api_config, data_layer]}
+    - {service: order-tool, check: 下書きは orders:draft、確定・予約は orders:place が要る。足りなければ 403 insufficient_scope, against: [api_config]}
+    - {service: contact-tool, check: 送信は tenant.message:send、返信の読み取りは tenant.message:read が要る, against: [api_config]}
+    - {service: payment-tool, check: payments:request が要る, against: [api_config]}
+    - {service: lock-tool, check: lock.code:issue が要る, against: [api_config]}
+    - {service: approval-svc, check: approvals:decide が要る, against: [api_config]}
+  max_bytes: 128
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+# ---------------------------------------------------------------- 委任と送信者制約
+- id: C-act
+  name: act
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+  type: object
+  shape: single
+  description: >-
+    担当者の代わりに今操作している行為者。最も外側の act.sub が今の行為者（repair-agent か visit-subagent のワークロードの URI。例
+    https://workloads.aoba-sumai.example/repair-agent）。visit-subagent のトークンでは、その内側の act に前の行為者の repair-agent が入る
+  not_meaning: 誰の権限かではない（それは sub）。入れ子の act（act.act。内側）は今の行為者ではなく、経由した行為者の記録で、許可リストと照合しない
+  usage: authz
+  decision: 採用
+  answers: [q-actor, q-agent]
+  does_not_answer: [q-sub]
+  rationale: >-
+    ツールは最も外側の act.sub だけで行為者を判断する（RFC 8693 §4.1）。最も外側の act.sub を mTLS の相手の証明書の URI と照合し、
+    ツールの操作ごとの行為者の許可リスト（発注・支払い・解錠は repair-agent だけ、連絡は repair-agent と visit-subagent）と照合する。内側の act は監査ログに残すだけ
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1"}
+    - {kind: guide-slide, id: p10-four-questions}
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+  assumption: 委任の深さは 2 まで（repair-agent → visit-subagent）。agent-sts は 3 段目の交換を拒否する
+  revisit_trigger: visit-subagent がさらに別のエージェントに任せる要望が出たとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（交換を求めた mTLS の相手の証明書の URI から作る。要求の値は使わない）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: agent-sts が mTLS で認証した相手の証明書（wl-ca が出す。URI の SAN にワークロードの URI）
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: エージェントのクライアントの登録を外すと、次の交換から拒否される（手元のツールのトークンは最悪 330 秒）。そのエージェントがした予約は、order-scheduler が実行の時点で同じクライアントの登録の表を引き、予約の記録の行為者が外れていれば実行しない（H13）
+  carried_in: [REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT]
+  consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool]
+  on_missing: 拒否
+  absent_semantics: {absent: "1 段目の REPAIR_DELEG_AT（repair-console から repair-agent への委任）にだけ無い。ツールのトークン 4 種では必ずあり、無ければ拒否する（required_claims）"}
+  enforced_at:
+    - {service: agent-sts, check: 2 段目の REPAIR_DELEG_AT の最も外側の act.sub が repair-agent で、mTLS の相手が may_act の主体。深さ 3 になる交換は拒否, against: [other_claim], with: C-may-act}
+    - {service: order-tool, check: 最も外側の act.sub が mTLS の相手の証明書の URI で、発注の行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: contact-tool, check: 最も外側の act.sub が mTLS の相手で、連絡の行為者の許可リスト（repair-agent・visit-subagent）にある。最も外側が visit-subagent なら、連絡の相手は入居者だけ（協力会社の窓口は拒否。REQ-04）。内側の act は記録だけ。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: payment-tool, check: 最も外側の act.sub が mTLS の相手で、支払いの行為者の許可リスト（repair-agent）にある。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+    - {service: lock-tool, check: 最も外側の act.sub が mTLS の相手で、解錠の行為者の許可リスト（repair-agent）にある。visit-subagent は拒否。act の入れ子の深さが 2 を超えれば拒否, against: [api_config, other_claim], with: C-cnf}
+  max_bytes: 160
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+  note: 入れ子の act の全体（連鎖）は各ツールが監査ログに残す。内側の act は「どこを経由したか」の記録で、認可の判断に使わない
+- id: C-may-act
+  name: may_act
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+  type: object
+  shape: single
+  description: REPAIR_DELEG_AT を subject_token にして交換してよい行為者（1 段目は repair-agent、2 段目は visit-subagent のワークロードの URI）
+  not_meaning: すでに代理している者ではない（それは act）。その行為者が何をしてよいかではない（それは scope と行為者の許可リスト）
+  usage: authz
+  decision: 採用
+  rationale: >-
+    agent-sts は、1 段目の REPAIR_DELEG_AT の may_act に repair-agent を、2 段目に visit-subagent を、委任の表から入れる。REPAIR_DELEG_AT の交換では、
+    mTLS の相手が may_act の主体と同じことを確かめる。ほかのワークロードが REPAIR_DELEG_AT を手に入れても交換できない
+  refs:
+    - {kind: spec, id: "RFC 8693 §4.4", url: "https://www.rfc-editor.org/rfc/rfc8693#section-4.4"}
+    - {kind: guide-slide, id: p02-delegation-client}
+  assumption: 任せてよい相手は agent-sts の委任の表（repair-console → repair-agent、repair-agent → visit-subagent）で決まり、エージェントの申告では決まらない
+  revisit_trigger: 任せる相手のエージェントを足すとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（委任の表から）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: agent-sts の委任の表（認証基盤チームが PR で持つ）
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 委任の表から外すと、次の REPAIR_DELEG_AT から出なくなる。出した REPAIR_DELEG_AT は最悪 330 秒
+  carried_in: [REPAIR_DELEG_AT]
+  consumers: [agent-sts]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: may_act.sub が mTLS の相手の証明書の URI と一致し、委任の表にある, against: [api_config, other_claim], with: C-act}
+  max_bytes: 80
+  overflow_strategy: 発行を失敗させる
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8693）
+- id: C-cnf
+  name: cnf
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+  type: object
+  shape: single
+  description: トークンを束縛したクライアント証明書の SHA-256 の拇印（x5t#S256）。交換を求めたエージェントか repair-console の、wl-ca の証明書
+  not_meaning: 行為者の名前ではない（それは act）。証明書の有効期限は表さない
+  usage: authz
+  decision: 採用
+  answers: [q-holder]
+  rationale: >-
+    ツールと approval-svc は、mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する。エージェントの実行基盤は入居者の依頼の文（外からの入力）を読むので、
+    トークンが漏れる前提にし、鍵を持たない者に使わせない
+  refs:
+    - {kind: spec, id: "RFC 8705 §3.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3.1"}
+    - {kind: guide-slide, id: p08-rotation}
+  assumption: エージェント・repair-console とツール・approval-svc の間は、組織の網の中で端から端まで mTLS を張り、途中で TLS を終端しない
+  revisit_trigger: ツールの手前に TLS を終端する入口を置くとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（交換を求めた mTLS の相手の証明書から）, configurable_by: [platform]}
+  issue_events: [I06, I29]
+  source_system: agent-sts への交換の要求の mTLS の相手の証明書
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: >-
+    証明書は 24 時間で、残り 8 時間で更新する。更新した証明書の接続では、新しい証明書で交換し直したトークンだけを使う（共通のクライアント部品が、証明書と
+    トークンを組で管理する。design.md の付録 D の M_sender_constraint の 4.）
+  carried_in: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [order-tool, contact-tool, payment-tool, lock-tool, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: order-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: contact-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: payment-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: lock-tool, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致, against: [other_claim], with: C-cnf}
+    - {service: approval-svc, check: mTLS の相手の証明書の拇印と cnf の x5t#S256 が一致（APPROVAL_AT を交換で求めた者の証明書）, against: [other_claim], with: C-cnf}
+  max_bytes: 60
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 認証基盤チーム
+  change_controller: IETF（RFC 8705）
+# ---------------------------------------------------------------- 認証の強さと新しさ
+- id: C-acr
+  name: acr
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: string
+  shape: single
+  allowed_values: {enum: ["pwd", "mfa"]}
+  value_vocabulary:
+    values: ["pwd", "mfa"]
+    owner: 認証基盤チーム（aoba-as の認証の段の定義）
+    extensible: false
+  description: 担当者のログインの認証の強さ。pwd はパスワードだけ、mfa はパスワードと TOTP
+  not_meaning: いつ認証したかではない（それは auth_time）。承認したことではない（承認は approval-svc の記録）
+  usage: authz
+  decision: 採用
+  rationale: >-
+    承認の操作（10 万円を超える発注の承認、解錠コードの承認。却下・取り下げは除く）では、approval-svc が APPROVAL_AT の acr が mfa であることを求める（RFC 9470）。
+    agent-sts は CONSOLE_AT の acr を APPROVAL_AT に写すだけで値を作らない。ツールのトークンには載せない（承認の時点で確かめ、ツールは承認の記録を引く）
+  refs:
+    - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+    - {kind: guide-slide, id: p02-auth-strength-session}
+  assumption: aoba-as は acr_values=mfa の要求で TOTP を求め、満たしたときだけ acr に mfa を書く（aoba-as の仕様書の 4.3）
+  revisit_trigger: 担当者の認証にパスキーを入れるとき（acr の語彙を見直す）
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as（認証の段）, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（CONSOLE_AT から写すだけ）, configurable_by: [platform]}
+  issue_events: [I01, I06, I12]
+  source_system: aoba-as の認証の記録
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: ログインごとの値。リフレッシュでは変わらない
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: 追加の認証の後の ID トークンの acr が mfa かを確かめてから、承認の画面に戻す, against: [api_config]}
+    - {service: agent-sts, check: CONSOLE_AT の acr を APPROVAL_AT に写すだけ（判断しない）, against: [format]}
+    - {service: approval-svc, check: 承認の操作（承認済みにする操作）と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは止める操作なので求めない）、acr が mfa でなければ 401 insufficient_user_authentication（acr_values=mfa・max_age=300）, against: [api_config]}
+  max_bytes: 4
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-auth-time
+  name: auth_time
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: integer
+  shape: single
+  description: 担当者が最後に認証した時刻（UNIX 時刻。CONSOLE_AT・ID トークンは aoba-as が書き、APPROVAL_AT は agent-sts が書く）
+  not_meaning: 認証の強さではない（それは acr）。CONSOLE_AT の値はリフレッシュで新しくならない
+  usage: authz
+  decision: 採用
+  rationale: >-
+    承認の操作では、approval-svc が今の時刻 − auth_time が 300 秒以下であることを求める（REQ-07）。リフレッシュで iat は新しくなるが auth_time は変わらないので、
+    朝のログインのまま承認できない。agent-sts は APPROVAL_AT の auth_time に交換した時刻を書く（APPROVAL_AT は承認の操作のたびに交換し直すので、交換の時刻が承認の直前の認証の時刻になる）
+  refs:
+    - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.2.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest"}
+  assumption: aoba-as は CONSOLE_AT と ID トークンに auth_time を載せ、リフレッシュでは元の値のまま出す（aoba-as の仕様書の 4.3）
+  revisit_trigger: aoba-as の認証の段の仕様を変えるとき
+  issuers:
+    - "https://login.aoba-sumai.example"
+    - "https://sts.aoba-sumai.example"
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as, configurable_by: [platform]}
+    - {stage: ③, writer: agent-sts（APPROVAL_AT では交換した時刻を書く）, configurable_by: [platform]}
+  issue_events: [I01, I06, I12]
+  source_system: aoba-as の認証の記録（APPROVAL_AT は agent-sts の交換の時刻）
+  volatility: never
+  recompute_trigger: [login, exchange]
+  propagation_delay: 0
+  on_revoke: ログインごとの値（APPROVAL_AT は交換ごと）
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_AT, APPROVAL_AT]
+  consumers: [repair-console, agent-sts, approval-svc]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: 追加の認証の後の ID トークンの auth_time が、追加の認証を求めた時刻より後か, against: [format]}
+    - {service: agent-sts, check: APPROVAL_AT の auth_time に交換した時刻を書く（CONSOLE_AT の auth_time は、無ければ交換を拒否するだけで写さない）, against: [format]}
+    - {service: approval-svc, check: 承認の操作と手作業の発注の事後の確認で（却下・取り下げ・解錠の取り消しは除く）、approval-svc の時計で今 − auth_time が 300 秒を超えれば 401 insufficient_user_authentication, against: [api_config]}
+  max_bytes: 10
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+# ---------------------------------------------------------------- 操作ごとの承認
+- id: C-authorization-details
+  name: authorization_details
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  type: object
+  shape: array
+  max_items: 1
+  typical_items: 1
+  value_vocabulary:
+    values: ["https://aoba-sumai.example/rar/vendor-order", "https://aoba-sumai.example/rar/lock-code"]
+    owner: 管理部の修繕課のシステム担当
+    extensible: false
+  value_normalization: {case: as_is, unicode: NFC, trim: true, compare: exact, normalized_by: agent-sts（approval-svc の承認の記録から作るときに 1 回だけ）}
+  description: >-
+    承認した 1 つの操作の内容。メンバーはどれも文字列。type が https://aoba-sumai.example/rar/vendor-order のとき：locations（["https://order-tool.aoba-sumai.example/mcp"]）、
+    order_id（発注 ID。^ORD-[0-9]{10}$）、repair_id（修繕依頼 ID）、vendor_id（協力会社の ID。^VD-[0-9]{6}$）、amount（税込の円の 10 進の文字列。^[1-9][0-9]{0,8}$。例 "128000"）、
+    currency（"JPY"）。type が https://aoba-sumai.example/rar/lock-code のとき：locations（["https://lock-tool.aoba-sumai.example/mcp"]）、repair_id、
+    unit_id（部屋の ID。^RM-[0-9]{8}$）、vendor_id、worker_id（作業員の ID。^WK-[0-9]{6}$。lock-tool が協力会社の台帳でその協力会社の作業員であることを確かめて承認の依頼に入れる）、worker_name（作業員の氏名。lock-tool が作業員への SMS の本文に名前を入れるため、agent-sts が承認の記録から載せる）、not_before と not_after（RFC 3339 の UTC の時刻を YYYY-MM-DDTHH:MM:SSZ の 1 つの書式に固定した文字列（秒まで・小数なし・T と Z は大文字・+00:00 は使わない。^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$。agent-sts が承認の記録から作るときにこの書式で書き、受け手はこの書式でない値を拒否してから完全一致で比べる）。差は 4 時間以内）
+  not_meaning: 承認の今の状態ではない（取り下げ・使用済みは approval-svc で確かめる）。その操作を実行したことではない
+  usage: authz
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    agent-sts は、承認済みの承認の記録からだけ authorization_details を作り、locations と同じ宛先のツールのトークンにだけ載せる（エージェントの申告の金額・部屋は使わない）。
+    order-tool は発注の下書きの order_id・vendor_id・amount・repair_id と、lock-tool は修繕依頼の部屋と要求の協力会社・時間帯と、完全一致で比べ（金額は文字列の 10 進として）、
+    食い違えば拒否する
+  refs:
+    - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+    - {kind: spec, id: "RFC 9396 §9.1", url: "https://www.rfc-editor.org/rfc/rfc9396#section-9.1"}
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+  assumption: 1 つのツールのトークンで、承認した 1 つの操作だけを運ぶ（max_items 1）
+  revisit_trigger: 複数の発注をまとめて 1 回で承認する要望が出たとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ⑥, writer: agent-sts（approval-svc の承認済みの記録から。エージェントの申告では作らない）, configurable_by: [platform]}
+  issue_events: [I06, I14]
+  source_system: approval-svc の承認の記録（承認の依頼は order-tool・lock-tool が自分の記録から作り、上長・担当者が repair-console で承認する）
+  volatility: 0
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 承認の取り下げは、order-tool・lock-tool が実行のたびに approval-svc で承認を条件つきで使用済みにする（取り下げてあれば失敗する）ことで、すぐに止める
+  carried_in: [ORDER_TOOL_AT, LOCK_TOOL_AT]
+  consumers: [order-tool, lock-tool]
+  on_missing: 既定値
+  absent_semantics: {absent: "承認の要らない操作（直近 30 日の部屋の累計が 10 万円以下の発注、下書き）。承認が要る発注の確定と、解錠コードの発行では拒否する"}
+  enforced_at:
+    - {service: order-tool, check: 承認が要る確定で、type が vendor-order、locations が自分、order_id・vendor_id・amount・repair_id が下書きの記録と完全一致。無ければ・違えば拒否。承認の要否の累計は、部屋の行の排他の錠を押さえたトランザクションの中で数える。確定・予約では協力会社の取引が今も有効（協力会社の台帳）, against: [other_claim, data_layer], with: C-approval-ref}
+    - {service: lock-tool, check: type が lock-code、locations が自分、unit_id が修繕依頼の部屋、vendor_id・worker_id・not_before・not_after が要求と完全一致（コードは worker_id の作業員にだけ送る）し、not_after − not_before が 4 時間以内で not_before < not_after、今が not_before と not_after の間（承認の依頼の登録でも 4 時間を超える時間帯を拒否する）。発行と送り直しでは、協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致。無ければ・違えば拒否, against: [other_claim, data_layer], with: C-approval-ref}
+  max_bytes: 320
+  overflow_strategy: 発行を失敗させる
+  pii_category: 個人情報
+  data_category: [user.location.imprecise, user.name]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 管理部の修繕課のシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  note: >-
+    部屋の ID・時間帯は、修繕依頼の台帳と突き合わせると入居者と在宅の時間が分かるので、作業員の氏名はそれ自体で、個人情報として扱う。ログには残さない（承認の内容は approval-svc の記録にある）。
+    生成の発行側のスキーマ（schemas/）はオブジェクトの中のメンバーの型を表さないので、メンバーの型は agent-sts と受け手の共通の部品の試験で確かめる（design.md の 3.1）
+# ---------------------------------------------------------------- 組織の名前空間
+- id: C-repair-id
+  name: repair_id
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  allowed_values: {pattern: "^RQ-[0-9]{8}$"}
+  value_normalization: {case: upper, unicode: none, trim: true, compare: exact, normalized_by: 修繕依頼の台帳（採番のとき）}
+  description: エージェントが進めている修繕依頼（入居者からの修繕の依頼 1 件）の ID。修繕依頼の台帳が採番する
+  not_meaning: 発注 ID ではない（1 つの修繕依頼に発注は複数ありうる）。修繕依頼の担当が sub であることの証明ではない（agent-sts と重要な操作のツールが台帳で確かめる）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  answers: [q-txn]
+  rationale: >-
+    agent-sts は、交換の要求の修繕依頼が subject_token の担当者に割り当てられ、エージェントへの委任が止められていないことを修繕依頼の台帳で確かめてから載せる。
+    ツールは要求の対象（下書き・連絡の相手・部屋）がこの修繕依頼のものかを確かめ（支払いでは、発注の修繕依頼と repair_id は照合しない）、監査ログに残す。修繕依頼ごとの操作をたどる鍵にする（REQ-11）
+  refs:
+    - {kind: guide-slide, id: p06-audit-trail}
+    - {kind: author-proposal, id: "修繕依頼の ID を交換で載せ、ツールの対象の照合と監査ログの相関に使う", tracking: "#82"}
+  assumption: 修繕依頼は 1 人の担当者に割り当てられ、エージェントは 1 つの修繕依頼の中で動く
+  revisit_trigger: 複数の修繕依頼をまとめて扱うエージェントを作るとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ③, writer: agent-sts（委任とツールの交換では、修繕依頼の台帳で担当と委任を確かめた値。APPROVAL_AT では、repair-console の交換の要求の修繕依頼（画面で開いた修繕依頼）を、sub が担当か上長であることを確かめてから。承認の記録の値は写さない）, configurable_by: [platform]}
+  issue_events: [I06]
+  source_system: 修繕依頼の台帳（管理業務システム）。APPROVAL_AT では repair-console の交換の要求（画面で開いた修繕依頼）と修繕依頼の台帳（承認の記録の値は写さない）
+  verification_method: 委任とツールの交換では、agent-sts が修繕依頼の台帳の API で、修繕依頼の担当が sub で、エージェントへの委任の欄が「有効」であることを確かめる。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で同じ課の上長かを確かめる
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: 委任の停止は、次の交換で agent-sts が拒否する。担当の付け替えは、agent-sts が修繕依頼の台帳の担当を 3600 秒キャッシュするので、下書き・連絡は最悪 3930 秒で止まる。発注の確定・解錠・支払いは、ツールが aoba-pdp で担当を確かめ直す（最悪 60 秒）
+  carried_in: [REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [agent-sts, order-tool, contact-tool, payment-tool, lock-tool, approval-svc, aoba-pdp]
+  on_missing: 拒否
+  enforced_at:
+    - {service: agent-sts, check: 1 段目の委任の交換では、修繕依頼の台帳で修繕依頼の担当が sub で委任の欄が有効か。REPAIR_DELEG_AT の交換では REPAIR_DELEG_AT の値をそのまま写し（要求で変えさせない）、担当と委任の欄を確かめ直す。APPROVAL_AT の交換では、要求の修繕依頼について sub が担当か、aoba-pdp で同じ課の上長か, against: [data_layer]}
+    - {service: order-tool, check: 下書き・確定の対象の発注の修繕依頼が repair_id と一致。違えば 404, against: [data_layer]}
+    - {service: contact-tool, check: 連絡の相手を repair_id の修繕依頼の入居者と、その発注の協力会社の窓口に限る（最も外側の act.sub が visit-subagent なら入居者だけ）。要求は相手の種類だけを受け、電話番号・宛先を受けない。宛先は通知の基盤が repair_id と相手の種類から台帳で引く。返信の読み取り（tenant.message:read）は、repair_id の修繕依頼のやり取りだけを返し（visit-subagent なら入居者とのやり取りだけ）、違う ID には 404, against: [data_layer, other_claim], with: C-act}
+    - {service: payment-tool, check: 支払いの対象の発注が確定済みで完了の報告がある（発注の修繕依頼と repair_id は照合しない。発注 ID は発注の台帳で一意なので）。手作業の発注で 10 万円を超えるものは、事後の確認が「確認済み」になるまで支払いを依頼しない（不適切とされたものは支払わない）。額は発注の台帳の確定額で、要求の額を使わない, against: [data_layer]}
+    - {service: lock-tool, check: 修繕依頼の部屋が authorization_details の unit_id と一致, against: [data_layer, other_claim], with: C-authorization-details}
+    - {service: approval-svc, check: 一覧の参照（approval_ref の無い APPROVAL_AT）では、トークンの repair_id の修繕依頼の承認の記録だけを返し、sub がその修繕依頼の担当者か、aoba-pdp で同じ課の上長でなければ返さない（担当の履歴にある課長も、解錠の取り消しのために参照できる。承認・事後の確認の操作は担当の履歴に無い課長だけ）。APPROVAL_AT の repair_id（repair-console が画面で開いた修繕依頼）が、操作する承認の記録の repair_id と一致（出どころの違う 2 つを比べ、画面で見ている修繕依頼と違う承認を操作させない）。order-scheduler からの予約済みの使用（H14）では、予約の記録の修繕依頼と一致, against: [data_layer]}
+    - {service: aoba-pdp, check: 予約の実行の問い合わせ（H13）で、修繕依頼の台帳の修繕依頼の担当が、渡された担当者（sub）であることを確かめる。呼び出し元は証明書の許可リストの order-scheduler だけ, against: [data_layer]}
+  max_bytes: 11
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.unique_id.pseudonymous]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: agent-sts・ツール 4 つ・approval-svc・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ。C-sub と同じ鍵）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ）}
+    - {place: other, target: 発注の台帳の予約の記録（order-tool が書き、order-scheduler が読んで aoba-pdp・approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 管理部の修繕課のシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, draft-ietf-oauth-transaction-tokens-11 §9.2 の txn, RFC 9396 §2]
+    nearest: ["txn（Txn-Token の草案。組織の内側の 1 つの呼び出しの連鎖を指し、修繕依頼のように何日もかけて多くの呼び出しをまたぐものを指さない）"]
+    not_used_because: Txn-Token を使わない（目録の TXN_TOKEN は却下）。修繕依頼はツールの呼び出しを何回も、日をまたいでまたぐので、txn の意味と違う
+  note: >-
+    修繕依頼の台帳と突き合わせると入居者が分かるので個人情報として扱う。監査ログには C-sub と同じ鍵つきのハッシュで残し、監査の担当が修繕依頼の台帳の
+    ID から同じ値を作って、全サービスのログを 1 本に結ぶ（ハッシュの前に大文字にそろえる。value_normalization）。
+    consumers の aoba-pdp だけは、トークンでなく予約の記録の写し（H13 で order-scheduler が渡す値）で受ける呼ばれる側で、トークンの検証部品を使わない。
+    トークンから読む受け手は、agent-sts・ツール 4 つ・approval-svc の 6 つ
+- id: C-approval-ref
+  name: approval_ref
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  allowed_values: {pattern: "^apv_[0-9a-f]{32}$"}
+  value_normalization: {case: lower, unicode: none, trim: true, compare: exact, normalized_by: approval-svc（採番のとき）}
+  description: 1 つの操作の承認の記録の ID（approval-svc が採番）。10 万円を超える発注の上長の承認と、解錠コードの担当者本人の承認
+  not_meaning: 承認が今も有効であることではない（受け手が approval-svc で使用済みにして確かめる）。承認の中身ではない（それは authorization_details）
+  usage: identifier
+  identifier_properties: {stable: true, reassignable: false, pairwise: false, id_scheme: opaque}
+  decision: 採用
+  answers: [q-authorized]
+  rationale: >-
+    order-tool・lock-tool は approval_ref で、approval-svc の承認を条件つきの更新（承認済み・未使用なら、その発注 ID かその承認自身に結んで使用済みに）で
+    1 回だけ使う。同じ発注 ID での再試行には前の結果を返し、別の発注 ID では失敗する。APPROVAL_AT では、承認する 1 つの記録を指し、approval-svc は
+    その記録にだけ操作させる。監査ログで操作と承認を結ぶ（REQ-11）
+  refs:
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+    - {kind: author-proposal, id: "承認の ID を交換で載せ、受け手が承認の記録を条件つきの更新で 1 回だけ使う", tracking: "#82"}
+  assumption: approval-svc は、状態の参照と、条件つきの更新（予約・使用・取り下げ）の API を持つ（この設計で作る）
+  revisit_trigger: 承認の記録を別の仕組みに移すとき
+  issuers: ["https://sts.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ⑥, writer: agent-sts（approval-svc の承認済みの記録から。解錠のコードの送り直しだけは、lock-tool が使用済みにした取り消していない not_after の前の解錠の承認から。記録の修繕依頼・担当者・宛先が合わなければ載せない）, configurable_by: [platform]}
+  issue_events: [I06, I14]
+  source_system: approval-svc の承認の記録
+  volatility: never
+  recompute_trigger: [exchange]
+  propagation_delay: 0
+  on_revoke: ID そのものは変わらない。承認の取り下げは、受け手の approval-svc への条件つきの更新が失敗することで反映する
+  carried_in: [ORDER_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  consumers: [order-tool, lock-tool, approval-svc]
+  on_missing: 既定値
+  absent_semantics: {absent: "ORDER_TOOL_AT：承認の要らない発注（下書きと、累計 10 万円以下の確定）。承認が要る確定では拒否。LOCK_TOOL_AT：承認の依頼の登録だけを許し、発行は拒否。APPROVAL_AT：承認の一覧の参照だけを許し、承認・却下・取り下げは拒否"}
+  enforced_at:
+    - {service: order-tool, check: approval-svc で、承認の記録の発注 ID・修繕依頼・担当者（sub）が要求と一致し、承認済み・未使用・期限内なら使用済み（発注 ID に結ぶ）にする条件つきの更新が成功するときだけ確定。approval-svc が応答しなければ拒否, against: [data_layer]}
+    - {service: lock-tool, check: 発行では、approval-svc で承認の記録の修繕依頼・担当者が要求と一致し、承認済み・未使用・期限内なら使用済みにする条件つきの更新が成功するときだけ発行。発行では、承認の後に修繕依頼の台帳の担当の履歴に付け替えが無いことも確かめる（今の担当だけを見ない）。発行と送り直しのどちらでも、協力会社の台帳で協力会社の取引と作業員の登録が今も有効で、作業員の番号のハッシュが承認の記録のハッシュと一致するときだけ送る。送り直しでは、承認が lock-tool による使用済み・取り消していない・not_after の前のときだけ同じコードを送り直す。送り直しの回は承認の記録に持ち、approval-svc の条件つきの更新（回が n で n が 3 未満なら n+1）で上げてから送る（並行の 2 件は片方だけが送る）。応答しなければ拒否, against: [data_layer]}
+    - {service: approval-svc, check: APPROVAL_AT の approval_ref の記録だけに承認・却下・取り下げを許す。取り下げ・却下をしてよいのは、承認した人・今の担当者・同じ課の上長だけ。使用済み・予約済みにするとき（order-tool・lock-tool の更新）は、承認した人を aoba-pdp で確かめ直す：発注の承認は、承認した人が今も在籍し同じ課の上長のロールを持つこと、解錠の承認は、承認した人（担当者本人）が今も在籍し、修繕依頼の担当で、鍵の取り扱いのロールを持つこと（承認の後の承認者の剥奪で、まだ使っていない承認を止める。REQ-08）。承認の操作は「承認待ち」の記録にだけ許し、却下・取り下げ・失効・取り消しは終わりの状態で、承認し直せない（新しい承認は新しい依頼で）。使用済み・予約済みにする条件つきの更新では、記録の「承認済み」への変更が approval-svc のアプリの DB アカウントで書かれたこと（変更の記録の表）も条件にする（DB の管理者が直接「承認済み」にした記録は使わせない）。記録の repair_id がトークンの repair_id と一致。order-scheduler からの予約済みの使用（H14）では、承認の記録の発注 ID・修繕依頼・担当者が予約の記録と一致し、予約済みなら使用済みにする条件つきの更新。発行済みの解錠の取り消し（その修繕依頼の担当者か、同じ課の上長の APPROVAL_AT。承認者の条件の「担当の履歴に無い」は求めない）では、承認を「取り消し」にして lock-svc に失効を求める。手作業の発注の事後の確認（approval_ref の記録の種類が「手作業の事後の確認」）では、承認と同じ条件（acr が mfa・auth_time から 300 秒、確かめる課長は登録した課長でなく担当の履歴にも無い）を求める, against: [data_layer, other_claim], with: C-repair-id}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.unique_id.pseudonymous]
+  confidential_from: []
+  integrity_until:
+    - {place: log, target: order-tool・approval-svc・agent-sts・order-scheduler の監査ログ（監査の共通部品の鍵つきのハッシュ。C-sub と同じ鍵）, trust_boundary: 監査の基盤（閲覧は監査の担当と管理部の部長だけ）}
+    - {place: other, target: 発注の台帳の予約の記録（order-scheduler が読んで approval-svc に渡す）, trust_boundary: 発注の台帳（予約の記録を作れるのは order-tool の DB アカウントだけ。order-scheduler の DB アカウントは状態の「予約→確定」「予約→取り消し」だけを更新できる。DB の管理者の直接の書き込みは、order-scheduler が実行の前に変更の記録の表で検出する。design.md の 3.1）}
+  log_policy: ハッシュ化して記録
+  status: active
+  owner: 管理部の修繕課のシステム担当
+  change_controller: 認証基盤チーム（台帳の持ち主）
+  prior_art_search:
+    searched: [IANA JWT Claims registry, RFC 9396 §2]
+    nearest: ["authorization_details の identifier（RFC 9396 §2.2。対象のリソースを指す値で、承認の記録を指す値ではない）"]
+    not_used_because: 承認の記録の ID の登録名が無い。authorization_details の中に入れると、承認の一覧の参照だけの APPROVAL_AT（authorization_details が無い）で承認を指せない
+# ---------------------------------------------------------------- コンソールのログインとログアウト
+- id: C-nonce
+  name: nonce
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §2", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDToken"}
+  type: string
+  shape: single
+  description: ログインの要求ごとに repair-console が作る値
+  not_meaning: トークンの一意の ID ではない（それは jti）
+  usage: protocol
+  decision: 採用
+  rationale: repair-console は ID トークンの nonce を、BFF のセッションに保存した値と照合し、別のログインの応答を受けない
+  refs:
+    - {kind: spec, id: "OpenID Connect Core 1.0 §3.1.3.7", url: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"}
+  assumption: repair-console はログインの要求ごとに新しい nonce を作る
+  revisit_trigger: ログインの流れを変えるとき
+  issuers: ["https://login.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as（認可要求の値を写す）, configurable_by: [platform]}
+  issue_events: [I01, I12]
+  source_system: repair-console の BFF のセッション
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: 要求ごとの値
+  carried_in: [LOGIN_ID_TOKEN]
+  consumers: [repair-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: BFF のセッションに保存した nonce と完全一致, against: [api_config]}
+  max_bytes: 43
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-sid
+  name: sid
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  type: string
+  shape: single
+  description: aoba-as のセッションの ID
+  not_meaning: BFF のセッションの ID ではない（repair-console は自分のセッションと sid を対応づけて持つ）
+  usage: protocol
+  decision: 採用
+  rationale: repair-console はログアウトトークンの sid で、消す BFF のセッションを探す
+  refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  assumption: aoba-as の ID トークンとログアウトトークンに sid が載る（aoba-as の仕様書の 6.）
+  revisit_trigger: Back-Channel Logout をやめるとき
+  issuers: ["https://login.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as, configurable_by: [platform]}
+  issue_events: [I01, I09]
+  source_system: aoba-as のセッション
+  volatility: never
+  recompute_trigger: [login]
+  propagation_delay: 0
+  on_revoke: セッションごとの値
+  carried_in: [LOGIN_ID_TOKEN, CONSOLE_LOGOUT]
+  consumers: [repair-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: ログアウトトークンの sid に対応する BFF のセッションを消す, against: [format]}
+  max_bytes: 36
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.authentication]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-events
+  name: events
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  type: object
+  shape: single
+  description: ログアウトトークンであることを示すイベント（http://schemas.openid.net/event/backchannel-logout）
+  not_meaning: ログアウトの理由ではない
+  usage: protocol
+  decision: 採用
+  rationale: repair-console は events にログアウトのイベントがあり、nonce が無いことを確かめ、ID トークンと取り違えない
+  refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.6", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#Validation"}
+  assumption: aoba-as のログアウトトークンが仕様どおりの events を持つ
+  revisit_trigger: Back-Channel Logout をやめるとき
+  issuers: ["https://login.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ②, writer: aoba-as, configurable_by: [platform]}
+  issue_events: [I09]
+  source_system: aoba-as
+  volatility: never
+  recompute_trigger: [never]
+  propagation_delay: 0
+  on_revoke: トークンごとの値
+  carried_in: [CONSOLE_LOGOUT]
+  consumers: [repair-console]
+  on_missing: 拒否
+  enforced_at:
+    - {service: repair-console, check: events に backchannel-logout のイベントがあり、nonce が無い, against: [format]}
+  max_bytes: 60
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 該当なし
+  data_category: [system.operations]
+  confidential_from: []
+  log_policy: 記録する
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+- id: C-name
+  name: name
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+  type: string
+  shape: single
+  description: 担当者の表示名（コンソールの画面の右上に出す）
+  not_meaning: 担当者を照合する値ではない（照合は sub）
+  usage: display
+  paired_id: C-sub
+  decision: 採用
+  rationale: コンソールの画面に担当者の名前を出す。ID トークンだけに載せ、AT・ツールのトークンには載せない
+  refs:
+    - {kind: guide-slide, id: p04-immutable-identifiers}
+  assumption: aoba-as は name を ID トークンだけに載せる（クライアントの登録で、AT に載せる属性を sub と認証の属性に限る）
+  revisit_trigger: ツールが担当者の名前を必要とする要望が出たとき（そのときも aoba-pdp で引く）
+  issuers: ["https://login.aoba-sumai.example"]
+  authoritative_writer:
+    - {stage: ①, writer: aoba-as（人事の台帳から hr-sync が写した氏名）, configurable_by: [platform]}
+  issue_events: [I01]
+  source_system: 人事の台帳の氏名（hr-sync が aoba-as に写す。担当者は自分で変えられない）
+  volatility: 86400
+  recompute_trigger: [login]
+  propagation_delay: 32400
+  on_revoke: 表示だけに使うので、改姓などの変更は次のログインで反映すればよい
+  carried_in: [LOGIN_ID_TOKEN]
+  consumers: [repair-console]
+  on_missing: 無視
+  enforced_at:
+    - {service: repair-console, check: 画面に出すだけで、照合・認可に使わない, against: [format]}
+  max_bytes: 96
+  overflow_strategy: 上限で固定（超えない値域）
+  pii_category: 個人情報
+  data_category: [user.name]
+  confidential_from: []
+  log_policy: 記録しない
+  status: active
+  owner: 認証基盤チーム
+  change_controller: OpenID Foundation
+# ---------------------------------------------------------------- 載せないと決めたもの
+- id: C-roles
+  name: roles
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §7.2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-7.2.1"}
+  type: string
+  shape: array
+  max_items: 10
+  description: 担当者のロール（修繕担当・上長・鍵の取り扱い）
+  not_meaning: scope ではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-scope]
+  rationale: >-
+    ロールの剥奪を 2 分以内に重要な操作に届かせる（REQ-08）ため、ロールをトークンに載せない。agent-sts は交換のたびに、重要な操作のツールと approval-svc は
+    呼び出しのたびに aoba-pdp に問い合わせる。トークンにはクライアントに委ねた範囲（scope）だけを載せる
+  refs:
+    - {kind: guide-slide, id: p04-carry-or-query}
+    - {kind: guide-slide, id: p08-stale-claims}
+  assumption: aoba-pdp は人事の台帳から導いたロールを 60 秒以内の新しさで返す
+  revisit_trigger: aoba-pdp の応答が遅く、ツールの呼び出しの遅れが問題になったとき
+- id: C-groups
+  name: groups
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 9068 §7.2.1", url: "https://www.rfc-editor.org/rfc/rfc9068#section-7.2.1"}
+  type: string
+  shape: array
+  max_items: 20
+  description: 担当者の所属の組（営業所・課）の名前
+  not_meaning: ロールではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-scope]
+  rationale: >-
+    所属は異動で変わり、名前は組織の改編で付け替わる。権限を所属の名前で決めると、名前を変えるだけで権限が動く。所属が要る判断（上長が部下の発注を承認できるか）は、
+    approval-svc が aoba-pdp に人事の台帳の所属のコードで問い合わせる
+  refs:
+    - {kind: guide-slide, id: p02-roles-groups-entitlements}
+    - {kind: guide-slide, id: p04-split-by-writer}
+  assumption: 所属の判断はすべて aoba-pdp で行う
+  revisit_trigger: 所属でツールを出し分ける要望が出たとき
+- id: C-amr
+  name: amr
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8176 §1", url: "https://www.rfc-editor.org/rfc/rfc8176#section-1"}
+  type: string
+  shape: array
+  max_items: 4
+  description: 認証に使った方法の一覧（pwd・otp など）
+  not_meaning: 認証の強さの段ではない（それは acr）
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-acr]
+  rationale: 承認の判断に要るのは「多要素で認証したか」だけで、acr の mfa で足りる。方法の一覧を載せると、受け手ごとに読み方がずれる
+  refs:
+    - {kind: spec, id: "RFC 9470 §3", url: "https://www.rfc-editor.org/rfc/rfc9470#section-3"}
+  assumption: 承認の判断は acr と auth_time だけで行う
+  revisit_trigger: 方法ごとに扱いを変える要望（パスキーだけを認めるなど）が出たとき
+- id: C-email
+  name: email
+  namespace: null
+  registered_ref: {kind: spec, id: "OpenID Connect Core 1.0 §5.1", url: "https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims"}
+  type: string
+  shape: single
+  description: 担当者のメールアドレス
+  not_meaning: 担当者を照合する値ではない
+  decision: 却下
+  rejection_kind: 不要
+  rationale: コンソールもツールも担当者のメールを使わない。照合は sub、表示は name で足りる。載せると手元とログに個人情報が増える
+  refs:
+    - {kind: guide-slide, id: p09-do-not-carry}
+  assumption: 担当者への通知はこの設計の外の社内の連絡の仕組みで行う
+  revisit_trigger: ツールが担当者にメールを送る要望が出たとき
+- id: C-tenant-phone
+  name: tenant_phone
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  description: 修繕依頼の入居者の電話番号
+  not_meaning: 担当者・協力会社の連絡先ではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-repair-id]
+  rationale: >-
+    入居者への連絡は、contact-tool が repair_id と相手の種類（入居者）を通知の基盤に渡し、通知の基盤が修繕依頼の台帳から宛先を引いて送る（REQ-12。contact-tool も宛先を持たない）。トークンに載せると、
+    エージェントの実行基盤・全ツールの手元に入居者の電話番号が残り、エージェントが任意の番号に送る経路にもなる
+  refs:
+    - {kind: guide-slide, id: p09-do-not-carry}
+    - {kind: guide-slide, id: p09-jws-is-readable}
+  assumption: 通知の基盤は repair_id と相手の種類から、修繕依頼の台帳で宛先を引ける
+  revisit_trigger: 修繕依頼の台帳を引けないツールが入居者の連絡先を必要とするとき
+- id: C-unit-address
+  name: unit_address
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  description: 修繕する部屋の住所（物件の名前・部屋番号）
+  not_meaning: 部屋の ID ではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-authorization-details]
+  rationale: >-
+    解錠の照合に要るのは部屋の ID（authorization_details の unit_id）だけで、住所は要らない。住所と解錠の時間帯が同じトークンに並ぶと、漏れたときに
+    いつどの部屋が開くかが読める
+  refs:
+    - {kind: guide-slide, id: p09-do-not-carry}
+  assumption: lock-tool は部屋の ID で、スマートロックの管理の仕組み（lock-svc）の錠を引ける
+  revisit_trigger: 住所を表示するツールを足すとき（そのときも修繕依頼の台帳から引く）
+- id: C-unlock-code
+  name: unlock_code
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  description: スマートロックの一時解錠コード
+  not_meaning: 承認の ID ではない
+  decision: 却下
+  rejection_kind: 禁止
+  rationale: >-
+    解錠コードは秘密の値で、協力会社の作業員にだけ届ける（REQ-06）。トークン（JWS は読める）・エージェント・担当者の画面・ログに出さない。lock-tool が lock-svc で
+    作らせ、通知の基盤で作業員の登録の番号に直接送り、エージェントには発行の参照（code_ref。lock-tool が発行ごとに採番する乱数で、lock-svc にも approval-svc にも渡さない）だけを返す
+  refs:
+    - {kind: guide-slide, id: p09-jws-is-readable}
+    - {kind: guide-slide, id: p09-do-not-carry}
+  assumption: lock-svc は、承認 ID ごとにコードを 1 つだけ作り、not_after まで暗号化して持ち、同じ承認 ID の再要求には同じコードを返す。lock-tool はコードを保存しない
+  revisit_trigger: 作業員がアプリで解錠する方式（コードを使わない）に替えるとき
+- id: C-staff-number
+  name: staff_number
+  namespace: "https://aoba-sumai.example/claims/"
+  type: string
+  shape: single
+  description: 人事の台帳の社員番号。aoba-as の利用者の属性（hr-sync だけが書く）として持ち、aoba-pdp と hr-sync が aoba-as の利用者と人事の台帳を突き合わせる鍵に使う
+  not_meaning: トークンの主体の ID ではない（それは sub）
+  decision: 却下
+  rejection_kind: 不要
+  rationale: >-
+    トークンに載せない。受け手は社員番号で判断せず、aoba-pdp が sub（agent-sts からの問い合わせはログイン名）から aoba-as の利用者の属性で引く。突き合わせの鍵としての性質は次のとおり：人事の台帳が採番し、
+    付け替え・再利用をしない（再雇用でも新しい番号。人事部に確かめた。2026-11-20）。属性が無い・人事の台帳に無い番号なら、aoba-pdp は在籍なしとして拒否する。
+    属性の最後の変更が hr-sync のアプリの DB アカウントでない利用者は、aoba-as の利用者の API が返さない（design.md の 3.1）
+  refs:
+    - {kind: guide-slide, id: p04-immutable-identifiers}
+  assumption: 人事の台帳は社員番号を付け替えない
+  revisit_trigger: 人事の台帳の採番の規則が変わるとき
+- id: C-order-limit
+  name: order_limit
+  namespace: "https://aoba-sumai.example/claims/"
+  type: integer
+  shape: single
+  description: 担当者が承認なしで発注できる上限の金額
+  not_meaning: 承認した金額ではない（それは authorization_details の amount）
+  decision: 却下
+  rejection_kind: 不要
+  rationale: >-
+    承認が要るかは担当者ごとの上限ではなく、部屋ごとの直近 30 日の累計で決める（REQ-05）。累計は発注の台帳の値で、order-tool が確定のたびに数える。
+    トークンに上限を載せると、寿命の間に累計が変わっても古い値で通る
+  refs:
+    - {kind: guide-slide, id: p04-carry-or-query}
+  assumption: 承認の要否の規則は部屋ごとの累計だけで、担当者ごとに変えない
+  revisit_trigger: 担当者の職位で承認の要否を変える要望が出たとき
+- id: C-txn
+  name: txn
+  namespace: null
+  registered_ref: {kind: spec, id: "RFC 8417 §2.2", url: "https://www.rfc-editor.org/rfc/rfc8417#section-2.2"}
+  type: string
+  shape: single
+  description: 1 つの取引の相関の ID（Txn-Token・SET の txn）
+  not_meaning: 修繕依頼の ID ではない
+  decision: 却下
+  rejection_kind: 代替あり
+  alt: [C-repair-id]
+  rationale: >-
+    監査で結ぶ単位は修繕依頼（何日もかけて多くの呼び出しをまたぐ）で、1 つの呼び出しの連鎖ではない。Txn-Token を使わず、修繕依頼 ID・発注 ID・承認 ID・jti で結ぶ
+  refs:
+    - {kind: spec, id: "draft-ietf-oauth-transaction-tokens-11 §9.2", url: "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-11#section-9.2"}
+  assumption: ツールの先に、トークンで文脈を伝えるサービスの連鎖が無い
+  revisit_trigger: ツールの先に複数のサービスを呼ぶ処理を足すとき

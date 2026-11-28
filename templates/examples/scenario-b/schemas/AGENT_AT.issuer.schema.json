@@ -75,10 +75,7 @@
    "$comment": "C-authorization-details",
    "type": "array",
    "items": {
-    "type": "object",
-    "enum": [
-     "https://claims.example.com/rar/payment"
-    ]
+    "type": "object"
    },
    "maxItems": 1
   },

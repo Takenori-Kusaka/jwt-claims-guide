@@ -1,0 +1,463 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# カタログの全イベントへの回答（tools/claim_lint/RULES.md の R2）。あおば住まいサービスの修繕の手配
+# 対象外なら assumption（起きない前提）と breaks_when（前提が崩れる条件）を書く
+lite_criteria:
+  crosses_boundary:
+    answer: false
+    reason: >-
+      担当者のブラウザのほかは、aoba-as・agent-sts・エージェント・ツール・approval-svc・aoba-pdp・下流の仕組みがすべて組織の網の中にある。協力会社・SMS の配信事業者に
+      トークンを渡さない（通知の基盤が事業者の資格情報で配信を頼むだけ）
+  multitenant:
+    answer: false
+    reason: 組織は 1 つ（あおば住まいサービス）で、テナントを表す値を持たない。物件の持ち主（オーナー）ごとにデータを分けない
+  delegation_or_exchange:
+    answer: true
+    reason: エージェントが担当者の代わりに修繕依頼を進め、agent-sts の RFC 8693 の交換でツールのトークンを得る。訪問の日程の調整はサブエージェントにさらに任せる（深さ 2）
+  new_issuer:
+    answer: true
+    reason: 交換のサービス agent-sts をこの設計で新しく作る
+  regulated:
+    answer: false
+    reason: 修繕の手配は社内の業務で、FAPI・医療などの規制の対象ではない。入居者と担当者の情報は個人情報として扱う
+idp:
+  - name: aoba-as
+    kind: self_built
+    token_types: [LOGIN_CODE, LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_RT, CONSOLE_LOGOUT]
+    trigger_list_source: {document: "aoba-as の仕様書（認証基盤チーム、2026-10 版）の 3.〜6.（受ける要求と出すトークンの一覧）", verified_on: "2026-11-27"}
+    trigger_list:
+      - {trigger: "PAR と認可コード＋PKCE（S256）の認可要求・トークン要求（初回のログインを含む）", events: [I01, I25]}
+      - {trigger: "grant_type=refresh_token（ローテーションと再利用の検知）", events: [I02]}
+      - {trigger: "aoba-as のセッションが残っている間の再ログイン（認証を省く）", events: [I11]}
+      - {trigger: "acr_values=mfa・max_age=300 の認可要求（追加の認証）", events: [I12]}
+      - {trigger: "パスワードの再設定・TOTP の登録し直しの後のログイン", events: [I26]}
+      - {trigger: "Back-Channel Logout のログアウトトークン（ログアウト・利用者の無効化・セッションの削除）", events: [I09]}
+      - trigger: "grant_type=client_credentials"
+        out_of_scope: {assumption: "aoba-as はサービスアカウントを持たず、client credentials を受けない。hr-sync は aoba-as の利用者の API を mTLS の証明書の許可リストで呼ぶ", breaks_when: "トークンで aoba-as の API を呼ぶサービスを足すとき"}
+      - trigger: "grant_type=password・device_code・CIBA・トークン交換・JWT の bearer"
+        out_of_scope: {assumption: "aoba-as の仕様書の 3. が、受ける grant を認可コード＋PKCE とリフレッシュだけにしている", breaks_when: "aoba-as にほかの grant を足すとき"}
+  - name: agent-sts
+    kind: self_built
+    token_types: [REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+    trigger_list_source: {document: "design.md の 4.（agent-sts が受ける要求の一覧）", verified_on: "2026-11-27", planned: true}
+    trigger_list:
+      - {trigger: "grant_type=urn:ietf:params:oauth:grant-type:token-exchange（subject_token が CONSOLE_AT か REPAIR_DELEG_AT）", events: [I06]}
+      - {trigger: "交換の要求の authorization_details（approval-svc の承認済みの記録と照合して作り直す）", events: [I14]}
+      - {trigger: "mTLS のクライアント証明書への束縛（cnf の x5t#S256）", events: [I29]}
+      - trigger: "grant_type=refresh_token"
+        out_of_scope: {assumption: "agent-sts は RT を出さない。repair-console が担当者のセッションの間、CONSOLE_AT で REPAIR_DELEG_AT を交換し直す", breaks_when: "エージェントが担当者のセッションの外で長く動く処理を足すとき"}
+      - trigger: "grant_type=client_credentials"
+        out_of_scope: {assumption: "agent-sts はエージェント自身の権限のトークンを出さない。ツールは担当者の委任のトークンだけを受ける", breaks_when: "担当者のいない定期の処理をエージェントに任せるとき"}
+outside_enumeration:
+  answer: >-
+    要求（修繕依頼の代理、10 万円を超える発注の上長の承認、解錠コードの担当者本人の承認と追加の認証、2 分・10 分の剥奪、予約の発注、入居者の個人情報の最小化）を、
+    カタログのイベントに 1 つずつ当て、どれにも当たらない場面を探した。見つかったのは 10 個（清掃のレビューで足した 4 つを含む）で、どれも下の found の扱いにした
+  respondent: 設計書の書き手（管理部の修繕課のシステム担当。人による確認は未実施）
+  date: "2026-11-27"
+  searched:
+    - "design.md の 2.〜9. と付録 D"
+    - "templates/profiles/P4_ai_agent_delegation.md の 1.〜9."
+    - "templates/profiles/P1_human_web.md の 1.〜5."
+    - "MCP Authorization（2026-07-28） https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization"
+    - "RFC 8693 §2.1・§4.1・§4.4 https://www.rfc-editor.org/rfc/rfc8693"
+    - "RFC 9396 §2・§9.1 https://www.rfc-editor.org/rfc/rfc9396"
+    - "aoba-as の仕様書（認証基盤チーム、2026-10 版）の 3.〜6."
+    - "agent-sts の要求の一覧（idp の trigger_list）"
+    - "templates/catalog/issue_events.yaml と templates/catalog/use_events.yaml の全行"
+  found:
+    - {name: 承認の消費の競合と、結果が分からない応答, handled_as: "設計に足した：order-tool・lock-tool は approval-svc の条件つきの更新で 1 回だけ使い、同じ発注 ID・同じ承認での再試行には前の結果を返す。承認を自動で未使用に戻さない（台帳の C-approval-ref、design.md の付録 D の P4 の 5.）"}
+    - {name: 承認の分割（10 万円以下に分けた発注。並行に確定する場合を含む）, handled_as: "設計に足した：承認の要否を、部屋ごとの直近 30 日の累計（予約を含む）で決め、部屋の行を排他の錠で押さえたトランザクションで数えてから確定する（REQ-05、ホップ H5、design.md の 3.1）"}
+    - {name: 停止の間の電話での発注（REQ-13）, handled_as: "設計に足した：再開の前に、電話での発注を発注の台帳に「手作業の発注」として登録し、部屋の累計に数える。登録が済むまでエージェントの操作を再開しない（design.md の 2.2・3.1）"}
+    - {name: 委任を止めて有効にし直す前の予約・委任のトークン, handled_as: "設計に足した：委任の欄に世代の番号を持たせ、order-scheduler は予約の記録の世代の番号と比べる（H13）。止めて 330 秒以内に有効にし直したときに止める前の REPAIR_DELEG_AT が残りの寿命の間使えることは、design.md の 3.1 の見送りの行"}
+    - {name: 承認者が担当の付け替えを挟んで自分の発注を承認する, handled_as: "設計に足した：発注の承認者は、依頼の担当者でなく、修繕依頼の台帳の担当の履歴にも無い人に限る（REQ-05、台帳の C-sub の approval-svc の enforced_at、H12）"}
+    - {name: 予約の発注の実行の時点での確かめ直し, handled_as: "カタログの U13 に戻した：order-scheduler は実行の時点で aoba-pdp・修繕依頼の台帳・approval-svc を引き直し、トークンを持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）"}
+    - {name: 入居者の依頼の文に紛れた指示で、解錠の部屋・時間帯や連絡の相手を変えさせる, handled_as: "設計に足した：解錠は担当者本人が部屋・協力会社・時間帯を画面で確かめて承認し、lock-tool は承認の記録と修繕依頼の部屋で照合する。連絡の相手は contact-tool が修繕依頼の台帳から決める（P4 の 4.・5.）"}
+    - {name: ワークロードの証明書の発行（wl-ca）, handled_as: "カタログの発行のイベント（JWT）に当たらない（I20 は対象外）。鍵の持ち主と漏えい時の手順を design.md の付録 D の M_token_validation の 8. に書いた"}
+    - {name: 管理用の口（agent-sts のクライアントの登録・委任の表・リソースの表、aoba-as の管理の画面、lock-svc の管理の画面（失効と一覧の表示だけ）、repair-console の当番の画面（停止の宣言。当番のロール・mfa・警報が条件）、approval-svc・発注の台帳の DB、修繕依頼の台帳の担当の割り当て）, handled_as: "design.md の 2.2 と 3.1 に、変えられる者と記録を書いた"}
+    - {name: wl-ca の中間の CA の鍵の漏えいで、トークンを使わない口に偽の証明書で届く, handled_as: "design.md の 3.1 の見送りの行と付録 D の M_token_validation の 8. に、開く口・塞ぐまでの時間・検出を書いた。承認済みで未発行の解錠の承認からのコードの作成も開く（窓は 60 分。警報の後に当番が lock-svc の管理の画面で一括で失効させる）"}
+questions:
+  q-sub: {needed: true, reason: 重要な操作で担当者の在籍・ロール・修繕依頼の担当を aoba-pdp に問い合わせ、監査に「誰の権限で」を残す}
+  q-actor: {needed: true, reason: ツールが今の行為者（最も外側の act）を mTLS の相手と照合し、操作ごとの許可リストで判断する。承認では行為者がいない（act が無い）ことを確かめる。予約の実行では order-scheduler を行為者として記録する}
+  q-req-wl: {needed: false, reason: Txn-Token を使わない（目録の TXN_TOKEN は却下）。交換を求めたワークロードは agent-sts が mTLS で認証する}
+  q-peer: {needed: true, reason: ツール・approval-svc が cnf と act を照合する相手。aoba-pdp・approval-svc は呼び出し元の許可リストで照合する, channel: "mTLS の相手の wl-ca の証明書（URI の SAN のワークロードの URI）"}
+  q-via: {needed: true, reason: 監査で委任の経路をたどる, channel: "agent-sts の交換の監査ログ（元の jti、出した jti、交換を求めた mTLS の相手）と各ツールの監査ログ（受けたトークンの jti）"}
+  q-txn: {needed: true, reason: どの修繕依頼の操作かを、全ツール・approval-svc・order-scheduler の監査ログで結ぶ}
+  q-user: {needed: true, reason: 担当者を監査で特定する}
+  q-agent: {needed: true, reason: 行為者ごとの許可リストを当てる}
+  q-authorized: {needed: true, reason: ツールの操作の範囲（scope）と、10 万円を超える発注・解錠コードの承認の内容}
+  q-resource: {needed: true, reason: 担当者のトークンをツールに直接出す経路と、ツールの間の再送を宛先で拒否する}
+  q-holder: {needed: true, reason: エージェントの実行基盤から漏れたツールのトークンを、ほかの者が使えないようにする}
+subject_states:
+  unused_layers:
+    内部トークン: 入口で作り直す内部トークンを使わない（目録の INTERNAL_TOKEN は却下）。ツール宛てのトークンは AT の行で扱う
+  states:
+    subject-states/invited:
+      AT: {result: 影響なし, basis: hr-sync が利用者を作った直後は、初回のログインでパスワードと TOTP を登録するまで CONSOLE_AT を出さない}
+      RT: {result: 影響なし, basis: ログインの前なので RT も無い}
+      ID: {result: 影響なし, basis: ログインの前なので ID トークンも無い}
+      Logout Token: {result: 影響なし, basis: セッションが無いのでログアウトトークンも出ない}
+      IdP のセッション: {result: 影響なし, basis: 初回のログインで aoba-as のセッションを作る（I25）}
+      RP・BFF のセッション: {result: 影響なし, basis: 初回のログインの後に BFF のセッションを作る}
+    subject-states/active:
+      AT: {result: 発行, basis: ログイン（I01）とリフレッシュ（I02）で CONSOLE_AT を出す。委任の間と承認の操作ごとに agent-sts が REPAIR_DELEG_AT・ツールのトークン・APPROVAL_AT を交換で出す（I06）}
+      RT: {result: 発行, basis: ログインで CONSOLE_RT を出し、取り直しのたびにローテーションする（最大 32400 秒、無操作 1800 秒）}
+      ID: {result: 発行, basis: ログインと追加の認証で ID トークンを出す。repair-console が検証して BFF のセッションに結ぶ}
+      Logout Token: {result: 影響なし, basis: 有効な間はログアウトトークンを出さない。セッションが終わったときだけ出す}
+      IdP のセッション: {result: 発行, basis: ログインで aoba-as のセッションを作る（無操作 1800 秒、最大 32400 秒）}
+      RP・BFF のセッション: {result: 発行, basis: ログインで BFF のセッションを作る（aoba-as のセッションと同じ寿命）}
+    subject-states/suspended:
+      AT: {result: 影響なし, basis: "手元の CONSOLE_AT・ツールのトークンは exp まで残るが、agent-sts は交換のたびにイントロスペクションと aoba-pdp で止め、重要な操作のツールは呼び出しのたびに aoba-pdp で止める（最悪 60 秒。休職は人事の台帳の在籍の状態）"}
+      RT: {result: 失効, basis: hr-sync が利用者を無効にしてセッションを消すので、次の取り直しが失敗する}
+      ID: {result: 影響なし, basis: ID トークンはログイン時に 1 回使うだけで、保存しない}
+      Logout Token: {result: 発行, basis: hr-sync がセッションを消すと、aoba-as が repair-console にログアウトトークンを送る（I09）}
+      IdP のセッション: {result: 失効, basis: hr-sync が aoba-as の利用者の API で利用者を無効にし、セッションを消す}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンを受けて、sid の一致する BFF のセッションを消す}
+    subject-states/deleted:
+      AT: {result: 影響なし, basis: 停止と同じく手元の AT は exp まで残る。交換と重要な操作は aoba-pdp（人事の台帳の退職）で拒否される}
+      RT: {result: 失効, basis: 利用者の削除でセッションと RT が消える}
+      ID: {result: 影響なし, basis: 保存しないので影響しない}
+      Logout Token: {result: 発行, basis: 削除の前に hr-sync がセッションを消し、ログアウトトークンが出る}
+      IdP のセッション: {result: 失効, basis: 削除でセッションが消える}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンで BFF のセッションを消す}
+    subject-states/tenant-switch:
+      AT: {result: 影響なし, basis: 組織は 1 つで、テナントの切り替えが無い（lite_criteria の multitenant は No）}
+      RT: {result: 影響なし, basis: テナントの切り替えが無いので、RT の出し直しも無い}
+      ID: {result: 影響なし, basis: テナントの値を ID トークンに載せない}
+      Logout Token: {result: 影響なし, basis: テナントの切り替えでセッションを終えることは無い}
+      IdP のセッション: {result: 影響なし, basis: aoba-as は組織の切り替えの機能を持たない}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF のセッションはテナントを持たない}
+    subject-states/role-change:
+      AT: {result: 影響なし, basis: "ロールをトークンに載せない（C-roles は却下）。agent-sts は交換のたびに、重要な操作のツールと approval-svc は呼び出しのたびに aoba-pdp でロールを引く（最悪 60 秒）。下書きは手元のトークンの分で最悪 390 秒。連絡の 2 つはロールで絞らないので、ロールの変更では止まらない"}
+      RT: {result: 影響なし, basis: トークンにロールが無いので、取り直しで出し直す必要がない}
+      ID: {result: 影響なし, basis: ID トークンにロールを載せない}
+      Logout Token: {result: 影響なし, basis: ロールの変更ではセッションを終えない}
+      IdP のセッション: {result: 影響なし, basis: セッションは続く。ロールは aoba-pdp が人事の台帳から導く}
+      RP・BFF のセッション: {result: 影響なし, basis: BFF のセッションはロールを持たない。画面のボタンの出し分けも aoba-pdp に問い合わせる}
+    subject-states/credential-change:
+      AT: {result: 影響なし, basis: 手元の CONSOLE_AT は exp まで残る。パスワードの再設定で aoba-as がほかのセッションを消すと、agent-sts のイントロスペクションで交換が止まる}
+      RT: {result: 失効, basis: パスワードの再設定でほかのセッションが消え、RT が使えなくなる}
+      ID: {result: 影響なし, basis: 保存しないので影響しない}
+      Logout Token: {result: 発行, basis: 消したセッションについて、aoba-as がログアウトトークンを送る}
+      IdP のセッション: {result: 失効, basis: パスワードの再設定・TOTP の登録し直しでほかのセッションを消す（aoba-as の仕様書の 6.2）}
+      RP・BFF のセッション: {result: 失効, basis: ログアウトトークンを受けて BFF のセッションを消す}
+pairwise:
+  subject_kinds:
+    利用者: {answer: 該当}
+    ワークロード: {answer: 該当}
+    システム: {answer: 該当}
+  combinations:
+    - {subject: 利用者, event: I01, stage: ①, note: 担当者・上長がコンソールからログインする。パスワード（acr_values=mfa のときは TOTP も）で認証し、ブラウザには BFF の Cookie だけが残る}
+    - {subject: 利用者, event: I01, stage: ②, note: CONSOLE_AT の宛先は agent-sts だけ。scope は repair-console に登録した上限の中の値}
+    - {subject: ワークロード, event: I01, stage: ①, note: repair-console は PAR とリダイレクトを受けるだけで、認証の段に関わらない}
+    - {subject: ワークロード, event: I01, stage: ②, note: repair-console が mTLS のクライアント認証で認可コードを交換する}
+    - {subject: システム, event: I01, stage: ①, note: hr-sync・order-scheduler は担当者としてログインしない}
+    - {subject: システム, event: I01, stage: ②, note: システムは認可コードを使わない。aoba-as はサービスアカウントを持たない}
+    - {subject: 利用者, event: I02, stage: ②, note: 取り直しでも acr・auth_time は変わらない。無効にした担当者の取り直しは失敗する}
+    - {subject: ワークロード, event: I02, stage: ②, note: repair-console だけが CONSOLE_RT を持つ。エージェントには RT を渡さない}
+    - {subject: システム, event: I02, stage: ②, note: システムは RT を使わない}
+    - {subject: ワークロード, event: I06, stage: ②, note: repair-console・repair-agent・visit-subagent が agent-sts に mTLS で交換を求める。行為者は mTLS の相手の証明書で決まり、要求の値では決まらない}
+    - {subject: ワークロード, event: I06, stage: ③, note: agent-sts は sub を写し、act を作り、aud を 1 つの宛先に置き換え、scope を積に絞り、寿命を subject_token の残り以下にする}
+    - {subject: 利用者, event: I06, stage: ②, note: 無効にした担当者の CONSOLE_AT はイントロスペクションで、退職・異動した担当者は aoba-pdp で拒否される}
+    - {subject: 利用者, event: I06, stage: ③, note: 交換の要求で別の担当者や修繕依頼を指定しても、sub は subject_token から写し、修繕依頼の担当が sub でなければ拒否する}
+    - {subject: システム, event: I06, stage: ②, note: order-scheduler は交換しない。実行の時点で自分の証明書で aoba-pdp・approval-svc を呼ぶ（H13・H14）}
+    - {subject: システム, event: I06, stage: ③, note: hr-sync・aoba-pdp は agent-sts を使わない}
+    - {subject: 利用者, event: I09, stage: ②, note: 担当者の無効化・パスワードの再設定でセッションが消えると、ログアウトトークンが出る}
+    - {subject: ワークロード, event: I09, stage: ②, note: repair-console がログアウトトークンを受け、sid で BFF のセッションを消す。委任の REPAIR_DELEG_AT の交換し直しも止まる}
+    - {subject: システム, event: I09, stage: ②, note: hr-sync がセッションを消す操作が、ログアウトトークンの契機になる}
+    - {subject: 利用者, event: I11, stage: ②, note: aoba-as のセッションが残っている間の再ログインは認証を省くが、CONSOLE_AT の auth_time は元のまま。承認の追加の認証の判断は APPROVAL_AT の auth_time で行う}
+    - {subject: ワークロード, event: I11, stage: ②, note: repair-console は prompt=none を使わない。BFF のセッションが切れたら、画面からログインし直してもらう}
+    - {subject: システム, event: I11, stage: ②, note: システムはセッションを持たない}
+    - {subject: 利用者, event: I12, stage: ①, note: 承認の操作で approval-svc が 401 を返すと、コンソールが acr_values=mfa・max_age=300 で担当者・上長に認証し直してもらう}
+    - {subject: 利用者, event: I12, stage: ⑤, note: 追加の認証の後の CONSOLE_AT の acr を agent-sts が APPROVAL_AT に写し（auth_time には交換した時刻を書く）、approval-svc が判断する}
+    - {subject: ワークロード, event: I12, stage: ①, note: エージェントは担当者の認証の画面を出さない。追加の認証はコンソールの画面でだけ行う}
+    - {subject: ワークロード, event: I12, stage: ⑤, note: エージェントのトークンには acr を載せない。エージェントは承認の操作をしない}
+    - {subject: システム, event: I12, stage: ①, note: 予約の実行は追加の認証を求めない。承認の操作のときに approval-svc が確かめた記録を使う}
+    - {subject: システム, event: I12, stage: ⑤, note: order-scheduler は acr を持たない。承認の記録の状態だけで判断する}
+    - {subject: ワークロード, event: I14, stage: ⑥, note: agent-sts が approval-svc の承認済みの記録から authorization_details を作る。エージェントの申告の金額・部屋は使わない}
+    - {subject: 利用者, event: I14, stage: ⑥, note: 発注は修繕依頼の担当でない上長が、解錠は担当者本人が、repair-console の承認の画面で承認する}
+    - {subject: システム, event: I14, stage: ⑥, note: order-scheduler は実行の時点で approval-svc の予約済みの承認を使用済みにする}
+    - {subject: 利用者, event: I25, stage: ①, note: hr-sync で作られた担当者は、初回のログインでパスワードと TOTP を登録する}
+    - {subject: 利用者, event: I25, stage: ②, note: 初回のログインで出る CONSOLE_AT は、ほかのログインと同じ}
+    - {subject: ワークロード, event: I25, stage: ①, note: repair-console は初回のログインを区別しない}
+    - {subject: ワークロード, event: I25, stage: ②, note: 初回のログインの CONSOLE_AT でも、交換では aoba-pdp のロールで絞る}
+    - {subject: システム, event: I25, stage: ①, note: hr-sync は利用者を作るだけで、パスワードを決めない}
+    - {subject: システム, event: I25, stage: ②, note: hr-sync はトークンを受け取らない}
+    - {subject: 利用者, event: I26, stage: ①, note: パスワードの再設定・TOTP の登録し直しで、ほかのセッションを消す}
+    - {subject: 利用者, event: I26, stage: ②, note: 再設定の後の CONSOLE_AT は新しいセッションのもの}
+    - {subject: ワークロード, event: I26, stage: ①, note: repair-console は再設定の画面を持たない（aoba-as の画面）}
+    - {subject: ワークロード, event: I26, stage: ②, note: 消えたセッションの CONSOLE_AT は agent-sts のイントロスペクションで拒否される}
+    - {subject: システム, event: I26, stage: ①, note: hr-sync は資格情報を変えない}
+    - {subject: システム, event: I26, stage: ②, note: システムは資格情報の変更でトークンを受け取らない}
+    - {subject: ワークロード, event: I29, stage: ②, note: agent-sts が交換を求めたワークロード（エージェント・repair-console）の証明書にツールのトークンと APPROVAL_AT を束縛する}
+    - {subject: 利用者, event: I29, stage: ②, note: CONSOLE_AT には束縛が無い。ブラウザにもエージェントにも出さず、宛先は agent-sts だけ}
+    - {subject: システム, event: I29, stage: ②, note: order-scheduler はトークンを使わず、自分の証明書の mTLS で aoba-pdp・approval-svc を呼ぶ}
+answers:
+- event: I01
+  answer: 該当
+  token_types: [LOGIN_CODE, LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_RT, CONSOLE_SESSION]
+  note: 担当者・上長のコンソールへのログイン（PAR・認可コード＋PKCE・mTLS のクライアント認証）
+- event: I02
+  answer: 該当
+  token_types: [CONSOLE_AT, CONSOLE_RT]
+  note: repair-console が CONSOLE_RT で CONSOLE_AT を取り直す。RT は使うたびにローテーション
+- event: I03
+  answer: 対象外
+  assumption: aoba-as は軽量の（中身を減らした）AT を出さない。CONSOLE_AT の形は aoba-as の仕様書の 4. の 1 つだけ
+  breaks_when: aoba-as に AT の形を選ぶ設定を足すとき
+- event: I04
+  answer: 対象外
+  assumption: aoba-as はパスワードの grant を受けない（aoba-as の仕様書の 3.）。担当者のパスワードをクライアントに送らせない
+  breaks_when: 古い業務の道具のためにパスワードの grant を足すとき
+- event: I05
+  answer: 対象外
+  assumption: aoba-as はサービスアカウントを持たず、client credentials を受けない。hr-sync は aoba-as の利用者の API を mTLS の証明書の許可リストで呼ぶ。agent-sts も client credentials を受けない
+  breaks_when: トークンで aoba-as の API を呼ぶサービスか、担当者のいない定期の処理をエージェントに任せることを足すとき
+- event: I06
+  answer: 該当
+  token_types: [REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: agent-sts の RFC 8693 の交換（委任の 1 段目・2 段目、ツールのトークン、承認の操作）。aoba-as では交換しない
+- event: I07
+  answer: 対象外
+  assumption: aoba-as はデバイスの grant を受けない。担当者はブラウザだけで使う
+  breaks_when: 作業員の端末など入力の限られた端末からコンソールを使うとき
+- event: I08
+  answer: 対象外
+  assumption: aoba-as は offline_access を出さない。担当者のセッションの外でトークンを使わない（予約の実行はトークンを使わない）
+  breaks_when: 担当者がログアウトした後も動く処理を、担当者のトークンで行うことにしたとき
+- event: I09
+  answer: 該当
+  token_types: [CONSOLE_LOGOUT]
+  note: repair-console の Back-Channel Logout の受け口を登録し、セッションの終了（無効化・パスワードの再設定・ログアウト）を BFF のセッションに届ける
+- event: I10
+  answer: 対象外
+  assumption: aoba-as は response_type=code だけを受け、フロントチャネルでトークンを返さない
+  breaks_when: フロントチャネルでトークンを受けるクライアントを足すとき
+- event: I11
+  answer: 該当
+  token_types: [CONSOLE_AT, LOGIN_ID_TOKEN, CONSOLE_RT]
+  note: >-
+    aoba-as のセッションが残っている間の再ログインは認証を省く。CONSOLE_AT の auth_time は元のログインのまま。承認の判断（auth_time から 300 秒）は APPROVAL_AT の auth_time で行う。
+    repair-console は prompt=none を使わない
+- event: I12
+  answer: 該当
+  token_types: [CONSOLE_AT, LOGIN_ID_TOKEN]
+  note: 承認の操作で approval-svc が insufficient_user_authentication を返すと、コンソールが acr_values=mfa・max_age=300 で認証し直してもらう
+- event: I13
+  answer: 対象外
+  assumption: 承認は repair-console の承認の画面で、本人がログインして行い、CIBA を使わない。aoba-as は CIBA を受けない
+  breaks_when: 上長がスマートフォンの通知で承認する仕組みを入れるとき
+- event: I14
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, LOCK_TOOL_AT]
+  note: agent-sts が approval-svc の承認済みの記録から authorization_details を作り、locations と同じ宛先のツールのトークンにだけ載せる。aoba-as は authorization_details を出さない
+- event: I15
+  answer: 対象外
+  assumption: aoba-as も agent-sts も JWT の bearer の grant を受けない。エージェントの ID は mTLS の証明書で示す
+  breaks_when: ワークロードの JWT でトークンを得る処理を足すとき
+- event: I16
+  answer: 対象外
+  assumption: 信頼ドメインをまたいでツールを呼ばない。ID-JAG を出さない
+  breaks_when: 社外の MCP サーバーを使うとき
+- event: I17
+  answer: 対象外
+  assumption: 担当者は aoba-as のローカルの利用者で、外部の IdP を取り込まない
+  breaks_when: グループ会社の IdP でログインする担当者を受け入れるとき
+- event: I18
+  answer: 対象外
+  assumption: 外部の ID と結びつけないので、名寄せ・リンクが起きない。hr-sync は社員番号で aoba-as の利用者を探して更新する（照合の鍵は社員番号で、トークンには出さない）
+  breaks_when: 外部の IdP を足したとき
+- event: I19
+  answer: 対象外
+  assumption: >-
+    aoba-as に代理ログイン（なりすまし）の機能を作らない。上長が修繕依頼を引き継ぐときは、修繕依頼の台帳で担当を自分に付け替えてから、自分のログインで操作し、
+    監査ログには上長の sub が残る。緊急時の特権のトークンも作らない（design.md の 2.2）
+  breaks_when: 運用の手順で、担当者の画面を代わりに見る要望が出たとき
+- event: I20
+  answer: 対象外
+  assumption: >-
+    ワークロードの ID は wl-ca の X.509 の証明書だけで、JWT のワークロードの ID（JWT-SVID など）を出さない。証明書の鍵の守りは design.md の付録 D の
+    M_token_validation の 8. に書いた
+  breaks_when: mTLS を張れない場所でエージェントを動かし、JWT の actor_token が要るとき
+- event: I21
+  answer: 対象外
+  assumption: ツールの手前に入口を置かず、入口でトークンを作り直さない。agent-sts は交換のサービスで、入口ではない
+  breaks_when: ツールを社外に公開するための入口を置くとき
+- event: I22
+  answer: 対象外
+  assumption: Txn-Token を使わない。ツールの先にトークンで文脈を伝えるサービスの連鎖が無い
+  breaks_when: ツールの先に複数のサービスを呼ぶ処理を足すとき
+- event: I23
+  answer: 対象外
+  assumption: 担当者の変更は hr-sync が aoba-as に書き、aoba-pdp が人事の台帳を直接引く。SET を出さない
+  breaks_when: 人事の台帳が SSF の送信者になったとき
+- event: I24
+  answer: 対象外
+  assumption: 組織は 1 つで、テナント・組織の切り替えが無い
+  breaks_when: グループ会社の管理の業務を同じ仕組みに入れるとき
+- event: I25
+  answer: 該当
+  token_types: [CONSOLE_AT, LOGIN_ID_TOKEN, CONSOLE_RT]
+  note: hr-sync が作った担当者の初回のログイン（パスワードと TOTP を登録）。出るトークンはほかのログインと同じ
+- event: I26
+  answer: 該当
+  token_types: [CONSOLE_AT, LOGIN_ID_TOKEN, CONSOLE_RT]
+  note: パスワードの再設定・TOTP の登録し直しの後のログイン。ほかのセッションを消し、ログアウトトークンを出す
+- event: I27
+  answer: 対象外
+  assumption: 状態リストを使わない。ツールのトークンは 300 秒で、重要な操作は aoba-pdp と approval-svc に都度問い合わせる
+  breaks_when: 寿命の長いトークンを出すとき
+- event: I28
+  answer: 対象外
+  assumption: クライアント認証は mTLS（tls_client_auth）で、private_key_jwt・client_secret_jwt の assertion を作らない
+  breaks_when: mTLS を張れない場所にクライアントを置くとき
+- event: I29
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: agent-sts が交換を求めたワークロードの証明書にトークンを束縛する（cnf の x5t#S256）。aoba-as の CONSOLE_AT と agent-sts の REPAIR_DELEG_AT は束縛しない（design.md の 3.1）
+- event: I30
+  answer: 対象外
+  assumption: 送信者制約は mTLS で、DPoP の proof を作らない
+  breaks_when: ブラウザや作業員のスマートフォンから直接ツールを呼ぶクライアントを作るとき
+- event: I31
+  answer: 対象外
+  assumption: 認可要求は PAR でサーバーから直接送り、JAR の Request Object を作らない
+  breaks_when: 要求の内容を第三者に証明する必要が出たとき
+- event: I32
+  answer: 対象外
+  assumption: 認可応答に JARM を使わない。応答はコードと iss だけで、PKCE と PAR で守る
+  breaks_when: FAPI に合わせる必要が出たとき
+- event: I33
+  answer: 対象外
+  assumption: agent-sts は aoba-as のイントロスペクションの応答を JSON で受け、JWT の応答を求めない
+  breaks_when: イントロスペクションの応答を別のサービスに渡す必要が出たとき
+- event: I34
+  answer: 対象外
+  assumption: 検証可能な資格情報を出さない
+  breaks_when: 作業員の資格を資格情報として出すとき
+- event: U01
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: 各ツールと approval-svc が Authorization の Bearer でトークンを受け、mTLS の相手の証明書と cnf を照合する
+- event: U02
+  answer: 対象外
+  assumption: テナントが無く、トークンの値で DB の文脈（SET LOCAL など）を設定しない。ツールは自分の DB アカウントで台帳を引く（order-tool・contact-tool・lock-tool は、対象が repair_id の修繕依頼のものかを照合する）
+  breaks_when: 物件の持ち主ごとにデータを分けるとき
+- event: U03
+  answer: 該当
+  token_types: [LOGIN_ID_TOKEN]
+  note: repair-console がログインと追加の認証の応答で ID トークンを検証する（nonce・sid・acr・auth_time）
+- event: U04
+  answer: 該当
+  token_types: [CONSOLE_RT, CONSOLE_AT]
+  note: repair-console が CONSOLE_RT で CONSOLE_AT を取り直し、委任の間は REPAIR_DELEG_AT を交換し直してエージェントに渡す
+- event: U05
+  answer: 該当
+  token_types: [CONSOLE_AT]
+  note: agent-sts は交換のたびに aoba-as のイントロスペクションで CONSOLE_AT が有効かを確かめる（キャッシュしない）
+- event: U06
+  answer: 該当
+  token_types: [CONSOLE_SESSION, CONSOLE_RT]
+  note: コンソールのログアウトで、BFF のセッションを消し、RT を失効させ、RP-Initiated Logout を送る
+- event: U07
+  answer: 該当
+  token_types: [CONSOLE_LOGOUT]
+  note: repair-console がログアウトトークンを検証し（iss・aud・iat・jti・events・sid、nonce が無い）、BFF のセッションを消す
+- event: U08
+  answer: 対象外
+  assumption: repair-console は UserInfo を呼ばない。表示名は ID トークンの name で足りる
+  breaks_when: ID トークンに無い属性を画面に出すとき
+- event: U09
+  answer: 該当
+  token_types: [LOGIN_ID_TOKEN, CONSOLE_AT, CONSOLE_LOGOUT, REPAIR_DELEG_AT, ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: 受け手は JWKS を 600 秒キャッシュし、未知の kid の取り直しは 60 秒に 1 回まで。新しい鍵は署名に使う 660 秒より前に公開する。取り直せなければ拒否する
+- event: U10
+  answer: 該当
+  token_types: [CONSOLE_AT, REPAIR_DELEG_AT]
+  note: repair-console が CONSOLE_AT を、repair-agent・visit-subagent が REPAIR_DELEG_AT を agent-sts の交換の subject_token に出す
+- event: U11
+  answer: 対象外
+  assumption: 入口でトークンをヘッダーに転記しない。ツールはトークンをそのまま検証する
+  breaks_when: ツールの手前に入口を置くとき
+- event: U12
+  answer: 該当
+  note: >-
+    エージェントとツール、ツールと approval-svc・aoba-pdp・下流の仕組み（発注の台帳・lock-svc・経理・通知の基盤）、order-scheduler と aoba-pdp・approval-svc の間は、
+    wl-ca の証明書の mTLS で相手を確かめ、呼ばれる側が呼び出し元の許可リストで照合する。トークンは渡さない。lock-svc は、コードを作る前に approval-svc で承認が使用済みにされたことを確かめる
+    （承認の無いコードを作らせない。中間の CA の鍵の漏えいでは開く）。中間の CA の鍵が漏れた場合に開く口は design.md の 3.1
+- event: U13
+  answer: 該当
+  note: >-
+    予約の発注（最大 24 時間後）は、order-tool が予約の記録（担当者の sub・修繕依頼 ID・発注 ID・承認 ID・act の連鎖・予約の時刻）を発注の台帳に残し、
+    order-scheduler が実行の時点で、予約の記録が order-tool の DB アカウントで作られ書き換えられていないこと、予約した行為者が今もクライアントの登録の表にあること、
+    自分の証明書で aoba-pdp（在籍・ロール・担当）・修繕依頼の台帳（委任の欄）・approval-svc（予約済みの承認）を引き直す。
+    担当者のトークンもツールのトークンも持ち越さない（ホップ H13・H14、ORDER_TOOL_AT の long_running）
+- event: U14
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: 各ツールと approval-svc は sub・最も外側の act.sub・act の連鎖・client_id・repair_id・業務の ID（発注 ID・支払いの依頼の ID・発行の参照）・jti を、order-tool と approval-svc は approval_ref も監査ログに残す。トークンの全文・authorization_details・連絡先・解錠コードは残さない
+- event: U15
+  answer: 該当
+  token_types: [CONSOLE_RT]
+  note: ログアウトで repair-console が RT を失効の端点に送る。hr-sync は無効化のときに利用者のセッションを消す
+- event: U16
+  answer: 対象外
+  assumption: 状態リストを使わない
+  breaks_when: 寿命の長いトークンを出すとき
+- event: U17
+  answer: 対象外
+  assumption: SET を受けない。剥奪は aoba-pdp の問い合わせで届く
+  breaks_when: 人事の台帳が SSF の送信者になったとき
+- event: U18
+  answer: 対象外
+  assumption: Front-Channel Logout を使わない。ログアウトは Back-Channel Logout で届ける
+  breaks_when: ブラウザの中だけで動くクライアントを足すとき
+- event: U19
+  answer: 対象外
+  assumption: 応答・Webhook に署名しない。ツールの応答は mTLS の上で返し、協力会社・事業者から Webhook を受けない
+  breaks_when: 協力会社からの完了の報告を Webhook で受けるとき
+- event: U20
+  answer: 該当
+  note: 通知の基盤が SMS の配信事業者の API を、事業者が出した資格情報で呼ぶ（入居者・作業員への連絡と解錠コード）。担当者・エージェントのトークンは渡さない
+- event: U21
+  answer: 該当
+  note: aoba-pdp は人事の台帳と修繕依頼の台帳の結果を 60 秒キャッシュする。agent-sts は修繕依頼の台帳の担当を 3600 秒キャッシュする。受け手は JWKS を 600 秒キャッシュする。approval-svc の承認の状態・イントロスペクションの応答・委任の欄はキャッシュしない
+- event: U22
+  answer: 該当
+  token_types: [LOGIN_CODE, CONSOLE_SESSION]
+  note: URL に載るのは PAR の request_uri と認可コードだけ。ブラウザには HttpOnly の Cookie だけ
+- event: U23
+  answer: 該当
+  token_types: [CONTACT_TOOL_AT]
+  note: contact-tool は、入居者の返信の待ち受けを WebSocket で返す（扱いは token_types.yaml の CONTACT_TOOL_AT の long_running）。ほかのツールの呼び出しは要求と応答の 1 往復
+- event: U24
+  answer: 対象外
+  assumption: クラウドの STS で JWT を資格情報に替えない
+  breaks_when: ツールをクラウドの関数で動かすとき
+- event: U25
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT]
+  note: repair-agent・visit-subagent が MCP のツールを、ツールごとのトークンで呼ぶ
+- event: U26
+  answer: 該当
+  token_types: [ORDER_TOOL_AT, CONTACT_TOOL_AT, PAYMENT_TOOL_AT, LOCK_TOOL_AT, APPROVAL_AT]
+  note: ツールと approval-svc は mTLS の相手の証明書の拇印と cnf の x5t#S256 を照合する
+- event: U27
+  answer: 該当
+  token_types: [APPROVAL_AT, ORDER_TOOL_AT]
+  note: >-
+    approval-svc は承認の操作で acr・auth_time が足りなければ 401 と insufficient_user_authentication（acr_values=mfa・max_age=300）を返す。
+    ツールは scope が足りなければ 403 と insufficient_scope（下書きのトークンで確定しようとしたときなど）
+- event: U28
+  answer: 対象外
+  assumption: 監査ログは監査の基盤に置き、分析基盤に複製しない
+  breaks_when: 修繕の費用の分析のために監査ログを分析基盤に写すとき
+- event: U29
+  answer: 対象外
+  assumption: >-
+    新しく作る仕組みで、移行期間の旧い口が無い。今の電話とメールでの発注はトークンを使わず、ツールに旧い口を作らない
+  breaks_when: 既存の発注の画面や一括の取り込みを、ツールの口で受けることにしたとき
+- event: U30
+  answer: 該当
+  token_types: [APPROVAL_AT]
+  note: >-
+    本番の approval-svc は、承認の期限と追加の認証の結合試験のために、時刻を進める X-Test-Now ヘッダーの口を残す（網の中の呼び出し元からの要求なら受け、承認の期限と auth_time の比べにそのヘッダーの時刻を使う。閉じる日は決めていない）。そのほかの試験用の発行者・鍵・認証を飛ばす口は持たず、配備の前の検査で、受け入れる iss が許可リストの値だけで、試験の利用者が aoba-as の本番にいないことを確かめる

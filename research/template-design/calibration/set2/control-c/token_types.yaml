@@ -1,0 +1,656 @@
+# template_version: 0.3.0
+# 測定の対照に使う教材。設計に使わない
+# yaml-language-server: $schema=../../../../../templates/registry/token_types.schema.json
+# トークン目録（templates/registry/README.md の 3.2）と発行方式の選択（3.3）。カタログの種類ごとに 1 行以上
+# 発行者：aoba-as（組織の認可サーバー。担当者のログイン）と agent-sts（この設計で作る交換のサービス）。どちらも製品でなく、実装する仕様（RFC・OIDC）で書く
+issuance_profile:
+  client_type:
+    value: confidential
+    rationale: >-
+      repair-console はサーバー側の BFF で、トークンをブラウザに出さない。agent-sts のクライアント（repair-console・repair-agent・visit-subagent）も
+      サーバー側のワークロードで、wl-ca の証明書を持つ。公開クライアントは作らない
+    refs:
+      - {kind: spec, id: "RFC 6749 §2.1", url: "https://www.rfc-editor.org/rfc/rfc6749#section-2.1"}
+      - {kind: guide-slide, id: p08-rotation}
+  client_auth:
+    value: tls_client_auth
+    rationale: >-
+      repair-console は aoba-as にも agent-sts にも、wl-ca の証明書で mTLS のクライアント認証をする。エージェントも wl-ca の証明書で agent-sts に認証する。
+      共有の秘密（client_secret_*）を持たない。登録の照合は証明書の URI の SAN（tls_client_auth_san_uri）で行う
+    refs:
+      - {kind: spec, id: "RFC 8705 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8705#section-2.1"}
+  grants:
+    value: [authorization_code_pkce, refresh_token]
+    rationale: >-
+      担当者はコンソールで認可コード＋PKCE（S256）でログインし、repair-console は RT で CONSOLE_AT を取り直す。aoba-as は client credentials・パスワード・
+      デバイスの grant・CIBA・トークン交換を受けない（aoba-as の仕様書の 3.）
+    refs:
+      - {kind: spec, id: "RFC 7636 §4", url: "https://www.rfc-editor.org/rfc/rfc7636#section-4"}
+      - {kind: guide-slide, id: p06-grant-types}
+    exceptions:
+      - idp: agent-sts
+        value: [token_exchange]
+        rationale: >-
+          agent-sts が受けるのは RFC 8693 のトークン交換だけ。エージェントに RT を出さず、ツールの呼び出しの手順ごとに交換し直す。client credentials は持たない
+          （エージェント自身の権限でツールを呼ぶ経路を作らない）
+        refs:
+          - {kind: spec, id: "RFC 8693 §2.1", url: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1"}
+  sender_constraint:
+    value: none
+    rationale: >-
+      aoba-as が出す CONSOLE_AT・CONSOLE_RT は送信者制約を付けない。どちらも repair-console のサーバーの中にだけあり、ブラウザにもエージェントにも渡さない
+      （エージェントには agent-sts の REPAIR_DELEG_AT を渡す）。CONSOLE_AT の宛先は agent-sts だけで、agent-sts は repair-console の mTLS のクライアント認証を求めるので、
+      CONSOLE_AT だけを盗んでも何も呼べない。CONSOLE_RT も aoba-as が repair-console の mTLS を求める
+    refs:
+      - {kind: guide-slide, id: p12-priorities-deferrals}
+      - {kind: spec, id: "RFC 9700 §4.10.1", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.10.1"}
+    exceptions:
+      - idp: agent-sts
+        value: mtls
+        rationale: >-
+          ツール・approval-svc 宛てのトークン（ORDER_TOOL_AT・CONTACT_TOOL_AT・PAYMENT_TOOL_AT・LOCK_TOOL_AT・APPROVAL_AT）は、交換を求めたワークロードの証明書に
+          束縛する（cnf の x5t#S256）。エージェントの実行基盤は入居者の依頼の文（外からの入力）を読むので、トークンが外に出る経路を前提にする。
+          REPAIR_DELEG_AT は束縛しない（宛先は agent-sts だけで、交換できるのは may_act の主体の mTLS だけ。design.md の 3.1）
+        refs:
+          - {kind: spec, id: "RFC 8705 §3", url: "https://www.rfc-editor.org/rfc/rfc8705#section-3"}
+  tls_termination:
+    value: end_to_end
+    rationale: エージェント・repair-console とツール・approval-svc・agent-sts の間は、組織の網の中で直接 mTLS を張る。入口で TLS を終端しないので、証明書をヘッダーで渡さない
+    refs:
+      - {kind: spec, id: "RFC 8705 §6.5", url: "https://www.rfc-editor.org/rfc/rfc8705#section-6.5"}
+  at_format:
+    value: jwt
+    rationale: >-
+      ツールは手元で act・cnf・authorization_details を照合する。重要な操作の判断の新しさは、トークンでなく aoba-pdp と approval-svc への問い合わせで保つ
+    refs:
+      - {kind: guide-slide, id: p01-self-contained-vs-reference}
+      - {kind: spec, id: "RFC 9068 §2", url: "https://www.rfc-editor.org/rfc/rfc9068#section-2"}
+  rt_strategy:
+    value: rotation_reuse_detection
+    rationale: >-
+      CONSOLE_RT は repair-console だけが持つ。aoba-as は使うたびに RT を替え、替えた後の古い RT が使われたら、その RT の系列とセッションを終える
+      （aoba-as の仕様書の 5.2）。再利用の検知が仕様どおりに動くことは、本番の前の試験で確かめる（design.md の 12.）
+    refs:
+      - {kind: spec, id: "RFC 9700 §4.14.2", url: "https://www.rfc-editor.org/rfc/rfc9700#section-4.14.2"}
+    exceptions:
+      - idp: agent-sts
+        value: none
+        rationale: agent-sts は RT を出さない。repair-console が担当者のセッションの間、CONSOLE_AT で REPAIR_DELEG_AT を交換し直してエージェントに渡す
+  request_protection:
+    value: [par, resource_indicators, rar]
+    rationale: >-
+      repair-console から aoba-as への認可要求は PAR で送り、URL に載るのは request_uri と認可コードだけにする。agent-sts への交換の要求には resource（RFC 8707）を
+      1 つ入れて宛先を絞り、承認の要る操作では authorization_details（RFC 9396）を approval-svc の記録から agent-sts が作る
+    refs:
+      - {kind: spec, id: "RFC 9126 §2", url: "https://www.rfc-editor.org/rfc/rfc9126#section-2"}
+      - {kind: spec, id: "RFC 8707 §2", url: "https://www.rfc-editor.org/rfc/rfc8707#section-2"}
+      - {kind: spec, id: "RFC 9396 §2", url: "https://www.rfc-editor.org/rfc/rfc9396#section-2"}
+  conformance_profile:
+    value: none
+    rationale: 不動産の管理の社内の業務で、FAPI などの業界の規制の対象ではない。承認と追加の認証は、FAPI に合わせずに上の選択で行う
+    refs:
+      - {kind: spec, id: "FAPI 2.0 Security Profile（Final）§5.3.2.1", url: "https://openid.net/specs/fapi-security-profile-2_0-final.html"}
+token_types:
+# ---------------------------------------------------------------- 担当者のコンソール（P1）
+- id: CONSOLE_SESSION
+  kind: session
+  decision: 採用
+  rationale: ブラウザは repair-console の BFF のセッションの Cookie だけを持つ。トークンをブラウザに出さない（REQ-01）
+  purpose: ブラウザと repair-console の間の担当者のセッション
+  issuer: repair-console（BFF）
+  holder: ブラウザ（HttpOnly・Secure・SameSite=Lax の __Host- の Cookie）
+  format: opaque
+  max_lifetime: 32400
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 操作のたびに無操作の期限（1800 秒）を延ばす。作ってから 32400 秒（1 日の勤務の 9 時間。REQ-02）で必ず終える
+  revocation:
+    - {method: session_delete, delay_seconds: 0, note: ログアウトで BFF のセッションを消し、RT を失効させ、RP-Initiated Logout（U06）を送る}
+    - {method: back_channel_logout, delay_seconds: 0, note: aoba-as からログアウトトークンを受けたら、sid の一致する BFF のセッションを消す（U07）}
+  stored_at: browser
+  transport: cookie
+  visible_to: [browser, bff]
+  note: Cookie の値は不透明な乱数で、セッションの中身は BFF のサーバーにある
+- id: LOGIN_CODE
+  kind: authorization_code
+  decision: 採用
+  rationale: 認可コード＋PKCE（S256）で aoba-as が出す。PAR で認可要求を送るので、URL に載るのは request_uri と認可コードだけ
+  purpose: 1 回限りの引換券
+  issuer: aoba-as
+  holder: ブラウザを経由して repair-console へ
+  format: opaque
+  max_lifetime: 60
+  lifetime_refs:
+    - {kind: spec, id: "RFC 6749 §4.1.2", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2"}
+  lifetime_set_by: [platform]
+  refresh: なし
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: 1 回使うと無効。2 回目の使用では、そのコードで出したトークンも失効させる（RFC 6749 §4.1.2）}
+  stored_at: none
+  transport: redirect_query
+  visible_to: [browser, bff, idp]
+- id: LOGIN_ID_TOKEN
+  kind: id_token
+  decision: 採用
+  rationale: >-
+    repair-console がログインを確かめ、画面に担当者の名前を出す。sid を BFF のセッションに結ぶ。追加の認証の後の acr・auth_time を確かめてから承認の画面に戻す
+  purpose: ログインの確認・表示・ログアウトの突き合わせ
+  issuer: aoba-as
+  aud: [repair-console]
+  holder: repair-console のサーバー。ブラウザには渡さない
+  format: jwt
+  typ: JWT
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://login.aoba-sumai.example", jwks_uri: "https://login.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, nonce, sid, acr, auth_time]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  refresh: リフレッシュの応答にも出る。repair-console はログインと追加の認証のときだけ検証する
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: ログイン時に 1 回使うだけで、保存しない}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: name を載せるが、ID トークンはトークンの応答で repair-console のサーバーに届き、記録しない}
+  log_policy: 記録しない
+  key_rotation: {period_days: 90, publish_before_use_seconds: 660, retire_after_seconds: 360, note: CONSOLE_AT と同じ aoba-as の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  subject_type: public
+  note: typ は aoba-as の仕様で JWT。AT（at+jwt）・ログアウトトークン（logout+jwt）とはヘッダーの typ で分かれる。トークンの応答の本文で運ぶので、R8 のヘッダーの予算の対象外
+- id: CONSOLE_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    担当者の権限を agent-sts に示すためだけの AT。宛先は agent-sts だけで、ツールと approval-svc は受け入れない。repair-console のサーバーだけが持ち、
+    エージェントには渡さない。repair-console はこれを交換の subject_token にだけ使う（エージェントへの委任の REPAIR_DELEG_AT と、承認の操作の APPROVAL_AT）
+  purpose: agent-sts での交換の subject_token
+  issuer: aoba-as
+  aud: ["https://sts.aoba-sumai.example"]
+  holder: repair-console のサーバー
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://login.aoba-sumai.example", jwks_uri: "https://login.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, acr, auth_time]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+    - {kind: guide-slide, id: p08-choosing-lifetime}
+  lifetime_set_by: [platform]
+  refresh: repair-console が期限の前に CONSOLE_RT で取り直す
+  revocation:
+    - {method: introspection, delay_seconds: 0, note: agent-sts は交換のたびに aoba-as のイントロスペクション（RFC 7662）で CONSOLE_AT が有効か（セッションの終了・利用者の無効化）を確かめる。キャッシュしない}
+    - {method: db_lookup, delay_seconds: 60, note: "agent-sts は交換のたびに aoba-pdp で担当者の在籍とロールを引き、scope を絞り直す（aoba-pdp のキャッシュ 60 秒）"}
+    - {method: exp_only, delay_seconds: 330, note: CONSOLE_AT そのものは exp まで残る。ツール・approval-svc は CONSOLE_AT を受けない}
+  introspection_cache_ttl: 0
+  sender_constraint: none
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: bff_server
+  transport: form_post_body
+  visible_to: [bff, idp]
+  jwe: {used: false, note: 個人情報は sub だけ。名前は ID トークンだけに載せる}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 90, publish_before_use_seconds: 660, retire_after_seconds: 360, note: "aoba-as の鍵。受け手は JWKS を 600 秒キャッシュし、未知の kid の取り直しは 60 秒に 1 回まで。新しい鍵はその和（660 秒）より前に公開する。古い鍵は最も長い 300 秒のトークンとずれ 30 秒の後に外す"}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  note: 交換の要求の本文（subject_token）で運び、Authorization ヘッダーには入れない
+- id: CONSOLE_RT
+  kind: refresh_token
+  decision: 採用
+  rationale: CONSOLE_AT を 300 秒にしたまま、セッションの間は担当者に再ログインさせない（REQ-02）。repair-console だけが持ち、エージェントには渡さない
+  purpose: CONSOLE_AT の取り直し
+  issuer: aoba-as
+  aud: ["https://login.aoba-sumai.example"]
+  holder: repair-console のサーバー
+  format: opaque
+  max_lifetime: 32400
+  idle_timeout: 1800
+  lifetime_refs:
+    - {kind: guidance, id: "NIST SP 800-63B-4 §2.2.3"}
+  lifetime_set_by: [platform]
+  refresh: 使うたびにローテーション。無操作 1800 秒、最大はセッションの最大（32400 秒）
+  rt_rotation: {rotation: true, reuse_detection: unverified}
+  sender_constraint: none
+  revocation:
+    - {method: rp_initiated_logout, delay_seconds: 0, note: ログアウト（U06）でセッションと一緒に失効する}
+    - {method: session_delete, delay_seconds: 0, note: セッションの無操作・最大と、hr-sync による利用者の無効化とセッションの削除で切れる}
+    - {method: revocation_endpoint, delay_seconds: 0, note: ログアウトで repair-console が RFC 7009 の失効の端点に送る（U15）}
+    - {method: rotation, delay_seconds: 0, note: 古い RT は次の取り直しで使えなくなる}
+  stored_at: bff_server
+  transport: token_response_body
+  visible_to: [bff, idp]
+  note: クライアント認証（mTLS）で repair-console に結びつく。再利用の検知は aoba-as の仕様にあるが、試験で確かめていないので unverified（design.md の 12.）
+- id: CONSOLE_LOGOUT
+  kind: logout_token
+  decision: 採用
+  rationale: 担当者の無効化・セッションの削除を、repair-console の BFF のセッションに届かせる。次のリフレッシュの失敗を待たない
+  purpose: aoba-as のセッションの終了を repair-console に知らせる
+  issuer: aoba-as
+  aud: [repair-console]
+  holder: repair-console のサーバー（Back-Channel Logout の受け口）
+  format: jwt
+  typ: logout+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://login.aoba-sumai.example", jwks_uri: "https://login.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, iat, exp, jti, events, sid]
+  max_clock_skew: 30
+  max_lifetime: 120
+  lifetime_refs:
+    - {kind: spec, id: "OpenID Connect Back-Channel Logout 1.0 §2.4", url: "https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken"}
+  lifetime_set_by: [platform]
+  refresh: なし
+  revocation:
+    - {method: one_time_use, delay_seconds: 0, note: repair-console は jti を 150 秒（寿命 120 秒＋ずれ 30 秒）覚えて再送を拒否する}
+  jti_policy: {unique_scope: per_issuer, replay_check: true, max_age_seconds: 150}
+  stored_at: none
+  transport: back_channel_post
+  visible_to: [bff, idp]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 90, publish_before_use_seconds: 660, retire_after_seconds: 360, note: CONSOLE_AT と同じ aoba-as の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+# ---------------------------------------------------------------- エージェントの委任と承認（P4）
+- id: REPAIR_DELEG_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    担当者が修繕依頼をエージェントに任せるとき、agent-sts が出す委任の AT。宛先は agent-sts だけで、may_act に任せる相手（1 段目は repair-agent、
+    2 段目は visit-subagent）を入れる。エージェントはこれを subject_token にして、自分の mTLS でツールのトークンに交換する。CONSOLE_AT をエージェントに渡さないための種別
+  purpose: エージェントの交換の subject_token（委任の証明）
+  issuer: agent-sts
+  aud: ["https://sts.aoba-sumai.example"]
+  holder: repair-agent か visit-subagent のメモリ（repair-console・repair-agent から内部の API で受ける）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, may_act, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-delegation-chain-depth}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: >-
+    なし。寿命は 300 秒か subject_token の残りの短いほう。repair-console は担当者のセッションの間、残りが 60 秒になる前に CONSOLE_AT で交換し直して repair-agent に渡し、
+    repair-agent は visit-subagent に任せている間、同じく 2 段目を交換し直して渡す
+  sender_constraint: none
+  revocation:
+    - {method: db_lookup, delay_seconds: 0, note: "agent-sts は REPAIR_DELEG_AT の交換のたびに、修繕依頼の台帳の担当と委任の欄（キャッシュしない）を確かめる。担当者が委任をやめると次の交換から拒否する"}
+    - {method: db_lookup, delay_seconds: 60, note: "agent-sts は REPAIR_DELEG_AT の交換のたびに aoba-pdp で担当者の在籍とロールを引く（キャッシュ 60 秒）"}
+    - {method: exp_only, delay_seconds: 330, note: REPAIR_DELEG_AT そのものは exp まで残る。ツールは REPAIR_DELEG_AT を受けない（aud が agent-sts だけ）}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: form_post_body
+  visible_to: [client, idp]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: ツールのトークンと同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  note: >-
+    送信者制約を付けないのは、repair-console から repair-agent へ、repair-agent から visit-subagent へ渡すため。代わりに、交換できるのは may_act の主体
+    （その mTLS の証明書）だけで、ツールは REPAIR_DELEG_AT を受け入れない（design.md の 3.1）
+- id: ORDER_TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    agent-sts が交換で出す、order-tool（協力会社への発注）だけ宛ての AT。sub は担当者、最も外側の act.sub は repair-agent、cnf は repair-agent の証明書。
+    承認が要る確定では authorization_details（vendor-order）と approval_ref を載せる
+  purpose: repair-agent が発注の下書き・確定・予約をする
+  issuer: agent-sts
+  aud: ["https://order-tool.aoba-sumai.example/mcp"]
+  holder: repair-agent のメモリ（証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+    - {kind: guidance, id: "NIST IR 8587 §5.3.1.1"}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。手順ごとに agent-sts で交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
+  sender_constraint: mtls
+  long_running: >-
+    予約の発注（協力会社の受付の開始の時刻に確定。予約から最大 24 時間後。REQ-10）は、トークンを持ち越さない。order-tool が予約のときにこのトークンで確定と同じ照合をし、
+    予約の記録（担当者の sub・修繕依頼 ID・発注 ID・承認 ID・act の連鎖・予約の時刻・予約のときの委任の世代）を発注の台帳に残す。承認は approval-svc で予約済みにする。
+    実行の時点で order-scheduler が、予約の記録が order-tool の DB アカウントで作られ書き換えられていないこと（変更の記録の表）、予約した行為者が agent-sts と同じクライアントの登録の表に今も登録されていること、
+    自分の証明書の mTLS で aoba-pdp（在籍・ロール・担当）と修繕依頼の台帳（委任の欄が有効で世代が予約のときと同じこと、予約の後に担当の付け替えが無いこと）を引き直し、approval-svc で予約済みの承認を使用済みにしてから確定する（hops.yaml の H13・H14）
+  revocation:
+    - {method: db_lookup, delay_seconds: 60, note: "確定・予約のたびに aoba-pdp で担当者の在籍・修繕担当のロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}
+    - {method: db_lookup, delay_seconds: 0, note: "承認の要る確定・予約のたびに approval-svc で承認を条件つきで使用済み・予約済みにする（キャッシュしない）。取り下げてあれば失敗する（C-authorization-details・C-approval-ref）"}
+    - {method: exp_only, delay_seconds: 330, note: 下書き（orders:draft）は exp まで残る（最悪 330 秒。REQ-08 の 10 分の内側）}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api]
+  jwe: {used: false, note: 入居者の連絡先・住所は載せない。部屋は authorization_details の不透明な unit_id だけ（LOCK_TOOL_AT）}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: "agent-sts の鍵。受け手は JWKS を 600 秒キャッシュし、未知の kid の取り直しは 60 秒に 1 回まで"}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: tool-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールの HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+- id: CONTACT_TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    agent-sts が交換で出す、contact-tool（入居者・協力会社の窓口への連絡）だけ宛ての AT。repair-agent も visit-subagent も使う。連絡の相手は contact-tool が
+    修繕依頼の台帳で種類（入居者・協力会社の窓口）を決め、宛先は通知の基盤が台帳から引く。トークンにも要求にも連絡先を載せない。visit-subagent の相手は入居者だけ
+  purpose: repair-agent・visit-subagent が入居者と協力会社の窓口に連絡し、返信を読む（送信は contact-tool が採番した下書きの ID で 1 回だけ。「下書き→送信中」の条件つきの更新の後に、下書きの ID を重複を避ける鍵にして通知の基盤に送り、「送信中→送信済み」にする。結果が分からなければ同じ下書きの ID で送り直し、通知の基盤が重複を捨てる）
+  issuer: agent-sts
+  aud: ["https://contact-tool.aoba-sumai.example/mcp"]
+  holder: repair-agent か visit-subagent のメモリ（交換を求めた者の証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。手順ごとに agent-sts で交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
+  sender_constraint: mtls
+  revocation:
+    - {method: exp_only, delay_seconds: 330, note: "連絡は exp まで残る（最悪 330 秒）。次の交換は agent-sts が aoba-pdp・修繕依頼の台帳で拒否する。剥奪から最悪 390 秒（REQ-08 の 10 分の内側）"}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api]
+  jwe: {used: false, note: 連絡先は載せない（C-tenant-phone は却下）}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: ORDER_TOOL_AT と同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: tool-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールの HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+- id: PAYMENT_TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    agent-sts が交換で出す、payment-tool（協力会社への支払いの依頼）だけ宛ての AT。支払いの額は payment-tool が発注の台帳の確定額から決め、要求の額を使わない。
+    承認は発注のときの承認で足り、このトークンには authorization_details を載せない
+  purpose: repair-agent が、完了の報告のあった発注の支払いを経理に依頼する
+  issuer: agent-sts
+  aud: ["https://payment-tool.aoba-sumai.example/mcp"]
+  holder: repair-agent のメモリ（証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。手順ごとに agent-sts で交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
+  sender_constraint: mtls
+  revocation:
+    - {method: db_lookup, delay_seconds: 60, note: "支払いの依頼のたびに aoba-pdp で担当者の在籍・修繕担当のロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: ORDER_TOOL_AT と同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: tool-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールの HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+- id: LOCK_TOOL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    agent-sts が交換で出す、lock-tool（スマートロックの一時解錠コード）だけ宛ての AT。発行では authorization_details（lock-code）と approval_ref を載せる。
+    コードそのものは lock-tool が協力会社の作業員に直接送り、このトークンの持ち主（エージェント）には返さない
+  purpose: repair-agent が解錠コードの承認を依頼し、承認された 1 回の発行をする
+  issuer: agent-sts
+  aud: ["https://lock-tool.aoba-sumai.example/mcp"]
+  holder: repair-agent のメモリ（証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, act, cnf, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 300
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-per-tool-scopes}
+  lifetime_set_by: [platform]
+  max_delegation_depth: 2
+  refresh: なし。承認の依頼と発行・送り直しのそれぞれで交換し直す。寿命は 300 秒か REPAIR_DELEG_AT の残りの短いほう
+  sender_constraint: mtls
+  revocation:
+    - {method: db_lookup, delay_seconds: 60, note: "発行のたびに aoba-pdp で担当者の在籍・鍵の取り扱いのロール・修繕依頼の担当を引く（キャッシュ 60 秒）"}
+    - {method: db_lookup, delay_seconds: 0, note: "発行のたびに approval-svc で承認を条件つきで使用済みにする（キャッシュしない）。取り下げてあれば失敗する（C-authorization-details・C-approval-ref）"}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: service_memory
+  transport: authorization_bearer
+  visible_to: [client, api]
+  jwe: {used: false, note: 解錠コード・住所は載せない（C-unlock-code・C-unit-address は却下）}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: ORDER_TOOL_AT と同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: tool-http-header-field, applies_to: header_field, bytes: 8192, basis: "ツールの HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+- id: APPROVAL_AT
+  kind: access_token
+  decision: 採用
+  rationale: >-
+    上長・担当者が repair-console の承認の画面で操作するとき、repair-console が CONSOLE_AT から交換で得る、approval-svc だけ宛ての AT。act は無く、client_id は
+    repair-console。1 回の承認の操作ごとに、その承認の記録の approval_ref を載せて出す（参照だけのときは approval_ref 無し）。acr・auth_time を CONSOLE_AT から写し、
+    approval-svc が追加の認証の新しさを確かめる
+  purpose: 承認の一覧の参照と、1 つの承認の記録の承認・却下・取り下げ
+  issuer: agent-sts
+  aud: ["https://approval.aoba-sumai.example"]
+  holder: repair-console のサーバー（証明書に束縛）
+  format: jwt
+  typ: at+jwt
+  alg_allowlist: [ES256]
+  issuers:
+    - {iss: "https://sts.aoba-sumai.example", jwks_uri: "https://sts.aoba-sumai.example/jwks"}
+  key_source: {from: issuer_metadata_jwks_uri, header_key_params: reject}
+  required_claims: [iss, sub, aud, exp, iat, jti, client_id, scope, cnf, acr, auth_time, "https://aoba-sumai.example/claims/repair_id"]
+  max_clock_skew: 30
+  max_lifetime: 120
+  lifetime_refs:
+    - {kind: guide-slide, id: p10-human-approval-evidence}
+  lifetime_set_by: [platform]
+  refresh: なし。承認の操作ごとに交換する。寿命は 120 秒か CONSOLE_AT の残りの短いほう
+  sender_constraint: mtls
+  revocation:
+    - {method: db_lookup, delay_seconds: 60, note: "approval-svc は操作のたびに aoba-pdp で承認者の在籍・ロール・所属を引く（キャッシュ 60 秒）"}
+    - {method: exp_only, delay_seconds: 150, note: 1 回の操作のためのトークンで、exp まで残っても同じ承認の記録にしか効かない}
+  jti_policy: {unique_scope: per_issuer, replay_check: false}
+  subject_type: public
+  stored_at: bff_server
+  transport: authorization_bearer
+  visible_to: [bff, api]
+  jwe: {used: false}
+  log_policy: jti だけ記録
+  key_rotation: {period_days: 30, publish_before_use_seconds: 660, retire_after_seconds: 360, note: ORDER_TOOL_AT と同じ agent-sts の鍵}
+  unknown_kid: {refetch_min_interval_seconds: 60, negative_cache_seconds: 60, on_fetch_failure: reject}
+  jwks_cache_ttl: 600
+  signing_key_scope: shared
+  size:
+    signing: {alg: ES256}
+    header:
+      params:
+        - {name: alg, type: string, max_bytes: 5}
+        - {name: typ, type: string, max_bytes: 6}
+        - {name: kid, type: string, max_bytes: 36}
+      serializer_extra_bytes: 0
+      serializer_extra_basis: agent-sts は組織の実装で、空白を入れずに書き出す（実装の試験で確かめる。design.md の 12.）
+    path:
+      - {id: approval-http-header-field, applies_to: header_field, bytes: 8192, basis: "approval-svc の HTTP サーバーの 1 ヘッダーの上限を 8 KiB に設定する（この設計の宣言）", verified_on: "2026-11-27", review_by: "2027-02-25"}
+    other_headers_bytes: 2048
+  note: repair_id は、承認の一覧の参照（approval_ref 無し）のときは、画面で開いた修繕依頼の値。agent-sts は、その修繕依頼の担当者か、同じ課の上長であることを aoba-pdp で確かめてから載せる
+# ---------------------------------------------------------------- 使わない種類
+- id: TXN_TOKEN
+  kind: txn_token
+  decision: 却下
+  rationale: ツールの先に、トークンで文脈を伝えるサービスの連鎖が無い。修繕依頼の相関は repair_id、行為者は act、承認は approval_ref で足りる
+  assumption: ツールはそれぞれ自分の台帳と approval-svc・aoba-pdp・下流の仕組みを、自分の証明書で呼ぶだけで、ほかのサービスにトークンを渡さない
+  revisit_trigger: ツールの先に複数のサービスを呼ぶ処理を足すとき
+  format: jwt
+- id: INTERNAL_TOKEN
+  kind: internal_token
+  decision: 却下
+  rationale: 入口でトークンを作り直さない。ツール宛てのトークンは agent-sts が交換で直接出す
+  assumption: ツールの手前に入口（ゲートウェイ）を置かない
+  revisit_trigger: ツールの手前に入口を置くとき
+  format: jwt
+- id: ID_JAG
+  kind: id_jag
+  decision: 却下
+  rationale: 信頼ドメインをまたいでツールを呼ばない。ツールはすべて組織の中にある
+  assumption: 協力会社・社外の MCP サーバーを使わない
+  revisit_trigger: 協力会社の受発注の仕組みを MCP で直接呼ぶとき
+  format: jwt
+- id: DPOP_PROOF
+  kind: dpop_proof
+  decision: 却下
+  rationale: 送信者制約は mTLS にした。エージェントの実行基盤と repair-console はどれも wl-ca の証明書を持ち、DPoP の鍵を別に管理しない
+  assumption: 呼び出し元はすべて組織の網の中のワークロード
+  revisit_trigger: ブラウザや作業員のスマートフォンから直接ツールを呼ぶクライアントを作るとき
+  format: jwt
+- id: CLIENT_ASSERTION
+  kind: client_assertion
+  decision: 却下
+  rationale: クライアント認証は mTLS（tls_client_auth）にした。鍵を 2 種類持たない
+  assumption: repair-console は aoba-as と agent-sts の両方に同じ証明書で認証できる
+  revisit_trigger: mTLS を張れない場所にクライアントを置くとき
+  format: jwt
+- id: JAR_REQUEST_OBJECT
+  kind: jar_request_object
+  decision: 却下
+  rationale: 認可要求は PAR で repair-console のサーバーから aoba-as に直接送る。ブラウザを通る要求の改ざんは PAR で防ぐ
+  assumption: aoba-as は PAR を必須にする（aoba-as の仕様書の 3.1）
+  revisit_trigger: 要求の内容を第三者に証明する必要が出たとき
+  format: jwt
+- id: JARM_RESPONSE
+  kind: jarm_response
+  decision: 却下
+  rationale: 認可応答は認可コードと iss だけで、PKCE と PAR で守る。応答に署名する必要がない
+  assumption: 応答の改ざんは PKCE で検知できる
+  revisit_trigger: FAPI に合わせる必要が出たとき
+  format: jwt
+- id: WL_IDENTITY_JWT
+  kind: jwt
+  decision: 却下
+  rationale: >-
+    エージェントの ID を JWT（ワークロードの ID のトークン・actor_token）で運ばない。agent-sts は交換を求めた mTLS の相手の証明書（wl-ca）から行為者を決め、
+    act を作る。JWT の発行者を増やさない
+  assumption: エージェントは agent-sts と直接 mTLS を張れる
+  revisit_trigger: mTLS を張れない場所でエージェントを動かすとき（actor_token を使う）
+  format: jwt
+- id: SECURITY_EVENT_TOKEN
+  kind: security_event_token
+  decision: 却下
+  rationale: 人事の台帳の変更は aoba-pdp が人事の台帳を直接引いて反映し、SET を使わない。セッションの終了は Back-Channel Logout で届ける
+  assumption: 担当者の変更の通知を受けるのは aoba-as（hr-sync）と aoba-pdp だけ
+  revisit_trigger: 人事の台帳が SSF の送信者になり、ツールに直接知らせたいとき
+  format: jwt
+- id: STATUS_LIST_TOKEN
+  kind: status_list_token
+  decision: 却下
+  rationale: ツールのトークンは 300 秒で、重要な操作は aoba-pdp と approval-svc に都度問い合わせる。状態リストで個々のトークンを止める必要がない
+  assumption: 長く生きるトークンを出さない
+  revisit_trigger: 寿命の長いトークンを出すとき
+  format: jwt
+- id: INTROSPECTION_RESPONSE_JWT
+  kind: introspection_response_jwt
+  decision: 却下
+  rationale: agent-sts は aoba-as のイントロスペクションを mTLS で直接呼び、応答を第三者に渡さないので、JSON の応答で足りる
+  assumption: イントロスペクションの応答は agent-sts の中だけで使う
+  revisit_trigger: 応答を別のサービスに渡す必要が出たとき
+  format: jwt

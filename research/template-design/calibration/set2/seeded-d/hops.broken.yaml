@@ -1,0 +1,561 @@
+# template_version: 0.3.0
+# 意図的に誤りを含む教材。設計に使わない
+# yaml-language-server: $schema=../../../../../templates/registry/hops.schema.json
+# ホップごとの宣言（templates/registry/README.md の 3.4）。しろがね損保の設計書
+# TTS が外の AT から Txn-Token を作るホップ（H4・H7・H15・H17・H23・H26）は、TTS の入口のホップ（H3・H6・H14）を upstream に置く。L16 は scope と寿命を上流と比べる。
+# Txn-Token の aud は信頼ドメイン（草案 §9.2）で、外の AT の aud（口の識別子）と名前が違う。aud_mapping は行き先のサービスの名前の aud だけを対応づけられるので、
+# aud の違いは L16 の warn として残る（設計書の 1. の warn の理由と 8.）
+hops:
+  # ------------------------------------------------------------ 契約者（P1 → P5）
+  - id: H1
+    from: ブラウザ（契約者）
+    to: claim-portal
+    kind: browser
+    token_type: PORTAL_SESSION
+    aud: []
+    scope: []
+    max_lifetime: 28800
+    custom_claims: []
+    exchanger: null
+    validates: {mode: local, checks: [セッションの Cookie（__Host-、Secure・HttpOnly・SameSite=Lax）, 無操作 1800 秒・最大 28800 秒, 書き込みの要求は CSRF のトークンも確かめる]}
+  - id: H2
+    from: claim-portal
+    to: front-gw
+    kind: entry
+    upstream: H1
+    token_type: PH_AT
+    aud: ["https://portal-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 契約者の口は claim-portal の X.509-SVID の mTLS からだけ接続を受ける（網の外からは届かない）
+        - "署名（ES256、shirogane-as の JWKS）・typ が at+jwt・iss・aud が https://portal-api.shirogane-sonpo.example・exp"
+        - client_id が claim-portal であること
+        - 検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない
+  - id: H3
+    from: front-gw
+    to: tts
+    kind: entry
+    upstream: H2
+    token_type: PH_AT
+    aud: ["https://portal-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - front-gw を mTLS の相手の SPIFFE ID で認証する（Txn-Token を求めてよいワークロードの一覧）
+        - subject_token の AT を TTS も検証する（署名・typ・iss・aud・exp）。client_id が claim-portal であること
+        - sub で shirogane-as の契約者の台帳を引き、アカウントが有効なこと（状態のキャッシュ 60 秒）
+        - 経路の表で、要求の口・メソッド・パスに要る scope を決め、AT の scope の中にあるときだけ、その scope に絞る
+        - front-gw が request_details で渡した値を、経路の表の項目と型で確かめて tctx に書く（rctx は書かない。台帳の C-rctx は却下）
+    note: TTS が応えないとき、front-gw は 503 を返し、Txn-Token の無い要求を内側に送らない
+  - id: H4
+    from: front-gw
+    to: claim-svc
+    kind: reissue
+    upstream: H3
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw であること（契約者・代理店・代理受付の Txn-Token は front-gw からだけ受ける）
+        - Txn-Token ヘッダーの値だけを Txn-Token として読む（Authorization ヘッダーは読まない）
+        - 共通の検証部品で typ が txntoken+jwt・iss・aud・exp・必須のクレーム。act のあるトークンは、代理受付の API だけが受ける
+        - tctx の operation・policy_number・amount・claim_id を要求の本文と照合する（違えば 409）
+        - ph_ の sub は、契約管理の仕組みでその契約者の証券であることを確かめる。請求の照会は、請求の持ち主が sub と同じものだけ
+  # ------------------------------------------------------------ 代理店（外の IdP の assertion → shirogane-as → front-gw）
+  - id: H31
+    from: 代理店のサーバー
+    to: shirogane-as（トークンの端点）
+    kind: entry
+    token_type: AGENCY_ASSERTION
+    aud: ["https://auth.shirogane-sonpo.example/token"]
+    scope: []
+    max_lifetime: 60
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 代理店のサーバーの証明書の mTLS（tls_client_auth。代理店向けの CA、CRL）で、代理店の登録の client_id と証明書のサブジェクトの組であること
+        - "assertion の iss が、この mTLS で認証したクライアントの代理店の登録の iss と一致すること（ほかの代理店の IdP の assertion は受けない）。署名はその登録の JWKS・aud がトークンの端点・exp − iat が 60 秒以下・(iss, jti) が初めて"
+        - 代理店の登録が有効なこと。(iss, emp_no) を、その代理店の担当者の表（代理店ごとの表）で代理店の担当者の ID に替え、代理店の登録の代理店コードと証明書の拇印を書いた AGENCY_AT を出す
+    note: >-
+      shirogane-as は認可サーバーで、assertion は RFC 7523 の認可の grant（作り直しの上流のトークンではない）。AGENCY_AT の寿命（300 秒）・aud・agency_code は
+      shirogane-as が代理店の登録の方針で決め、assertion の値から広げるのではないので、H5 の upstream にこのホップを置かず、L16 の比べ方の対象にしない。
+      assertion の寿命を AT より短く（60 秒）したのは REQ-02 のため（設計書の 3.1）
+  - id: H5
+    from: 代理店のサーバー
+    to: front-gw
+    kind: entry
+    token_type: AGENCY_AT
+    aud: ["https://agency-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: [C-agency-code]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 代理店の口は、しろがねの代理店向けの CA が出した証明書の mTLS だけを受ける（CRL を 300 秒ごとに取り直す。取り直しに失敗している間は、取り直せるまで前の CRL で受け続ける（口を止めない）。失敗が 300 秒続いたら当番に知らせる）
+        - "署名・typ が at+jwt・iss・aud が https://agency-api.shirogane-sonpo.example・exp"
+        - "TLS の証明書の SHA-256 の拇印が cnf の x5t#S256 と一致すること（RFC 8705 §3）"
+        - 検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない
+    note: 代理店のサーバーは、代理店の IdP の assertion（AGENCY_ASSERTION）を同じ証明書の mTLS の上で shirogane-as に出して AGENCY_AT を取る（RFC 7523。I15。H31）
+  - id: H6
+    from: front-gw
+    to: tts
+    kind: entry
+    upstream: H5
+    token_type: AGENCY_AT
+    aud: ["https://agency-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: [C-agency-code]
+    exchanger: null
+    forwarded_headers:
+      - {name: Shirogane-Client-Cert-S256, strip_inbound: true, written_only_by: front-gw（代理店の口の TLS の終端）, encoding: base64url（SHA-256 の拇印）}
+    validates:
+      mode: local
+      checks:
+        - front-gw を mTLS の相手の SPIFFE ID で認証する
+        - subject_token の AT を TTS も検証する。front-gw が書いた証明書の拇印のヘッダーと cnf の x5t#S256 が一致すること
+        - client_id で代理店の登録を引き、登録が有効で、agency_code が登録の代理店コードと一致すること（登録のキャッシュ 60 秒）
+        - sub（agst_）が、その代理店の担当者の表にあること
+  - id: H7
+    from: front-gw
+    to: claim-svc
+    kind: reissue
+    upstream: H6
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: [C-agency-code]
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw であること
+        - Txn-Token ヘッダーだけを読む。共通の検証部品で typ・iss・aud・exp・必須のクレーム
+        - tctx の operation・policy_number・amount・claim_id を要求の本文と照合する（違えば 409）
+        - agst_ の sub は、請求の受付では、証券の取扱代理店が agency_code と一致する証券の請求だけを受ける（契約管理の仕組みの値と照らす）。請求の照会は、agency_code があれば claim_id で引いて返す
+  - id: H8
+    from: claim-svc
+    to: fraud-svc（契約者の請求）
+    kind: service
+    upstream: H4
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに Txn-Token ヘッダーで渡す（草案 §12.2）
+        - fraud-svc は mTLS の相手が claim-svc の SPIFFE ID であることを確かめる（req_wl は front-gw のままで、直接の相手ではない）
+        - tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること
+    note: fraud-svc が応えないとき、claim-svc は請求を「判定待ち」として受け付け、判定が済むまで査定に回さない（受付の可用性を fraud-svc に頼らない）。判定のやり直しは claim-svc の内部の処理が、トークンを付けずに claim-svc の SVID の mTLS で fraud-svc のやり直しの API を呼ぶ（設計書の 2. のトークンを運ばない呼び出し）
+  - id: H9
+    from: claim-svc
+    to: fraud-svc（代理店の請求）
+    kind: service
+    upstream: H7
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: [C-agency-code]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - H8 と同じ。受けた Txn-Token を改変せずに渡す
+        - fraud-svc は mTLS の相手が claim-svc であることを確かめる
+        - tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること
+  - id: H10
+    from: claim-svc
+    to: document-svc（契約者の書類）
+    kind: service
+    upstream: H4
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに渡す。claim-svc が自分の資格情報で書類を書かない
+        - document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる
+        - tctx の operation が document.upload で、claim_id が要求のパスの請求と一致すること。請求の持ち主が sub であることは、呼ぶ前に claim-svc が自分の記録で確かめる（document-svc は claim-svc を引かない。設計書の 3.1）
+  - id: H11
+    from: claim-svc
+    to: document-svc（代理店の書類）
+    kind: service
+    upstream: H7
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read, documents:upload]
+    max_lifetime: 300
+    custom_claims: [C-agency-code]
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに渡す
+        - document-svc は mTLS の相手が claim-svc であること、scope に documents:upload があることを確かめる
+        - tctx の operation が document.upload で、claim_id が要求のパスの請求と一致すること。請求の取扱代理店が agency_code と同じことは、呼ぶ前に claim-svc が確かめる（設計書の 3.1）
+  # ------------------------------------------------------------ 社員（P1 → P5）
+  - id: H12
+    from: ブラウザ（社員）
+    to: staff-console
+    kind: browser
+    token_type: STAFF_SESSION
+    aud: []
+    scope: []
+    max_lifetime: 36000
+    custom_claims: []
+    exchanger: null
+    validates: {mode: local, checks: [セッションの Cookie（__Host-、Secure・HttpOnly・SameSite=Strict）, 無操作 900 秒・最大 36000 秒, 社内の管理端末の網からの接続だけ, 書き込みの要求は CSRF のトークンも確かめる]}
+  - id: H13
+    from: staff-console
+    to: front-gw
+    kind: entry
+    upstream: H12
+    token_type: EMPLOYEE_AT
+    aud: ["https://staff-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct, payments:approve, admin:agency, admin:account, admin:staff-auth]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 社員の口は staff-console の X.509-SVID の mTLS からだけ接続を受ける
+        - "署名（ES256、shirogane-sso の JWKS）・typ が at+jwt・iss・aud が https://staff-api.shirogane-sonpo.example・exp"
+        - client_id が staff-console であること
+        - 検証した AT を TTS への要求の subject_token にだけ使い、内側のサービスに渡さない
+  - id: H14
+    from: front-gw
+    to: tts
+    kind: entry
+    upstream: H13
+    token_type: EMPLOYEE_AT
+    aud: ["https://staff-api.shirogane-sonpo.example"]
+    scope: [claims:submit, claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct, payments:approve, admin:agency, admin:account, admin:staff-auth]
+    max_lifetime: 600
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - front-gw を mTLS の相手の SPIFFE ID で認証する
+        - subject_token の EMPLOYEE_AT を TTS も検証する（署名・typ・iss・aud・exp）。client_id が staff-console であること
+        - sub で社員の台帳を引き、勤務の状態が「勤務中」であること（台帳の状態は勤務中・休職・退職の 3 つ。休職と退職では発行しない）。役割（査定担当者・上長・コールセンター・代理店管理部・お客さま窓口の上長・社員の認証の管理者）から、経路に許す scope を決める（役割と scope の対応は設計書の付録 D の M_authz_pdp の 1. の表）（台帳のキャッシュ 60 秒）
+        - 代理受付の経路では、要求の call_id で IVR の通話の記録を引き（キャッシュしない）、本人確認が成功し、確認から 1800 秒以内で、通話の記録に終話の時刻が無い（通話が続いている）こと、記録の担当の社員が EMPLOYEE_AT の sub と同じことを確かめる。TXN_PROXY の exp は発行から 60 秒と本人確認から 1800 秒の早い方。sub には記録の契約者を書き、act.sub に社員を書く
+        - acr・auth_time を EMPLOYEE_AT から値を変えずに写す（TXN_STAFF だけ）
+  - id: H15
+    from: front-gw
+    to: claim-svc（電話の代理受付）
+    kind: reissue
+    upstream: H14
+    token_type: TXN_PROXY
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read]
+    max_lifetime: 60
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw であること
+        - 共通の検証部品を act を許す設定で使う（代理受付の API だけ）。act.sub が stf_ の ID で、入れ子が無いこと
+        - tctx の operation・policy_number・amount・call_id を要求の本文と照合する。policy_number が sub の契約者の証券であること
+        - 請求の記録に sub（契約者）と act.sub（社員）と call_id を残す
+  - id: H16
+    from: claim-svc
+    to: fraud-svc（電話の代理受付）
+    kind: service
+    upstream: H15
+    token_type: TXN_PROXY
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:submit, claims:read]
+    max_lifetime: 60
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに渡す
+        - fraud-svc は mTLS の相手が claim-svc であることを確かめ、共通の検証部品を act を許す設定で使う
+        - tctx の operation が claim.submit で、policy_number・amount が判定の依頼の本文と一致すること。判定の記録に act.sub を残す
+  - id: H17
+    from: front-gw
+    to: assessment-svc
+    kind: reissue
+    upstream: H14
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw であること
+        - 共通の検証部品で typ・iss・aud・exp・必須のクレーム（act のあるトークンは拒む）
+        - 査定担当者の操作は、sub が claim-svc の記録でその請求に割り当てた査定担当者であること（H18 で引く）。上長の操作（閲覧・assessment.assign・assessment.hold・assessment.unhold）は、TTS が上長の役割のときだけ出し（assessment.unhold の認証の強さは staff-console の画面が確かめ、assessment-svc は acr・auth_time を見ない）、assessment-svc は割り当てた査定担当者の今の課が上長の今の課と同じことを社員の台帳で確かめる（設計書の 3.1 の課の規則）。記録に sub と txn を残す
+        - assessment.confirm では、tctx の claim_id・amount・payee_ref が要求の本文と一致すること（違えば 409）。payee_ref がその請求の証券の有効な振込先であることを claim-svc に確かめる（H18。claim-svc が自分の記録の請求の証券で契約管理の仕組みを引く）
+  - id: H18
+    from: assessment-svc
+    to: claim-svc（査定）
+    kind: service
+    upstream: H17
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 受けた Txn-Token を改変せずに渡す。assessment-svc が自分の資格情報で請求を書かない
+        - claim-svc は mTLS の相手が assessment-svc であることを確かめる
+        - 請求の読み取りは claims:read、割り当て・保留の書き込みは assessments:write。operation が査定の操作の一覧（assessment.read・assessment.confirm・assessment.assign・assessment.hold・assessment.unhold）にあること
+        - tctx の claim_id が要求のパスの請求と一致すること（違えば 409）。assessment.confirm では、tctx の payee_ref がその請求の証券（claim-svc の記録）の有効な振込先であることを契約管理の仕組みで確かめて返す。保留と割り当ての変更は、記録に sub と txn を残す
+  - id: H19
+    from: assessment-svc
+    to: document-svc（査定）
+    kind: service
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: none
+      checks:
+        - assessment-svc は TXN_STAFF を渡さず、自分の X.509-SVID の mTLS だけで document-svc の閲覧の API を呼ぶ（割り当ての確かめは assessment-svc が済ませているので、書類の閲覧は assessment-svc の権限で行う）
+        - document-svc は mTLS の相手が assessment-svc であることを確かめ、要求のパスの claim_id の書類を返す。閲覧の記録には呼び出し元（assessment-svc）と claim_id を残す
+  # ------------------------------------------------------------ 非同期（査定の確定 → 支払いの指示）
+  - id: H29
+    from: assessment-svc
+    to: tts（PAY_MSG_CTX の要求）
+    kind: entry
+    upstream: H17
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - TTS は、TXN_STAFF を subject_token に出した網の中のサービスなら、どの SPIFFE ID からでも PAY_MSG_CTX の要求を受ける（mTLS で相手を認証して TTS の発行の記録に残すが、頼める相手の一覧は持たない。TXN_STAFF を受け取れるのは網の中のサービスだけなので足りる）
+        - subject_token の TXN_STAFF を検証し（期限内）、operation が assessment.confirm であること
+        - assessment-svc が request_details で渡す assessment_ref（査定の確定の ID と版。版は請求ごとに 1 から増える）を tctx に書く。応答が assessment-svc に届かなかったときは、同じ確定で頼み直してよい（1 件の指示にするのは payment-svc。H22）
+  - id: H30
+    from: tts
+    to: assessment-svc（PAY_MSG_CTX）
+    kind: exchange
+    upstream: H29
+    token_type: PAY_MSG_CTX
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    note: H30 の区間で PAY_MSG_CTX が使われるのは、TTS が assessment-svc に渡すまでの 300 秒だけ（ブローカーでの保持は H20・H21 の寿命として書いた）。上流の TXN_STAFF を超えない
+    validates:
+      mode: local
+      checks:
+        - TTS は TXN_STAFF の tctx の claim_id・amount・payee_ref を変えずに写し、assessment_ref を足し、operation を payment.instruct にし、txn を引き継ぐ。scope は payments:instruct だけ
+        - assessment-svc は受け取った PAY_MSG_CTX を読まずにメッセージに入れる
+  - id: H20
+    from: assessment-svc
+    to: ブローカー（支払いの指示のキュー）
+    kind: broker_connection
+    upstream: H30
+    token_type: PAY_MSG_CTX
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:instruct]
+    max_lifetime: 3600
+    custom_claims: []
+    exchanger: null
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - assessment-svc は H30 で受け取った PAY_MSG_CTX をメッセージに入れる（TXN_STAFF はメッセージに入れない）
+        - ブローカーへの接続は assessment-svc の X.509-SVID の mTLS。ブローカーはトークンを読まない。メッセージの保持は 3600 秒で、過ぎたものは滞留のキューに移る
+    note: メッセージの本文は txn・請求の ID・PAY_MSG_CTX だけ。口座番号・傷病の情報・氏名は入れない
+  - id: H21
+    from: ブローカー（支払いの指示のキュー）
+    to: payment-worker
+    kind: broker_connection
+    upstream: H20
+    token_type: PAY_MSG_CTX
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:instruct]
+    max_lifetime: 3600
+    custom_claims: []
+    exchanger: null
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - payment-worker は自分の X.509-SVID でブローカーに接続する
+        - PAY_MSG_CTX を自分では信じず、TTS に出して TXN_TOKEN に替える。期限を過ぎた PAY_MSG_CTX のメッセージは TTS に出さずに滞留のキューに移す。滞留のキューのメッセージ（PAY_MSG_CTX を含む）は、後から調べるために期限を決めずに残す（消すのは当番の手作業）。中を読めるのは payment-worker と IT 基盤部の当番だけで、保険金部には請求の ID と件数だけを見せる
+        - txn を処理済みにするのは payment-svc が指示を受け付けた（重複として前の結果を返した場合を含む）後だけ。TTS・payment-svc への送信が失敗したら、メッセージを確認せずにブローカーの再配送に任せ、PAY_MSG_CTX の期限を過ぎたら滞留のキューに移す（正しい 1 件の指示を落とさない。期限を過ぎたものは査定担当者が新しい版で確定する。2 回届いても payment-svc の (claim_id, assessment_ref) の一意の制約で 1 件になる）
+  - id: H22
+    from: payment-worker
+    to: payment-svc（支払いの指示）
+    kind: exchange
+    upstream: H21
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - TTS は payment-worker を mTLS の相手の ID で認証し、PAY_MSG_CTX の署名・typ（msgctx+jwt）・exp を確かめる。査定を確定した社員（sub）の社員の台帳の勤務の状態が「勤務中」（休職・退職では作り直さない）で、査定担当者の役割があることを引き直してから TXN_TOKEN を出す（txn は PAY_MSG_CTX の値。請求の保留・版は payment-svc が受け付けの取引で確かめる）
+        - payment-svc は mTLS の相手が payment-worker で、req_wl が payment-worker、scope が payments:instruct であることを確かめる
+        - tctx の claim_id・amount・payee_ref・assessment_ref を指示の本文と照合する（payee_ref がその請求の証券の振込先であることは確定のときに assessment-svc と claim-svc が確かめ、値は tctx で固定されている）
+        - (claim_id, assessment_ref) に一意の制約を置き、同じ査定の確定の 2 件目は、txn が違っても記録せずに前の結果を返す（再配送・頼み直しへの備え）
+        - 版の規則（請求ごとの集計の行に、受けた最新の版と保留の印を置く）：受けた版より新しくない版の指示は受けない（古い版のメッセージが後から届いても通らない）。新しい版は、同じ請求に未実行の指示（承認待ちを含む）がある間は受けない（409）。版を替えたいときは、上長が未実行の指示を取り消す（payment.cancel。H23）
+        - 請求ごとの集計の行に保留の印があれば、指示を受けて「保留」の状態で記録する（実行しない）
+        - 承認の要否は payment-svc が自分の記録で決める：請求ごとの集計の行を同じ DB の取引の中でロックし（請求ごとに直列にする。版の規則と保留の印もこの取引で確かめる）、同じ請求の支払いの合計（実行済み・指示済みで未実行（承認の要否を問わない）・承認待ち・この指示）が 1000000 円以上なら「承認待ち」にし、指示の記録と集計の更新を同じ取引で書く（指示を分けたり並行に出したりして承認を避けさせない）
+  # ------------------------------------------------------------ 上長の承認（追加の認証）
+  - id: H23
+    from: front-gw
+    to: payment-svc（承認）
+    kind: reissue
+    upstream: H14
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:approve]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw で、req_wl が front-gw であること
+        - acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401（insufficient_user_authentication）
+        - tctx の payment_id がパスの支払いと一致し、amount が支払いの記録の金額と一致すること
+        - sub が、支払いの記録の査定者（指示の sub）と違うこと。承認の上限額と、承認者（sub）と査定者の今の課を社員の台帳に問い合わせ（キャッシュしない）、金額が上限額の内で、承認者が査定者の今の課の上長であること（REQ-05 の「上長」。assessment-svc の上長の操作と同じ基準。設計書の 3.1 の課の規則）
+        - tctx の payee_ref が支払いの記録の振込先と一致すること（上長は振込先を見て承認する）
+        - 承認の記録（承認者の sub・txn・時刻・claim_id）を書くのは payment-svc だけ。承認の記録は請求ごとで、同じ請求の後の支払いにも、その承認を使う（承認待ちの指示は、その請求に有効な承認の記録があれば承認済みとして扱う）。取り消し（payment.cancel：未実行の指示を取り消し、承認があればそれも取り消す。承認の要らない額の指示も止められる）も同じ API と同じ確かめ（上長・同じ課・phr・300 秒）で受け、支払いの行をロックした取引で書く
+  # ------------------------------------------------------------ 夜間の支払いの実行
+  - id: H24
+    from: payment-batch
+    to: payment-svc（支払いの実行）
+    kind: exchange
+    token_type: TXN_TOKEN
+    aud: [shirogane-sonpo.internal]
+    scope: [payments:execute]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - payment-batch は自分の X.509-SVID で TTS に Txn-Token を求める（草案 §8.2。利用者の代理ではない）。sub は payment-batch の SPIFFE ID。支払いの 1 件ごとに 1 つの Txn-Token
+        - TTS は、要求したワークロードが payment-batch で、実行の時間帯（毎日 1 時から 3 時）の内であるときだけ出す
+        - payment-svc は mTLS の相手が payment-batch で、sub がその SPIFFE ID、scope が payments:execute、tctx の payment_id がパスの支払いと、claim_id がその支払いの記録の請求と一致することを確かめる
+        - 「実行」は、payment-svc が支払いの状態を「実行済み」に書いた時点とする。その書き込みと振込のファイルへの追加を、支払いの行をロックした 1 つの取引で行い、同じ取引の中で、承認が要る支払いは、その請求の承認の記録が有効（取り消されていない）こと（同じ請求の後の支払いにも、その承認を使う）と、payee_ref が契約管理の仕組みで今も有効（無効にされていない）であることを確かめる。保留の印は、指示を受け付ける取引（H22）で確かめたので、実行の取引では見ない。合わなければ実行せず、承認待ちに戻す。同じ payment_id を 2 回入れない
+        - 取り消し（payment.cancel）も同じ支払いの行のロックを取るので、実行と並んだときはどちらかが先に終わる。実行の後に届いた取り消しは効かず、振込の取り消しの手続きに回す（9.1）。保留の印は指示を受け付ける取引で確かめたので、実行の取引では見ない
+        - TTS が実行の時間帯に応えない・契約管理の仕組みが応えないときは、その支払いを実行せず次の夜に回し、保険金部に知らせる（手作業で振込のファイルを作る経路は作らない）
+  - id: H25
+    from: claim-svc
+    to: payment-svc（請求の保留の通知）
+    kind: service
+    upstream: H18
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [claims:read, documents:read-sensitive, assessments:read, assessments:write, payments:instruct]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: null
+    validates:
+      mode: local
+      checks:
+        - 査定担当者・上長が請求を保留にすると（H18。operation が assessment.hold）、claim-svc は受けた Txn-Token を改変せずに payment-svc に渡し、payment-svc が請求ごとの集計の行（支払いの行がまだ無くても作る）をロックして保留の印を書く。payment-svc が書けたときだけ claim-svc は保留を記録して成功を返す（書けなければ保留を失敗にする）。印は請求ごとで、指示の受け付け（H22）の取引が確かめる。印の書き込み・削除は冪等（同じ操作を繰り返しても同じ結果）で、応答が失われたら claim-svc は同じ操作を頼み直す。指示を受け付けてよいかの正は payment-svc の印だけで、claim-svc の保留の記録は画面の表示に使う
+        - payment-svc は mTLS の相手が claim-svc、scope に assessments:write、tctx の claim_id がパスの請求と一致することを確かめ、tctx の operation（assessment.hold か assessment.unhold）のとおりに印を書く・消す。誰が外してよいか（上長だけ・自分の課の請求だけ）は、TTS（役割の表）と assessment-svc（H17）が決め、payment-svc は operation を権限の判断に使わない（取引の内容として写すだけ）
+  # ------------------------------------------------------------ 管理の操作（代理店の登録・契約者のアカウントの停止）
+  - id: H26
+    from: front-gw
+    to: as-admin-api
+    kind: reissue
+    upstream: H14
+    token_type: TXN_STAFF
+    aud: [shirogane-sonpo.internal]
+    scope: [admin:agency, admin:account, admin:staff-auth]
+    max_lifetime: 300
+    custom_claims: []
+    exchanger: tts
+    validates:
+      mode: local
+      checks:
+        - mTLS の相手の SPIFFE ID が front-gw であること
+        - acr が urn:shirogane-sonpo:acr:phr で、受けた時刻 − auth_time が 300 秒以内であること。足りなければ 401
+        - tctx の operation・target_ref を要求の本文と照合する
+        - 代理店の登録の新規作成・クライアント（client_id と証明書のサブジェクト）の追加・変更（代理店コード・証明書のサブジェクト・代理店の IdP の iss と JWKS の URL）は、別の代理店管理部の社員の承認が済むまで有効にしない（2 人の操作）。停止はすぐに有効にする
+        - 社員のセキュリティキーの登録の番号の発行は 2 人の操作（発行と承認を別の社員が行い、どちらの sub も target_ref の社員と違うこと）。番号を 1 回だけ使わせるのは shirogane-sso（鍵の登録と同じ取引の条件つきの書き込み。設計書の 2.2）。鍵の抹消とセッションの削除は 1 人の操作で、すぐ有効
+        - 操作の記録に sub と txn を残す
+  # ------------------------------------------------------------ 通知（トークンを運ばない）
+  - id: H27
+    from: payment-svc
+    to: ブローカー（通知のキュー）
+    kind: broker_connection
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: []
+    exchanger: null
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - 支払いの実行の後に、請求の ID と通知の種類だけを入れたメッセージを送る（トークン・契約者の ID・金額を入れない）
+        - ブローカーへの接続は payment-svc の X.509-SVID の mTLS
+  - id: H28
+    from: ブローカー（通知のキュー）
+    to: notification-svc
+    kind: broker_connection
+    token_type: null
+    aud: []
+    scope: []
+    max_lifetime: null
+    custom_claims: []
+    exchanger: null
+    connection_max_lifetime: 3600
+    validates:
+      mode: none
+      checks:
+        - notification-svc は自分の X.509-SVID でブローカーに接続する
+        - 宛先（メール・SMS）は、請求の ID から契約管理の仕組みの読み取りの API で引く。利用者の権限で内側の API を呼ばない

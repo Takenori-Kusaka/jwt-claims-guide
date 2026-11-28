@@ -380,7 +380,12 @@ def sec_issuance_profile(d):
         if field not in profile:
             continue
         p = profile[field] if isinstance(profile[field], dict) else {'value': profile[field]}
-        row = {'field': field, 'label': label, 'value': p.get('value'), 'value_text': _show_profile_value(p.get('value')),
+        if field == 'forwarded_cert_header':  # {name, strip_inbound, written_only_by}: not a value/rationale pair (#82)
+            p = {'value': p.get('name'),
+                 'value_text': f"`{p.get('name')}`" + ('（受け取った同名のヘッダーは捨てる）' if p.get('strip_inbound') else ''),
+                 'rationale': f"書けるのは {p['written_only_by']}" if p.get('written_only_by') else None}
+        row = {'field': field, 'label': label, 'value': p.get('value'),
+               'value_text': p.get('value_text') or _show_profile_value(p.get('value')),
                'rationale': p.get('rationale'), 'refs': p.get('refs') or []}
         if p.get('exceptions'):  # #58: per-IdP exceptions, shown with the value and the reason (only when declared)
             row['exceptions'] = p['exceptions']
@@ -766,7 +771,10 @@ def _value_schema(c, strict):
         for k, sk in (('pattern', 'pattern'), ('enum', 'enum'), ('format', 'format'), ('min', 'minimum'), ('max', 'maximum')):
             if k in av:
                 base[sk] = av[k]
-        if vv.get('values') and vv.get('extensible') is False:
+        # A closed vocabulary is an enum of the value only for a scalar claim. For an object-typed claim the vocabulary
+        # names its members or the values of one member (tctx, authorization_details.type), never the object itself:
+        # an enum of strings on "type": "object" accepts no token at all (#82, BD5 of the first calibration set).
+        if vv.get('values') and vv.get('extensible') is False and t != 'object':
             base['enum'] = list(vv['values'])
     if c.get('shape') == 'array':
         s = {'type': 'array', 'items': base}

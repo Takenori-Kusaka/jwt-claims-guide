@@ -69,10 +69,7 @@
   "tctx": {
    "description": "TTS が決めた取引の文脈（operation：要求の操作の種類）",
    "$comment": "C-tctx",
-   "type": "object",
-   "enum": [
-    "operation"
-   ]
+   "type": "object"
   }
  },
  "required": [

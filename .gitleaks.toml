@@ -63,3 +63,18 @@ condition = "AND"
 paths = ['''(^|/)review(\.v2)?\.yaml$''']
 regexTarget = "line"
 regexes = ['''^\s*"(?:claims|token_types|hops|catalog_answers|issuance_profile):[A-Za-z0-9_.-]+": "[0-9a-f]{64}"\s*$''']
+
+[[allowlists]]
+description = """sha256 of payload schemas of the first calibration set in tools/calibration_check.py (#82, RENDER_DRIFT): 3 kinds of
+schema (MSG_CTX, TXN_OPS, TXN_TOKEN issuer schemas) in 2 designs, 5 lines.
+Set 1 is kept as measured; after the render fix of #82 (BD5) the check C3 accepts exactly these schema files differing, each
+with the sha256 the current render writes, e.g. 'schemas/TXN_TOKEN.issuer.schema.json': '<64 hex>'. The default rule
+generic-api-key reads the hash after the "TOKEN"-like file name as a key: a false positive (first seen on PR #86, commit 29cfdd2).
+Only a finding on a line that is nothing but a schema file path (schemas/<name>.schema.json) as the key and exactly 64
+lowercase hex digits as the value (the whole line is matched: the rule's own match starts in the middle of the file name), in
+tools/calibration_check.py, is excluded; a 64-hex value under any other key is still reported."""
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^tools/calibration_check\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*'schemas/[A-Za-z0-9_.-]+\.schema\.json': '[0-9a-f]{64}',?\s*$''']
