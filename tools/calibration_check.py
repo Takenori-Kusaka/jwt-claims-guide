@@ -37,10 +37,14 @@ Checks (errors), for every set:
       content of another file of calibration/; no file names a design, the calibration directory or a marker
   C6  the files listed in the set's commitments.sha256 have those sha256 (the targets and the key fixed before measuring;
       CRLF is read as LF, so a Windows checkout gives the same value as git and CI)
-Set 2 only (its protocol.md 3.1 and 9.):
+  C6 also reads lines `<sha> *@<path>` (from the repository root): set 2 pins the packet materials (templates/review);
+      packet refuses to build a set-2 packet when one of them changed (set2/protocol.md S12)
+Set 2 only (its protocol.md 3.1, 3.2 and 9.):
   C8  the difficulty of each error follows from signpost x span; the salience facts are what the materialized seeded design
       shows (copies = the lines that hold salience_phrase; masked_by = the errors at the same primary location that are at
-      least as copied) and the salience follows from them; the distribution block of set2/protocol.md is the key's table
+      least as copied) and the salience follows from them; the distribution block of set2/protocol.md is the key's table;
+      an error whose first channel question had its hint changed by #80 (or whose channel is lint) carries hint_derived,
+      and every hint_derived error has a hint_note
 """
 import argparse
 import hashlib
@@ -88,6 +92,9 @@ RENDER_DRIFT = {
 DIFFICULTY = {('P1', '1'): 'easy', ('P1', '2+'): 'medium', ('P2', '1'): 'medium', ('P2', '2+'): 'hard',
               ('なし', '1'): 'hard', ('なし', '2+'): 'hard'}
 HINT_DERIVED = ('A01', 'A03', 'A17', 'B02', 'B03', 'B05', 'B14')  # set-1 errors whose core the #80 hints restate
+# set2/protocol.md 3.2 (revision S10): an error whose first channel question is one whose hint #80 (PR #84) changed, or whose
+# channel is lint (short_list.md 3. got a hint), must carry hint_derived
+HINT_QUESTIONS = ('q-revocation-delivery', 'q-long-running', 'q-idp-diff-absorbed', 'q-db-context-writers')
 DIST_BEGIN, DIST_END = '<!-- calibration:distribution:begin -->', '<!-- calibration:distribution:end -->'
 
 
@@ -377,10 +384,13 @@ def distribution(key):
     lines.append('- 種別：' + '・'.join(f'{k} {v}' for k, v in sorted(kinds.items(), key=lambda kv: -kv[1])))
     lines.append('- 重大度：' + '・'.join(f'{k} {sev.get(k, 0)}' for k in ('Blocker', 'Major', 'Minor') if sev.get(k)))
     absent = sorted(e['id'] for e in errs if e.get('form') == 'absent')
-    masked = sorted(e['id'] for e in errs if e.get('masked_by'))
+    cps = {e['id']: e.get('copies', 0) for e in errs}
+    more = sorted(e['id'] for e in errs if any(cps[o] > cps[e['id']] for o in e.get('masked_by') or []))
+    equal = sorted(e['id'] for e in errs if e.get('masked_by') and e['id'] not in more)
     hint = sorted(e['id'] for e in errs if e.get('hint_derived'))
     lines.append(f'- あるべきものが無い形（form: absent）：{len(absent)} 件（{"・".join(absent) or "なし"}）')
-    lines.append(f'- 同じ場所に、より写される誤りがある形（masked_by）：{len(masked)} 件（{"・".join(masked) or "なし"}）')
+    lines.append(f'- 同じ場所に、より写される誤りがある形（masked_by に copies がより多い誤り）：{len(more)} 件（{"・".join(more) or "なし"}）')
+    lines.append(f'- 同じ場所に、同じ数だけ写される誤りがある形（masked_by が同数だけ）：{len(equal)} 件（{"・".join(equal) or "なし"}）')
     lines.append(f'- 初回の手がかりから来た型（hint_derived。再現率を分けて出す）：{len(hint)} 件（{"・".join(hint) or "なし"}）')
     return '\n'.join(lines)
 
@@ -397,6 +407,11 @@ def check_salience(key, mats, protocol_path, errors):
             errors.append(f"C8 {e['id']}: a present error needs a salience_phrase")
         if e.get('channel') == 'short_list' and str(e.get('channel_priority')) not in ('1', '2'):
             errors.append(f"C8 {e['id']}: channel short_list needs channel_priority 1 or 2")
+        first = (e.get('channel_question') or [None])[0]
+        if (first in HINT_QUESTIONS or e.get('channel') == 'lint') and not e.get('hint_derived'):
+            errors.append(f"C8 {e['id']}: channel {e.get('channel')} {first or ''} has a hint changed by #80; hint_derived is required")
+        if e.get('hint_derived') and not e.get('hint_note'):
+            errors.append(f"C8 {e['id']}: hint_derived needs a hint_note (what differs from the set-1 error)")
         for h in e.get('hint_derived') or []:
             if h not in HINT_DERIVED:
                 errors.append(f"C8 {e['id']}: hint_derived {h} is not one of {', '.join(HINT_DERIVED)}")
@@ -435,7 +450,7 @@ def check_commitments(set_name, errors):
         if not m:
             continue
         want, rel = m.groups()
-        p = os.path.join(base, rel)
+        p = os.path.join(ROOT, rel[1:]) if rel.startswith('@') else os.path.join(base, rel)  # @: from the repository root
         got = sha256_lf(p) if os.path.isfile(p) else 'missing'
         if got != want:
             errors.append(f'C6 {tag}{rel}: sha256 {got} differs from commitments.sha256 ({want})')
@@ -590,6 +605,23 @@ def packet_errors(out, design):
     return errors
 
 
+def pinned_materials(design):
+    """The materials a set pins in its commitments.sha256 (lines `<sha> *@<path from the repository root>`): each must still
+    have its recorded sha256, or a packet built now is not the packet the set was fixed with (set2/protocol.md S12)."""
+    cpath = os.path.join(SETS[SET_OF[design]]['dir'], 'commitments.sha256')
+    problems = []
+    if not os.path.isfile(cpath):
+        return problems
+    for line in open(cpath, encoding='utf-8'):
+        m = re.match(r'([0-9a-f]{64}) \*@(\S+)$', line.strip())
+        if not m:
+            continue
+        p = os.path.join(ROOT, m.group(2))
+        if not os.path.isfile(p) or sha256_lf(p) != m.group(1):
+            problems.append(f'{m.group(2)} differs from the pinned sha256')
+    return problems
+
+
 def packet(design, out, seed):
     """The packet of one review session: the materials, the design at designs/target, the CI result and the sheet.
     The label of the session is kept in the record only (protocol.md 6.), never in the packet. OUT must be a new or
@@ -605,6 +637,8 @@ def packet(design, out, seed):
         shutil.copytree(os.path.join(ROOT, md), os.path.join(out, os.path.basename(md)), dirs_exist_ok=True)
     for src, name in extra_materials(design):
         shutil.copyfile(src, os.path.join(out, name))
+    for problem in pinned_materials(design):
+        raise SystemExit(f'packet: {problem}; build the packet from the commit recorded in the set README (固定の記録)')
     stage(design)
     try:
         rc, o, e = run(['tools/claim_lint', 'designs/target', '--also-scan', 'designs/target/design.md'])
