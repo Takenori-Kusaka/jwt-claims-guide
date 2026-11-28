@@ -1,0 +1,19 @@
+# Findings to judge, twin pair D (seeded-d = D10, control-d = D11). Reviewer IDs as written in findings/<label>.md.
+# Seeded sessions: only findings (or parts of findings) not matched to a seeded error. Control sessions: every finding of table (1).
+seeded:
+  D10-1:
+    - F11
+    - F13
+    - "(4)op-proof-holder (note 1): registration is matched by certificate subject, so no procedure revokes the old certificate after renewal"
+  D10-2:
+    - F13
+  D10-3:
+    - F-10
+    - F-11
+    - F-13
+    - F-15
+    - F-16
+control:
+  D11-1: [R-01, R-02, R-03, R-04, R-05]
+  D11-2: [F1, F2, F3, F4, F5, F6, F7, F8]
+  D11-3: [F-01, F-02, F-03, F-04, F-05, F-06, F-07, F-08, F-09, F-10, F-11]

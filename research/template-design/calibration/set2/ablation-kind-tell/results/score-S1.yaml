@@ -1,0 +1,293 @@
+scorer: S1
+note: "set2 re-run (#88). Rules: protocol-set1.md 7. (a)(b)+confused-question, R3 render mapping; protocol-set2.md 7. Key not corrected; candidate corrections only in key_issues. Labels: D12=seeded-c, D10=seeded-d, D9=control-c, D11=control-d."
+
+summary:
+  D12-1: {design: seeded-c, errors: 19, strict: 16, lenient: 18, sum: 17.0}
+  D12-2: {design: seeded-c, errors: 19, strict: 12, lenient: 12, sum: 12.0}
+  D12-3: {design: seeded-c, errors: 19, strict: 13, lenient: 13, sum: 13.0}
+  D10-1: {design: seeded-d, errors: 16, strict: 13, lenient: 13, sum: 13.0}
+  D10-2: {design: seeded-d, errors: 16, strict: 12, lenient: 12, sum: 12.0}
+  D10-3: {design: seeded-d, errors: 16, strict: 11, lenient: 12, sum: 11.5}
+
+borderline_calls:
+  - cell: "D12-1/C13"
+    official: 0.5
+    reason: "(4)op-source-change の気づき「連絡の 2 つの scope はロールで絞らないので、ロールを外しても連絡は止まりません（A10）」。scope がロールで絞られないという核の中心は述べるが、「委任の表でエージェントに許した範囲で付ける」は言わず、帰結（止まらない）として述べる。場所は A10 経由で token_types CONTACT_TOOL_AT の revocation（locations にある）。"
+    stricter: "0（場所を自分で名指していない、核は帰結の形）"
+    looser: "0.5 のまま（q は op-source-change で accepted に無いので 1 にはならない）"
+  - cell: "D12-3/C13"
+    official: 0
+    reason: "(4)op-source-change「連絡は、ロールでは止まりません。...開いたままの購読は止まりません（F-06）」。scope の付け方に触れず、原因を購読に帰している。"
+    stricter: "0"
+    looser: "0.5（「連絡はロールでは止まらない」を C13 の帰結と読めば）"
+  - cell: "D12-1/C19"
+    official: 0.5
+    reason: "A15 は (a)(b) を満たすが、取り違えた問い q-typ-distinguishes は confused_questions（q-shared-validator）にも also_accepted にも無い。"
+    stricter: "0.5"
+    looser: "1（key_issues K1 の also_accepted を足せば）"
+  - cell: "D10-1/D11, D10-2/D11, D10-3/D11"
+    official: 1
+    reason: "3 件とも「emp_no が台帳の行になっていない利用者のキー」を述べ、核の主の事実を満たす。核の付随部分「代理店の IdP の管理者が入力する属性」と括弧の「台帳の行のある sub で引くべき」はどれも明示しない。"
+    stricter: "括弧の sub を核の必須とすれば 0（3 件とも）"
+    looser: "1"
+  - cell: "D10-3/D12"
+    official: 0.5
+    reason: "F-17 は H19・P5 3. を指し、document-svc は呼び出し元（assessment-svc）しか確かめず閲覧の記録に sub が無いと述べる。TXN_STAFF を渡さず自分の資格情報で読むことは含意だが明言は弱い。q は q-object-level-authz・q-audit-correlation で accepted に無い。"
+    stricter: "0（核の「TXN_STAFF を渡さず自分の SVID だけで」を明言しない）"
+    looser: "0.5（key_issues K2 の also_accepted を足せば 1）"
+  - cell: "D10-3/D13"
+    official: 0
+    reason: "(2) q-copies-outlive は Yes で、理由に「ただし期限を決めずに残る」とある。規則が数えるのは No の理由と開いた問いの気づきなので数えない。場所も行の ID を名指さない。"
+    stricter: "0"
+    looser: "0.5〜1（Yes の但し書きを指摘とみなし、滞留のキューを H21・DB・ブローカーの層と読めば。q-copies-outlive は confused_questions）"
+  - cell: "D12-1/C09"
+    official: 1
+    reason: "A4 の本文は 3930 秒と 600 秒の超過を言い、3600 秒のキャッシュは場所の欄（db_lookup 3600）にだけある。核を満たすと読んだ。"
+    stricter: "1"
+    looser: "1"
+
+sessions:
+  D12-1:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: [A7], a: "token_types APPROVAL_AT rationale・M_token_validation 6.・H12 validates（locations にある）", b: "auth_time を交換した時刻に書き換え、300 秒が毎回通ると述べる", q: "q-step-up-path-coverage・q-auth-strength は also_accepted"}
+      C02: {score: 1, findings: [A6, "(2)q-no-passthrough"], a: "H4 validates・P4 4.・P4 1.", b: "リソースの表に無くても *.aoba-sumai.example/mcp の形なら出す", q: "q-no-passthrough は confused_questions"}
+      C03: {score: 1, findings: [A1, "(2)q-authorize-service-and-user", "(4)op-proof-holder"], a: "H2 validates・3.1・token_types issuance_profile.sender_constraint", b: "相手を client_id で見て、wl-ca のどのワークロードでも交換できる", q: "q-authorize-service-and-user は confused_questions"}
+      C04: {score: 1, findings: [A11, "(2)q-object-level-authz"], a: "H7 validates・C-repair-id enforced_at（payment-tool）", b: "支払う発注の修繕依頼を repair_id と照らさない", q: "q-object-level-authz は confused_questions"}
+      C05: {score: 1, findings: [A3, "(2)q-dependency-outage"], a: "9.2・M_authz_pdp 5.", b: "人事の台帳が応答しないと最後の結果を最大 24 時間返す（通す側に倒れる）", q: "q-dependency-outage は confused_questions"}
+      C06: {score: 1, findings: [A8, "(2)q-outside-catalog"], a: "catalog U30", b: "本番の approval-svc に X-Test-Now の口が残り、期限と auth_time の比べに使う", q: "q-outside-catalog は confused_questions"}
+      C07: {score: 1, findings: [A9], a: "付録 D の P4 5.", b: "承認の画面にエージェントの説明の文だけを出し、台帳の値を出さない", q: "q-approval-from-as は confused_questions"}
+      C08: {score: 1, findings: [A5, "(2)q-identifier-choice"], a: "H2 validates・9.2・M_authz_pdp 5.", b: "担当者を引く鍵が台帳に行の無いログイン名（preferred_username）。ほかの経路は sub", q: "q-identifier-choice は confused_questions"}
+      C09: {score: 1, findings: [A4, "(2)q-freshness-mitigation"], a: "token_types REPAIR_DELEG_AT revocation・C-repair-id on_revoke・9.2・U21", b: "担当の 3600 秒の扱いで最悪 3930 秒、REQ-08 の 600 秒を超える", q: "q-freshness-mitigation は confused_questions", borderline: "3600 秒のキャッシュは場所の欄に書かれ、本文は秒数の超過。1 と読んだ"}
+      C10: {score: 1, findings: [A14, "(2)q-operator-act"], a: "2.2 の lock-svc の管理の画面の行", b: "当番の失効を担当者の ID の取り消しとして監査ログに残す", q: "q-operator-act は confused_questions"}
+      C11: {score: 0, findings: [], a: "-", b: "H14 で承認した上長を確かめ直さない点を述べた指摘は無い", q: "-"}
+      C12: {score: 1, findings: [A13], a: "3.1 の見送りの行（解錠コードの取り消し）・2.2", b: "失効が錠に届くのは毎日 3 時の同期で、REQ-06 の 15 分を超える", q: "q-revocation-delivery は confused_questions"}
+      C13: {score: 0.5, findings: ["(4)op-source-change"], a: "A10 を参照し、A10 は token_types CONTACT_TOOL_AT の revocation を指す（locations にある）。間接", b: "「連絡の 2 つの scope はロールで絞らない」。委任の表で付けることは言わない", q: "開いた問い op-source-change。accepted に無い。(2)q-original-principal は Yes", borderline: "borderline_calls の D12-1/C13"}
+      C14: {score: 1, findings: [A16, "(2)q-derived-value"], a: "C-authorization-details の description（worker_name）", b: "作業員の氏名を載せ、worker_id から引けば足りる", q: "q-derived-value は confused_questions"}
+      C15: {score: 1, findings: [A10, "(2)q-long-running", "(2)q-copies-outlive"], a: "token_types CONTACT_TOOL_AT の long_running", b: "WebSocket を最大 2 日開き、期限と委任の停止を確かめない", q: "q-long-running は confused_questions"}
+      C16: {score: 1, findings: [A2], a: "H8 の scope・note・1. の warn・P4 6.", b: "上流（H4）に無い approvals:decide を足し、エージェントが not_after を延ばせる", q: "q-approval-from-as・q-hop-narrowing は also_accepted"}
+      C17: {score: 1, findings: [A17, "(2)q-audit-correlation"], a: "P4 8.・C-approval-ref integrity_until（log）・U14", b: "approval_ref を残すサービスに lock-tool が無く、解錠の発行を承認につなげられない", q: "q-audit-correlation は confused_questions"}
+      C18: {score: 1, findings: [A12, "(4)op-one-time"], a: "H7 validates・3.1・M_token_validation 6.", b: "確かめる、送る、依頼済みにするの順で、並行と再送で 2 回になる", q: "op-one-time は confused_questions"}
+      C19: {score: 0.5, findings: [A15], a: "M_token_validation 10.・11.", b: "approval-svc だけが共通の部品を使わず、alg・typ・必須クレームを枠組みの既定に任せる", q: "q-typ-distinguishes は accepted に無い", borderline: "borderline_calls の D12-1/C19、key_issues の K1"}
+    unmatched:
+      - "A18 | H8 の note・P4 6. | 時間帯を延ばしたとき、発行済みのコード（lock-svc の not_after）がどうなるか書かれていない。延長の目的と仕組みの説明が無い | Minor"
+  D12-2:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: [F1, "(2)q-step-up-path-coverage"], a: "C-auth-time・token_types APPROVAL_AT rationale・付録 B・H12", b: "agent-sts が auth_time に交換した時刻を書く", q: "q-auth-strength・q-step-up-path-coverage・q-step-up-by-rs は also_accepted"}
+      C02: {score: 1, findings: [F4, "(2)q-no-passthrough"], a: "H4 validates・4.・P4 4.", b: "リソースの表に無くても */mcp の形なら出す", q: "q-no-passthrough は confused_questions"}
+      C03: {score: 1, findings: [F10, "(2)q-authorize-service-and-user"], a: "H2 validates・3.1・4.", b: "wl-ca の証明書ならどのワークロードでもよく、client_id で代える", q: "q-authorize-service-and-user は confused_questions"}
+      C04: {score: 1, findings: [F8, "(2)q-object-level-authz"], a: "C-repair-id enforced_at（payment-tool）・H7", b: "支払う発注の修繕依頼と repair_id を照合しない", q: "q-object-level-authz は confused_questions"}
+      C05: {score: 1, findings: [F7, "(2)q-dependency-outage"], a: "9.2・9.1 の sub の行", b: "最後に引いた結果を最大 24 時間返し、通す側に倒れる", q: "q-dependency-outage は confused_questions"}
+      C06: {score: 0, findings: [], a: "-", b: "X-Test-Now に触れた指摘は無い（(2)q-outside-catalog は Yes）", q: "-"}
+      C07: {score: 1, findings: [F2, "(2)q-approval-from-as"], a: "付録 D の P4 5.", b: "承認の画面にエージェントの説明の文だけを出す", q: "q-approval-from-as は confused_questions"}
+      C08: {score: 1, findings: [F9, "(2)q-identifier-choice"], a: "H2 validates・9.2", b: "preferred_username をキーにして aoba-pdp を引く。台帳に行が無く、sub で引けば済む", q: "q-identifier-choice は confused_questions"}
+      C09: {score: 1, findings: [F5, "(2)q-freshness-mitigation"], a: "token_types REPAIR_DELEG_AT revocation（3600 秒）・C-repair-id on_revoke・9.2・9.1", b: "付け替えの後、最悪 3930 秒止まらず、600 秒を超える", q: "q-freshness-mitigation は confused_questions"}
+      C10: {score: 1, findings: [F11, "(2)q-operator-act"], a: "2.2 の lock-svc の管理の画面の行", b: "当番の失効を担当者の ID で残す", q: "q-operator-act は confused_questions"}
+      C11: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+      C12: {score: 0, findings: [], a: "-", b: "毎日 3 時の同期に触れた指摘は無い", q: "-"}
+      C13: {score: 0, findings: [], a: "-", b: "該当の指摘なし（(2)q-original-principal は Yes）", q: "-"}
+      C14: {score: 1, findings: [F12, "(2)q-derived-value"], a: "C-authorization-details の description（worker_name）・P4 5.", b: "作業員の氏名を載せ、worker_id から引けば足りる", q: "q-derived-value は confused_questions"}
+      C15: {score: 1, findings: [F6, "(2)q-long-running", "(2)q-copies-outlive"], a: "CONTACT_TOOL_AT の long_running・revocation・9.1", b: "購読を最大 2 日開き、期限と委任の停止を確かめない", q: "q-long-running は confused_questions"}
+      C16: {score: 1, findings: [F3], a: "H8 の scope・note・1. の L16 の warn", b: "approvals:decide を足し、エージェントが not_after を延ばせる", q: "q-no-passthrough は confused_questions。q-approval-from-as は also_accepted"}
+      C17: {score: 0, findings: [], a: "-", b: "該当の指摘なし（(2)q-audit-correlation は Yes）", q: "-"}
+      C18: {score: 0, findings: [], a: "-", b: "op-one-time は承認の消費だけを辿り、2 回通る経路は無いとした", q: "-"}
+      C19: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+    unmatched: []
+    unmatched_note: "(1) の 12 件は、どれかの誤りに当てた。(2)q-variant-comparison の No（3600 秒・24 時間・ワイルドカードが 3.・3.1 で比べられていない）は F5・F7・F4 と同じ欠陥で、別の欠陥を述べていない"
+  D12-3:
+    design: seeded-c
+    errors:
+      C01: {score: 1, findings: [F-02, "(2)q-step-up-path-coverage"], a: "付録 B・C-auth-time・token_types APPROVAL_AT・H12", b: "auth_time に交換した時刻を書き、300 秒が常に満たされる", q: "q-step-up-path-coverage・q-step-up-by-rs・q-auth-context-semantics は also_accepted"}
+      C02: {score: 1, findings: [F-09, "(2)q-no-passthrough"], a: "H4 validates・P4 4.・P4 1.", b: "リソースの表に無くても */mcp の宛先に出す", q: "q-no-passthrough は confused_questions"}
+      C03: {score: 1, findings: [F-11, "(2)q-authorize-service-and-user", "(4)op-proof-holder"], a: "H2・C-client-id・C-cnf・3.1", b: "交換を求める相手を client_id で見て、任意のワークロードの証明書に束縛される", q: "q-authorize-service-and-user は confused_questions"}
+      C04: {score: 1, findings: [F-07, "(2)q-object-level-authz"], a: "C-repair-id enforced_at（payment-tool）・H7・M_authz_pdp 3.・claim_request の問 1", b: "支払う発注と repair_id を照合しない", q: "q-object-level-authz は confused_questions"}
+      C05: {score: 1, findings: [F-04, "(2)q-dependency-outage"], a: "C-sub の on_revoke・9.2・M_authz_pdp 5.", b: "最後に引いた結果を最大 24 時間返す", q: "q-dependency-outage は confused_questions"}
+      C06: {score: 1, findings: [F-03, "(2)q-outside-catalog"], a: "catalog U30・11.・M_token_validation 6.", b: "本番の approval-svc に X-Test-Now の口が残り、期限と auth_time の比べに使う", q: "q-outside-catalog は confused_questions"}
+      C07: {score: 1, findings: [F-01, "(2)q-approval-from-as"], a: "付録 D の P4 5.", b: "承認の画面にエージェントの説明の文だけを出し、下書きの値を出さない", q: "q-approval-from-as は confused_questions"}
+      C08: {score: 1, findings: [F-08, "(2)q-identifier-choice"], a: "H2 validates・C-sub の verification_method・C-staff-number・M_authz_pdp 5.", b: "preferred_username で aoba-pdp を引き、台帳に行が無い。ツールは sub で引く", q: "q-identifier-choice は confused_questions"}
+      C09: {score: 1, findings: [F-05, "(2)q-freshness-mitigation"], a: "C-repair-id（on_revoke）・9.2", b: "agent-sts の 3600 秒のキャッシュで最悪 3930 秒、REQ-08 の 600 秒を超える", q: "q-freshness-mitigation は confused_questions"}
+      C10: {score: 1, findings: [F-12, "(2)q-operator-act"], a: "2.2 の lock-svc の管理の画面・3.1", b: "当番の失効を担当者の取り消しとして残す", q: "q-operator-act は confused_questions"}
+      C11: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+      C12: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+      C13: {score: 0, findings: [], a: "-", b: "op-source-change の「連絡は、ロールでは止まりません」は原因を購読（F-06）に帰し、scope の付け方を言わない", q: "-", borderline: "borderline_calls の D12-3/C13（緩く読めば 0.5）"}
+      C14: {score: 1, findings: [F-14, "(2)q-derived-value"], a: "C-authorization-details の description・note", b: "worker_name がエージェントまで届き、worker_id から引けば足りる", q: "q-derived-value は confused_questions"}
+      C15: {score: 1, findings: [F-06, "(2)q-revocation-delivery"], a: "CONTACT_TOOL_AT の long_running・9.1・P4 9.・9.2", b: "購読（最大 2 日）は開いた後に期限と委任の停止を確かめない", q: "q-long-running は confused_questions"}
+      C16: {score: 1, findings: [F-10], a: "1. の warn の理由・H8 の scope・note・P4 6.", b: "approvals:decide を足し、not_after を人の確認なしに延ばせる", q: "q-approval-from-as は also_accepted"}
+      C17: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+      C18: {score: 0, findings: [], a: "-", b: "op-one-time は 2 回通る経路は無いとした", q: "-"}
+      C19: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+    unmatched:
+      - "F-13 | C-authorization-details の description・ORDER_TOOL_AT／LOCK_TOOL_AT の consumer スキーマ | 「メンバーはどれも文字列」なのに locations は配列。生成スキーマは items を object にしか表さない | Minor"
+      - "F-15 | 3.1「課長が自分を担当にして、解錠を 1 人で承認できること」・2.2・C-sub enforced_at（approval-svc） | 課長の自己担当で解錠を 1 人で依頼・承認でき、対策は週 1 回の事後の点検だけ。代わりの守りを比べていない | Minor"
+      - "F-16 | 6.（UC1〜UC4 の表） | q-still-valid・q-auth-strength の行が無く、失効と追加の認証が「要るか」決まっていない | Minor"
+      - "(2)ap-1-7 の No の理由の後半 | - | 承認の依頼の元の値（下書き）をエージェントが書ける点が残る（F-01 の近く。別の欠陥として述べているかは判定者が決める） | -"
+  D10-1:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: [F6, "(2)q-no-passthrough"], a: "H29 validates・C-tctx enforced_at（tts）・catalog の shirogane-tts の trigger_list", b: "TXN_STAFF を持つ網の中のどのサービスからでも PAY_MSG_CTX を出す（claim-svc も頼める）", q: "q-no-passthrough は confused_questions"}
+      D02: {score: 1, findings: [F2, "(2)q-object-level-authz"], a: "C-agency-code・C-sub の enforced_at（claim-svc）・H7", b: "照会は agency_code があれば claim_id で引いて返し、取扱代理店を照らさない", q: "q-object-level-authz は confused_questions"}
+      D03: {score: 1, findings: [F10, "(4)op-proof-holder"], a: "H5 validates・C-cnf の on_revoke・3.1", b: "CRL を取り直せない間は期限なく前の CRL で受け続け、上限が無い", q: "q-dependency-outage は confused_questions"}
+      D04: {score: 1, findings: [F3, "(2)ap-1-7"], a: "C-acr の authoritative_writer・source_system・2.2・I26", b: "2 本目の鍵はパスワードのログインだけで番号なしに足せ、acr が phr になる", q: "ap-1-7 は confused_questions"}
+      D05: {score: 1, findings: [F9, "(2)q-operator-act"], a: "2.2 の DB の直接の修正の行・9.2", b: "元の操作の sub と txn のまま上書きし、運用者の修正と見分けられない", q: "q-operator-act は confused_questions"}
+      D06: {score: 1, findings: [F1, "(2)q-authorize-service-and-user"], a: "design.md 2. の as-admin-api → shirogane-as の行・C-agency-code の note", b: "管理の書き込みの API は網の中の SVID なら呼び出し元を一覧と照らさずに受ける", q: "q-authorize-service-and-user は confused_questions。peer-mtls は also_accepted"}
+      D07: {score: 1, findings: [F8, "(2)q-outside-catalog"], a: "design.md 2. の「しろがねの網」の行（保守の委託先の踏み台）", b: "委託先の踏み台から、Txn-Token を確かめない保守の口に届く", q: "q-outside-catalog は confused_questions"}
+      D08: {score: 1, findings: [F7, "(2)q-approval-from-as"], a: "H23・H24 validates・C-tctx enforced_at（payment-svc）・3.1", b: "承認の記録は請求ごとで、後の支払いに使い回す", q: "q-approval-from-as は confused_questions"}
+      D09: {score: 0, findings: [], a: "-", b: "受け付けた後の保留が実行で効かない点を述べた指摘は無い", q: "-"}
+      D10: {score: 1, findings: [F5, "(2)q-revocation-delivery"], a: "3.1 の重点・9.1・H14・TXN_PROXY の revocation", b: "TXN_PROXY を出すとき契約者のアカウントの状態を引かず、止めた契約者の代理受付が通る", q: "q-revocation-delivery は confused_questions"}
+      D11: {score: 1, findings: [F12, "(2)q-identifier-choice"], a: "C-sub の upstream_issuer.source_attribute・H31", b: "利用者のキーの emp_no が台帳の行になっていない", q: "q-identifier-choice は confused_questions", borderline: "borderline_calls の D11（括弧の sub を必須とすれば 0）"}
+      D12: {score: 1, findings: [F15, "(2)q-original-principal"], a: "H19・3.1 の document-svc の見送り", b: "要配慮の書類を assessment-svc の権限で読み、誰が読んだか言えない", q: "q-original-principal は confused_questions"}
+      D13: {score: 1, findings: [F14, "(2)q-copies-outlive"], a: "H21 validates・9.1 の DB・ブローカーの接続の層", b: "滞留のキューに PAY_MSG_CTX を期限なしで残す", q: "q-copies-outlive は confused_questions"}
+      D14: {score: 1, findings: [F4, "(2)q-step-up-by-rs"], a: "付録 B・H17・C-acr／C-auth-time の enforced_at", b: "保留の解除は staff-console の画面だけが確かめ、assessment-svc は acr・auth_time を見ない", q: "q-step-up-by-rs は confused_questions"}
+      D15: {score: 0, findings: [], a: "-", b: "warn の理由は通るとした。H30 に触れた指摘は無い", q: "-"}
+      D16: {score: 0, findings: [], a: "-", b: "op-key-custody は辿っていない", q: "-"}
+    unmatched:
+      - "F11 | design.md 2. の as-admin-api → shirogane-as の行の「止まったとき」・9.1 | as-admin-api が止まると契約者・代理店を止める操作ができず、時間の約束も代わりの経路も無い（REQ-01・02 の 900 秒） | Major"
+      - "F13 | sheet.md 1. の「操作ごとの承認がある」・3.1・H23 | 性質の表が「当たらない」とするが、100 万円以上の支払いごとの承認がある | Minor"
+      - "(4)op-proof-holder 気づき 1 | - | 登録は証明書のサブジェクトで照らすので、更新の後に古い証明書を失効させる手順が書いていない | -"
+  D10-2:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: [F4, "(2)q-no-passthrough"], a: "H29 validates・C-tctx enforced_at（tts）", b: "TXN_STAFF を出した網の中のどの SPIFFE ID からでも PAY_MSG_CTX を受ける", q: "q-no-passthrough は confused_questions"}
+      D02: {score: 1, findings: [F2, "(2)q-object-level-authz"], a: "C-agency-code・C-sub の enforced_at（claim-svc）・H7・M_authz_pdp 1.・3.", b: "照会で取扱代理店と agency_code を照らさない", q: "q-object-level-authz は confused_questions"}
+      D03: {score: 1, findings: [F11, "(4)op-proof-holder"], a: "C-cnf の on_revoke・H5・3.1", b: "期限なしで前の CRL で受け続け、上限が無い", q: "q-dependency-outage は confused_questions"}
+      D04: {score: 1, findings: [F7, "(2)ap-1-7"], a: "2.2 の社員の認証の管理・C-acr の authoritative_writer・source_system", b: "2 本目の鍵は番号なしで足せ、acr が phr になる", q: "ap-1-7 は confused_questions"}
+      D05: {score: 1, findings: [F9, "(2)q-operator-act"], a: "2.2 の DB の直接の修正の行・9.2", b: "元の操作の sub と txn のまま上書きする", q: "q-operator-act は confused_questions"}
+      D06: {score: 1, findings: [F3], a: "design.md 2. の as-admin-api → shirogane-as の行・C-agency-code の note", b: "管理の書き込みの API は網の中の SVID なら照らさずに受ける", q: "q-authorize-service-and-user は confused_questions。peer-mtls は also_accepted"}
+      D07: {score: 1, findings: [F8, "(2)q-outside-catalog"], a: "design.md 2. の保守の委託先の踏み台", b: "Txn-Token を確かめない保守の口に SSH で届く", q: "q-outside-catalog は confused_questions"}
+      D08: {score: 1, findings: [F1, "(2)q-approval-from-as"], a: "H23・H22・H24・M_authz_pdp 3.・3.1", b: "承認の単位が請求で、後の支払いにも同じ承認を使う", q: "q-approval-from-as は confused_questions"}
+      D09: {score: 1, findings: [F5, "(2)q-revocation-delivery", "(2)q-long-running"], a: "H24・H22・H25・9.1・3.1・M_authz_pdp 2.", b: "保留は受け付けの取引でしか確かめず、受け付けた後の保留は実行で効かない", q: "q-revocation-delivery は confused_questions"}
+      D10: {score: 0, findings: [], a: "-", b: "TXN_PROXY と契約者の状態に触れた指摘は無い（(2)q-revocation-delivery は各単位が要求の内とした）", q: "-"}
+      D11: {score: 1, findings: [F10, "(2)q-identifier-choice"], a: "C-sub の upstream_issuer.source_attribute・H31", b: "代理店の担当者を決めるキー emp_no が台帳の行になっていない", q: "q-identifier-choice は confused_questions", borderline: "borderline_calls の D11"}
+      D12: {score: 0, findings: [], a: "-", b: "該当の指摘なし（(2)q-original-principal は Yes で、H19 は見送りとした）", q: "-"}
+      D13: {score: 1, findings: [F12, "(2)q-copies-outlive"], a: "H21 validates・9.1 の DB・ブローカーの接続の層", b: "滞留のキューの PAY_MSG_CTX を期限なしで残す", q: "q-copies-outlive は confused_questions"}
+      D14: {score: 1, findings: [F6, "(2)q-step-up-by-rs"], a: "C-acr・C-auth-time の enforced_at（staff-console）・H17", b: "保留の解除の追加の認証は画面だけで、assessment-svc は acr・auth_time を見ない", q: "q-step-up-by-rs は confused_questions"}
+      D15: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+      D16: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+    unmatched:
+      - "F13 | sheet.md 1. の「操作ごとの承認がある」・REQ-05・H23 | 高額の支払いの承認は操作ごとの承認なのに、性質の表は当たらないとした | Minor"
+  D10-3:
+    design: seeded-d
+    errors:
+      D01: {score: 1, findings: [F-04, "(2)q-no-passthrough"], a: "4. の TTS が受ける要求の表・H29・catalog の trigger_list", b: "頼める相手の一覧が無く、どの SPIFFE ID からでも頼め、claim-svc も頼める", q: "q-no-passthrough は confused_questions"}
+      D02: {score: 1, findings: [F-01, "(2)q-object-level-authz"], a: "C-sub・C-agency-code の enforced_at（claim-svc）・H7・M_authz_pdp 3.", b: "照会は claim_id で引いて返し、取扱代理店と agency_code を照合しない", q: "q-object-level-authz は confused_questions"}
+      D03: {score: 1, findings: [F-14, "(2)q-dependency-outage"], a: "C-cnf の on_revoke・3.1・H5", b: "上限なしに前の CRL で受け続ける", q: "q-dependency-outage は confused_questions"}
+      D04: {score: 0, findings: [], a: "-", b: "2 本目の鍵の登録に触れた指摘は無い（ap-1-7 の No は F-02・F-08）", q: "-"}
+      D05: {score: 1, findings: [F-08, "(2)q-operator-act"], a: "2.2 の DB の直接の修正の行・9.2", b: "元の操作の sub と txn のまま上書きし、利用者の操作と区別できない", q: "q-operator-act は confused_questions"}
+      D06: {score: 1, findings: [F-02, "(2)q-authorize-service-and-user"], a: "design.md 2. の as-admin-api → shirogane-as の行・C-agency-code", b: "管理の書き込みの API が網の中の SVID の mTLS なら呼び出し元を一覧と照らさずに受ける", q: "q-authorize-service-and-user は confused_questions"}
+      D07: {score: 1, findings: [F-07, "(2)q-outside-catalog"], a: "design.md 2. の「しろがねの網」の行（踏み台）", b: "保守の口は Txn-Token を確かめず、踏み台から届く", q: "q-outside-catalog は confused_questions"}
+      D08: {score: 1, findings: [F-03, "(2)q-approval-from-as"], a: "H23・H22・H24・3.1・M_authz_pdp 3.", b: "承認の記録は請求ごとで、後の支払いにも使う", q: "q-approval-from-as は confused_questions"}
+      D09: {score: 0, findings: [], a: "-", b: "該当の指摘なし（(2)q-long-running は Yes）", q: "-"}
+      D10: {score: 1, findings: [F-05, "(2)q-revocation-delivery"], a: "4.・3.1・9.1・H14・TXN_PROXY の revocation", b: "TXN_PROXY は契約者の状態を引かず、止めた契約者の名で代理受付が通る", q: "q-revocation-delivery は confused_questions"}
+      D11: {score: 1, findings: [F-12, "(2)q-identifier-choice"], a: "H31・C-sub の upstream_issuer・identifier_properties・3.1・12.", b: "利用者のキー emp_no が台帳の行になっていない", q: "q-identifier-choice は confused_questions", borderline: "borderline_calls の D11"}
+      D12: {score: 0.5, findings: [F-17], a: "H19・P5 3.・3.1・M_authz_pdp 3.", b: "document-svc は呼び出し元（assessment-svc）しか確かめず、閲覧の記録に sub が無い。assessment-svc 1 か所に任せる", q: "q-object-level-authz・q-audit-correlation は accepted に無い。(2)q-original-principal は Yes", borderline: "borderline_calls の D10-3/D12、key_issues の K2"}
+      D13: {score: 0, findings: [], a: "行の ID を名指さない", b: "(2)q-copies-outlive は Yes。但し書き「期限を決めずに残る」は No の理由でない", q: "-", borderline: "borderline_calls の D10-3/D13、key_issues の K5"}
+      D14: {score: 1, findings: [F-06, "(2)q-step-up-by-rs"], a: "付録 B・C-acr／C-auth-time の enforced_at・H17", b: "保留の解除は staff-console が確かめるだけで、assessment-svc は acr・auth_time を見ない", q: "q-step-up-by-rs は confused_questions"}
+      D15: {score: 1, findings: [F-09], a: "H30 の max_lifetime・note・5.1", b: "H30 を 300 秒と宣言し、PAY_MSG_CTX は 3600 秒。数値を上流に合わせ L16 を通した", q: "q-lint-workaround は confused_questions"}
+      D16: {score: 0, findings: [], a: "-", b: "該当の指摘なし", q: "-"}
+    unmatched:
+      - "F-10 | H5 の upstream が無い・H31 の note・3.1・9.1 | assertion 60 秒から AGENCY_AT 300 秒へ延び、upstream を外して L16 の比べから外れている。理由は note だけ | Minor"
+      - "F-11 | 1. の warn の理由の表（L16 の aud の 6 件） | 信頼ドメインの aud は宛先の絞り込みでなく、warn の理由が通らない | Minor"
+      - "F-13 | C-jti の enforced_at（shirogane-as）・C-exp・9.1 | jti を「exp まで」覚えると受け入れの上限 90 秒より短く、約 30 秒の再送の窓がある | Minor"
+      - "F-15 | sheet.md の性質の表・lite_criteria.multitenant・3.1・9.2 | 代理店の絞り込みは実質テナントの境界。「操作ごとの承認：当たらない」も実態と違う | Minor"
+      - "F-16 | C-agency-code の consumers・carried_in・H9・H11・claim_request の問 14 | agency_code が読まない fraud-svc・document-svc の Txn-Token にも載る | Minor"
+
+controls:
+  D9-1:
+    design: control-c
+    findings:
+      - "F1 | design.md 3.1・2.2・9.2・M_authz_pdp 5.・C-scope／C-roles／C-sub の source_system | ロールの元の人事の台帳を DB の管理者が直接書く経路が、ほかの 5 つの DB と違って数えられておらず、変更の記録・突き合わせも無い | Minor（条件で Major）"
+    extra_no_answers: []
+    note: "(2)ap-1-7 の No と (4)op-source-change は F1 と同じ"
+  D9-2:
+    design: control-c
+    findings:
+      - "F1 | 3.1 の見送り（頼る先が止まった間の取り消し・通すこと）・4. の頼る先の表・12.・LOCK_TOOL_AT・C-authorization-details | lock-svc か錠の網が止まると失効が届かず、発行済みのコードが not_after（最大 4 時間）まで使え、REQ-06 の 15 分に代わりの手順も許す時間も無い | Major"
+      - "F2 | 3.1 の見送り（予約の実行で交換し直さない）・2.2・H13・ORDER_TOOL_AT の long_running・U13 | order-scheduler は aoba-as の利用者の状態を確かめ直さず、aoba-as の側だけの無効化では予約（最大 24 時間後）が止まらない | Major"
+      - "F3 | 2.2 の lock-svc・aoba-as の管理の画面の行・catalog の aoba-as の trigger_list・I01 | 管理の画面にどの IdP・トークンで入り、基盤チームの 2 人にどう絞るかが書かれていない | Minor"
+      - "F4 | C-cnf の enforced_at（5 行）の with | with: C-cnf が自分自身を指す。実際の比べる相手は mTLS の証明書の拇印 | Minor"
+      - "F5 | design.md 2. の境界の表「組織の網」の行 | 「3.1 の見送りの行コンソールが…」と文が切れずにつながっている | Minor"
+    extra_no_answers:
+      - "(4)op-requirement-words | REQ-06 の「担当者」が付け替えの前の担当者を含むかがあいまい。もとの担当者は自分の承認した解錠を取り消せない（要求の書き手への確認事項） | -"
+      - "(4)op-key-custody | lock-svc がコードを暗号化する鍵の持ち主が書かれていない（レビュアーは指摘にしないとした） | -"
+    note: "(2) の No（q-outside-catalog・q-revocation-delivery・q-dependency-outage・q-long-running）は F1〜F3 と同じ"
+  D9-3:
+    design: control-c
+    findings:
+      - "F-1 | 3.1「課長が自分を担当にして…」・2.2・付録 B・C-approval-ref／C-sub の enforced_at（approval-svc） | 課長が自分を担当にすると解錠の依頼と承認を 1 人ででき、止めるのは週 1 回の事後の点検だけ。代わりの守りを比べていない | Major（Minor へ下げる余地あり）"
+      - "F-2 | design.md 2.・3.1・9.2・C-sub の source_system | ロールの元の人事の台帳の、画面以外の書き込みの経路（DB の管理者・連携・一括の取り込み）と止める手段が無い | Major"
+      - "F-3 | C-authorization-details の note・ORDER_TOOL_AT／LOCK_TOOL_AT の consumer スキーマ・3.1 | メンバーの型を確かめる共通部品の試験がまだ無く、受け手のスキーマに pattern・maxLength が無い | Minor"
+      - "F-4 | 9.1（CONSOLE_SESSION・CONSOLE_RT・aoba-as のセッション）・P1 4.・CONSOLE_RT | 背景の RT の更新が aoba-as のセッションを延ばし、BFF が切れた後に認証を省いた再ログインができれば REQ-02 を満たさない（未確認） | Minor（未確認）"
+      - "F-5 | 4.・P4 5.・付録 A・C-authorization-details／C-approval-ref の authoritative_writer | 承認を使用済みにした後に確定・発行が結果不明だと、300 秒が切れた後の再試行で新しいトークンを得られず、正しい 1 回が失われる | Minor"
+    extra_no_answers:
+      - "(4)op-proof-holder | 同じワークロードの URI を複数のインスタンスで共有する場合に、証明書を分けるかが書かれていない（確認の推奨） | -"
+    note: "レビュアーは Bash を 1 回使ったと自分で書いている（ファイルの大きさを数えただけ）。(2) の No（ap-1-7・q-revocation-delivery・q-variant-comparison・op-requirement-words）は F-1・F-2・F-4 と同じ"
+  D11-1:
+    design: control-d
+    findings:
+      - "R-01 | H29・H22・H21・C-tctx／C-txn の enforced_at・3.1・付録 A・P5 2. | assessment_ref は申告で、前の版が実行された後に届いた新しい版を受けるので、同じ確定から支払いが 2 回出る | Major"
+      - "R-02 | C-jti・C-exp（shirogane-as）・AGENCY_ASSERTION の jti_policy・M_token_validation 6. | jti を覚える時間が assertion を受け入れる時間より短く、再送が通る窓がある | Minor"
+      - "R-03 | 3.1 の電話の代理受付・TXN_PROXY の revocation・C-exp・M_token_validation 6. | 時計のずれ 30 秒で TXN_PROXY が 1830 秒まで通り、REQ-11 の 30 分を超える | Minor"
+      - "R-04 | sheet.md 1.・3.1・H23 | 性質の表の「操作ごとの承認がある：当たらない」が実際と違う | Minor"
+      - "R-05 | C-sub の identifier_properties（reassignable: false）・upstream_issuer・note・3.1 | agst_ は上流の sub の付け替えで別の人を指すのに reassignable: false と宣言している | Minor"
+    extra_no_answers:
+      - "(4)op-source-change | 人事の仕組みの管理者や DB の書き込みの経路が図にも 2.2 にも無い。元データの書き手として前提に書くとよい（提案） | -"
+    note: "(2) に No は無い"
+  D11-2:
+    design: control-d
+    findings:
+      - "F1 | sheet.md 1.・REQ-05・3.1・H23・I14 | 性質の表の「操作ごとの承認がある」が当たらないになっている | Minor"
+      - "F2 | C-jti・C-exp（shirogane-as）・AGENCY_ASSERTION の jti_policy・M_token_validation 6. | jti を覚える時間が受け入れの上限より短く、最大 30 秒の再送の窓 | Minor"
+      - "F3 | H14・TXN_PROXY の lifetime_refs・revocation・3.1・9.1・12. | ずれ 30 秒で本人確認から最大 1830 秒使え、REQ-11 の 30 分を超える | Minor"
+      - "F4 | H29・H21・H22・C-txn・C-tctx・3.1・付録 A | 新しい版は未実行の指示がある間しか拒まれず、実行の後の新しい版で二重払いになる（409 の扱い・滞留の後の確定し直し・確定の二重送信） | Major"
+      - "F5 | H20・H21・9.1 の DB・ブローカーの接続の層 | 支払いの指示のキューに書ける・読める SVID の一覧が無く、別のワークロードが取り出すと正しい指示が消える | Minor"
+      - "F6 | 付録 B・3.1・H18・H25・C-acr／C-auth-time の enforced_at | 保留の解除は assessment-svc だけが確かめ、保留の印を持つ payment-svc・claim-svc は acr・auth_time を確かめない（将来の経路で抜ける） | Minor"
+      - "F7 | 2.2・M_authz_pdp 1.・H26 | 止めた契約者のアカウントを戻す操作（誰が、何人で、どの強さで）が書かれていない | Minor"
+      - "F8 | 9.2「元のデータからの経路」 | 代理店の担当者の表と TTS の経路の表（役割と scope）の 2 つの元データが表に無い | Minor"
+    extra_no_answers: []
+    note: "(2) に No は無い"
+  D11-3:
+    design: control-d
+    findings:
+      - "F-01 | 6. UC4 の q-actor「不要」・catalog q-actor・H22・C-act | payment-worker が作り直した TXN_TOKEN に act が無く、利用者の操作とワーカーの再実行をトークンで見分けられない | Major"
+      - "F-02 | C-act の authoritative_writer・verification_method・TXN_PROXY の assumption・2.2・9.2・12. | IVR の通話の記録の書き手（運用者・DB 管理者・ベンダー）と本人確認の方式が数えられていない | Major"
+      - "F-03 | H5（upstream なし）・H31 の note・3.1・9.1 | H5 に upstream を置かず L16 の比べを外しているのに、9.1 は鎖として 750 秒を数え、宣言と説明が食い違う | Minor"
+      - "F-04 | 1. の warn の理由の表（L16 の aud の 6 件）・H25・H18・H19 | 信頼ドメインの aud は宛先の絞り込みにならず、warn の理由が通らない。H25 は TXN_STAFF の scope を絞らずに渡す | Minor"
+      - "F-05 | C-sub の identifier_properties（reassignable: false）・note・3.1・12. | agst_ は上流の sub の付け替えで別の人を指すのに reassignable: false | Minor"
+      - "F-06 | C-acr・C-auth-time の enforced_at・H25・3.1・付録 B | 保留の印を消す payment-svc（H25）は acr・auth_time を確かめず、operation で書くか消すかを決めている | Minor"
+      - "F-07 | H24 の 4 つ目の check・3.1 | DB の書き込みと振込のファイルへの追加を 1 つの取引にする方式が書かれておらず、途中で止まると支払いが落ちるか二重になる | Major（要確認）"
+      - "F-08 | 9.2・2.2・H17／H18 | 新しい payee_ref を追加できる人・本人確認・承認が書かれていない。100 万円未満の支払いの行は 2 人の承認だけで直せる | Minor"
+      - "F-09 | 3.1・H10・H11・H19 | document-svc は書類の持ち主を自分では確かめず、前段と事後の突き合わせに任せる | Minor"
+      - "F-10 | C-tctx の carried_in・consumers・H10・H11・H18・H19 | tctx の policy_number・amount・payee_ref が、claim_id しか使わない受け手にも届く | Minor"
+      - "F-11 | 9.1 の末尾・REQ-03 | 懲戒になった承認者・査定者の既存の承認・指示が自動では止まらず、最悪は夜間の実行まで | Minor"
+    extra_no_answers:
+      - "(4)op-source-change | しろがねの側に、代理店の担当者（agst_）を 1 人だけ止める手段が見当たらない | -"
+      - "(4)op-proof-holder | PH_AT・EMPLOYEE_AT の mTLS を却下した理由（SVID が 1 時間ごとに替わる）が弱い（レビュアーは指摘にしないとした） | -"
+    note: "(2) の No（ap-1-7・q-step-up-path-coverage・ap-2-7・q-object-level-authz・q-derived-value）は F-02・F-06・F-01・F-09・F-10 と同じ"
+
+key_issues:
+  - id: K1
+    error: C19
+    issue: "also_accepted が足りない疑い。核は「alg・typ・必須クレームを枠組みの既定に任せる」で、typ の固定を問う q-typ-distinguishes で書いた指摘は核を正しく述べる。channel が none なので、足すと signpost が変わる点は承知の上で、記録として挙げる"
+    affected_cells: ["D12-1/C19"]
+    before_after: "D12-1/C19：0.5 → 1（D12-1 の strict 16→17、sum 17→17.5）"
+  - id: K2
+    error: D12
+    issue: "also_accepted が足りない疑い。wrong は「閲覧の記録に sub も txn も残らない」「閲覧と割り当ての突き合わせ（付録 A）もできない」で、監査の相関（q-audit-correlation）と、受け手で対象を確かめない面（q-object-level-authz）から見つける指摘が出る。channel_note が外したと書くのは q-authorize-service-and-user だけ"
+    affected_cells: ["D10-3/D12"]
+    before_after: "D10-3/D12：0.5 → 1（q-audit-correlation か q-object-level-authz を足すとき。D10-3 の strict 11→12、sum 11.5→12）"
+  - id: K3
+    error: D11
+    issue: "核が厳しすぎる疑い。核の括弧「（台帳の行のある sub で引くべき）」は直し方で、wrong・clean の側の事実。3 セッションとも「emp_no が台帳の行でないキー」を述べるが、sub を代わりに挙げない。この採点では括弧を (b) の必須にせず 1 とした。厳しく読む採点者とは割れる"
+    affected_cells: ["D10-1/D11", "D10-2/D11", "D10-3/D11"]
+    before_after: "この採点では 1。括弧を必須とする読みでは 3 件とも 0（各セッションの strict −1）。核から括弧を外せば読みが揃う"
+  - id: K4
+    error: C13
+    issue: "core と channel_note の食い違い（既知）。channel_note は帰結（ロールの剥奪で止まらない）で見つけたものは 0.5 になりうると書く。D12-1 は帰結の形だが、「scope をロールで絞らない」という核の言い回しも含むので 0.5 とした。core を帰結まで広げる訂正は勧めない"
+    affected_cells: ["D12-1/C13", "D12-3/C13"]
+    before_after: "変更なし（D12-1 は 0.5、D12-3 は 0。D12-3 は緩く読めば 0.5）"
+  - id: K5
+    error: D13
+    issue: "規則の範囲。(2) の Yes の但し書きが核を述べる場合（D10-3 の q-copies-outlive「ただし期限を決めずに残る」）は、規則（No の理由と開いた問いの気づきだけを数える）の外。正解の誤りではなく、規則の読み方の問題として記録する"
+    affected_cells: ["D10-3/D13"]
+    before_after: "0 → 1（Yes の但し書きも数え、滞留のキューを H21 と読むとき。q-copies-outlive は confused_questions）"

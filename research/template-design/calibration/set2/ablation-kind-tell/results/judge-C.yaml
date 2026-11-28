@@ -1,0 +1,113 @@
+judge: "judge for twin pair C (re-run of set 2, #88). Did not review, author, or score. Read only the jd-3868ab folder."
+sessions:
+  D12-1:
+    - finding: "A18"
+      severity: "Minor"
+      verdict: "真（埋め込みの副作用）"
+      reason: "解錠の時間帯を延ばす仕組み（H8 の approvals:decide と not_after の更新）は seeded だけにあり、埋め込みの C16 で足されたもの。control-c の hops.yaml の H8 と付録 D の P4 の 6. には延長が無く、発行済みのコードとの関係という問い自体が生じない。正解の一覧の C16 の核（scope を足して延ばせること）とは別の帰結なので、副作用とする。"
+      location: "seeded-c hops.yaml H8 note、design.md 1. の L16 の行、付録 D の P4 の 6.（lock-tool の行）"
+  D12-2: []
+  D12-3:
+    - finding: "F-13"
+      severity: "Minor"
+      verdict: "真（基の設計の欠陥）"
+      reason: "C-authorization-details の description は「メンバーはどれも文字列」と書くが、同じ文の中で locations を配列（[\"https://...\"]）としており、RAR の locations は文字列の配列である。control-c の claims.yaml と schemas の description にも同じ文があるので基の設計の欠陥（記述の不正確さ）。"
+      location: "claims.yaml C-authorization-details description（両方の双子）、schemas/ORDER_TOOL_AT・LOCK_TOOL_AT の description"
+      spec: "RFC 9396 §2.2（locations は文字列の配列） https://www.rfc-editor.org/rfc/rfc9396#section-2.2"
+    - finding: "F-15"
+      severity: "Minor"
+      verdict: "誤検出"
+      reason: "3.1 の見送りの行「課長が自分を担当にして、解錠を 1 人で承認できること」は双子で同じ文で、理由（REQ-06 は担当者本人の承認を求め課長の担当を妨げない、窓の限定、週 1 回の点検）と見直しの条件（2 人目の承認を足す）が書かれている。指摘は「比べた候補が足りない」と欠陥として言い切っており、書かれた理由は REQ-05（発注だけに自己承認の禁止）・REQ-06 と矛盾しないので、R4 により誤検出。"
+      location: "design.md 3.1 の見送りの行（seeded-c 291 行、control-c 289 行）"
+      borderline: true
+    - finding: "F-16"
+      severity: "Minor"
+      verdict: "道具・教材への指摘"
+      reason: "6. の手書きの表は UC ごとに問いの一覧の 11 問を答えており、q-still-valid・q-auth-strength は生成の表で問いの一覧（templates/registry/questions.yaml）の側が pending としている。control-c の 6. も同じ形で、行が無いのは教材の問いの一覧の状態に従った結果なので、設計書の欠陥でなく教材への指摘として数える。"
+      location: "design.md 6.（render:question-mechanism の q-auth-strength・q-still-valid の行が pending）"
+      borderline: true
+    - finding: "(2)ap-1-7 (second half): the original values of the approval request (the draft) can be written by the agent"
+      severity: "（重大度なし。(2) の No の理由）"
+      verdict: "誤検出"
+      reason: "下書きの値（発注 ID・協力会社・金額）をエージェントが order-tool で書くのは両方の双子で意図された流れで、control-c の付録 D の P4 の 5. は承認の依頼を order-tool の記録から作り、承認の画面にその値を出して人が確かめることで権限の元にしている。seeded で人が値を見ないのは埋め込みの C07 そのもので、それ以外に下書きの書き手を原因とする欠陥は無い。"
+      location: "design.md 付録 D の P4_ai_agent_delegation の 5.（承認を確かめる者）"
+      borderline: true
+  D9-1:
+    - finding: "F1"
+      severity: "Minor（記述の漏れ。変更の記録が無いと分かれば Major）"
+      verdict: "真（基の設計の欠陥）"
+      reason: "2. の境界の表は「両台帳の書き手の前提は 3.1 の見送りの行」とするが、3.1 の DB の管理者の行が対象にするのは approval-svc・発注の台帳・aoba-as の利用者・修繕依頼の台帳・協力会社の台帳の 5 つだけで、人事の台帳の行は登録から確定までの時間しか扱わない。上長・修繕担当・鍵の取り扱いのロールは人事の台帳から導かれる（9.2 の元のデータからの経路）ので、その直接の書き込みの扱いが書かれていないのは書き手の数え漏れ。"
+      location: "control-c design.md 2. の境界の表（組織の網の行）、3.1 の DB の管理者の行と人事の台帳の行、9.2 の元のデータからの経路、付録 D の M_authz_pdp の 5."
+      borderline: true
+  D9-2:
+    - finding: "F1"
+      severity: "Major"
+      verdict: "真（基の設計の欠陥）"
+      reason: "3.1 の見送りの行「頼る先が止まった間の解錠コードの取り消し」は、止まりうる経路に lock-svc を含めながら、代わりの手順を lock-svc の管理の画面に頼っており、lock-svc そのもの（や錠の網）が止まったときに REQ-06 の 15 分をどう守るか、守れないなら何で受けるかが無い。書かれた理由がこの場合の REQ-06 と合わないので、R4 の「理由が要求と矛盾する」に当たる。"
+      location: "control-c design.md 3.1 の「頼る先が止まった間の解錠コードの取り消し」の行、12. の lock-svc と通知の基盤の重複の鍵の行"
+      borderline: true
+    - finding: "F2"
+      severity: "Major"
+      verdict: "誤検出"
+      reason: "3.1 の見送りの行「予約の実行で、トークンを交換し直すこと」は、確かめ直す項目（在籍・ロール・担当、委任、行為者の登録、承認）を書き、REQ-10 が求める項目（在籍・ロール・担当と承認）をすべて満たす。REQ-03 は予約の実行をセッションの終わりからの停止の対象から外しており、aoba-as の側だけの無効化で止める時間を求める要求は無い（指摘自身もそう書く）。欠陥と言い切っていて理由が要求と矛盾しないので、R4 により誤検出。"
+      location: "control-c design.md 3.1 の予約の実行の行、2.2 の予約の発注の実行、hops.yaml H13"
+      borderline: true
+    - finding: "F3"
+      severity: "Minor"
+      verdict: "真（基の設計の欠陥）"
+      reason: "2.2 の列は「主体とトークン（目録の ID）」だが、lock-svc の管理の画面と aoba-as の管理の画面の行は「自分のログイン（acr が mfa）」とだけ書き、どのトークン・セッションで入るかの目録の ID も、「基盤チームの 2 人」に絞る仕組みも無い（2.1 の当番は aoba-pdp のロールで見分けると書くのと対応しない）。影響は失効と一覧に限られ、記述の漏れとして小さい欠陥。"
+      location: "control-c design.md 2.2 の「管理用の口」「lock-svc の管理の画面」の行、2.1 の基盤チームの当番の行"
+      borderline: true
+    - finding: "F4"
+      severity: "Minor"
+      verdict: "真（基の設計の欠陥）"
+      reason: "C-cnf の enforced_at の 5 行はどれも against: [other_claim]・with: C-cnf と自分自身を指しているが、check の文のとおり実際に比べるのは mTLS の相手の証明書の拇印でクレームではない。台帳の照合の相手が誤って書かれており、台帳を読む者・道具が取り違える。"
+      location: "control-c claims.yaml C-cnf enforced_at（order-tool・contact-tool・payment-tool・lock-tool・approval-svc）"
+      borderline: true
+    - finding: "F5"
+      severity: "Minor"
+      verdict: "真（基の設計の欠陥）"
+      reason: "2. の境界の表の組織の網の行は「両台帳の書き手の前提は 3.1 の見送りの行コンソールが修繕依頼の一覧を…」と句点が抜けて 2 つの文がつながっている。文の誤りとして実在する。"
+      location: "control-c design.md 2. 範囲の表、組織の網の行の「範囲の外にしたものと前提」の列（203 行）"
+  D9-3:
+    - finding: "F-1"
+      severity: "Major（Minor へ下げる余地あり）"
+      verdict: "誤検出"
+      reason: "3.1 の見送りの行「課長が自分を担当にして、解錠を 1 人で承認できること」に、理由（REQ-06 は課長の担当を妨げない、窓の限定と追加の認証、週 1 回の部長の点検）と見直しの条件（担当でない 2 人目の承認を足す）が書かれている。指摘は「代わりの守りを比べていない」と言い切るが、自己承認の禁止は REQ-05 の発注だけの要求で、書かれた理由は要求と矛盾しないので、R4 により誤検出。"
+      location: "control-c design.md 3.1 の見送りの行（289 行）、2.2 の運用者の操作の行"
+      borderline: true
+    - finding: "F-2"
+      severity: "Major"
+      verdict: "真（基の設計の欠陥）"
+      reason: "D9-1 の F1 と同じ点。2. は両台帳の書き手の前提を 3.1 に回すが、3.1 の DB の管理者の直接の書き込みの行は 5 つの DB だけで、ロールの出どころの人事の台帳の、人事システムの画面以外の書き込み経路と使う前の止めが無い（修繕依頼の台帳には同じ経路を閉じる行がある）。"
+      location: "control-c design.md 2. の境界の表、3.1 の DB の管理者の行、9.2 の元のデータからの経路、claims.yaml C-sub source_system"
+      borderline: true
+    - finding: "F-3"
+      severity: "Minor"
+      verdict: "誤検出"
+      reason: "受け手のスキーマでメンバーの型を表さないことは、3.1 の見送りの行「生成のスキーマで authorization_details のメンバーの型を表すこと」に理由と確かめ方（共通の部品の試験で型違いを拒否）つきで書かれ、付録 A にも共通の検証部品の採用の指標がある。受け手のスキーマに pattern が無いのは生成の受け手スキーマの性質（未知のクレームを許す緩い形）で、指摘の「部品も試験もまだ無い」は設計書に根拠が無く、書かれた理由は要求と矛盾しない。"
+      location: "control-c design.md 3.1 の生成のスキーマの行、schemas/ORDER_TOOL_AT.consumer.schema.json・LOCK_TOOL_AT.consumer.schema.json、claims.yaml C-authorization-details note"
+      borderline: true
+    - finding: "F-4"
+      severity: "Minor（未確認）"
+      verdict: "判定できない"
+      reason: "委任の間 repair-console が CONSOLE_RT で CONSOLE_AT を取り直すので RT の無操作は延びうる一方、REQ-02 に反するかは、RT の利用で aoba-as のセッションの無操作が延びるか、BFF の無操作切れで RT・aoba-as のセッションを終えるかという aoba-as（自作の IdP）の挙動で決まる。設計書は 9.1 で「利用で idle を延ばす」とだけ書き、その製品の事実を確かめる資料が無い。"
+      location: "control-c design.md 9.1（CONSOLE_SESSION・aoba-as のセッション・CONSOLE_RT の行）、付録 D の P1 の 4.、token_types.yaml CONSOLE_RT"
+      borderline: true
+    - finding: "F-5"
+      severity: "Minor"
+      verdict: "真（基の設計の欠陥）"
+      reason: "4. の交換の要求の authorization_details の行は、agent-sts が承認済みの記録からだけ作り、使用済みの承認から作る例外を解錠の送り直しに限っている。付録 D の P4 の 5. と付録 A は、使用済み・未確定の後に同じ発注 ID で再試行するとしながら、ツールのトークン（300 秒）が切れた後に再試行のトークンをどう得るか（または誰がトークンなしで再試行するか）が無く、記述の間に食い違いがある。"
+      location: "control-c design.md 4. の交換の要求の authorization_details の行（321 行）、付録 D の P4 の 5. の消費の競合と再送、付録 A の結果の分からない確定・発行"
+      borderline: true
+recurring_base_defects:
+  - defect: "人事の台帳（ロールの出どころ）の直接の書き込みの経路が、3.1 の DB の管理者の行（5 つの DB）にも、ほかの行にも無い"
+    sessions: ["D9-1 F1", "D9-3 F-2"]
+recurring_side_effects: []
+recurring_false_positives:
+  - point: "課長が自分を担当にして解錠を 1 人で承認できること（3.1 の見送りの行。理由が要求と矛盾しないのに欠陥と言い切った）"
+    sessions: ["D9-3 F-1", "D12-3 F-15"]
+tool_material_findings:
+  - session: "D12-3"
+    finding: "F-16"
+    target: "templates/registry/questions.yaml の q-still-valid・q-auth-strength が pending で、6. の手書きの表の問いに入らないこと"
