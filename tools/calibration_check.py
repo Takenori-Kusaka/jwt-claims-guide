@@ -71,7 +71,7 @@ SETS = {
              'extra': ('packet/kind_tell.md',),
              # measured (PR #87, #89); #88 then changed templates/review. The `@` pins stay for packet (S12: a set-2 packet
              # is built from this commit, whose materials are the pinned ones), but check no longer compares them
-             'released': {'by': '#88', 'commit': '5be7cea'}},
+             'released': {'by': '#88', 'commit': '5be7cea'}},  # commit: for the record (README); a test compares its pins
 }
 CONTROLS = {s: c for v in SETS.values() for s, c in v['controls'].items()}
 SEEDED = tuple(CONTROLS)

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """tools/calibration_check.py (#12): the markers of the calibration set come off byte for byte."""
+import hashlib
 import os
+import re
 import sys
 
 import pytest
@@ -176,3 +178,18 @@ def test_a_released_set_skips_its_material_pins_in_check_only(tmp_path, monkeypa
     cc.check_commitments('set2', errors)
     assert errors and all(e.startswith('C6 set2 @templates/review/') for e in errors)
 
+
+
+def test_the_released_commit_holds_the_pinned_materials():
+    """The commit set 2 is rebuilt from (SETS['set2']['released'], set2/README.md) has the pinned sha256 of every `@`
+    line. Skipped in a shallow clone that lacks the commit."""
+    import subprocess
+    commit = cc.SETS['set2']['released']['commit']
+    if subprocess.run(['git', 'cat-file', '-e', commit + '^{commit}'], cwd=cc.ROOT, capture_output=True).returncode:
+        pytest.skip(f'{commit} is not in this clone')
+    cpath = os.path.join(cc.SETS['set2']['dir'], 'commitments.sha256')
+    pins = [m.groups() for m in (re.match(r'([0-9a-f]{64}) \*@(\S+)$', x.strip()) for x in open(cpath, encoding='utf-8')) if m]
+    assert len(pins) == 11
+    for want, rel in pins:
+        blob = subprocess.run(['git', 'show', f'{commit}:{rel}'], cwd=cc.ROOT, capture_output=True, check=True).stdout
+        assert hashlib.sha256(blob.replace(b'\r\n', b'\n')).hexdigest() == want, rel

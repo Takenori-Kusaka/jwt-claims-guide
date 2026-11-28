@@ -12,11 +12,11 @@
 
 | 9. の表の行（出どころ） | 決定 | 変えたもの・理由 | 仮説 |
 | --- | --- | --- | --- |
-| 「Yes と答えた」7 セル（C17・D09・D10・D11・D12・D13） | 答え方の決まりを足し、5 問の手がかりを直す | 7 セルとも、問いの文に当たる全体の仕組み（ハッシュで残す・止める単位ごとの秒数・識別子の性質）が書いてあり、誤りのある 1 行・1 ホップを見ずに Yes と答えた（`results.md` の 4.3 の 2.）。**答え方**：1 枚の「答え方」（`tools/review_triage.py`）と手順の段 3（`procedure.md`）に「全体の書き方で Yes と答える前に、問いの単位（行・ホップ・ツール・種別）を 1 つずつ確かめる。1 つでも満たさなければ No」。**手がかり**（`triage.yaml`）：`q-audit-correlation`（操作を受けるツール・サービスごとに、ログに残る主体と業務の ID を並べる）、`q-revocation-delivery`（単位ごとの秒数があっても、発行の時に主体〔契約者・承認者を含む〕の状態を引くかを種別ごとに）、`q-identifier-choice`（1 つの行に性質があっても、キーに使うクレームごとに行があるか）、`q-original-principal`（理由つきの見送りと書いたホップでも、下流に頼む資格情報が誰のものか）、`q-copies-outlive`（期限を言えない写しがあれば No） | 3. |
+| 「Yes と答えた」7 セル（C17・D09・D10・D11・D12・D13） | 答え方の決まりを足し、5 問の手がかりを直す | 7 セルとも、問いの文に当たる全体の仕組み（ハッシュで残す・止める単位ごとの秒数・識別子の性質）が書いてあり、誤りのある 1 行・1 ホップを見ずに Yes と答えた（`results.md` の 4.3 の 2.）。**答え方**：1 枚の「答え方」（`tools/review_triage.py`）と手順の段 3（`procedure.md`）に「全体の書き方で Yes と答える前に、問いの単位（抜き取った行・ホップ・ツール・種別）を 1 つずつ確かめる。1 つでも満たさなければ No」。**手がかり**（`triage.yaml`）：`q-audit-correlation`（操作を受けるツール・サービスごとに、ログに残る主体と業務の ID を並べる）、`q-revocation-delivery`（単位ごとの秒数があっても、発行の時に主体〔契約者・承認者を含む〕の状態を引くかを種別ごとに）、`q-identifier-choice`（1 つの行に性質があっても、キーに使うクレームごとに行があるか）、`q-original-principal`（理由つきの見送りと書いたホップでも、下流に頼む資格情報が誰のものか）、`q-copies-outlive`（期限を言えない写しがあれば No） | 3. |
 | A12 の手がかり（`feedback-80.md` で案のまま残した。2 組目の C17 で再試験） | **手がかりを入れる。優先は上げない** | #80 は「副作用を直した 2 組目で同じ形で外すかを確かめてから変える」とした。2 組目の C17 は 1/3 で、外し方は「Yes と答えた」（初回は別の理由で No）。同じ形の誤りがまた外れたので、`q-audit-correlation` の手がかりに業務の ID を入れた（上の行）。優先 2 のまま：優先を性質で変える仕組みが無く、上げると委任のある設計のすべてで 1 問増え、記入例 B は 19 問で上限（18）を越える | 3. |
 | 「吸われた」7 セル（C11・C12・D04・D09・D10） | **答え方に足す** | 7 セルとも、理由に挙がったのは正解の一覧の別の誤りで、レビュアーは No の理由を 2〜3 個書いて止まった（同 4.3 の 1.）。1 枚の「答え方」と手順の段 3 に「No の理由を 1 つ見つけても止めずに、手がかりの残りを確かめる。別の理由は別の指摘にする」。答える時間は増えうる（目安の分数は変えていない。人では測っていない）。3 組目の作り方（1 つの問いを経路にする誤りを 1 設計書に 1 件まで）は 3. の判断で扱う | 3. |
 | `absent` 全件 2/9（C11・C17・D10） | 手がかりを足す | 「無いもの」を言わせる手がかり：`q-long-running`（実行の時に引き直すものを並べる。依頼した人に加えて、承認した人の在籍・ロール、対象の状態。引き直さないものがあれば No）、`q-audit-correlation`（ツールごとの業務の ID。上の行）、`q-revocation-delivery`（発行の時の主体の状態。上の行）。どれも「並べる」「1 つずつ」の形にし、並べた中に無いものが見えるようにした | 3. |
-| 経路 `none`：D16（古い鍵を 330 秒で外す） | **規則の案 N26 を足し、開いた問いの手がかりを足す** | 機械で決まる：種別の `key_rotation` の古い鍵を外すまでの秒数が、同じ鍵で署名する種別の `max_lifetime` より短ければ warn（L17 は `unknown_kid`・`jwks_cache_ttl` の有無だけを見る）。`q-key-rotation` を「規則が一部を見る」に移し、規則ができるまで書き手の自己点検に置いた（PR のテンプレートの 1 行）。開いた問い `op-key-custody` の手がかりに「古い鍵を外すまでの時間は、同じ鍵で署名するすべての種別の受け入れの上限より長いか」 | 3. |
+| 経路 `none`：D16（古い鍵を 330 秒で外す） | **規則の案 N26 を足し、開いた問いの手がかりを足す** | 今の宣言だけでは機械で決まらない：どの種別が同じ鍵かは note の文にしか無い（`signing_key_scope` は `per_tenant`・`shared`・`per_client` の範囲で、鍵を決めない）。そこで #80 の N25 と同じく、鍵の名前の列 `signing_key` を足して宣言にし、同じ鍵の種別の `retire_after_seconds` が、その種別たちの最も長い `max_lifetime` より短ければ warn、を案にした（L17 は鍵のローテーションについては `unknown_kid`・`jwks_cache_ttl` の有無だけを見る）。`q-key-rotation` を「規則が一部を見る」に移し、規則ができるまで書き手の自己点検に置いた（PR のテンプレートの 1 行）。開いた問い `op-key-custody` の手がかりに「古い鍵を外すまでの時間は、同じ鍵で署名するすべての種別の受け入れの上限より長いか」 | 3. |
 | 経路 `none`：D15（H30 の寿命を 300 秒と宣言し L16 に見せない） | **規則の案 N27 を足し、段 0 の確かめの手がかりを足す** | 機械で決まる：ホップの `max_lifetime` が、運ぶ種別の `max_lifetime` より短ければ warn（ホップの寿命は運ぶトークンの受け入れの上限。短く書くと L16 が上流との比較を見落とす）。`q-hop-lifetime` を「規則が一部を見る」に移した（自己点検の 1 行）。受け付け（段 0）の `q-lint-workaround` の手がかりに「宣言の数値が、目録・ほかのホップ・本文の同じ値と食い違わないか（ホップの寿命は区間の長さではない）」 | 3. |
 | 経路 `none`：C19（approval-svc だけが共通の検証部品を使わない） | **変えない** | `q-shared-validator` は区分 B（書き手の自己点検。PR のテンプレートにすでにある）。M_token_validation の 10.・11. の文で、宣言の列が無いので機械では決まらない。2 組目では 3 回中 2 回が場所と核を言い（得点 0.5）、外したのは問いの ID だけだった（`q-typ-distinguishes`）。#80 の B03 と同じく、ID のために既定の問いを 1 問増やすほどではない。正解の側で `also_accepted` に `q-typ-distinguishes` を入れるかは、`results.md` の 5. の訂正の候補で扱う（正解は直していない） | — |
 | 種別の一致 49%（`kind_tell.md` に例を足す案） | **足さない** | kind_tell の切り分け（PR #89）では、kind_tell を外しても種別の一致の差は 8.8 ポイントで、判断の規則の最小の差（15 ポイント）に届かず「差は見えない」だった。今の見分け方の表に効果があると示せていないので、例を足しても、効いたかを測れない。回ごとのばらつき（Sonnet で 59% → 24%）の幅が分かってから決める（#88 の 3.） | 3. |
@@ -24,15 +24,21 @@
 | control-c の支払いの 1 回だけの仕組み（K5）・ブラインドの漏れ | **教材には戻さない**（3 組目の手順） | どちらも測定の手順の問題で、レビューの教材の問題ではない。3 組目を作るなら、`clean` が対照の文面にあることの検査（C4）と、レビュアーをリポジトリの外を作業ディレクトリにした会話から起こすことを手順に入れる（#88 の 3.） | — |
 | kind_tell の切り分け | **済み** | PR #89。#88 の 2. | — |
 
-## 2. 規則の案（#68 に足す）
+## 2. 規則の案（#68 に足した）
 
 どれも実装していません。`templates/review/triage.yaml` の `proposed_rules` にあります。
 
 | 案 | 中身 | 答えが決まる問い | 元の見逃し |
 | --- | --- | --- | --- |
-| N26 | 種別の `key_rotation` に古い鍵を外すまでの秒数（`retire_after_seconds`）があり、同じ発行者の同じ鍵（`signing_key_scope`）で署名する種別のいずれかの `max_lifetime`（と `max_clock_skew`）より短ければ warn | `q-key-rotation` | D16 |
+| N26 | `key_rotation` に署名の鍵の名前 `signing_key` を足して宣言にし（列の追加を伴う）、組織が回す鍵（`period_days` があり、`retire_after_seconds` が 0 より大きい）で、同じ `signing_key` の種別の `retire_after_seconds` が、その種別たちの最も長い `max_lifetime` より短ければ warn。`max_clock_skew` は足さない。代わりの案（note が別の種別と同じ鍵と書けば比べる）は、書き方でずれるので下げた | `q-key-rotation` | D16 |
 | N27 | ホップの `max_lifetime` が、そのホップが運ぶ種別（`token_type`）の `max_lifetime` より短ければ warn | `q-hop-lifetime` | D15 |
 
+- **きれいな設計での確かめ（PR #90 の独立点検）**：
+  - 最初の案は「同じ発行者・同じ `signing_key_scope` の種別で比べ、`max_clock_skew` も足す」だった。これを模して当てると、きれいな設計にも warn が出た。記入例 B の EXT_AT・DPOP、パイロット B の外部 IdP の 6 種別のように、`retire_after_seconds` が 0 で自分では鍵を外さない種別と、対照 B の CLIENT_ASSERTION（60 秒の寿命と 30 秒のずれ）である
+  - そこで、鍵の名前の列で組を決め、0 の種別を除き、ずれは足さない案にした
+  - N27 は、同じ点検で、記入例 A・B、パイロット B・C、対照 A〜D で 0 件だった。当たったのは、seeded-d の H30（D15）と、seeded-b の埋め込みの誤り（目録の PARTNER_AT の寿命）だけだった
+- **対照 B（1 組目）の潜在欠陥の候補**：`calibration/control-b/token_types.yaml` では、TXN_TOKEN・TXN_OPS の `retire_after_seconds` が 330 である。一方、「TXN_TOKEN と同じ鍵」と書いた MSG_CTX は 3630 で、同じ鍵で外す時刻が食い違っている。N26 に鍵の名前の列ができれば、ここに warn が出る
+  - D16 と同じ形が、きれいなはずの対照にある。1 組目の結果（固定の記録）は直していない。1 組目の判定でこの点を誤検出と数えた指摘があったかは、まだ確かめていない（3 組目の正解の書き方と、#88 の 3. で扱う）
 - 2 問は、これまで「既存の規則が答えを決める」としていました。測定で規則が見ない書き方が見つかったので、「規則が一部を見る」に移し、規則ができるまで書き手の提出前の自己点検に置きました（PR のテンプレートは 53 → 55 行。`research/template-design/triage-audit.md` の表）。規則だけで答えが決まる問いは 41 → 39 問
 - 2 問の書き換えの確かめ（`tools/review_triage_audit.py` の `longer-life`・`no-unknown-kid`）は、#80 の N24・N25 と同じく外しました。規則ができたら、書き換えを足して戻します
 
@@ -58,12 +64,12 @@
 ## 5. 2 組目の固定との関係
 
 - 2 組目は、教材（`templates/review/` の 11 ファイル）の sha256 を `commitments.sha256` で固定している（改訂 S12）。この変更で `short_list.md`・`perspectives.md` が変わったので、**今の教材からは 2 組目の資料一式を作れない**（`packet` が止まる。そのまま）
-- 2 組目を同じ教材で測り直す（#88 の 3. の候補：回ごとのばらつきを測る）ときは、5be7cea（PR #89 のマージ。教材と道具は fbc3371 と同じ）から資料一式を作る。2 組目の `README.md` の固定の記録に書いた
+- 2 組目を同じ教材で測り直す（#88 の 3. の候補：回ごとのばらつきを測る）ときは、5be7cea（PR #89 のマージ。教材と道具は fbc3371 と同じ）から資料一式を作る。2 組目の `README.md` の固定の記録に書いた。5be7cea の教材が `@` の行の sha256 と同じことは、テスト `test_the_released_commit_holds_the_pinned_materials` が確かめる（そのコミットが無い浅い clone では飛ばす）
 - `calibration_check.py check`（CI）は、2 組目に `released` の印を付け、`@` の行（教材の sha256）を比べないようにした。C7 は今の教材で資料一式の形（P1〜P3）だけを確かめる。手順・正解・設計書の sha256（`@` の無い行）は今までどおり比べる
 
 ## 確かめ方
 
-`python tools/review_triage.py --check`・`python tools/review_triage_audit.py`（39 問すべてで規則が指摘を出す）・`python tools/calibration_check.py check`・`python tools/build_claims_viewer.py --check`・`python -m pytest tools/tests/test_review_triage.py tools/tests/test_calibration_check.py`（テストは `test_misses_of_the_second_measurement`・`test_set2_packets_are_refused_after_the_materials_changed`・`test_a_released_set_skips_its_material_pins_in_check_only` を足した）
+`python tools/review_triage.py --check`・`python tools/review_triage_audit.py`（39 問すべてで規則が指摘を出す）・`python tools/calibration_check.py check`・`python tools/build_claims_viewer.py --check`・`python -m pytest tools/tests/test_review_triage.py tools/tests/test_calibration_check.py`（テストは `test_misses_of_the_second_measurement`・`test_set2_packets_are_refused_after_the_materials_changed`・`test_a_released_set_skips_its_material_pins_in_check_only`・`test_the_released_commit_holds_the_pinned_materials` を足した。`test_packet_without_builds_a_packet_that_passes_p1_to_p3` は、固定を差し替えて `--without` だけを確かめる形に変えた）
 
 ## 作成方法と点検状況
 
