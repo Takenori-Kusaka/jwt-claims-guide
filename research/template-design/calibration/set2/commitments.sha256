@@ -1,18 +1,18 @@
 # sha256 of the set-2 protocol (targets, salience rule, distribution), answer key, expected lint, packet note and the four designs
 # of #82, recorded before the set-2 measurement. CRLF is read as LF. Checked by tools/calibration_check.py (C6).
 # Lines with @ are paths from the repository root: the packet materials (templates/review), pinned by revision S12;
-# packet refuses to build a set-2 packet when one of them changed. The fixing commits and push times are in README.md.
-01aac4796550cda37fec1565d64a55113e8bffcc8a237a99df83708d68723b1f *protocol.md
-38b75dc6715d6477301674eb9c20b84832856bc905b6faeade7cdefbacc059b1 *seeded_errors.yaml
+# packet refuses to build a set-2 packet when one of them changed, was added or removed. Fixing commits and push times: README.md.
+f044a65bb51c7e7d9e3f8eaf18bbff42ab7b378249738ce096cf567081e328f6 *protocol.md
+674351d8e09d52c18b7785f47e0056b8744d920454531d390711505f025a8659 *seeded_errors.yaml
 1443b569ab32b367d9311cbe60b9be0f3be79eaba8b08fb638f07d8d0993837d *expected_lint.yaml
 e4bf41707aa9ca55a9cfcf3b783f4a2996a26a89aaaef0f602a440067b469154 *packet/kind_tell.md
 97fe7d71c7e30091795a9e2155e42f1b3ca6dff0211b06133864ca55461fa011 *seeded-c/catalog_answers.broken.yaml
 39729b3353d912bb6cff6a48e5801a200865480985aa4fdad0475390bb5b4e3a *seeded-c/claim_request_approval_ref.broken.md
 92b0569d8debe0f9e96f5d14028f63f20fbfe8b14bc6a7b0f6512b4bd9909b9a *seeded-c/claim_request_repair_id.broken.md
 bd8deb906af9e31eb900c19e10f012ceb51fac2ff1a9fa069ccaa9ece4a71c53 *seeded-c/claims.broken.yaml
-a56997bc560ae688dc6cad8a8888b5b0b0fd9e3c7b8ae1517aaff229735de4c4 *seeded-c/design.broken.md
+7cddb9ece312459d4a78c9e1c984d08ff5165b0f121d28de342a23d6a8c3fd8e *seeded-c/design.broken.md
 2ce0aff8dc29e2895cf055f9a78f4acca4caae90d2bd02407086b7647df1cbcd *seeded-c/hops.broken.yaml
-edc5a9466dddbae203cf758206c0b35444b144d59446e3aea5510e4640cdaebc *seeded-c/token_types.broken.yaml
+d52a388c79f5f7bdbf6a6170982697e9a88940366b2066cb695cb5eb88339217 *seeded-c/token_types.broken.yaml
 0a6e27d0828ae0fd9fb0eeb119fd8dc2fca54f8f88b7b7b11ba3c9754979628d *seeded-c/schemas/APPROVAL_AT.consumer.broken.schema.json
 827e38f03b8341b4fbe56204cb069d9ad8581cc6139223d5fe907c61fe92e862 *seeded-c/schemas/APPROVAL_AT.issuer.broken.schema.json
 c4e4c4808415021e7273f515a5ff25652eeae93cd36ceed6566aed4c6371e94c *seeded-c/schemas/CONSOLE_AT.consumer.broken.schema.json
@@ -61,9 +61,9 @@ b9c479bc66b082d91ae0b5caa5f96e15724237c54797581d094fe0d567f6717a *seeded-d/schem
 1cd48741ed6dd7bc32644f423aa6000e2acecbc97b9b08520206f3cebd57c769 *control-c/claim_request_approval_ref.md
 129264a54e6c1b5b8349965866c11e65fc7f2e5c5fc0f81ad4d917919ea46c23 *control-c/claim_request_repair_id.md
 b1942c2c9b51f8def4afaad95b113a03a081cdf9ed31573c78d574f0369aeb9d *control-c/claims.yaml
-30d664359ca9fc885b0f09e9bcbed09db11c858f69039d96018dcaaf555612d3 *control-c/design.md
+fa3ac7ca216dc0a5791ff65c0fd13951d746299af6bc91018457c039719a590e *control-c/design.md
 633ac6ea4a85208bea340c4b21203f49cd9d2f06bd5c3a65d1a1111f85de65fd *control-c/hops.yaml
-be043b0cbb0828b6ede67fa78d71b677315ceb27cc34fa7eb5f3fb6bcb3aacf7 *control-c/token_types.yaml
+8909685d611dfdad2d8bbe91bd23d9e8d1ad0924c09d9edba39ea53b93641fb1 *control-c/token_types.yaml
 378653fbe9fef3b6b2afc133c34c6009063f1220694eb00171670e206d9deb04 *control-c/schemas/APPROVAL_AT.consumer.schema.json
 e4082ce8f41019a8195605fbca7f2b6396cd400cdc43558325b116d861c5a0b0 *control-c/schemas/APPROVAL_AT.issuer.schema.json
 3e268390167aa9bdb0d15767a433c824cff939b217722863bf7c693bf49cdcae *control-c/schemas/CONSOLE_AT.consumer.schema.json

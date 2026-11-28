@@ -405,7 +405,7 @@ errors:
   salience: high
   hint_derived: []
   side_effect_note: 副作用の点検で直した：M_token_validation 6. の「承認の期限は approval-svc の時計だけで書いて比べる」（X-Test-Now の語は足さない）
-  core_note: 改訂 S11（PR
+  core_note: '改訂 S11（PR #86 の独立点検）で核を 1 つの事実にした。前の核の後半「閉じる日が決まっていない」は、wrong に残す付随の事実で、(b) を満たすのに述べなくてよい'
 - id: C07
   design: seeded-c
   control: control-c
