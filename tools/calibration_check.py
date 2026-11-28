@@ -605,20 +605,41 @@ def packet_errors(out, design):
     return errors
 
 
-def pinned_materials(design):
-    """The materials a set pins in its commitments.sha256 (lines `<sha> *@<path from the repository root>`): each must still
-    have its recorded sha256, or a packet built now is not the packet the set was fixed with (set2/protocol.md S12)."""
-    cpath = os.path.join(SETS[SET_OF[design]]['dir'], 'commitments.sha256')
-    problems = []
+def material_files():
+    """The packet materials as paths from the repository root: the listed files and every file of the listed directories."""
+    files = list(MATERIALS)
+    for md in MATERIAL_DIRS:
+        for p in files_of(os.path.join(ROOT, md)):
+            files.append(os.path.relpath(p, ROOT).replace(os.sep, '/'))
+    return sorted(files)
+
+
+def pinned_materials(design, cpath=None):
+    """The materials a set pins in its commitments.sha256 (lines `<sha> *@<path from the repository root>`). When a set pins
+    any, the packet materials must be exactly the pinned files (none added or removed) with the pinned sha256, or a packet
+    built now is not the packet the set was fixed with (set2/protocol.md S12)."""
+    cpath = cpath or os.path.join(SETS[SET_OF[design]]['dir'], 'commitments.sha256')
     if not os.path.isfile(cpath):
-        return problems
+        return []
+    pins = {}
     for line in open(cpath, encoding='utf-8'):
         m = re.match(r'([0-9a-f]{64}) \*@(\S+)$', line.strip())
-        if not m:
-            continue
-        p = os.path.join(ROOT, m.group(2))
-        if not os.path.isfile(p) or sha256_lf(p) != m.group(1):
-            problems.append(f'{m.group(2)} differs from the pinned sha256')
+        if m:
+            pins[m.group(2)] = m.group(1)
+    if not pins:
+        return []
+    problems = []
+    actual = set(material_files())
+    for rel in sorted(actual - set(pins)):
+        problems.append(f'{rel} is a packet material that is not pinned (added after the set was fixed)')
+    for rel, want in sorted(pins.items()):
+        p = os.path.join(ROOT, rel)
+        if rel not in actual and not os.path.isfile(p):
+            problems.append(f'{rel} is pinned but missing (removed after the set was fixed)')
+        elif rel not in actual:
+            problems.append(f'{rel} is pinned but is not a packet material')
+        elif sha256_lf(p) != want:
+            problems.append(f'{rel} differs from the pinned sha256')
     return problems
 
 
@@ -630,6 +651,9 @@ def packet(design, out, seed):
         raise SystemExit(f'{out} is inside the repository; give an empty directory outside it (protocol.md 6.)')
     if os.path.exists(out) and os.listdir(out):
         raise SystemExit(f'{out} is not empty')
+    pinned = pinned_materials(design)  # before anything is written: a refused packet leaves no partial directory
+    if pinned:
+        raise SystemExit(f'packet: {"; ".join(pinned)}; build the packet from the commit recorded in the set README (固定の記録)')
     os.makedirs(out, exist_ok=True)
     for m in MATERIALS:
         shutil.copyfile(os.path.join(ROOT, m), os.path.join(out, os.path.basename(m)))
@@ -637,8 +661,6 @@ def packet(design, out, seed):
         shutil.copytree(os.path.join(ROOT, md), os.path.join(out, os.path.basename(md)), dirs_exist_ok=True)
     for src, name in extra_materials(design):
         shutil.copyfile(src, os.path.join(out, name))
-    for problem in pinned_materials(design):
-        raise SystemExit(f'packet: {problem}; build the packet from the commit recorded in the set README (固定の記録)')
     stage(design)
     try:
         rc, o, e = run(['tools/claim_lint', 'designs/target', '--also-scan', 'designs/target/design.md'])

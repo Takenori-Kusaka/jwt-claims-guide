@@ -67,3 +67,59 @@ def test_packet_refuses_a_non_empty_directory(tmp_path):
     (tmp_path / 'left.txt').write_text('x', encoding='utf-8')
     with pytest.raises(SystemExit, match='not empty'):
         cc.packet('seeded-a', str(tmp_path), '12')
+
+
+def _hint_errors(**fields):
+    e = {'id': 'X01', 'design': 'seeded-c', 'signpost': 'P1', 'span': '2+', 'difficulty': 'medium', 'form': 'absent',
+         'channel': 'short_list', 'channel_priority': 1, 'channel_question': ['q-revocation-delivery'], 'locations': [],
+         'hint_derived': [], 'copies': 0, 'masked_by': [], 'salience': 'low'}
+    e.update(fields)
+    errors = []
+    cc.check_salience({'errors': [e]}, {}, os.path.join('no', 'such', 'protocol.md'), errors)
+    return [x for x in errors if 'hint' in x]
+
+
+def test_c8_requires_hint_derived_when_the_channel_question_got_a_new_hint():
+    """set2/protocol.md 3.2 (S10): a channel question whose hint #80 changed needs hint_derived, and hint_derived a hint_note."""
+    assert any('hint_derived is required' in x for x in _hint_errors())
+    assert any('hint_derived is required' in x for x in _hint_errors(channel='lint', channel_question=[]))
+    assert any('needs a hint_note' in x for x in _hint_errors(hint_derived=['A17']))
+    assert _hint_errors(hint_derived=['A17'], hint_note='初回とは場所を変えた') == []
+    assert _hint_errors(channel_question=['q-object-level-authz']) == []
+    assert any('is not one of' in x for x in _hint_errors(hint_derived=['Z99'], hint_note='x'))
+
+
+def _pinned_root(tmp_path, monkeypatch):
+    root = tmp_path / 'repo'
+    (root / 'rev' / 'contrasts').mkdir(parents=True)
+    (root / 'rev' / 'a.md').write_text('a\n', encoding='utf-8')
+    (root / 'rev' / 'contrasts' / 'one.md').write_text('one\n', encoding='utf-8')
+    monkeypatch.setattr(cc, 'ROOT', str(root))
+    monkeypatch.setattr(cc, 'MATERIALS', ('rev/a.md',))
+    monkeypatch.setattr(cc, 'MATERIAL_DIRS', ('rev/contrasts',))
+    pins = tmp_path / 'commitments.sha256'
+    pins.write_text(''.join(f'{cc.sha256_lf(str(root / r))} *@{r}\n' for r in ('rev/a.md', 'rev/contrasts/one.md')),
+                    encoding='utf-8')
+    return root, str(pins)
+
+
+def test_pinned_materials_refuse_changed_added_and_removed_files(tmp_path, monkeypatch):
+    """set2/protocol.md S12: the pinned list is the whole packet material, not only the hashes of known files."""
+    root, pins = _pinned_root(tmp_path, monkeypatch)
+    assert cc.pinned_materials('seeded-c', pins) == []
+    (root / 'rev' / 'a.md').write_text('a changed\n', encoding='utf-8')
+    assert any('rev/a.md differs' in p for p in cc.pinned_materials('seeded-c', pins))
+    (root / 'rev' / 'a.md').write_text('a\n', encoding='utf-8')
+    (root / 'rev' / 'contrasts' / 'zz-new.md').write_text('new\n', encoding='utf-8')
+    assert any('zz-new.md is a packet material that is not pinned' in p for p in cc.pinned_materials('seeded-c', pins))
+    (root / 'rev' / 'contrasts' / 'zz-new.md').unlink()
+    (root / 'rev' / 'contrasts' / 'one.md').unlink()
+    assert any('one.md is pinned but missing' in p for p in cc.pinned_materials('seeded-c', pins))
+
+
+def test_packet_refuses_changed_materials_before_writing_anything(tmp_path, monkeypatch):
+    monkeypatch.setattr(cc, 'pinned_materials', lambda design, cpath=None: ['rev/a.md differs from the pinned sha256'])
+    out = tmp_path / 'packet'
+    with pytest.raises(SystemExit, match='differs from the pinned sha256'):
+        cc.packet('seeded-c', str(out), '12')
+    assert not out.exists()
