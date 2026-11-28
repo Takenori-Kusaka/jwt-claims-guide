@@ -3,7 +3,7 @@
 
   python tools/calibration_check.py check                    # the checks below (CI)
   python tools/calibration_check.py materialize DESIGN OUT   # the design as a reviewer gets it: plain file names, no marker
-  python tools/calibration_check.py packet DESIGN OUT [--seed S]   # the whole packet of one review session (protocol.md 6.)
+  python tools/calibration_check.py packet DESIGN OUT [--seed S] [--without NAME]   # the packet of one review session (protocol.md 6.)
   python tools/calibration_check.py render DESIGN            # render --write at the neutral path designs/target, written back
   python tools/calibration_check.py mark DIR (--seeded | --control)   # add the markers (used once, when the set is made)
   python tools/calibration_check.py distribution SET         # the difficulty x channel x salience table of a set's key
@@ -545,17 +545,24 @@ def inside(path, root):
     return path == root or path.startswith(root + os.sep)
 
 
-def extra_materials(design):
-    """The set's own packet files (set 2: the kind-distinction note), as (source path, name in the packet)."""
+def extra_materials(design, without=()):
+    """The set's own packet files (set 2: the kind-distinction note), as (source path, name in the packet). WITHOUT names
+    extra files to leave out (the kind_tell ablation of #88, set2/ablation-kind-tell/protocol.md); only an extra file of
+    the set can be left out, so the pinned materials (S12) always go in."""
     conf = SETS[SET_OF[design]]
-    return [(os.path.join(conf['dir'], rel), os.path.basename(rel)) for rel in conf['extra']]
+    extras = [(os.path.join(conf['dir'], rel), os.path.basename(rel)) for rel in conf['extra']]
+    unknown = sorted(set(without) - {n for _, n in extras})
+    if unknown:
+        raise SystemExit(f'packet --without: {", ".join(unknown)} is not an extra file of {SET_OF[design]} '
+                         f'(only {", ".join(n for _, n in extras) or "none"} can be left out)')
+    return [(p, n) for p, n in extras if n not in without]
 
 
-def packet_errors(out, design):
+def packet_errors(out, design, without=()):
     """P1-P3 of protocol.md 6.: the packet holds exactly the listed files, and nothing of calibration/ but the design
-    (and, for set 2, the set's own packet files)."""
+    (and, for set 2, the set's own packet files, less those left out with --without)."""
     errors = []
-    extras = extra_materials(design)
+    extras = extra_materials(design, without)
     allowed = {os.path.basename(m) for m in MATERIALS} | {'ci-result.txt', 'sheet.md'} | {n for _, n in extras}
     extra_src = {os.path.normcase(os.path.realpath(p)) for p, _ in extras}
     contrasts = set(os.listdir(os.path.join(ROOT, MATERIAL_DIRS[0])))
@@ -643,10 +650,11 @@ def pinned_materials(design, cpath=None):
     return problems
 
 
-def packet(design, out, seed):
+def packet(design, out, seed, without=()):
     """The packet of one review session: the materials, the design at designs/target, the CI result and the sheet.
     The label of the session is kept in the record only (protocol.md 6.), never in the packet. OUT must be a new or
     empty directory outside the repository: a session opened in a clone could reach the answer key."""
+    extras = extra_materials(design, without)  # refuses an unknown --without before anything is written
     if inside(out, ROOT):
         raise SystemExit(f'{out} is inside the repository; give an empty directory outside it (protocol.md 6.)')
     if os.path.exists(out) and os.listdir(out):
@@ -659,7 +667,7 @@ def packet(design, out, seed):
         shutil.copyfile(os.path.join(ROOT, m), os.path.join(out, os.path.basename(m)))
     for md in MATERIAL_DIRS:
         shutil.copytree(os.path.join(ROOT, md), os.path.join(out, os.path.basename(md)), dirs_exist_ok=True)
-    for src, name in extra_materials(design):
+    for src, name in extras:
         shutil.copyfile(src, os.path.join(out, name))
     stage(design)
     try:
@@ -672,7 +680,7 @@ def packet(design, out, seed):
         shutil.copytree(TARGET, os.path.join(out, 'designs', 'target'), ignore=shutil.ignore_patterns(STAMP))
     finally:
         unstage()
-    errors = packet_errors(out, design)
+    errors = packet_errors(out, design, without)
     if errors:
         raise SystemExit(f'packet: {len(errors)} error(s); do not hand this packet to a reviewer: ' + '; '.join(errors[:5]))
 
@@ -690,6 +698,8 @@ def main(argv=None):
     p.add_argument('design', choices=DESIGNS)
     p.add_argument('out')
     p.add_argument('--seed', default='12')
+    p.add_argument('--without', action='append', default=[], metavar='NAME',
+                   help="leave out this extra file of the set (set 2: kind_tell.md; #88's ablation)")
     p = sub.add_parser('render')
     p.add_argument('design', choices=DESIGNS)
     p = sub.add_parser('mark')
@@ -712,8 +722,8 @@ def main(argv=None):
             print(f'marker missing: {m}')
         return 1 if missing else 0
     if a.cmd == 'packet':
-        packet(a.design, a.out, a.seed)
-        print(f'packet: OK ({sum(1 for _ in files_of(a.out))} files in {a.out})')
+        packet(a.design, a.out, a.seed, tuple(a.without))
+        print(f'packet: OK{" without " + ", ".join(a.without) if a.without else ""} ({sum(1 for _ in files_of(a.out))} files in {a.out})')
         return 0
     if a.cmd == 'render':
         render_back(a.design)

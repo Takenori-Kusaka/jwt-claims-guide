@@ -123,3 +123,14 @@ def test_packet_refuses_changed_materials_before_writing_anything(tmp_path, monk
     with pytest.raises(SystemExit, match='differs from the pinned sha256'):
         cc.packet('seeded-c', str(out), '12')
     assert not out.exists()
+
+
+def test_packet_without_leaves_out_only_an_extra_file_of_the_set(tmp_path):
+    """#88's kind_tell ablation: --without drops one of the set's own packet files; the pinned materials always go in."""
+    assert [n for _, n in cc.extra_materials('seeded-c')] == ['kind_tell.md']
+    assert cc.extra_materials('seeded-c', ('kind_tell.md',)) == []
+    with pytest.raises(SystemExit, match='short_list.md is not an extra file'):
+        cc.packet('seeded-c', str(tmp_path / 'packet'), '12', ('short_list.md',))
+    with pytest.raises(SystemExit, match='kind_tell.md is not an extra file of set1'):
+        cc.packet('seeded-a', str(tmp_path / 'packet'), '12', ('kind_tell.md',))
+    assert not (tmp_path / 'packet').exists()
