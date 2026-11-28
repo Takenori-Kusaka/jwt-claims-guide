@@ -82,7 +82,7 @@
 - [ ] （項目 5）DB のロールを選ぶクレームを高権限として扱い、発行元を限定しているか（規則の案：L48） — `cd-05`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
 - [ ] （項目 8）トークンと接続の寿命を分け、プールの接続の最大寿命（`connection_max_lifetime`）と、剥奪を開いた接続に届かせる手段を決めたか（規則の案：L49） — `cd-08`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
 - [ ] status が deprecated の行に、sunset_on・alt・consumers_migration を求める（L18 は読む受け手がいることだけを知らせる）（規則の案：N17。いまの lint が一部を見る） — `q-deprecated-deadline`
-- [ ] 種別の key_rotation に、署名の鍵の名前（signing_key。列の追加を伴う。signing_key_scope は鍵の範囲の 3 値で、どの鍵かを決めない）を宣言にし、組織が回す鍵（period_days があり、retire_after_seconds が 0 より大きい）で、同じ signing_key の種別の retire_after_seconds が、その種別たちの最も長い max_lifetime より短ければ warn（max_clock_skew は足さない。外部の IdP の鍵・起動ごとの鍵のように retire_after_seconds が 0 の種別は見ない。L17 は鍵のローテーションについては unknown_kid・jwks_cache_ttl の有無だけを見る。代わりの案：note が別の種別と同じ鍵と書けば、その種別と比べる〔書き方でずれるので下げた〕）（規則の案：N26。いまの lint が一部を見る） — `q-key-rotation`
+- [ ] 種別の key_rotation に、署名の鍵の名前（signing_key。列の追加を伴う。signing_key_scope は鍵の範囲の 3 値で、どの鍵かを決めない）を宣言にし、retire_after_seconds が 0 より大きい種別で、同じ signing_key の種別の retire_after_seconds が、その種別たちの最も長い max_lifetime より短ければ warn（max_clock_skew は足さない。外部の IdP の鍵・起動ごとの鍵のように retire_after_seconds が 0 の種別は見ない。L17 は鍵のローテーションについては unknown_kid・jwks_cache_ttl の有無だけを見る。代わりの案：note が別の種別と同じ鍵と書けば、その種別と比べる〔書き方でずれるので下げた〕）（規則の案：N26。いまの lint が一部を見る） — `q-key-rotation`
 
 ## レビュアーへ
 

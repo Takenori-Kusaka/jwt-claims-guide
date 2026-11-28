@@ -30,7 +30,7 @@
 
 | 案 | 中身 | 答えが決まる問い | 元の見逃し |
 | --- | --- | --- | --- |
-| N26 | `key_rotation` に署名の鍵の名前 `signing_key` を足して宣言にし（列の追加を伴う）、組織が回す鍵（`period_days` があり、`retire_after_seconds` が 0 より大きい）で、同じ `signing_key` の種別の `retire_after_seconds` が、その種別たちの最も長い `max_lifetime` より短ければ warn。`max_clock_skew` は足さない。代わりの案（note が別の種別と同じ鍵と書けば比べる）は、書き方でずれるので下げた | `q-key-rotation` | D16 |
+| N26 | `key_rotation` に署名の鍵の名前 `signing_key` を足して宣言にし（列の追加を伴う）、`retire_after_seconds` が 0 より大きい種別で（手で回す鍵も含めるため `period_days` は条件にしない）、同じ `signing_key` の種別の `retire_after_seconds` が、その種別たちの最も長い `max_lifetime` より短ければ warn。`max_clock_skew` は足さない（外すまでの秒数が寿命以上・寿命＋ずれ未満のときは見落とす。人の側は `op-key-custody` の手がかりで補う）。代わりの案（note が別の種別と同じ鍵と書けば比べる）は、書き方でずれるので下げた | `q-key-rotation` | D16 |
 | N27 | ホップの `max_lifetime` が、そのホップが運ぶ種別（`token_type`）の `max_lifetime` より短ければ warn | `q-hop-lifetime` | D15 |
 
 - **きれいな設計での確かめ（PR #90 の独立点検）**：
