@@ -87,7 +87,7 @@ def test_every_question_has_one_class_and_a_reason():
     assert all(q['class'] in 'ABCD' and q['why'].strip() for q in tri['questions'])
     c = rt.counts(tri)
     assert (c['A'], c['B'], c['C'], c['D']) == (81, 36, 47, 4)
-    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (41, 21, 19)
+    assert (c['A_with_rule'], c['A_partial_rule'], c['A_without_rule']) == (39, 23, 19)
     assert (c['C_priority_1'], c['C_priority_2'], c['C_priority_3'], c['C_until_rule']) == (19, 10, 18, 4)
     assert c['open_prompts'] == 6
 
@@ -190,8 +190,8 @@ def test_author_self_check_is_grouped_and_marks_what_the_reviewer_samples():
     lines = [x for x in text.split('\n') if x.startswith('- [ ] ')]
     want = {q['id'] for q in tri['questions'] if q['class'] == 'B' or q.get('interim') == 'B'}
     got = [i for x in lines for i in re.findall(r'`([a-z0-9-]+)`', x.rsplit(' — ', 1)[1])]
-    assert set(got) == want and len(got) == len(set(got)) == 76
-    assert len(lines) == 53 <= 53
+    assert set(got) == want and len(got) == len(set(got)) == 78
+    assert len(lines) == 55
     # the 25-question answers are one line; questions waiting for the same rule are one line
     assert sum('`pa-03`' in x and '`pa-25`' in x and '`pa-trace`' in x for x in lines) == 1
     # that line holds the most checks behind one tick: the reviewer always samples it at step 0
@@ -207,7 +207,7 @@ def test_author_self_check_is_grouped_and_marks_what_the_reviewer_samples():
 # ---------------------------------------------------------------- the rules really decide the questions given to them
 def test_every_question_decided_by_a_rule_alone_is_reported_when_its_answer_becomes_no():
     rows = audit.run()
-    assert len(rows) == 41
+    assert len(rows) == 39
     assert [r['question'] for r in rows if not r['ok']] == []
     record = open(os.path.join(ROOT, audit.RECORD), encoding='utf-8').read()
     assert record == audit.record(rows)
@@ -330,11 +330,37 @@ def test_misread_traits_of_the_first_measurement():
     # neither change moves a priority 1 question: the default lists keep their size
     assert len(rt.selected(tri, rt.traits(rt.load_design(os.path.join(cal, 'control-b'))))) == 18
     by = rt.by_id(tri)
-    assert '業務の ID' not in by['q-audit-correlation']['hint'] and by['q-audit-correlation']['priority'] == 2   # A12: set 2 (#82) first
+    # A12: set 2 (#82) missed it again (C17, by answering Yes), so #88 added the hint; the priority stays 2
+    assert '業務の ID' in by['q-audit-correlation']['hint'] and by['q-audit-correlation']['priority'] == 2
     assert '止める単位' in by['q-revocation-delivery']['hint'] and '既知の限界' in by['q-db-context-writers']['hint']
     assert '作り直されずに内側の受け手に届く' in by['q-idp-diff-absorbed']['hint'] and by['q-idp-diff-absorbed']['priority'] == 2
     for qid, n in (('q-agent-delegation-claims', 'N24'), ('cf-06', 'N25'), ('q-txn-scope-fixed', 'N25')):
         assert n in by[qid]['proposed'] and by[qid]['interim'] == 'B'
+
+
+def test_misses_of_the_second_measurement():
+    """#88: the misses of set 2 (research/template-design/calibration/set2/results.md 4.) are fed back as hints, two
+    answering rules and two rule proposals, without moving a priority 1 question."""
+    tri = rt.load(ROOT)
+    by = rt.by_id(tri)
+    for qid, word in (('q-audit-correlation', 'ツール・サービスごと'), ('q-revocation-delivery', '承認者を含む'),
+                      ('q-identifier-choice', '1 つずつ'), ('q-original-principal', '理由つきの見送り'),
+                      ('q-copies-outlive', '期限を言えない'), ('q-long-running', '承認した人の在籍'),
+                      ('q-lint-workaround', '区間の長さではない')):
+        assert word in by[qid]['hint'], qid
+    assert '同じ鍵で署名するすべての種別' in by_prompt(tri, 'op-key-custody')['hint']
+    for qid, n in (('q-hop-lifetime', 'N27'), ('q-key-rotation', 'N26')):
+        assert n in by[qid]['proposed'] and by[qid]['interim'] == 'B' and n in tri['proposed_rules']
+    for qid in ('q-audit-correlation', 'q-original-principal', 'q-copies-outlive', 'q-long-running'):
+        assert by[qid]['priority'] == 2
+    cal = os.path.join(ROOT, 'research', 'template-design', 'calibration')
+    assert len(rt.selected(tri, rt.traits(rt.load_design(os.path.join(cal, 'control-b'))))) == 18
+    sheet, _ = rt.design_sheet(tri, os.path.join(ROOT, 'templates', 'examples', 'scenario-b'), seed='88')
+    assert '1 つずつ確かめる。1 つでも満たさなければ No' in sheet and 'No の理由を 1 つ見つけても止めずに' in sheet
+
+
+def by_prompt(tri, pid):
+    return next(p for p in tri['open_prompts'] if p['id'] == pid)
 
 
 def test_a_trait_that_cannot_be_read_shows_its_questions(tmp_path):

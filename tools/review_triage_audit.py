@@ -118,10 +118,6 @@ def _wider_scope(d):
     h(d, 'H4')['scope'].append('admin.write')
 
 
-def _longer_life(d):
-    h(d, 'H4')['max_lifetime'] = 3600
-
-
 def _not_upstream(d):
     h(d, 'H4')['custom_claims'].append('C-task-id')
 
@@ -164,10 +160,6 @@ def _public_plain_rt(d):
     t(d, 'RT')['rt_rotation'] = {'rotation': False, 'reuse_detection': 'no'}
 
 
-def _no_unknown_kid(d):
-    t(d, 'KC_AT').pop('unknown_kid', None)
-
-
 def _many_items(d):
     c(d, 'C-roles')['max_items'] = 500
 
@@ -188,7 +180,6 @@ MUTATIONS = {
     'confidential': ('B', _confidential, 'C-roles の confidential_from に gateway を足す（KC_AT は gateway に見える）'),
     'oversize': ('B', _oversize, 'C-roles の max_bytes を 200000 にする'),
     'wider-scope': ('B', _wider_scope, 'H4 の scope に、上流に無い admin.write を足す'),
-    'longer-life': ('B', _longer_life, 'H4 の max_lifetime を、上流より長い 3600 秒にする'),
     'not-upstream': ('B', _not_upstream, 'H4 の custom_claims に、上流に無い C-task-id を足す'),
     'roles-unenforced': ('B', _roles_unenforced, 'C-roles の enforced_at を消す'),
     'alg-none': ('B', _alg_none, 'KC_AT の alg_allowlist に none を足す'),
@@ -199,7 +190,6 @@ MUTATIONS = {
     'jwe-no-inner': ('B', _jwe_no_inner, 'KC_AT を JWE にし、ネストの宣言（sign_then_encrypt）を書かない'),
     'rt-no-idle': ('B', _rt_no_idle, 'RT の idle_timeout を消す'),
     'public-plain-rt': ('B', _public_plain_rt, 'クライアントを public にし、RT のローテーションと再利用の検知を外す'),
-    'no-unknown-kid': ('B', _no_unknown_kid, 'KC_AT の unknown_kid を消す'),
     'many-items': ('B', _many_items, 'C-roles の max_items を 500 にする'),
 }
 
@@ -214,10 +204,9 @@ AUDIT = {
     'pa-17': 'strip-off', 'cf-08': 'strip-off', 'ap-2-5': 'strip-off',
     'ap-2-4': 'no-namespace', 'q-payload-readable': 'confidential', 'q-confidential-reaches-reader': 'confidential',
     'q-size-limit': 'oversize',
-    'cf-05': 'wider-scope', 'q-hop-narrowing': 'wider-scope', 'q-hop-lifetime': 'longer-life', 'q-claim-earliest-hop': 'not-upstream',
+    'cf-05': 'wider-scope', 'q-hop-narrowing': 'wider-scope', 'q-claim-earliest-hop': 'not-upstream',
     'ap-1-1': 'alg-none', 'ap-1-3': 'aud-optional', 'ap-1-4': 'no-tenant-binding', 'ap-1-5': 'no-key-source', 'ap-1-8': 'skew',
     'q-nested-jwt-both-layers': 'jwe-no-inner', 'q-session-rt-bounds': 'rt-no-idle', 'q-rt-policy-by-client': 'public-plain-rt',
-    'q-key-rotation': 'no-unknown-kid',
 }
 
 
@@ -317,6 +306,8 @@ def record(rows):
           '| `ap-1-3`・`q-txn-scope-fixed` | A（L27）／A（L11） | 引く規則に L11／L16 を足した | 再点検：問いの後半を No にすると出るのは、引いていなかった規則だった |',
           '| `q-agent-delegation-claims` | A（L12） | A・一部（案 N24）。書き手の自己点検 | 初回の測定（#12）の A01：入れ子の act で行為者を照合すると、照合の文（`enforced_at`・`validates`）にだけ書くと、L12 は見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
           '| `cf-06`・`q-txn-scope-fixed` | A（L43）／A（L11・L16） | A・一部（案 N25）。書き手の自己点検 | 初回の測定の B03・B05：ホップの文に書いた Authorization での送り方と、ホップで受けるのに `consumers` に無い受け手は、L43・L11 が見ない（#80）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
+          '| `q-hop-lifetime` | A（L16） | A・一部（案 N27）。書き手の自己点検 | 2 組目の測定（#12）の D15：ホップの寿命を、運ぶ種別の寿命より短く（上流と同じに）宣言すると、L16 は上流を超える寿命を見ない（#88）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
+          '| `q-key-rotation` | A（L17） | A・一部（案 N26）。書き手の自己点検 | 2 組目の測定の D16：古い鍵を外すまでの秒数が、同じ鍵で署名する種別の寿命より短くても、L17 は見ない（#88）。書き換えの確かめは外した。規則ができたら、書き換えを足して戻す |',
           '']
     return '\n'.join(L)
 

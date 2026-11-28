@@ -10,7 +10,7 @@
 
 ## 提出前の自己点検（書き手が確かめる）
 
-書き手が自分の設計書を開けば確かめられることを、53 行にまとめました（観点書 `templates/review/perspectives.md` の 76 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
+書き手が自分の設計書を開けば確かめられることを、55 行にまとめました（観点書 `templates/review/perspectives.md` の 78 問に当たる。行の末尾が問いの ID で、見る欄は観点書の同じ ID の問いにある）。レビュアーは、ここの問いには答えません。
 満たす行に印を付け、満たさない・当てはまらない行は、印を付けずに行の末尾に理由を書いてください。レビュアーは、印の無い行を読み、**25 問の回答の行（必ず）と、【No なら Blocker】の行から 2 件を抜き取って、欄を開きます**（手順の段 0）。
 区分と理由は `templates/review/triage.yaml` にあります。量と分け方は筆者の提案です（追跡 #56）。
 
@@ -73,6 +73,7 @@
 - [ ] Txn-Token の種別（kind が txn_token）を運ぶホップで、(1) ホップに運び方の列 transport を足して宣言にし、txn_token_header でなければ warn（L43 は目録の種別ごとの transport だけを見る。代わりの案：validates.checks・note が Authorization ヘッダーを名指し、同じ文に打ち消し〔読まない・使わない・受けない〕が無ければ warn）、(2) ホップの to（受け手）が tctx の行の consumers・enforced_at.service に無ければ warn（L11 は consumers に挙げた受け手だけを見る）（規則の案：N25。いまの lint が一部を見る） — `cf-06`・`q-txn-scope-fixed`
 - [ ] **【No なら Blocker】** （項目 7）入口で検証しても、各サービスでも検証しているか（すべてのホップの `validates` に中身があれば Yes）（規則の案：L46） — `cf-07`・`q-unverified-claim-extraction`・`ap-1-2`
 - [ ] （項目 10）`sub`・`act`・`txn`・承認 ID を分けて記録し、トークン全文は記録しない、と `log_policy` に書いてあるか（規則の案：L45） — `cf-10`・`ap-2-8`
+- [ ] ホップの max_lifetime が、そのホップが運ぶ種別（token_type）の max_lifetime より短ければ warn（ホップの寿命は運ぶトークンの受け入れの上限。短く書くと L16 が上流との比較を見落とす）（規則の案：N27。いまの lint が一部を見る） — `q-hop-lifetime`
 - [ ] 採用の Txn-Token の required_claims に、草案の必須（iat・aud・exp・txn・sub・scope・req_wl）がそろう（規則の案：N8。いまの lint が一部を見る） — `q-txn-required-claims`
 - [ ] **【No なら Blocker】** 内部・委任のトークン種別（internal_token・txn_token と、act を運ぶ種別）に log_policy を求める（規則の案：N18。いまの lint が一部を見る） — `ap-2-9`・`q-internal-delegation-token`
 - [ ] どのトークンも、URL・クエリ・リダイレクトの断片以外で運ぶ、と目録の `transport` から言えるか（WebSocket など、ヘッダーを付けられない経路の扱いが書いてあるか）（規則の案：L54） — `q-token-not-in-url`
@@ -81,6 +82,7 @@
 - [ ] （項目 5）DB のロールを選ぶクレームを高権限として扱い、発行元を限定しているか（規則の案：L48） — `cd-05`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
 - [ ] （項目 8）トークンと接続の寿命を分け、プールの接続の最大寿命（`connection_max_lifetime`）と、剥奪を開いた接続に届かせる手段を決めたか（規則の案：L49） — `cd-08`（当てはまるときだけ：トークンの値を DB の層まで運ぶ）
 - [ ] status が deprecated の行に、sunset_on・alt・consumers_migration を求める（L18 は読む受け手がいることだけを知らせる）（規則の案：N17。いまの lint が一部を見る） — `q-deprecated-deadline`
+- [ ] 種別の key_rotation に古い鍵を外すまでの秒数（retire_after_seconds）があり、同じ発行者の同じ鍵（signing_key_scope）で署名する種別のいずれかの max_lifetime（と max_clock_skew）より短ければ warn（L17 は unknown_kid・jwks_cache_ttl の有無だけを見る）（規則の案：N26。いまの lint が一部を見る） — `q-key-rotation`
 
 ## レビュアーへ
 

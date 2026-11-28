@@ -38,7 +38,9 @@ Checks (errors), for every set:
   C6  the files listed in the set's commitments.sha256 have those sha256 (the targets and the key fixed before measuring;
       CRLF is read as LF, so a Windows checkout gives the same value as git and CI)
   C6 also reads lines `<sha> *@<path>` (from the repository root): set 2 pins the packet materials (templates/review);
-      packet refuses to build a set-2 packet when one of them changed (set2/protocol.md S12)
+      packet refuses to build a set-2 packet when one of them changed (set2/protocol.md S12). A set marked `released` in
+      SETS (measured; the materials then moved on: set 2 after #88) skips the `@` lines here, and C7 builds its packets
+      without the pin; packet itself still refuses, and the packet of such a set is built from the commit in `released`
 Set 2 only (its protocol.md 3.1, 3.2 and 9.):
   C8  the difficulty of each error follows from signpost x span; the salience facts are what the materialized seeded design
       shows (copies = the lines that hold salience_phrase; masked_by = the errors at the same primary location that are at
@@ -66,7 +68,10 @@ SETS = {
     'set1': {'dir': CAL, 'controls': {'seeded-a': 'control-a', 'seeded-b': 'control-b'}, 'extra': ()},
     # set 2 adds the kind-distinction note to the packet (set2/protocol.md, revision S2)
     'set2': {'dir': os.path.join(CAL, 'set2'), 'controls': {'seeded-c': 'control-c', 'seeded-d': 'control-d'},
-             'extra': ('packet/kind_tell.md',)},
+             'extra': ('packet/kind_tell.md',),
+             # measured (PR #87, #89); #88 then changed templates/review. The `@` pins stay for packet (S12: a set-2 packet
+             # is built from this commit, whose materials are the pinned ones), but check no longer compares them
+             'released': {'by': '#88', 'commit': '5be7cea'}},
 }
 CONTROLS = {s: c for v in SETS.values() for s, c in v['controls'].items()}
 SEEDED = tuple(CONTROLS)
@@ -450,6 +455,9 @@ def check_commitments(set_name, errors):
         if not m:
             continue
         want, rel = m.groups()
+        if rel.startswith('@') and SETS[set_name].get('released'):
+            n += 1  # the materials moved on after the set was measured; packet still refuses them (S12)
+            continue
         p = os.path.join(ROOT, rel[1:]) if rel.startswith('@') else os.path.join(base, rel)  # @: from the repository root
         got = sha256_lf(p) if os.path.isfile(p) else 'missing'
         if got != want:
@@ -533,7 +541,8 @@ def check(errors, sets=None):
                 continue
             with tempfile.TemporaryDirectory() as tmp:
                 try:
-                    packet(d, os.path.join(tmp, 'packet'), '12')
+                    # a released set is checked for its structure (P1-P3) with the current materials
+                    packet(d, os.path.join(tmp, 'packet'), '12', pin=not conf.get('released'))
                 except SystemExit as e:
                     errors.append(f'C7 {d}: {e}')
         check_commitments(set_name, errors)
@@ -650,7 +659,7 @@ def pinned_materials(design, cpath=None):
     return problems
 
 
-def packet(design, out, seed, without=()):
+def packet(design, out, seed, without=(), pin=True):
     """The packet of one review session: the materials, the design at designs/target, the CI result and the sheet.
     The label of the session is kept in the record only (protocol.md 6.), never in the packet. OUT must be a new or
     empty directory outside the repository: a session opened in a clone could reach the answer key."""
@@ -659,7 +668,7 @@ def packet(design, out, seed, without=()):
         raise SystemExit(f'{out} is inside the repository; give an empty directory outside it (protocol.md 6.)')
     if os.path.exists(out) and os.listdir(out):
         raise SystemExit(f'{out} is not empty')
-    pinned = pinned_materials(design)  # before anything is written: a refused packet leaves no partial directory
+    pinned = pinned_materials(design) if pin else []  # before anything is written: a refused packet leaves no partial directory
     if pinned:
         raise SystemExit(f'packet: {"; ".join(pinned)}; build the packet from the commit recorded in the set README (固定の記録)')
     os.makedirs(out, exist_ok=True)

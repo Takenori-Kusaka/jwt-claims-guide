@@ -785,7 +785,7 @@ JWT のクレームの設計書（`templates/00_core.md` と台帳の YAML）を
 - つながり：対比表 `review:contrasts/four-lifetimes#misuse`／lint `lint:L16`／実行 `test:negative_tests#exchange-narrowing`
 - 根拠：slide:p06-narrow-downstream、draft-ietf-oauth-transaction-tokens-11 §6
 <!-- req:p06-narrow-downstream.R1 -->
-- 区分：A 機械。lint の `lint:L16` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L16` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N27）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-single-aud-resource"></a>
 
@@ -1541,7 +1541,7 @@ DB・ブローカーに届くホップ（`hops.yaml` の `db_connection` など�
 - つながり：対比表 `review:contrasts/signed-vs-enforced#misuse`／lint `lint:L17`／実行 `test:negative_tests#untrusted-key`
 - 根拠：slide:p01-key-rotation-jwks
 <!-- req:p01-key-rotation-jwks.R5 -->
-- 区分：A 機械。lint の `lint:L17` が確かめる（レビュアーは答えない）
+- 区分：A 機械。lint の `lint:L17` が確かめる（レビュアーは答えない）。規則が見ない残り（規則の案：N26）は、規則ができるまで書き手の自己点検で確かめる
 
 <a id="q-dependency-outage"></a>
 
